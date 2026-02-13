@@ -18,7 +18,7 @@ We envision a world where:
 **Build the most secure, transparent, and developer-friendly AI gateway for regulated industries.**
 
 We will achieve this by:
-1. **Open-core development** - Community-driven innovation with enterprise-grade extensions
+1. **Enterprise-grade platform** - Purpose-built for regulated industries from Day 1
 2. **Security-first design** - Every feature evaluated through a security lens
 3. **Zero vendor lock-in** - Support all major LLM providers equally
 4. **Compliance automation** - Make SOC 2, HIPAA, GDPR compliance trivial

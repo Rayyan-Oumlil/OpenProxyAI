@@ -158,8 +158,8 @@ Read the **entire founder essentials** package:
 
 #### [07. Business Model & Pricing](./07_Business_Model/)
 - **[Pricing Strategy](./07_Business_Model/pricing_strategy.md)** - Complete pricing model
-- Open core strategy
-- Tier structure (OSS, Starter, Growth, Enterprise)
+- Proprietary SaaS model (free trial → paid tiers)
+- Tier structure (Free Trial, Starter, Growth, Enterprise)
 - Revenue projections
 - Unit economics (LTV:CAC)
 - Expansion revenue model
@@ -169,6 +169,41 @@ Read the **entire founder essentials** package:
 - Growth: $7,500/mo (200 users)
 - Enterprise: $25K+/mo (custom)
 - Target NRR: 120%+
+
+---
+
+### 🌐 **MARKETING WEBSITE**
+
+#### [09. Marketing Website & Relume Prompt](./09_Marketing_Website/)
+- **[Relume AI Builder Prompt](./09_Marketing_Website/relume_prompt.md)** - Production-ready website
+- 15-page enterprise SaaS website architecture (CISO-first positioning)
+- Design direction (colors, typography, voice, tone)
+- Conversion flows (CISOs → Demo, Engineers → Trial)
+- Navigation structure for enterprise audience
+- All specifications ready to paste into Relume Site Builder
+
+**What's Inside:**
+- Complete company description & positioning
+- Target audience segmentation
+- 15 page specifications (Homepage, Features, Pricing, Security, Use Cases, etc.)
+- Enterprise security aesthetic design system
+- Strategic CTAs and conversion flows
+- Navigation structure
+
+**How to Use:**
+1. Go to https://library.relume.io/ai-site-builder
+2. Copy the entire prompt from [relume_prompt.md](./09_Marketing_Website/relume_prompt.md)
+3. Paste it into Relume AI Builder
+4. Generate your 15-page website
+5. Review and export React components
+6. Integrate exported components into your Vite project
+
+**Strategic Positioning:**
+- CISO-first (primary audience)
+- CTO-second (technical validation)
+- Enterprise infrastructure aesthetic
+- Not startup-y, not corporate-bloated
+- Professional Series A vibe
 
 ---
 

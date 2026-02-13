@@ -138,16 +138,16 @@ Current reality:
 
 ---
 
-## 💰 Business Model: Open Core
+## 💰 Business Model: Proprietary SaaS
 
-### Free (Open Source)
-- ✅ Basic LLM proxy (OpenAI, Anthropic, Azure)
-- ✅ Token counting and basic cost tracking
-- ✅ API key authentication
-- ✅ Docker deployment
-- ✅ Community support
+### Free Trial (14 Days)
+- ✅ Full platform access
+- ✅ All Starter tier features
+- ✅ No credit card required
+- ✅ Email support during trial
+- ✅ Self-service onboarding
 
-**Goal:** Viral adoption, community contributions
+**Goal:** Fast time-to-value, demonstrate ROI quickly
 
 ### Enterprise (Paid)
 - 🔒 SSO (SAML, OAuth, LDAP)

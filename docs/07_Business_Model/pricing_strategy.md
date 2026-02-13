@@ -1,46 +1,49 @@
 # Business Model & Pricing Strategy
 
-## 🎯 Business Model: Open Core
+## 🎯 Business Model: Proprietary SaaS
 
 ### The Model
 
 ```
 ┌────────────────────────────────────────┐
-│          Open Source (Free)            │
-│  • Basic LLM proxy                     │
-│  • Cost tracking                       │
-│  • API keys                            │
-│  • Community support                   │
-│  • Self-hosted                         │
+│       Free Trial (14 Days)             │
+│  • Full platform access                │
+│  • All Starter features                │
+│  • No credit card required             │
+│  • Email support                       │
 └──────────────┬─────────────────────────┘
                │
-               │ Value Ladder
+               │ Conversion Path
                ▼
 ┌────────────────────────────────────────┐
-│       Enterprise (Paid)                │
-│  • SSO / SAML                          │
-│  • Multi-tenancy                       │
-│  • Advanced audit logs                 │
-│  • Policy enforcement (DLP)            │
-│  • Compliance dashboard                │
-│  • SLA & support                       │
-│  • On-premise deployment               │
+│          Paid Tiers                    │
+│  Starter ($2,500/mo)                   │
+│  Growth ($7,500/mo)                    │
+│  Enterprise ($25,000+/mo)              │
 └────────────────────────────────────────┘
 ```
 
-### Why Open Core?
+### Why Proprietary SaaS?
 
-**Bottom-Up Adoption:**
-1. Engineer discovers on GitHub/HN
-2. Downloads OSS, tries locally (< 5 min)
-3. Loves it, rolls out to team
-4. Team hits limits (SSO needed, 50+ users)
-5. Security team requires audit/compliance
-6. Company pays for Enterprise
+**Direct Value Delivery:**
+1. CISO discovers through targeted outreach/content
+2. Books demo, sees full platform capabilities
+3. Starts 14-day trial with support
+4. Validates with technical team
+5. Security team approves
+6. Company subscribes to appropriate tier
 
-**Math:**
-- 1,000 OSS users → 10 convert to paid (1%) = $250K ARR
-- 10,000 OSS users → 100 convert (1%) = $2.5M ARR
+**Advantages:**
+- ✅ Faster GTM (no OSS support burden)
+- ✅ Protected IP and competitive moat
+- ✅ Predictable revenue from Day 1
+- ✅ Enterprise-grade positioning from launch
+- ✅ Full feature control
+
+**Target Conversion Rate:**
+- 100 demos → 20 trials → 5 paid customers
+- Average deal size: $60K/year
+- First year target: 12 customers = $720K ARR
 
 ---
 
@@ -57,27 +60,25 @@
 
 ### Detailed Pricing
 
-#### **Open Source (Community Edition)**
+#### **Free Trial**
 
-**Price:** $0
+**Price:** $0 (14 days)
 
 **Includes:**
-- ✅ LLM proxy (OpenAI, Anthropic, Azure)
-- ✅ Basic cost tracking
-- ✅ API key authentication
-- ✅ Simple audit logs (30 days)
-- ✅ Admin dashboard (read-only)
-- ✅ Docker deployment
-- ✅ Community support (Discord, GitHub)
+- ✅ Full Starter tier access
+- ✅ Up to 10 users
+- ✅ 10,000 requests included
+- ✅ All core features (SSO, policies, audit logs)
+- ✅ Email support
+- ✅ Guided onboarding
+- ✅ No credit card required
 
-**Limits:**
-- ⚠️ 10 users max
-- ⚠️ 10,000 requests/month
-- ⚠️ No SSO
-- ⚠️ No policy enforcement
-- ⚠️ No SLA
+**After Trial:**
+- Choose paid tier to continue
+- Data retained for 30 days
+- Can export all audit logs
 
-**Ideal for:** Solo developers, small startups, POCs
+**Ideal for:** Evaluating OpenProxyAI for enterprise deployment
 
 ---
 
