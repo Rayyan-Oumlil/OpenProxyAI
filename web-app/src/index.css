@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 14% 4%;
+    --foreground: 216 20% 96%;
+    --card: 220 12% 7%;
+    --card-foreground: 216 20% 96%;
+    --popover: 220 12% 7%;
+    --popover-foreground: 216 20% 96%;
+    --primary: 82 100% 59%;
+    --primary-foreground: 220 14% 4%;
+    --secondary: 220 12% 12%;
+    --secondary-foreground: 216 20% 96%;
+    --muted: 220 12% 12%;
+    --muted-foreground: 216 10% 70%;
+    --accent: 82 100% 59%;
+    --accent-foreground: 220 14% 4%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 10% 15%;
+    --input: 220 10% 15%;
+    --ring: 82 100% 59%;
+    --radius: 0.875rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: auto;
+  }
+  
+  body {
+    @apply bg-[#0B0C0F] text-[#F2F5F9] antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.02em;
+    line-height: 0.95;
+  }
+  
+  code, pre, .mono {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+}
+
+@layer components {
+  .eyebrow-pill {
+    @apply inline-flex items-center px-4 py-1.5 rounded-full text-xs font-medium tracking-wide uppercase;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  
+  .glass-card {
+    @apply rounded-[22px];
+    background: rgba(17, 19, 24, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  }
+  
+  .glass-card-hover:hover {
+    transform: translateY(-6px);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+  
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-[14px] font-medium transition-all duration-200;
+    background: #B6FF2E;
+    color: #0B0C0F;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px rgba(182, 255, 46, 0.25);
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-[14px] font-medium transition-all duration-200;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    color: #F2F5F9;
+  }
+  
+  .btn-secondary:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  
+  .section-pinned {
+    @apply relative w-screen h-screen overflow-hidden;
+  }
+  
+  .bg-overlay {
+    @apply absolute inset-0;
+    background: linear-gradient(180deg, rgba(11, 12, 15, 0.35), rgba(11, 12, 15, 0.65));
+  }
+  
+  .grain-overlay {
+    @apply fixed inset-0 pointer-events-none z-50;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+  }
+  
+  .text-gradient {
+    background: linear-gradient(135deg, #F2F5F9 0%, #A7AFBA 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .accent-text {
+    color: #B6FF2E;
+  }
+  
+  .hairline {
+    @apply w-full h-px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
