@@ -9,7 +9,7 @@ const plans = [
   {
     name: 'Developer',
     price: 'Free',
-    description: 'Perfect for side projects and experiments',
+    description: 'Evaluate the platform with your team — no credit card required',
     features: [
       '100K requests/mo',
       'Community support',
@@ -17,14 +17,14 @@ const plans = [
       '3 team members',
       'Standard caching',
     ],
-    cta: 'Get started',
+    cta: 'Start evaluating',
     featured: false,
   },
   {
     name: 'Team',
     price: '$49',
     period: '/mo',
-    description: 'For growing teams with production workloads',
+    description: 'For security-conscious teams deploying AI in production',
     features: [
       'Unlimited requests',
       'Priority support',

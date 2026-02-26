@@ -109,8 +109,8 @@ export default function HeroSection() {
             ref={subRef}
             className="text-lg md:text-xl text-[#A7AFBA] max-w-[52ch] mx-auto mb-8"
           >
-            Route requests across 1600+ LLMs with unified auth, caching, retries, 
-            and real-time spend tracking.
+            The secure AI gateway for regulated enterprises. Enforce policies, redact PII, 
+            and audit every LLM request — across 1600+ models, from one endpoint.
           </p>
 
           {/* CTAs */}

@@ -7,14 +7,16 @@ gsap.registerPlugin(ScrollTrigger);
 
 const testimonials = [
   {
-    quote: "We switched from three separate provider SDKs to openproxyAI in a day. Observability alone saved us weeks of debugging.",
-    author: 'Engineering Lead',
-    company: 'Fintech',
+    quote: "Our compliance team was blocking every AI initiative. openproxyAI gave us the audit logs and PII controls they needed — we went from blocked to deployed in two weeks.",
+    author: 'Marcus Chen',
+    role: 'VP of Security',
+    company: 'Regional Investment Bank',
   },
   {
-    quote: "Guardrails let us enforce PII redaction across every model without changing our prompts. Security review was a breeze.",
-    author: 'Security Engineer',
-    company: 'Healthcare',
+    quote: "We needed HIPAA-grade guardrails before any LLM could touch patient data. openproxyAI was the only gateway that gave us prompt-level redaction and a full chain of custody.",
+    author: 'Dr. Sarah Okonkwo',
+    role: 'Chief Information Security Officer',
+    company: 'Healthcare Network',
   },
 ];
 
@@ -88,10 +90,10 @@ export default function TestimonialsSection() {
         {/* Header */}
         <div ref={headerRef} className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#F2F5F9] mb-4">
-            Loved by <span className="text-[#B6FF2E]">platform teams</span>
+            Trusted by <span className="text-[#B6FF2E]">security teams</span>
           </h2>
           <p className="text-base lg:text-lg text-[#A7AFBA] max-w-[50ch] mx-auto">
-            Join teams shipping AI without the infra headache.
+            From financial services to healthcare — teams in regulated industries rely on openproxyAI to keep AI usage compliant.
           </p>
         </div>
 
@@ -112,7 +114,7 @@ export default function TestimonialsSection() {
               </p>
 
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#B6FF2E]/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-[#B6FF2E]/10 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-medium text-[#B6FF2E]">
                     {testimonial.author.charAt(0)}
                   </span>
@@ -122,7 +124,7 @@ export default function TestimonialsSection() {
                     {testimonial.author}
                   </div>
                   <div className="text-xs text-[#A7AFBA]">
-                    {testimonial.company}
+                    {testimonial.role} · {testimonial.company}
                   </div>
                 </div>
               </div>

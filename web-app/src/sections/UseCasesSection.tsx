@@ -1,25 +1,25 @@
 import { useRef, useLayoutEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowUpRight, Headphones, PenTool, Wrench } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, HeartPulse, Landmark } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const useCases = [
   {
-    icon: Headphones,
-    title: 'Customer Support',
-    description: 'Route tickets to the right model. Cache common answers. Cut costs by 40%.',
+    icon: TrendingUp,
+    title: 'Financial Services',
+    description: 'Meet SOC 2 and regulatory requirements. Enforce PII redaction on every prompt. Full audit trail per user, per model.',
   },
   {
-    icon: PenTool,
-    title: 'Content & Marketing',
-    description: 'Generate variants across models. Compare quality, latency, and price in one view.',
+    icon: HeartPulse,
+    title: 'Healthcare & Life Sciences',
+    description: 'HIPAA-ready guardrails that strip PHI before it reaches any LLM. Control which models clinicians and researchers can access.',
   },
   {
-    icon: Wrench,
-    title: 'Internal Tools',
-    description: 'Secure access with virtual keys. Tag spend by team. Enforce guardrails by default.',
+    icon: Landmark,
+    title: 'Government & Public Sector',
+    description: 'Air-gapped and on-prem deployment options. RBAC aligned to agency roles. Immutable audit logs with 90-day retention.',
   },
 ];
 
@@ -110,10 +110,10 @@ export default function UseCasesSection() {
             Use Cases
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#F2F5F9] mb-4">
-            Ship AI features <span className="text-[#B6FF2E]">faster</span>
+            Built for <span className="text-[#B6FF2E]">regulated industries</span>
           </h2>
           <p className="text-base lg:text-lg text-[#A7AFBA] max-w-[50ch] mx-auto">
-            From prototypes to production—without rebuilding your stack.
+            Deploy AI across your organization without compromising compliance or security.
           </p>
         </div>
 

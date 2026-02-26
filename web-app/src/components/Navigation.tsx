@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Github } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -45,15 +45,6 @@ export default function Navigation() {
 
           {/* Desktop CTAs */}
           <div className="hidden lg:flex items-center gap-4">
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-[#A7AFBA] hover:text-[#F2F5F9] transition-colors"
-            >
-              <Github className="w-4 h-4" />
-              <span>10.7k</span>
-            </a>
             <a href="#" className="text-sm text-[#A7AFBA] hover:text-[#F2F5F9] transition-colors">
               Sign in
             </a>

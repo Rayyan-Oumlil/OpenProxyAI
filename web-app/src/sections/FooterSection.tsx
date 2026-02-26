@@ -8,6 +8,7 @@ gsap.registerPlugin(ScrollTrigger);
 const footerLinks = {
   Product: ['Gateway', 'Observability', 'Guardrails', 'Pricing'],
   Docs: ['Quickstart', 'API Reference', 'SDKs', 'Status'],
+  Trust: ['Security', 'Compliance', 'SOC 2', 'Privacy'],
   Company: ['Blog', 'Contact', 'Legal'],
 };
 
@@ -98,7 +99,7 @@ export default function FooterSection() {
       {/* Footer */}
       <footer ref={footerRef} className="relative z-10 border-t border-white/10 bg-[#0B0C0F]/80 backdrop-blur-sm">
         <div className="px-6 lg:px-[9vw] py-12 lg:py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 lg:gap-12">
             {/* Logo & Tagline */}
             <div className="col-span-2 md:col-span-4 lg:col-span-2 footer-column">
               <a href="#" className="inline-block mb-4">
