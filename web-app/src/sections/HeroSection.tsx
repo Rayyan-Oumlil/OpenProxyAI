@@ -88,7 +88,7 @@ export default function HeroSection() {
         <div className="max-w-[1100px] w-full text-center">
           {/* Eyebrow */}
           <div ref={eyebrowRef} className="eyebrow-pill text-[#B6FF2E] mb-6">
-            AI Gateway & Observability
+            Zero Trust AI Gateway
           </div>
 
           {/* H1 */}
@@ -116,11 +116,11 @@ export default function HeroSection() {
           {/* CTAs */}
           <div ref={ctaRef} className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
             <a href="#" className="btn-primary group">
-              Get started free
+              Book a demo
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </a>
             <a href="#" className="btn-secondary">
-              View docs
+              Start free trial
             </a>
           </div>
 

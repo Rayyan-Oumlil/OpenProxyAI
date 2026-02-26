@@ -7,46 +7,63 @@ gsap.registerPlugin(ScrollTrigger);
 
 const plans = [
   {
-    name: 'Developer',
+    name: 'Free Trial',
     price: 'Free',
-    description: 'Evaluate the platform with your team — no credit card required',
+    period: '/ 14 days',
+    description: 'Full platform access to evaluate — no credit card required',
     features: [
-      '100K requests/mo',
-      'Community support',
-      'Basic observability',
-      '3 team members',
-      'Standard caching',
+      '10K requests included',
+      'Up to 10 users',
+      'SSO, policies & audit logs',
+      'Email support',
+      'Guided onboarding',
     ],
-    cta: 'Start evaluating',
+    cta: 'Start free trial',
     featured: false,
   },
   {
-    name: 'Team',
-    price: '$49',
+    name: 'Starter',
+    price: '$2,500',
     period: '/mo',
-    description: 'For security-conscious teams deploying AI in production',
+    description: 'For security teams deploying AI in regulated environments',
     features: [
-      'Unlimited requests',
-      'Priority support',
-      'SSO & SCIM',
-      'Unlimited team members',
-      'Advanced caching',
-      'Custom guardrails',
+      '100K requests/mo',
+      'Up to 50 users',
+      'SSO (Google, Microsoft, Okta)',
+      'Audit logs — 90-day retention',
+      'Budget controls per user & dept',
+      'Email support (24h response)',
     ],
-    cta: 'Start free trial',
+    cta: 'Book a demo',
+    featured: false,
+  },
+  {
+    name: 'Growth',
+    price: '$7,500',
+    period: '/mo',
+    description: 'For mid-size organizations scaling governed AI across teams',
+    features: [
+      'Up to 200 users',
+      'Policy engine & DLP',
+      'SCIM provisioning',
+      'Audit logs — 1-year retention',
+      'Phone support',
+      'Compliance dashboard',
+    ],
+    cta: 'Book a demo',
     featured: true,
   },
   {
     name: 'Enterprise',
     price: 'Custom',
-    description: 'For organizations with advanced needs',
+    description: 'For large organizations with advanced compliance requirements',
     features: [
-      'Dedicated support',
+      'Unlimited users',
+      'On-premise & air-gapped deploy',
+      'Audit logs — up to 7 years',
       '99.99% SLA',
-      'Audit logs',
-      'Custom contracts',
-      'On-prem option',
-      'Security reviews',
+      'Dedicated CSM',
+      'Security reviews & BAA',
     ],
     cta: 'Contact sales',
     featured: false,
@@ -125,12 +142,12 @@ export default function PricingSection() {
             Start free. <span className="text-[#B6FF2E]">Scale predictably.</span>
           </h2>
           <p className="text-base lg:text-lg text-[#A7AFBA] max-w-[50ch] mx-auto">
-            No hidden fees. Pay for what you use—with controls to keep budgets tight.
+            Start with a 14-day free trial. No credit card. Full platform access from day one.
           </p>
         </div>
 
         {/* Cards */}
-        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[1200px] mx-auto">
+        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-[1400px] mx-auto">
           {plans.map((plan, index) => (
             <div
               key={index}

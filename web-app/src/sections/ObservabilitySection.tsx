@@ -214,7 +214,7 @@ export default function ObservabilitySection() {
               </li>
             </ul>
             <a href="#" className="btn-primary group inline-flex">
-              View live demo
+              Book a demo
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </a>
           </div>
