@@ -172,6 +172,33 @@ Read the **entire founder essentials** package:
 
 ---
 
+### 🔌 **END-USER INTEGRATION**
+
+#### [10. End-User Integration](./10_End_User_Integration/)
+- **[Traffic Redirection Guide](./10_End_User_Integration/01_traffic_redirection_guide.md)** - IT admin deployment reference
+- PAC file, browser extension, DNS redirection, firewall interception
+- TLS inspection and root CA deployment
+- Browser extension development guide (Chrome MV3 + Firefox)
+- Decision matrix for choosing the right deployment method
+
+**Who needs this:** IT admins, network engineers, security engineers deploying OpenProxyAI across an organization.
+
+---
+
+### 📚 **RESOURCES & BUILD PLAN**
+
+#### [11. Resources & Build Plan](./11_Resources_And_Build_Plan/)
+- **[Resources & Build Plan](./11_Resources_And_Build_Plan/01_resources_and_build_plan.md)** - Founder's technical reference
+- Tier 1: LLM proxy/gateway OSS to study (LiteLLM, Portkey, Bifrost, Helicone, Envoy)
+- Tier 2: Traditional proxy infrastructure (HAProxy, Traefik, nginx, Kong)
+- Tier 3: Observability stack (Langfuse, Prometheus, Grafana)
+- Recommended tech stack with rationale
+- 3-phase build plan with code examples
+
+**Who needs this:** The founder (you). Private technical reference for build decisions.
+
+---
+
 ### 🌐 **MARKETING WEBSITE**
 
 #### [09. Marketing Website & Relume Prompt](./09_Marketing_Website/)
@@ -478,6 +505,8 @@ This is your company. Own it.
 - [x] Business Model & Pricing
 - [x] Solo Founder Playbook
 - [x] First 90 Days Action Plan
+- [x] **End-User Integration** (IT admin traffic redirection guide)
+- [x] **Resources & Build Plan** (OSS ecosystem map + 3-phase build plan)
 
 ### 📝 Future Enhancements (Optional)
 
