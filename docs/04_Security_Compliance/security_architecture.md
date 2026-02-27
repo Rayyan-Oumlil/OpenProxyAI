@@ -1450,30 +1450,143 @@ FIREWALL_RULES = {
 }
 ```
 
-### DDoS Protection
+### DDoS Protection and Rate Limiting
+
+**OpenProxyAI enforces three independent rate limit dimensions.** Counting only requests is not enough for an LLM gateway — a single request with a 100,000-token context costs as much as 1,000 normal requests. Enterprise customers need token-based quotas, not just request counts.
+
+```
+Three rate limit dimensions checked on every request:
+  1. Requests/minute  — simple DoS protection
+  2. Tokens/minute    — provider cost rate control
+  3. Dollars/day      — hard budget cap
+```
+
+All three counters live in Redis. Counter keys are scoped per-org (org-level), per-user (user-level), and per-key (key-level). When any counter is exceeded, the request returns 429 immediately — it never reaches the LLM provider.
 
 ```python
-# Rate Limiting Configuration
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+import redis.asyncio as aioredis
+from fastapi import HTTPException
 
-limiter = Limiter(key_func=get_remote_address)
+class RateLimiter:
+    """
+    Three-dimensional rate limiter: requests/min, tokens/min, dollars/day.
+    Uses Redis INCR + EXPIRE for atomic counters.
+    """
+    def __init__(self, redis: aioredis.Redis):
+        self.redis = redis
 
-# Tiered Rate Limiting
-RATE_LIMITS = {
-    "anonymous": "10/minute",  # Unauthenticated requests
-    "authenticated": "100/minute",  # Authenticated API keys
-    "starter": "1000/hour",  # Starter tier
-    "growth": "10000/hour",  # Growth tier
-    "enterprise": "unlimited",  # Enterprise tier (soft limit)
-}
+    async def check_and_increment(
+        self,
+        org_id: str,
+        estimated_tokens: int,
+        limits: dict,
+    ) -> None:
+        """
+        Check all three limits before forwarding to the LLM.
+        Raises HTTPException(429) if any limit is exceeded.
+        """
+        pipe = self.redis.pipeline()
+        now_minute = int(time.time() // 60)
+        now_day    = int(time.time() // 86400)
 
-# Apply to endpoints
-@app.post("/api/v1/chat/completions")
-@limiter.limit(lambda: RATE_LIMITS[get_user_tier()])
-async def chat_completions(request: ChatRequest):
-    pass
+        req_key    = f"rl:req:{org_id}:{now_minute}"
+        token_key  = f"rl:tok:{org_id}:{now_minute}"
+        budget_key = f"rl:usd:{org_id}:{now_day}"
+
+        pipe.incr(req_key);   pipe.expire(req_key,   65)
+        pipe.incr(token_key); pipe.expire(token_key, 65)
+        pipe.get(budget_key)
+
+        results = await pipe.execute()
+        current_reqs   = results[0]
+        current_tokens = results[2]
+        current_spend  = float(results[4] or 0)
+
+        if current_reqs > limits["requests_per_minute"]:
+            raise HTTPException(429, detail={
+                "type": "rate_limit_exceeded",
+                "limit_type": "requests_per_minute",
+                "limit": limits["requests_per_minute"],
+            })
+        if current_tokens + estimated_tokens > limits["tokens_per_minute"]:
+            raise HTTPException(429, detail={
+                "type": "rate_limit_exceeded",
+                "limit_type": "tokens_per_minute",
+                "limit": limits["tokens_per_minute"],
+            })
+        if current_spend >= limits["budget_daily_usd"]:
+            raise HTTPException(429, detail={
+                "type": "rate_limit_exceeded",
+                "limit_type": "budget_daily_usd",
+                "limit": limits["budget_daily_usd"],
+            })
+
+    async def record_actual_cost(self, org_id: str, cost_usd: float) -> None:
+        """Called after the LLM responds with the actual cost."""
+        now_day = int(time.time() // 86400)
+        budget_key = f"rl:usd:{org_id}:{now_day}"
+        await self.redis.incrbyfloat(budget_key, cost_usd)
+        await self.redis.expire(budget_key, 90000)  # 25 hours
 ```
+
+**Default limits per tier:**
+
+| Tier | Requests/min | Tokens/min | Budget/day |
+|---|---|---|---|
+| Free Trial | 10 | 10,000 | $5 |
+| Starter | 60 | 100,000 | Org-configured |
+| Growth | 300 | 500,000 | Org-configured |
+| Enterprise | Custom | Custom | Custom |
+
+### Provider Key Rotation
+
+Bifrost's `WeightedRandomKeySelector` is the production pattern for managing multiple API keys per provider. Each provider can have multiple keys with weights — this distributes load, respects per-key rate limits, and allows zero-downtime key rotation.
+
+```python
+import random
+from dataclasses import dataclass
+
+@dataclass
+class ProviderKey:
+    key_id: str
+    api_key: str          # Encrypted in DB, decrypted at load time
+    weight: float = 1.0   # Relative selection weight
+    is_active: bool = True
+
+class WeightedKeySelector:
+    """
+    Select a provider key using weighted random selection.
+    Dead keys (is_active=False) are excluded automatically.
+    """
+    def select(self, keys: list[ProviderKey]) -> ProviderKey:
+        active = [k for k in keys if k.is_active]
+        if not active:
+            raise RuntimeError("No active keys available for provider")
+        
+        total_weight = sum(k.weight for k in active)
+        r = random.uniform(0, total_weight)
+        
+        cumulative = 0.0
+        for key in active:
+            cumulative += key.weight
+            if r <= cumulative:
+                return key
+        
+        return active[-1]  # Fallback to last key
+
+# Usage — stored in llm_provider_keys table, loaded at startup
+# org_id | provider | key_id | api_key_encrypted | weight | is_active
+# org_1  | openai   | key_1  | enc(sk-abc...)     | 1.0    | true
+# org_1  | openai   | key_2  | enc(sk-xyz...)     | 1.0    | true  ← load balanced
+# org_1  | openai   | key_3  | enc(sk-old...)     | 0.0    | false ← being rotated out
+```
+
+**Key rotation procedure (zero downtime):**
+1. Admin calls `POST /api/v1/provider-keys` with the new key, weight=1.0
+2. Both old and new keys are now active with equal weight
+3. Admin verifies new key is working (check logs for `key_id` in request headers)
+4. Admin calls `PATCH /api/v1/provider-keys/{key_id}` with `is_active=false` on old key
+5. Old key is deactivated — no proxy restart needed
 
 ---
 

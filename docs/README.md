@@ -141,6 +141,21 @@ Portkey passes routing config via `x-portkey-config` request headers. This is el
 
 **Decision:** All org config (model allowlist, rate limits, PII policy, budget caps) lives in PostgreSQL and is loaded at request time via the API key lookup. No config headers needed.
 
+### 7. HTTP 446 for guardrail blocks — not 400
+Portkey uses HTTP status code `446` when a request is blocked by a guardrail hook. This is a non-standard but correct design: `400 Bad Request` means the request was malformed. `446` means "blocked by policy" — the request was syntactically valid, just rejected by a rule. The 446 response body includes a structured `hook_results` object showing exactly which check failed and why.
+
+**Decision:** All policy violations (PII detected, keyword blocked, model not allowed, budget exceeded by hook) return HTTP 446 with a `hook_results` body. Budget cap returns 402. Rate limit returns 429. Malformed request returns 400. Each status code has a distinct, unambiguous meaning.
+
+### 8. Token-based rate limiting, not just request counting
+Envoy AI Gateway's `LLMRequestCosts` config and Helicone's rate limiter both prove that enterprise customers need **token budgets**, not just request counts. `limit: 60 requests/minute` is meaningless when one request can use 100 tokens and the next uses 100,000. The right controls are `100,000 tokens/hour` and `$50/day`.
+
+**Decision:** Rate limits are enforced at three levels from day one: requests/minute (simple DoS protection), tokens/minute (provider cost control), and dollars/day (budget cap). All three are stored per-org in Redis and checked before each request.
+
+### 9. Multiple provider keys with weighted rotation
+Bifrost's `WeightedRandomKeySelector` shows the right model for enterprise key management. Each provider (OpenAI, Anthropic, etc.) can have multiple API keys with weights. The router picks a key per request using weighted random selection. This distributes load across keys, respects per-key rate limits, and allows zero-downtime key rotation.
+
+**Decision:** The `llm_provider_keys` table stores multiple keys per provider per org. The `LLMService` class uses weighted random selection to pick a key per call. Rotating a key is an admin API call — no proxy restart needed.
+
 ---
 
 ## Milestones
@@ -156,4 +171,4 @@ Portkey passes routing config via `x-portkey-config` request headers. This is el
 
 ---
 
-*Last updated: February 2026 — after studying LiteLLM, Portkey Gateway, and Helicone source code.*
+*Last updated: February 2026 — after deep code study of LiteLLM, Portkey Gateway, Bifrost, Helicone, and Envoy AI Gateway source code.*

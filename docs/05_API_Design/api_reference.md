@@ -49,7 +49,24 @@ X-OpenProxyAI-Model: gpt-4o
 X-OpenProxyAI-Cost-USD: 0.00084
 X-OpenProxyAI-Latency-Ms: 1250
 X-OpenProxyAI-TTFT-Ms: 312
+X-OpenProxyAI-Key-Spend-USD: 12.45
+X-OpenProxyAI-Overhead-Ms: 18
+X-OpenProxyAI-Gateway-Error: false
 ```
+
+Response headers reference:
+
+| Header | Description |
+|---|---|
+| `X-OpenProxyAI-Request-Id` | Unique request UUID — use for support tickets and audit lookups |
+| `X-OpenProxyAI-Provider` | Which upstream provider handled this request (e.g. `openai`, `anthropic`) |
+| `X-OpenProxyAI-Model` | The actual model used (may differ from requested if alias or fallback occurred) |
+| `X-OpenProxyAI-Cost-USD` | Dollar cost of this single request, calculated via `litellm.completion_cost()` |
+| `X-OpenProxyAI-Latency-Ms` | Total end-to-end latency in milliseconds |
+| `X-OpenProxyAI-TTFT-Ms` | Time to first token in milliseconds (streaming only; omitted for non-streaming) |
+| `X-OpenProxyAI-Key-Spend-USD` | Running total spend for this API key in the current billing period |
+| `X-OpenProxyAI-Overhead-Ms` | Time added by the proxy itself (total latency minus provider latency) |
+| `X-OpenProxyAI-Gateway-Error` | `true` if the failure was inside the proxy; `false` if the provider failed |
 
 ```json
 {
@@ -632,15 +649,34 @@ Example: sk-proj-abc12345_xyz789abcdef0123456789abcdef01
 
 ## 📊 Rate Limiting
 
-### Headers
+OpenProxyAI enforces three independent rate limits. All three are checked before each request. Enterprise customers can configure each independently per-org, per-department, or per-user.
 
-Every response includes rate limit headers:
+### The Three Rate Limit Dimensions
+
+| Dimension | Why it exists | Default |
+|---|---|---|
+| **Requests/minute** | Basic DoS protection, prevent API abuse | 60 req/min per key |
+| **Tokens/minute** | Controls provider cost rate (one request can use 100K tokens) | 100,000 TPM per org |
+| **Dollars/day** | Hard budget cap — prevents runaway spend | Set per-org by admin |
+
+**Request counting alone is not enough for enterprise.** A single GPT-4o request with a 50,000-token context costs ~$0.50. Ten such requests per minute costs $300/hour. Token-per-minute limits are the real cost control mechanism.
+
+### Response Headers
+
+Every response includes rate limit headers for all three dimensions:
 
 ```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 87
-X-RateLimit-Reset: 1707742800
-X-RateLimit-Window: 3600
+X-RateLimit-Requests-Limit: 60
+X-RateLimit-Requests-Remaining: 54
+X-RateLimit-Requests-Reset: 1707742860
+
+X-RateLimit-Tokens-Limit: 100000
+X-RateLimit-Tokens-Remaining: 87430
+X-RateLimit-Tokens-Reset: 1707742860
+
+X-RateLimit-Budget-Daily-USD: 50.00
+X-RateLimit-Budget-Remaining-USD: 34.72
+X-RateLimit-Budget-Reset: 2026-02-13T00:00:00Z
 ```
 
 ### Rate Limit Response
@@ -648,18 +684,22 @@ X-RateLimit-Window: 3600
 ```http
 HTTP/1.1 429 Too Many Requests
 Content-Type: application/json
-Retry-After: 3600
+Retry-After: 43
 
 {
   "error": {
     "type": "rate_limit_exceeded",
-    "message": "Rate limit exceeded. Limit: 100 requests per hour.",
-    "limit": 100,
-    "window": "1h",
-    "reset_at": "2026-02-12T18:00:00Z"
+    "message": "Token rate limit exceeded.",
+    "limit_type": "tokens_per_minute",
+    "limit": 100000,
+    "used": 100000,
+    "window": "1m",
+    "reset_at": "2026-02-12T18:01:00Z"
   }
 }
 ```
+
+The `limit_type` field tells the client exactly which limit was hit: `requests_per_minute`, `tokens_per_minute`, or `budget_daily_usd`.
 
 ---
 
@@ -682,18 +722,56 @@ Retry-After: 3600
 
 **HTTP errors (returned to client):**
 
-| HTTP Status | Error Type | Description |
-|-------------|------------|-------------|
-| 400 | `invalid_request_error` | Invalid request parameters |
-| 400 | `policy_violation` | Request blocked by guardrail hook (PII detected, keyword blocked, model not allowed) |
-| 401 | `authentication_error` | Invalid or missing API key |
-| 403 | `permission_error` | Insufficient permissions |
-| 402 | `budget_exceeded` | Monthly budget cap reached for this org |
-| 429 | `rate_limit_exceeded` | Too many requests (per-minute limit hit) |
-| 502 | `provider_error` | Upstream provider returned an error |
-| 502 | `network_error` | Network connection to provider lost |
-| 504 | `provider_timeout` | Provider did not respond within timeout |
-| 500 | `internal_error` | OpenProxyAI server error |
+| HTTP Status | Error Type | `X-OpenProxyAI-Gateway-Error` | Description |
+|-------------|------------|-------------------------------|-------------|
+| 400 | `invalid_request_error` | `true` | Malformed request — missing field, wrong type |
+| 401 | `authentication_error` | `true` | Invalid or missing API key |
+| 402 | `budget_exceeded` | `true` | Monthly/daily dollar budget cap reached |
+| 403 | `permission_error` | `true` | API key lacks the required scope |
+| 429 | `rate_limit_exceeded` | `true` | Request or token rate limit hit |
+| **446** | **`policy_violation`** | `true` | **Request blocked by a guardrail hook** (PII detected, keyword blocked, model not in allowlist, topic guard) — see 446 response format below |
+| 502 | `provider_error` | `false` | Upstream provider returned a 4xx/5xx |
+| 502 | `network_error` | `false` | Network connection to provider lost |
+| 504 | `provider_timeout` | `false` | Provider did not respond within timeout |
+| 500 | `internal_error` | `true` | OpenProxyAI server error (bug in proxy) |
+
+**The 446 vs 400 distinction matters:** `400 Bad Request` means the JSON was malformed or a required field is missing. `446` means the request was perfectly valid but blocked by your organization's security policy. Client code should handle these separately: 400 = fix the request, 446 = contact your IT admin.
+
+**The `X-OpenProxyAI-Gateway-Error` header matters for fallback:** If your client has a retry or fallback strategy, only retry on gateway errors = `false` (provider-side failures). Never retry on gateway errors = `true` — the proxy rejected the request intentionally and retrying will produce the same result.
+
+**446 Policy Violation Response Format:**
+
+```http
+HTTP/1.1 446 Policy Violation
+Content-Type: application/json
+X-OpenProxyAI-Request-Id: req_abc123
+X-OpenProxyAI-Gateway-Error: true
+
+{
+  "error": {
+    "type": "policy_violation",
+    "message": "Request blocked by security policy.",
+    "hook_results": [
+      {
+        "hook": "PIIDetectionHook",
+        "passed": false,
+        "reason": "PII detected: EMAIL_ADDRESS in messages[1].content",
+        "action": "block"
+      },
+      {
+        "hook": "ModelAllowlistHook",
+        "passed": true
+      },
+      {
+        "hook": "KeywordFilterHook",
+        "passed": true
+      }
+    ]
+  }
+}
+```
+
+The `hook_results` array shows every hook that ran and its outcome. The first `passed: false` entry is the one that blocked the request. IT admins can use this to understand exactly why a request was rejected without needing to search logs.
 
 **Internal audit log status codes** (stored in `request_logs.status_code`, not returned to client):
 

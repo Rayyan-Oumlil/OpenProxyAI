@@ -174,11 +174,29 @@
       first_token_time = None
       chunks_buffer = []
 
+      # Start the stream from LiteLLM
+      stream = await litellm.acompletion(**body, stream=True)
+
+      # FIRST-CHUNK ERROR DETECTION (pattern from LiteLLM proxy_server.py):
+      # Peek at the first chunk before committing to a StreamingResponse.
+      # If the first chunk is an error, return JSONResponse(502) instead of
+      # sending HTTP 200 OK with an error buried in the stream body.
+      try:
+          first_chunk = await stream.__anext__()
+      except StopAsyncIteration:
+          return JSONResponse(status_code=502, content={"error": {"type": "provider_error", "message": "Empty response from provider"}})
+      if hasattr(first_chunk, 'error') and first_chunk.error:
+          return JSONResponse(status_code=502, content={"error": {"type": "provider_error", "message": str(first_chunk.error)}},
+                              headers={"X-OpenProxyAI-Gateway-Error": "false"})
+      first_token_time = time.time()
+
       async def stream_and_capture():
-          nonlocal first_token_time
-          async for chunk in await litellm.acompletion(**body, stream=True):
-              if first_token_time is None:
-                  first_token_time = time.time()
+          # Re-yield the first chunk we already peeked at
+          data = f"data: {first_chunk.model_dump_json()}\n\n"
+          chunks_buffer.append(data)
+          yield data
+
+          async for chunk in stream:
               data = f"data: {chunk.model_dump_json()}\n\n"
               chunks_buffer.append(data)
               yield data
@@ -200,6 +218,7 @@
           headers={
               "X-OpenProxyAI-Request-Id": key_meta.get("request_id", ""),
               "X-OpenProxyAI-Provider": body.get("model", "").split("/")[0],
+              "X-OpenProxyAI-Gateway-Error": "false",
           }
       )
   ```
@@ -275,10 +294,19 @@
 
   async def run_before_hooks(body: dict, key_meta: dict) -> dict:
       ctx = HookContext(org_id=key_meta["org_id"], request_body=body, key_meta=key_meta)
+      hook_results = []
       for hook in BEFORE_HOOKS:
           result = await hook.run(ctx)
+          hook_results.append({"hook": hook.__class__.__name__, "passed": result.allowed, "reason": result.block_reason})
           if not result.allowed:
-              raise HTTPException(status_code=400, detail={"error": "policy_violation", "message": result.block_reason})
+              # HTTP 446 = policy violation (not 400 = bad request)
+              # 400 means the JSON was malformed. 446 means valid request, blocked by policy.
+              raise HTTPException(
+                  status_code=446,
+                  detail={
+                      "error": {"type": "policy_violation", "message": result.block_reason, "hook_results": hook_results}
+                  }
+              )
           if result.modified_body:
               body = result.modified_body
       return body

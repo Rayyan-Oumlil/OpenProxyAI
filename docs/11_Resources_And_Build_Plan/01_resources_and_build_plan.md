@@ -4,7 +4,72 @@
 
 > A curated map of the open-source ecosystem you're entering, the tools you'll use, and a concrete 3-phase build plan to go from zero to production.
 
-> **Status:** Updated after reading actual source code of LiteLLM, Portkey, and Helicone. Each project analysis below now includes real findings from the code — not just descriptions from their README.
+> **Status:** Updated after deep code study of all five reference repos: LiteLLM, Portkey Gateway, Bifrost, Helicone, and Envoy AI Gateway. The reusability analysis below comes from reading the actual source files — not README descriptions.
+
+---
+
+## What You Can Reuse vs. What You Must Build
+
+This is the most important section. Before reading anything else, understand what "reuse" actually means for an LLM proxy.
+
+### Directly Reusable via `pip install`
+
+These are things you install as a Python package and call directly. Zero custom code needed.
+
+| Library | What to use | How to call it |
+|---|---|---|
+| `litellm` | `litellm.acompletion()` | Your entire provider layer. One call works for OpenAI, Anthropic, Azure, Bedrock, Mistral, Cohere, Ollama, 100+ more. |
+| `litellm` | `litellm.completion_cost()` | Pass the response object or `(model, prompt_tokens, completion_tokens)`. Returns exact USD cost. No tiktoken needed. |
+| `litellm` | `litellm.Router` | Multi-provider fallback, load balancing, retries, model aliases. Configure a list of providers and call `router.acompletion()`. |
+| `litellm` | `CustomGuardrail` base class | Subclass it, implement `async_pre_call_hook` and `async_post_call_success_hook`. Works without the LiteLLM proxy server. |
+| `presidio-analyzer` + `presidio-anonymizer` | `analyzer.analyze()` + `anonymizer.anonymize()` | Microsoft's NLP-based PII detection. Finds names, emails, SSNs, phone numbers, medical record numbers. Best open-source PII library. |
+| `fastapi` + `uvicorn` | Your ASGI framework | Async, production-grade, LiteLLM integrates natively. |
+| `redis` | Rate limiting counters | `INCR` + `EXPIRE` for atomic counters. Sub-millisecond check on every request. |
+
+### Patterns to Copy (Not Install)
+
+These are **concepts and code patterns** from the reference repos. You adapt them in your own code — you don't import them.
+
+| Pattern | Source | What to copy |
+|---|---|---|
+| Async log after stream | Helicone `ProxyForwarder.ts` | `ctx.waitUntil(log())` → in Python: `background_tasks.add_task(log_request, ...)` called inside the streaming generator after `[DONE]` |
+| ClickHouse log schema | Helicone `ClickhouseWrapper.ts` | `RequestResponseRMT` field list: `time_to_first_token`, `reasoning_tokens`, `prompt_cache_read_tokens`, `threat`, `country_code`, `properties`. Use these field names in your Postgres table too. |
+| Fallback tree routing | Portkey `tryTargetsRecursively()` | Recursive routing over a config tree. Parent settings (retry, cache, hooks) cascade to children. Children override parents. Only fall back on `onStatusCodes: [429, 500, 502, 503, 504]`. |
+| HTTP 446 for policy blocks | Portkey `handlerUtils.ts` | Return 446 (not 400) when a guardrail blocks a request. Include `hook_results` array showing which check failed. |
+| Provider error vs gateway error | Bifrost `IsBifrostError` | `X-OpenProxyAI-Gateway-Error: true/false` header. `true` = proxy bug (our fault). `false` = provider failed (their fault). Never fall back on gateway errors. |
+| Weighted key selection | Bifrost `WeightedRandomKeySelector` | Multiple API keys per provider, each with a weight. Weighted random pick per request. Set weight=0 to drain a key during rotation. |
+| First-chunk error detection | LiteLLM `create_response()` | Peek at first SSE chunk before returning `StreamingResponse`. If it's an error, return `JSONResponse(502)` — prevents `200 OK` with error in stream body. |
+| Materialized views for dashboard | LiteLLM `create_views.py` | `mv_daily_spend`, `mv_model_usage` — refresh every 5 min. Dashboard queries hit views, never raw `request_logs`. Keeps dashboard fast even with 10M+ rows. |
+| Token-based rate limiting | Envoy AI Gateway, Helicone | Three dimensions: requests/min, tokens/min, dollars/day. All in Redis. `tokens/min` is the real cost control — one GPT-4o call can use 100K tokens. |
+| Processor interface (4 methods) | Envoy AI Gateway `processor.go` | `ProcessRequestHeaders`, `ProcessRequestBody`, `ProcessResponseHeaders`, `ProcessResponseBody`. This is the correct abstraction for a middleware pipeline. |
+
+### What You Must Build From Scratch
+
+No reference repo provides this as a reusable library. You design and build it yourself.
+
+| Component | Why it's custom | Estimated complexity |
+|---|---|---|
+| API key hashing + storage | LiteLLM's is coupled to Prisma/PostgreSQL schema. Use SHA-256 (faster than bcrypt for high-frequency auth). | Medium |
+| Org/user/department RBAC | Every project has a different model. Yours is simpler to start: `org → department → user → api_key`. | Medium |
+| Budget enforcement per org | All implementations are tied to their own DB schema. Three Redis keys per org: `req_count`, `token_count`, `spend_usd`. | Medium |
+| Admin dashboard UI | All dashboards (LiteLLM, Helicone) are tightly coupled to their backend schemas. Build yours on top of your own API. | Hard |
+| Traffic redirection (PAC, DNS) | None of these projects do this — it's your unique enterprise value. | Medium (already documented in `docs/10_End_User_Integration/`) |
+| SOC 2 audit log schema | Your compliance requirements are specific to regulated industries. | Medium |
+| Provider key encryption | Encrypt API keys at rest using `cryptography.fernet`. None of the reference repos publish their key encryption scheme. | Easy |
+
+### What NOT to Copy
+
+| Thing | Why not |
+|---|---|
+| LiteLLM's `proxy_server.py` architecture | 508KB monolith. Too complex to audit. Use `litellm` as a **library**, not architecture to copy. |
+| Portkey's config-via-headers pattern | Right for Cloudflare Workers (stateless). Wrong for on-prem enterprise. Config must be DB-backed. |
+| Bifrost's goroutine worker pool | Go-specific. Python's `asyncio` + `aiohttp` connection pooling achieves the same result. |
+| Helicone's Cloudflare Durable Objects rate limiter | Cloudflare-specific. Use Redis instead. |
+| Helicone's Kafka ingestion pipeline | Kafka adds complexity. Phase 1 logs directly to PostgreSQL. Add Kafka/ClickHouse in Phase 3. |
+| Portkey's 70-provider adapter library | Support the 5 providers your enterprise customers actually use. LiteLLM already handles the rest. |
+| Envoy AI Gateway CRDs | Kubernetes operator — only relevant when customers want to run OpenProxyAI inside their K8s cluster. Phase 4 feature. |
+
+---
 
 ---
 

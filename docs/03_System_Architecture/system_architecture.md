@@ -1178,3 +1178,151 @@ After studying all three repos, these are things that look important but should 
 | SSO/SAML | In the plan | Phase 2 — first customers will accept API key auth |
 
 **Phase 1 must only build:** proxy → auth → rate limiting → cost logging → basic dashboard. Everything else is scope creep that will delay the first customer.
+
+---
+
+### Finding 7: Gateway Errors vs. Provider Errors — Always Distinguish Them
+
+Bifrost's error responses include an `IsBifrostError` boolean field. This distinction is critical for two reasons:
+
+1. **Fallback logic**: If the gateway itself failed (misconfiguration, DB down, validation error), you should NOT fall back to another provider — the retry will also fail. Only fall back on **provider errors** (429, 500, 503 from OpenAI/Anthropic).
+
+2. **Alerting and SLA**: A spike in gateway errors is a bug in your code. A spike in provider errors is an upstream outage. These need different alert channels and different SLA handling.
+
+**Decision:** Every error response from OpenProxyAI includes an `X-OpenProxyAI-Gateway-Error: true/false` header:
+- `true` = the failure happened inside the proxy (auth failed, DB unreachable, hook error, config problem)
+- `false` = the failure happened at the upstream provider (OpenAI returned 429, Anthropic timed out)
+
+The internal audit log `status_code` field uses the same distinction: positive values are HTTP codes from the provider, negative values are proxy-internal errors (-2=timeout, -3=cancelled, -4=blocked).
+
+```python
+# In your error handler:
+@app.exception_handler(ProviderError)
+async def provider_error_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"type": "provider_error", "message": str(exc)}},
+        headers={"X-OpenProxyAI-Gateway-Error": "false"}  # provider failed, not us
+    )
+
+@app.exception_handler(GatewayError)
+async def gateway_error_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"type": "internal_error", "message": str(exc)}},
+        headers={"X-OpenProxyAI-Gateway-Error": "true"}  # our bug
+    )
+```
+
+---
+
+### Finding 8: First-Chunk Error Detection for Streaming
+
+LiteLLM's `create_response()` in `common_request_processing.py` has a pattern that every proxy should copy: **peek at the first SSE chunk before returning a `StreamingResponse`**. If the first chunk contains an error object, return a regular `JSONResponse` instead.
+
+**Why this matters:** Without this, the client receives `HTTP 200 OK` with `Content-Type: text/event-stream` — and then gets an error buried in the stream body. Most client SDKs handle this incorrectly, showing `undefined` or crashing instead of a proper error.
+
+```python
+async def chat_completions(...):
+    body = await request.json()
+
+    # Start the stream
+    stream = await llm_service.complete_stream(body)
+    
+    # Peek at first chunk
+    try:
+        first_chunk = await stream.__anext__()
+    except StopAsyncIteration:
+        return JSONResponse(status_code=500, content={"error": "empty response from provider"})
+    
+    # If first chunk is an error, return JSON not a stream
+    if hasattr(first_chunk, 'error') and first_chunk.error:
+        return JSONResponse(
+            status_code=502,
+            content={"error": {"type": "provider_error", "message": first_chunk.error}},
+            headers={"X-OpenProxyAI-Gateway-Error": "false"}
+        )
+
+    # Otherwise, re-attach first chunk and return stream normally
+    async def generate_with_first_chunk():
+        yield f"data: {first_chunk.model_dump_json()}\n\n"
+        async for chunk in stream:
+            yield f"data: {chunk.model_dump_json()}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate_with_first_chunk(), media_type="text/event-stream")
+```
+
+---
+
+### Finding 9: Fallback `onStatusCodes` — Only Fall Back on Specific Errors
+
+Portkey's `tryTargetsRecursively()` has a critical detail: the `onStatusCodes` filter. Fallback to a secondary provider only triggers on specific HTTP error codes. If you fall back on **every** non-2xx response, you create silent bugs:
+
+- A `400 Bad Request` from OpenAI means your request is malformed. Falling back to Anthropic will also return 400 — you've just doubled latency and doubled cost for no benefit.
+- A `401 Unauthorized` means your API key is wrong. Falling back is pointless.
+- A `413 Payload Too Large` means the prompt is too long. No fallback will help.
+
+**Only fall back on:**
+- `429 Too Many Requests` — rate limit hit, try another provider
+- `500 Internal Server Error` — provider is having issues
+- `502 Bad Gateway` — provider infrastructure problem
+- `503 Service Unavailable` — provider is down
+- `504 Gateway Timeout` — provider is slow
+
+```python
+FALLBACK_STATUS_CODES = {429, 500, 502, 503, 504}
+
+class LLMService:
+    async def complete_with_fallback(self, body: dict) -> dict:
+        providers = self._get_provider_order(body["model"])
+        last_error = None
+        
+        for provider in providers:
+            try:
+                return await self._call_provider(provider, body)
+            except ProviderError as e:
+                if e.status_code not in FALLBACK_STATUS_CODES:
+                    raise  # Don't fall back on 400, 401, 413, etc.
+                last_error = e
+                continue  # Try next provider
+        
+        raise last_error  # All providers failed
+```
+
+---
+
+### Finding 10: Materialized Views for Dashboard Queries
+
+LiteLLM uses PostgreSQL materialized views (`MonthlyGlobalSpend`, `Last30dKeysBySpend`, `DailyTagSpend`) for their admin dashboard. The `/spend/refresh` endpoint explicitly refreshes these views.
+
+**Why this matters:** A dashboard query like "total cost by model for the last 30 days" against a raw `request_logs` table with 10M rows takes 8+ seconds in PostgreSQL. The same query against a pre-aggregated materialized view that refreshes every 5 minutes takes milliseconds.
+
+**Decision:** Create three materialized views from day one (even when you have 0 rows, they cost nothing):
+
+```sql
+-- Refreshed every 5 minutes via pg_cron or a background task
+CREATE MATERIALIZED VIEW mv_daily_spend AS
+SELECT
+    org_id,
+    date_trunc('day', created_at) AS day,
+    model,
+    provider,
+    SUM(prompt_tokens)      AS total_prompt_tokens,
+    SUM(completion_tokens)  AS total_completion_tokens,
+    SUM(cost_usd)           AS total_cost_usd,
+    COUNT(*)                AS total_requests,
+    AVG(latency_ms)         AS avg_latency_ms,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_latency_ms
+FROM request_logs
+GROUP BY org_id, day, model, provider;
+
+CREATE UNIQUE INDEX ON mv_daily_spend (org_id, day, model, provider);
+
+-- Dashboard queries hit this view, never the raw table
+SELECT * FROM mv_daily_spend
+WHERE org_id = $1 AND day >= NOW() - INTERVAL '30 days'
+ORDER BY day DESC;
+```
+
+This pattern means your dashboard stays fast even when `request_logs` grows to tens of millions of rows — and the transition to ClickHouse in Phase 3 becomes optional rather than urgent.

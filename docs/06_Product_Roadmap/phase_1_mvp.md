@@ -131,11 +131,11 @@ async def chat_completion(request: ChatRequest):
 - [ ] Azure OpenAI integration
 - [ ] Provider failover logic
 
-**Day 4: Token Counting**
-- [ ] Implement token counter (tiktoken)
-- [ ] Pre-count input tokens
-- [ ] Post-count output tokens
-- [ ] Calculate cost per provider
+**Day 4: Token Counting & First-Chunk Error Detection**
+- [ ] **Do NOT use tiktoken directly** — `litellm.completion_cost(completion_response)` handles all token counting and cost calculation for every provider automatically
+- [ ] Implement `response.usage.prompt_tokens` extraction from LiteLLM response
+- [ ] Implement first-chunk error detection: peek at first SSE chunk before returning `StreamingResponse`. If it contains an error, return `JSONResponse(status_code=502)` instead — prevents clients receiving `200 OK` with an error body
+- [ ] Verify cost calculation: `litellm.completion_cost(model="gpt-4o", prompt_tokens=100, completion_tokens=50)` returns a float in USD
 
 **Day 5: Testing & Docs**
 - [ ] Integration tests for each provider
@@ -163,38 +163,50 @@ async def chat_completion(request: ChatRequest):
 - [ ] User-to-org relationship
 - [ ] Basic RBAC (admin vs user)
 
-**Day 5: Security Hardening**
-- [ ] Rate limiting (per API key)
-- [ ] Request validation
+**Day 5: Security Hardening + Provider Key Rotation**
+- [ ] Rate limiting (per API key) — stub that returns 429 correctly (full implementation in Week 4)
+- [ ] Request validation (model field required, messages array non-empty)
 - [ ] SQL injection prevention tests
-- [ ] Security headers
+- [ ] Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`)
+- [ ] **Provider key rotation**: create `llm_provider_keys` table with columns `(org_id, provider, key_id, api_key_encrypted, weight, is_active)`. The `LLMService` uses weighted random selection to pick a key per call. This enables zero-downtime key rotation from day one.
 
-**Deliverable:** Secure authentication system
+**Deliverable:** Secure authentication system + provider key management
 
 ---
 
-#### Week 4: Cost Tracking
+#### Week 4: Rate Limiting & Cost Tracking
 **Time allocation: 40 hours**
 
-**Day 1-2: Real-time Tracking**
-- [ ] Cost calculation per request
-- [ ] Write to PostgreSQL
-- [ ] Redis for current spend cache
-- [ ] Budget check before request
+**Day 1-2: Three-Dimensional Rate Limiting**
+- [ ] Implement Redis-based rate limiter with three counters per org: `requests/minute`, `tokens/minute`, `dollars/day`
+- [ ] Check all three limits before forwarding to LLM — return 429 with `limit_type` field indicating which limit was hit
+- [ ] Store limits in org config table (not hardcoded) — each org has custom limits
+- [ ] Return all three limit headers on every response: `X-RateLimit-Requests-Remaining`, `X-RateLimit-Tokens-Remaining`, `X-RateLimit-Budget-Remaining-USD`
+- [ ] **Token-based limiting is critical**: one request can use 100,000 tokens; request counting alone does not protect provider budget
 
-**Day 3-4: Analytics Queries**
-- [ ] Daily cost aggregation
-- [ ] Cost by user query
-- [ ] Cost by model query
-- [ ] Cost trends (last 7/30 days)
+> **Pattern from Envoy AI Gateway & Helicone:** Token-per-minute limits are the real cost control mechanism. A bank on Starter tier may allow 60 req/min but cap at 100,000 tokens/min to prevent accidental runaway spend from long-context calls.
 
-**Day 5: Budget Limits**
-- [ ] Set daily/monthly limits per user
-- [ ] Budget exceeded detection
-- [ ] Alert system (basic email)
-- [ ] Grace period handling
+**Day 3-4: Cost Tracking & Materialized Views**
+- [ ] Write cost to `request_logs` via background task (never block the response)
+- [ ] After logging: update `rl:usd:{org_id}:{day}` Redis key with `INCRBYFLOAT`
+- [ ] Create three PostgreSQL materialized views from day one: `mv_daily_spend`, `mv_model_usage`, `mv_key_spend`
+- [ ] Dashboard queries hit the views — never the raw `request_logs` table
 
-**Deliverable:** Complete cost tracking system
+```sql
+-- Refresh every 5 minutes (pg_cron or background task)
+CREATE MATERIALIZED VIEW mv_daily_spend AS
+SELECT org_id, date_trunc('day', created_at) AS day, model, provider,
+       SUM(cost_usd) AS total_cost_usd, COUNT(*) AS total_requests,
+       AVG(latency_ms) AS avg_latency_ms
+FROM request_logs GROUP BY org_id, day, model, provider;
+```
+
+**Day 5: Budget Cap & Alert**
+- [ ] Budget exceeded → return 429 with `limit_type: "budget_daily_usd"` (not 402 — budget is a rate limit, not a billing error)
+- [ ] Email alert at 80% of daily budget (simple SMTP via SendGrid or similar)
+- [ ] Admin dashboard shows current spend vs. budget with color-coded warning
+
+**Deliverable:** Complete rate limiting + cost tracking system
 
 ---
 

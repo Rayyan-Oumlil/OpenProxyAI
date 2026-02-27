@@ -210,14 +210,17 @@ Current reality:
 
 | Competitor | Strength | Weakness | Our Edge |
 |------------|----------|----------|----------|
-| **LiteLLM** | 33K★ OSS, 100+ providers | `proxy_server.py` is 508KB monolith. No PII, no compliance, no enterprise auth | We are security-first from line 1 |
-| **Portkey** | Clean architecture, feature-rich | Runs on Cloudflare Workers — not on-prem. Config via headers, not DB-backed. No compliance | Self-hosted, DB-backed org config, on-prem |
-| **Helicone** | Best observability model, ClickHouse analytics | Cloudflare Workers only — not self-hostable. No PII, no policy engine | Self-hosted + security layer |
-| **Azure AI Studio** | Microsoft integration | Vendor lock-in, only Azure/OpenAI | Provider-agnostic |
-| **AWS Bedrock** | AWS integration | Vendor lock-in, AWS only | Provider-agnostic |
-| **PromptLayer** | Good tracing/observability | Not security-focused, no on-prem | Compliance + security first |
+| **LiteLLM** | 33K★ OSS, 100+ providers | `proxy_server.py` is 508KB monolith. No PII redaction, no compliance, no enterprise auth. Rate limits by request count only — no token budgets. | Security-first from line 1. Token-based budgets. Audit-ready logs. |
+| **Portkey** | Clean routing architecture, 70+ providers | Cloudflare Workers only — not self-hostable on-prem. Config via request headers, not DB-backed org config. No PII/DLP. No compliance. | Self-hosted, DB-backed org config, on-prem including air-gapped. |
+| **Helicone** | Best observability model, ClickHouse analytics | Cloudflare Workers only — customers cannot self-host. No policy engine, no PII redaction. No compliance reports. | Same observability depth (studied their schema) + full security layer + on-prem. |
+| **Bifrost** | Highest raw throughput (Go, goroutine pools) | No security features. No PII, no compliance, no audit logs. Developer tool only. | Enterprise compliance + security. Bifrost benchmarks performance; we build for CISOs. |
+| **Azure AI Studio** | Deep Microsoft/Azure integration | Hard vendor lock-in. Only Azure OpenAI. No on-prem. | Provider-agnostic. Works with any LLM including local models. |
+| **AWS Bedrock** | AWS-native, Bedrock guardrails | AWS lock-in. No hybrid/on-prem. | Works across AWS, Azure, GCP, on-prem, simultaneously. |
+| **PromptLayer** | Good tracing/prompt versioning | Not security-focused. No on-prem. No DLP. No compliance framework support. | Compliance + security as the core product, not an afterthought. |
 
-**OpenProxyAI Positioning:** Self-hosted, security-first, provider-agnostic AI gateway — the only one built specifically for regulated industries that can run on-premise.
+**OpenProxyAI Positioning:** The only self-hosted, security-first, provider-agnostic AI gateway built for regulated industries. Combines Helicone's observability depth, Portkey's routing architecture, and enterprise compliance that none of them offer — deployable on-premise or air-gapped.
+
+**The technical moat:** Token-based rate limiting (not just request counting), PII redaction before data leaves the network perimeter, and immutable audit logs designed for SOC 2 / HIPAA attestation. Every competitor built for developers; OpenProxyAI is built for CISOs.
 
 ---
 
