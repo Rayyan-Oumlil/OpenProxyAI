@@ -4,6 +4,8 @@
 
 > A curated map of the open-source ecosystem you're entering, the tools you'll use, and a concrete 3-phase build plan to go from zero to production.
 
+> **Status:** Updated after reading actual source code of LiteLLM, Portkey, and Helicone. Each project analysis below now includes real findings from the code — not just descriptions from their README.
+
 ---
 
 ## Table of Contents
@@ -47,14 +49,28 @@ These are your **direct competitors and teachers**. Study their code before writ
 - No immutable audit logs
 - Not designed for regulated industries
 
-**Key files to read:**
+**What the code actually looks like (read this):**
 ```
 litellm/
-├── proxy/           ← The proxy server (FastAPI)
-├── main.py          ← Core completion() function
-├── utils.py         ← Token counting, cost calculation
-└── integrations/    ← Provider-specific adapters
+├── proxy/
+│   ├── proxy_server.py          ← 508KB monolith — DO NOT replicate this pattern
+│   ├── route_llm_request.py     ← 450 lines — READ THIS. The Router pattern.
+│   ├── litellm_pre_call_utils.py← 73KB pre-processing — shows all edge cases
+│   ├── spend_tracking/          ← How they track cost per request
+│   ├── guardrails/              ← Their guardrail plugin system
+│   ├── auth/                    ← API key validation and team mapping
+│   └── middleware/              ← FastAPI middleware layer
+├── main.py                      ← Core completion() function — start here
+└── utils.py                     ← Token counting, cost calculation
 ```
+
+**Real code-level findings:**
+- `proxy_server.py` is 508KB. It's a cautionary tale — feature bloat from 3 years of growth. Their proxy became a monolith.
+- `route_llm_request.py` is the gem. Read it fully. It shows the routing decision tree: team model alias → exact match → wildcard → default deployment → error.
+- `litellm.completion_cost(response)` is a one-liner that returns cost in USD. Use it.
+- They use a shared `aiohttp` session across requests (connection pool reuse) — important for performance at scale.
+- Their `guardrails/` folder is a clean plugin system — each guardrail is independent. Steal this pattern.
+- They use Prisma for the DB (not SQLAlchemy) — this is unusual for Python, generates TypeScript-style type-safe queries.
 
 ---
 
@@ -76,14 +92,33 @@ litellm/
 - TypeScript — well-typed, easy to read
 
 **Where it falls short:**
-- Node.js (not Python — harder to integrate with ML tools like Presidio)
+- TypeScript/Node.js (not Python — harder to integrate with Presidio, LiteLLM)
 - No enterprise compliance features
-- Limited audit logging
+- Designed for Cloudflare Workers edge deployment — not on-prem
+- Config is passed via request headers (`x-portkey-config`) — not suitable for enterprise DB-backed config
 
-**Key patterns to steal:**
-- The middleware pipeline pattern for request processing
-- Provider config schema (how they abstract provider differences)
-- Retry/fallback logic
+**What the code actually looks like (read this):**
+```
+portkey-gateway/src/
+├── index.ts                 ← 299 lines. READ THIS FIRST. Clean app setup.
+├── handlers/
+│   └── chatCompletionsHandler.ts ← 57 lines. This is the entire handler.
+├── middlewares/
+│   ├── hooks/
+│   │   └── index.ts         ← HookSpan class. beforeRequestHooks + afterRequestHooks
+│   ├── cache/               ← Response caching middleware
+│   ├── requestValidator/    ← Input validation
+│   └── log/                 ← Request logging
+├── providers/               ← Provider-specific adapters (OpenAI, Anthropic, etc.)
+└── services/                ← Shared services (cache backends, etc.)
+```
+
+**Real code-level findings:**
+- `chatCompletionsHandler.ts` is only 57 lines. The handler itself is thin — all logic is in `tryTargetsRecursively()`.
+- The hook system (`middlewares/hooks/`) is the cleanest guardrail pattern in any of the reference repos. `HookSpan` runs `beforeRequestHooks` → forward → `afterRequestHooks`. Each hook returns pass/modify/block.
+- They use **Hono** (not Express) — a lightweight TypeScript HTTP framework that runs on Cloudflare Workers, Node, Bun, Deno, and AWS Lambda. Fast and minimal.
+- Middleware order in `index.ts`: `compress` → `prettyJSON` → `logHandler` → `hooks` → `memoryCache` → route handlers. Note: **hooks run before routing**, which is the correct order for guardrails.
+- `constructConfigFromRequestHeaders()` — their config comes from `x-portkey-config` header. Skip this for OpenProxyAI; use DB-backed config instead.
 
 ---
 
@@ -117,20 +152,39 @@ litellm/
 | | |
 |---|---|
 | **Repo** | https://github.com/Helicone/helicone |
-| **Language** | Rust + TypeScript |
+| **Language** | TypeScript (Cloudflare Workers) |
 | **Stars** | 3K+ |
 | **License** | Apache 2.0 |
 
-**What it does:** Positioned as "the NGINX of LLMs." Extremely fast Rust core with a TypeScript management layer.
+**What it does:** LLM observability proxy. Every request goes through Helicone's Cloudflare Worker, which logs it to ClickHouse and passes it to the real provider. They track cost, latency, time-to-first-token, and errors per request.
 
 **Why study it:**
-- Rust performance characteristics
-- Good observability model (they track cost, latency, errors per request)
-- Clean separation between data plane (Rust) and control plane (TS)
+- Best-in-class observability model — copy their data schema
+- `ProxyRequestHandler.ts` shows the cleanest async streaming log pattern
+- `timeToFirstToken` tracking is explicit and correct
+- ClickHouse usage confirms: PostgreSQL is not the right DB for request analytics at scale
 
 **Where it falls short:**
-- Rust is harder to extend for non-Rust developers
-- No enterprise compliance features
+- Runs on **Cloudflare Workers** — not on-prem deployable as-is
+- No PII detection, no compliance features
+- TypeScript/Cloudflare ecosystem is not portable to Python/FastAPI
+
+**What the code actually looks like (read these files):**
+```
+helicone/worker/src/
+├── lib/HeliconeProxyRequest/
+│   ├── ProxyRequestHandler.ts   ← THE most important file. Async log pattern.
+│   └── ProxyForwarder.ts        ← How they forward to providers
+├── lib/dbLogger/DBLoggable.ts   ← Log object structure — copy the field names
+└── lib/db/ClickhouseWrapper.ts  ← ClickHouse client for analytics
+```
+
+**Real code-level findings:**
+- `ProxyRequestHandler.ts` uses a `ReadableInterceptor` to wrap the response stream: the client gets chunks immediately, while the interceptor also buffers them. After the stream ends, the buffered body is logged — **zero latency added to the proxy response**.
+- `timeToFirstToken` = `chunk.firstChunkTimeUnix - requestStartTime`. Track this from day one.
+- **ClickHouse is their primary analytics store.** Supabase (PostgreSQL) handles users/orgs/keys only.
+- Negative status codes: `-2` = timeout, `-3` = cancelled, `-4` = blocked by policy, `-100` = unknown. Adopt this convention.
+- Response headers they add: `Helicone-Id`, `Helicone-Status`, `Helicone-Provider`, `Helicone-Model`. Use `X-OpenProxyAI-Request-Id`, `X-OpenProxyAI-Provider`, `X-OpenProxyAI-Model` instead.
 
 **Key insight:** The data plane / control plane separation is the right architecture for production. Your FastAPI proxy is the data plane; your admin dashboard is the control plane.
 

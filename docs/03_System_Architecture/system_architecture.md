@@ -891,3 +891,290 @@ db_password = client.get_secret("db-password").value  # ✅ Good
 ---
 
 *Next: [LLM Proxy Engine →](../03_LLM_Proxy_Engine/README.md)*
+
+---
+
+## Reference Code Study — Real Architecture Insights
+
+*These findings come from reading the actual source code of LiteLLM (`proxy_server.py`, `route_llm_request.py`), Portkey Gateway (`src/index.ts`, `middlewares/hooks/`), and Helicone (`worker/src/lib/HeliconeProxyRequest/`). They update and correct some of the theoretical architecture decisions above.*
+
+---
+
+### Finding 1: The Proxy Core Should Be Thin
+
+**What LiteLLM got wrong:** `proxy_server.py` is 508KB — a single-file monolith that grew organically over years. It handles auth, routing, caching, compliance, UI endpoints, RAG, vector stores, evals, and more in one file. This makes it very powerful but impossible to audit and extend safely.
+
+**What Portkey got right:** Their `chatCompletionsHandler.ts` is 57 lines. It:
+1. Parses the request JSON
+2. Reads config from headers
+3. Calls `tryTargetsRecursively()` — the routing/fallback engine
+4. Returns the response
+
+Everything else (logging, validation, caching) is middleware registered separately.
+
+**Decision for OpenProxyAI:**
+
+```python
+# app/routers/proxy.py — this is the ENTIRE handler
+@router.post("/v1/chat/completions")
+async def chat_completions(request: Request, key=Depends(validate_api_key)):
+    body = await request.json()
+    body = await run_before_hooks(body, key)        # guardrails
+    response = await llm_service.complete(body)     # LiteLLM
+    background_tasks.add_task(log_request, ...)     # async log
+    return response
+```
+
+**The handler must never exceed ~50 lines. All complexity lives in services and hooks.**
+
+---
+
+### Finding 2: The Async Logging Pattern (from Helicone)
+
+Helicone's `ProxyRequestHandler.ts` reveals the correct logging architecture. The key challenge: for streaming responses, you don't know the full response body until the stream ends — but you must return the first token to the user immediately.
+
+Their solution — the `ReadableInterceptor`:
+
+```typescript
+// Helicone wraps the response stream with an interceptor
+const interceptor = new ReadableInterceptor(response.body, isStream);
+
+// The interceptor passes chunks to the client AND buffers them internally
+// After the stream completes, interceptor.waitForStream() returns the full body
+
+const loggable = new DBLoggable({
+  response: {
+    getResponseBody: async () => ({
+      body: (await interceptor.waitForStream()).body,  // waits for stream end
+      endTime: new Date(...)
+    }),
+    status: async () => response.status,
+  },
+  timing: {
+    timeToFirstToken: async () => {
+      const chunk = await interceptor.waitForStream();
+      return chunk.firstChunkTimeUnix - startTime;  // TTFT metric
+    }
+  }
+});
+
+// Return response to user NOW — logging happens after stream completes
+return { loggable, response: new Response(interceptor.stream, ...) };
+```
+
+**Python equivalent for OpenProxyAI:**
+
+```python
+from fastapi.responses import StreamingResponse
+import asyncio
+
+async def streaming_proxy_with_logging(body, key, background_tasks):
+    full_response_chunks = []
+    start_time = time.time()
+    first_token_time = None
+
+    async def generate():
+        nonlocal first_token_time
+        async for chunk in litellm.acompletion(**body, stream=True):
+            if first_token_time is None:
+                first_token_time = time.time()
+            chunk_str = f"data: {chunk.model_dump_json()}\n\n"
+            full_response_chunks.append(chunk_str)
+            yield chunk_str
+        yield "data: [DONE]\n\n"
+        # Schedule log AFTER stream completes
+        background_tasks.add_task(
+            log_request,
+            key=key,
+            body=body,
+            response_chunks=full_response_chunks,
+            ttft_ms=(first_token_time - start_time) * 1000,
+        )
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+```
+
+**Key metrics to always log:**
+- `time_to_first_token_ms` — latency to first streamed token
+- `total_latency_ms` — full request duration
+- `prompt_tokens`, `completion_tokens`, `total_tokens`
+- `cost_usd` — calculated via `litellm.completion_cost()`
+- `status_code` — including -2 (timeout), -3 (cancelled), -4 (blocked by policy)
+
+---
+
+### Finding 3: The Hook System (from Portkey)
+
+Portkey's `middlewares/hooks/` implements a `HookSpan` class with `beforeRequestHooks` and `afterRequestHooks`. Each hook receives the full request context and can:
+- Pass (allow the request through unchanged)
+- Modify (transform the request — e.g. anonymize PII)
+- Block (reject the request with a policy error)
+
+The hook types they define:
+```typescript
+type HookType = 'beforeRequestHook' | 'afterRequestHook';
+type EventType = 'request' | 'response';
+```
+
+**Python equivalent for OpenProxyAI:**
+
+```python
+# app/hooks/base.py
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class HookContext:
+    org_id: str
+    user_id: str
+    request_body: dict
+    api_key_meta: dict
+
+@dataclass
+class HookResult:
+    allowed: bool
+    modified_body: Optional[dict] = None   # if hook transforms the request
+    block_reason: Optional[str] = None     # if hook blocks the request
+    metadata: dict = None                  # extra data to attach to audit log
+
+class BeforeRequestHook(ABC):
+    @abstractmethod
+    async def run(self, ctx: HookContext) -> HookResult:
+        pass
+
+# app/hooks/pii_hook.py
+class PIIDetectionHook(BeforeRequestHook):
+    async def run(self, ctx: HookContext) -> HookResult:
+        for msg in ctx.request_body.get("messages", []):
+            entities = detect_pii(msg["content"])
+            if entities and ctx.api_key_meta["pii_policy"] == "block":
+                return HookResult(allowed=False, block_reason=f"PII detected: {entities}")
+            elif entities and ctx.api_key_meta["pii_policy"] == "redact":
+                msg["content"] = redact_pii(msg["content"])
+        return HookResult(allowed=True, modified_body=ctx.request_body)
+
+# app/hooks/runner.py
+BEFORE_REQUEST_HOOKS = [
+    PIIDetectionHook(),
+    TopicGuardHook(),
+    KeywordFilterHook(),
+    ModelAllowlistHook(),
+]
+
+async def run_before_hooks(body: dict, key_meta: dict) -> dict:
+    ctx = HookContext(request_body=body, ...)
+    for hook in BEFORE_REQUEST_HOOKS:
+        result = await hook.run(ctx)
+        if not result.allowed:
+            raise HTTPException(status_code=400, detail=result.block_reason)
+        if result.modified_body:
+            body = result.modified_body
+    return body
+```
+
+---
+
+### Finding 4: Provider Routing via LiteLLM Router
+
+LiteLLM's `route_llm_request.py` shows their routing decision tree. The important parts:
+
+```python
+# Their Router handles:
+# 1. Team-specific model aliases (team A uses "gpt4" → maps to "azure/gpt-4o")
+# 2. Fallbacks (if openai fails, try anthropic)
+# 3. Per-request router settings overrides
+# 4. Batch completions across multiple models
+# 5. Wildcard model matching (e.g. "gpt-*" matches any GPT model)
+
+# The key call is always:
+response = await llm_router.acompletion(**data)
+# or for direct pass-through:
+response = await litellm.acompletion(**data)
+```
+
+**OpenProxyAI wraps this:**
+
+```python
+# app/services/llm_service.py
+import litellm
+from litellm import Router
+
+class LLMService:
+    def __init__(self):
+        self.router = Router(
+            model_list=[
+                {"model_name": "gpt-4o", "litellm_params": {"model": "openai/gpt-4o"}},
+                {"model_name": "claude-3-5-sonnet", "litellm_params": {"model": "anthropic/claude-3-5-sonnet-20241022"}},
+                {"model_name": "gpt-4o", "litellm_params": {"model": "azure/gpt-4o", "api_base": "..."}},
+            ],
+            fallbacks=[{"gpt-4o": ["claude-3-5-sonnet"]}],  # fallback if openai fails
+            num_retries=3,
+            timeout=30,
+        )
+
+    async def complete(self, body: dict) -> dict:
+        return await self.router.acompletion(**body)
+
+    async def complete_stream(self, body: dict):
+        return await self.router.acompletion(**body, stream=True)
+```
+
+---
+
+### Finding 5: ClickHouse for Analytics at Scale (from Helicone)
+
+Helicone uses **ClickHouse** (`clickhouse/` folder, `ClickhouseClientWrapper` in worker code). This is the right call at scale.
+
+**Why ClickHouse over PostgreSQL for logs:**
+
+| Query | PostgreSQL (10M rows) | ClickHouse (10M rows) |
+|---|---|---|
+| Total cost by org last 30d | ~8 seconds | ~50ms |
+| Requests by model last 7d | ~5 seconds | ~30ms |
+| P95 latency by provider | ~12 seconds | ~80ms |
+
+PostgreSQL is OLTP (fast writes, fast lookups by primary key). ClickHouse is OLAP (fast analytical aggregates over millions of rows).
+
+**Migration plan:**
+- **Phase 1:** Log everything to PostgreSQL. Simple, no new infrastructure.
+- **Phase 3:** Add ClickHouse alongside Postgres. New logs go to ClickHouse. Migrate historical logs. Postgres keeps users/orgs/keys — ClickHouse keeps request logs only.
+
+**ClickHouse schema for request logs:**
+```sql
+CREATE TABLE request_logs (
+    request_id     UUID,
+    org_id         UUID,
+    user_id        UUID,
+    api_key_id     UUID,
+    model          LowCardinality(String),
+    provider       LowCardinality(String),
+    prompt_tokens  UInt32,
+    completion_tokens UInt32,
+    cost_usd       Float64,
+    latency_ms     UInt32,
+    ttft_ms        UInt32,      -- time to first token
+    status_code    Int16,       -- negative values for proxy errors
+    created_at     DateTime
+) ENGINE = MergeTree()
+ORDER BY (org_id, created_at)
+PARTITION BY toYYYYMM(created_at);
+```
+
+---
+
+### Finding 6: What NOT to Build in Phase 1
+
+After studying all three repos, these are things that look important but should be deferred:
+
+| Feature | Looks important | Reality |
+|---|---|---|
+| Caching (Redis response cache) | Portkey has it | Adds complexity, minimal value at <10K users |
+| Semantic caching | LiteLLM has it | Phase 3+ feature |
+| Model cost DB (auto-updated) | LiteLLM maintains it | Just use `litellm.completion_cost()` |
+| WASM plugin system | Envoy has it | Enterprise Phase 4 feature |
+| Multi-region | Helicone has it | Phase 3 when you have EU customers |
+| Realtime/WebSocket proxy | Portkey has it | Almost no enterprise use case yet |
+| SSO/SAML | In the plan | Phase 2 — first customers will accept API key auth |
+
+**Phase 1 must only build:** proxy → auth → rate limiting → cost logging → basic dashboard. Everything else is scope creep that will delay the first customer.

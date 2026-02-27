@@ -78,6 +78,8 @@ openproxyai/
 - [ ] Create seed data for testing
 - [ ] Write database tests
 
+> **Note from reference code study:** Design the `request_logs` table to match ClickHouse's columnar schema from day one (see system architecture doc). When you migrate from PostgreSQL to ClickHouse in Phase 3, the schema will be identical — migration is just a copy. Key fields: `request_id`, `org_id`, `user_id`, `model`, `provider`, `prompt_tokens`, `completion_tokens`, `cost_usd`, `latency_ms`, `ttft_ms` (time-to-first-token), `status_code` (use negative values: -2=timeout, -3=cancel, -4=blocked).
+
 **Day 5: Basic API Structure**
 - [ ] Health check endpoint (`/health`)
 - [ ] Authentication middleware
@@ -92,11 +94,15 @@ openproxyai/
 **Time allocation: 40 hours**
 
 **Day 1-2: LLM Proxy Core**
-- [ ] Install LiteLLM
-- [ ] Implement proxy endpoint `/v1/chat/completions`
-- [ ] OpenAI API compatibility
-- [ ] Stream response support
-- [ ] Basic error handling
+- [ ] Install LiteLLM (`pip install litellm`)
+- [ ] Implement proxy endpoint `/v1/chat/completions` — handler must stay under ~50 lines
+- [ ] OpenAI API compatibility (drop-in replacement)
+- [ ] Streaming response support with `ReadableInterceptor` pattern (log AFTER stream ends, never block response)
+- [ ] Track `time_to_first_token_ms` from the first streamed chunk
+- [ ] Add response headers: `X-OpenProxyAI-Request-Id`, `X-OpenProxyAI-Provider`, `X-OpenProxyAI-Model`
+- [ ] Basic error handling with structured error responses
+
+> **Pattern from Helicone:** Streaming log must be non-blocking. Wrap the generator in a function that captures chunks AND yields them simultaneously, then schedules the DB log as a background task after the stream completes. See `ProxyRequestHandler.ts` in `references/helicone/worker/src/lib/HeliconeProxyRequest/`.
 
 ```python
 # Example implementation
