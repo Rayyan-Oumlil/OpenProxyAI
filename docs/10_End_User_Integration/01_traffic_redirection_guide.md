@@ -41,7 +41,6 @@ OpenProxyAI Gateway (openproxai.yourdomain.com)
 
 ### What Gets Intercepted
 
-- **API traffic:** SDK calls from developer tools, scripts, CI/CD pipelines
 - **Browser traffic:** ChatGPT.com, Claude.ai, Mistral.ai web interfaces
 - **Application traffic:** Copilot, Cursor, VS Code extensions using LLM APIs
 
@@ -49,7 +48,7 @@ OpenProxyAI Gateway (openproxai.yourdomain.com)
 
 | Model | How It Works | Best For |
 |---|---|---|
-| **Forward Proxy** | Client is configured to send traffic through the proxy | API traffic, developer tools |
+| **Forward Proxy** | Client is configured to send traffic through the proxy | Browser-based and application traffic |
 | **Reverse Proxy** | Users access `openproxai.yourdomain.com` instead of the AI vendor URL | Browser-based chat interfaces |
 | **Transparent Proxy** | Network intercepts traffic without client configuration | Full org rollout, no endpoint config |
 
