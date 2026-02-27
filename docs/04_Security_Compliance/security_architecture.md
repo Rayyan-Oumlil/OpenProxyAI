@@ -415,6 +415,58 @@ async def create_policy(
 
 ## 🚦 Policy Enforcement Engine
 
+### Implementation Architecture: Hook System
+
+All policy enforcement is implemented as **hooks** — independent, composable functions that run before and after each request. This pattern is taken from Portkey Gateway's `middlewares/hooks/` — it is cleaner than a monolithic policy engine and allows policies to be added, removed, and tested independently.
+
+```
+Incoming Request
+      │
+      ▼
+┌─────────────────────────────────────┐
+│         BEFORE-REQUEST HOOKS        │  ← Run in order, any can block
+│                                     │
+│  1. ModelAllowlistHook              │  Is this model allowed for this org?
+│  2. RateLimitHook                   │  Has this org hit their RPM limit?
+│  3. BudgetCapHook                   │  Has this org hit their monthly cap?
+│  4. PIIDetectionHook                │  Does the prompt contain PII?
+│  5. KeywordFilterHook               │  Does the prompt contain blocked words?
+│  6. TopicGuardHook                  │  Is the topic in the allowed set?
+└──────────────┬──────────────────────┘
+               │ (all passed)
+               ▼
+       Forward to LLM Provider
+               │
+               ▼
+┌─────────────────────────────────────┐
+│         AFTER-REQUEST HOOKS         │  ← Run on response
+│                                     │
+│  1. ResponseFilterHook              │  Does response contain PII/toxic content?
+│  2. AuditLogHook                    │  Log everything (async, non-blocking)
+└─────────────────────────────────────┘
+```
+
+Each hook is loaded based on the org's policy config from the database. An org on the free trial gets hooks 1-3. An org on Starter gets 1-4. An org on Growth gets all hooks. This means the same codebase handles all tiers — just different hook lists per org.
+
+```python
+# How hooks are loaded per request (in auth middleware)
+async def validate_api_key(authorization: str = Header(...)):
+    key_data = await db.fetch_key(hash(authorization))
+    org_config = await db.fetch_org_config(key_data["org_id"])
+
+    # Build hook list based on org tier
+    key_data["before_hooks"] = build_hooks_for_org(org_config)
+    return key_data
+
+def build_hooks_for_org(config: dict) -> list:
+    hooks = [ModelAllowlistHook(), RateLimitHook(), BudgetCapHook()]  # always
+    if config["pii_policy"] != "off":
+        hooks.append(PIIDetectionHook(policy=config["pii_policy"]))
+    if config["keyword_filter_enabled"]:
+        hooks.append(KeywordFilterHook(words=config["blocked_keywords"]))
+    return hooks
+```
+
 ### Policy Types
 
 ```mermaid

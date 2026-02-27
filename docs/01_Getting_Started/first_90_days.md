@@ -151,72 +151,140 @@
   pip install litellm
   ```
 
-- [ ] **Create proxy endpoint**
+- [ ] **Create proxy endpoint — with streaming AND async logging**
   ```python
-  # backend/app/routes/proxy.py
-  from fastapi import APIRouter
-  from litellm import completion
-  
+  # backend/app/routers/proxy.py
+  import time
+  import litellm
+  from fastapi import APIRouter, Request, BackgroundTasks, Depends
+  from fastapi.responses import StreamingResponse
+  from app.middleware.auth import validate_api_key
+  from app.services.logger import log_request_async
+
   router = APIRouter()
-  
+
   @router.post("/v1/chat/completions")
-  async def chat_completion(request: dict):
-      response = await completion(
-          model=request["model"],
-          messages=request["messages"]
+  async def chat_completions(
+      request: Request,
+      background_tasks: BackgroundTasks,
+      key_meta: dict = Depends(validate_api_key),
+  ):
+      body = await request.json()
+      start_time = time.time()
+      first_token_time = None
+      chunks_buffer = []
+
+      async def stream_and_capture():
+          nonlocal first_token_time
+          async for chunk in await litellm.acompletion(**body, stream=True):
+              if first_token_time is None:
+                  first_token_time = time.time()
+              data = f"data: {chunk.model_dump_json()}\n\n"
+              chunks_buffer.append(data)
+              yield data
+          yield "data: [DONE]\n\n"
+          # Log AFTER stream ends — never blocks the response
+          background_tasks.add_task(
+              log_request_async,
+              org_id=key_meta["org_id"],
+              model=body.get("model"),
+              chunks=chunks_buffer,
+              cost_usd=litellm.completion_cost(completion_response=chunks_buffer),
+              latency_ms=int((time.time() - start_time) * 1000),
+              ttft_ms=int((first_token_time - start_time) * 1000) if first_token_time else None,
+          )
+
+      return StreamingResponse(
+          stream_and_capture(),
+          media_type="text/event-stream",
+          headers={
+              "X-OpenProxyAI-Request-Id": key_meta.get("request_id", ""),
+              "X-OpenProxyAI-Provider": body.get("model", "").split("/")[0],
+          }
       )
-      return response
   ```
 
 - [ ] **Test with OpenAI**
-  ```python
+  ```bash
   # Set OPENAI_API_KEY in environment
-  # Test:
   curl -X POST http://localhost:8000/v1/chat/completions \
     -H "Content-Type: application/json" \
-    -d '{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Hi"}]}'
+    -H "Authorization: Bearer your-api-key" \
+    -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hi"}],"stream":true}'
   ```
 
-**Deliverable:** First LLM request proxied ✅
+**Deliverable:** First LLM request proxied with streaming ✅
 
 ---
 
-#### Friday (Day 5) - Token Counting
+#### Friday (Day 5) - Async Logging + Hook Scaffold
 **Time: 8 hours**
 
-- [ ] **Add tiktoken for token counting**
-  ```bash
-  pip install tiktoken
-  ```
+- [ ] **Do NOT add tiktoken** — LiteLLM already counts tokens. Use `response.usage.prompt_tokens` and `litellm.completion_cost()`.
 
-- [ ] **Count tokens before/after**
+- [ ] **Create the async logger**
   ```python
-  import tiktoken
-  
-  def count_tokens(messages, model="gpt-4"):
-      encoding = tiktoken.encoding_for_model(model)
-      num_tokens = 0
-      for message in messages:
-          num_tokens += len(encoding.encode(message["content"]))
-      return num_tokens
+  # backend/app/services/logger.py
+  import uuid
+  from datetime import datetime, timezone
+  from app.database import get_db
+
+  async def log_request_async(org_id, model, chunks, cost_usd, latency_ms, ttft_ms):
+      """Called as a background task — never blocks the proxy response."""
+      async with get_db() as db:
+          await db.execute("""
+              INSERT INTO request_logs
+                (request_id, org_id, model, provider, cost_usd, latency_ms, ttft_ms, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          """,
+              str(uuid.uuid4()), org_id, model,
+              model.split("/")[0] if "/" in model else "openai",
+              cost_usd or 0.0, latency_ms, ttft_ms, datetime.now(timezone.utc)
+          )
   ```
 
-- [ ] **Log request to database**
+- [ ] **Scaffold the hook system** — even if hooks are empty today, the structure must exist
   ```python
-  # After LLM call, save to DB
-  request_log = LLMRequest(
-      user_id=user.id,
-      model=request["model"],
-      input_tokens=input_token_count,
-      output_tokens=output_token_count,
-      cost_usd=calculate_cost(input_tokens, output_tokens, model),
-      created_at=datetime.utcnow()
-  )
-  db.add(request_log)
-  db.commit()
+  # backend/app/hooks/base.py
+  from abc import ABC, abstractmethod
+  from dataclasses import dataclass, field
+  from typing import Optional
+
+  @dataclass
+  class HookContext:
+      org_id: str
+      request_body: dict
+      key_meta: dict
+
+  @dataclass
+  class HookResult:
+      allowed: bool
+      modified_body: Optional[dict] = None
+      block_reason: Optional[str] = None
+
+  class BeforeRequestHook(ABC):
+      @abstractmethod
+      async def run(self, ctx: HookContext) -> HookResult:
+          pass
+
+  # backend/app/hooks/runner.py
+  from app.hooks.base import BeforeRequestHook, HookContext, HookResult
+  from fastapi import HTTPException
+
+  BEFORE_HOOKS: list[BeforeRequestHook] = []  # add hooks here as you build them
+
+  async def run_before_hooks(body: dict, key_meta: dict) -> dict:
+      ctx = HookContext(org_id=key_meta["org_id"], request_body=body, key_meta=key_meta)
+      for hook in BEFORE_HOOKS:
+          result = await hook.run(ctx)
+          if not result.allowed:
+              raise HTTPException(status_code=400, detail={"error": "policy_violation", "message": result.block_reason})
+          if result.modified_body:
+              body = result.modified_body
+      return body
   ```
 
-**Deliverable:** Requests logged with costs ✅
+**Deliverable:** Async logging + hook scaffold in place ✅
 
 ---
 

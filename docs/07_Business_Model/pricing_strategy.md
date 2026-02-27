@@ -53,10 +53,12 @@
 
 | Tier | Price | Target | Key Features |
 |------|-------|--------|--------------|
-| **Open Source** | Free | Individuals, Startups | Basic proxy, cost tracking, self-hosted |
-| **Starter** | $2,500/mo | Small Teams | + SSO, 50 users, email support |
-| **Growth** | $7,500/mo | Mid-size Companies | + 200 users, policy engine, phone support |
-| **Enterprise** | Custom | Large Orgs | + Unlimited users, on-premise, SLA, dedicated CSM |
+| **Free Trial** | $0 / 14 days | Evaluation | Full proxy, cost tracking, PII hooks, audit logs, 10 users |
+| **Starter** | $2,500/mo | Small Teams (50 users) | + SSO (SAML/OIDC), unlimited API keys, email support, data export |
+| **Growth** | $7,500/mo | Mid-size (200 users) | + Advanced policy engine, DLP, compliance reports, phone support |
+| **Enterprise** | Custom ($25K+/mo) | Large Orgs | + Unlimited users, on-premise/air-gapped, SLA, dedicated CSM, FedRAMP |
+
+> **Architecture note:** Every tier uses the same proxy engine and hook system — the difference is configuration and support level, not code paths. SSO and DLP are hooks that activate based on the org's tier config loaded at auth time.
 
 ### Detailed Pricing
 
@@ -68,10 +70,15 @@
 - ✅ Full Starter tier access
 - ✅ Up to 10 users
 - ✅ 10,000 requests included
-- ✅ All core features (SSO, policies, audit logs)
+- ✅ Core proxy features: multi-provider routing, cost tracking, audit logs
+- ✅ Hook-based guardrails (PII detection, keyword filter, model allowlist)
+- ✅ API key management
+- ✅ Basic admin dashboard
 - ✅ Email support
 - ✅ Guided onboarding
 - ✅ No credit card required
+
+> **Note:** SSO (SAML/OIDC) and advanced compliance features are **Starter tier and above** — not included in free trial. This is intentional: SSO requires IT admin involvement and is a buying signal, not a trial feature.
 
 **After Trial:**
 - Choose paid tier to continue

@@ -37,12 +37,26 @@ Content-Type: application/json
 ```
 
 **Response:**
+
+OpenProxyAI returns the **exact same JSON body** as the upstream provider (100% OpenAI-compatible). Proxy metadata is in response **headers**, not in the body — this ensures no existing OpenAI SDK code breaks.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-OpenProxyAI-Request-Id: req_xyz789
+X-OpenProxyAI-Provider: openai
+X-OpenProxyAI-Model: gpt-4o
+X-OpenProxyAI-Cost-USD: 0.00084
+X-OpenProxyAI-Latency-Ms: 1250
+X-OpenProxyAI-TTFT-Ms: 312
+```
+
 ```json
 {
   "id": "chatcmpl-abc123",
   "object": "chat.completion",
   "created": 1707739245,
-  "model": "gpt-4",
+  "model": "gpt-4o",
   "choices": [
     {
       "index": 0,
@@ -57,13 +71,6 @@ Content-Type: application/json
     "prompt_tokens": 20,
     "completion_tokens": 8,
     "total_tokens": 28
-  },
-  "x_openproxyai": {
-    "request_id": "req_xyz789",
-    "provider": "openai",
-    "cost_usd": 0.00084,
-    "latency_ms": 1250,
-    "cached": false
   }
 }
 ```
@@ -673,15 +680,42 @@ Retry-After: 3600
 
 ### Error Types
 
+**HTTP errors (returned to client):**
+
 | HTTP Status | Error Type | Description |
 |-------------|------------|-------------|
 | 400 | `invalid_request_error` | Invalid request parameters |
+| 400 | `policy_violation` | Request blocked by guardrail hook (PII detected, keyword blocked, model not allowed) |
 | 401 | `authentication_error` | Invalid or missing API key |
 | 403 | `permission_error` | Insufficient permissions |
-| 402 | `budget_exceeded_error` | Budget limit reached |
-| 429 | `rate_limit_exceeded` | Too many requests |
-| 500 | `internal_error` | Server error |
-| 503 | `service_unavailable` | Temporary outage |
+| 402 | `budget_exceeded` | Monthly budget cap reached for this org |
+| 429 | `rate_limit_exceeded` | Too many requests (per-minute limit hit) |
+| 502 | `provider_error` | Upstream provider returned an error |
+| 502 | `network_error` | Network connection to provider lost |
+| 504 | `provider_timeout` | Provider did not respond within timeout |
+| 500 | `internal_error` | OpenProxyAI server error |
+
+**Internal audit log status codes** (stored in `request_logs.status_code`, not returned to client):
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| -2 | Timeout (provider did not respond) |
+| -3 | Request cancelled by client |
+| -4 | Blocked by policy hook |
+| -100 | Unknown proxy error |
+
+**Policy violation response shape:**
+```json
+{
+  "error": {
+    "type": "policy_violation",
+    "code": "pii_detected",
+    "message": "Request blocked: PII detected in prompt (PERSON, EMAIL_ADDRESS)",
+    "param": null
+  }
+}
+```
 
 ---
 

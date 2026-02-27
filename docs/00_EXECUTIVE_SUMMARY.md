@@ -149,14 +149,20 @@ Current reality:
 
 **Goal:** Fast time-to-value, demonstrate ROI quickly
 
-### Enterprise (Paid)
-- 🔒 SSO (SAML, OAuth, LDAP)
-- 🔒 Multi-tenancy & RBAC
-- 🔒 Advanced audit logs (retention, export)
-- 🔒 Policy enforcement (DLP, PII detection)
-- 🔒 Compliance dashboard (SOC 2, HIPAA, GDPR)
+### Phase 1 (included from day 1)
+- ✅ Hook-based guardrails (PII detection, keyword filter, model allowlist)
+- ✅ Immutable audit logs
+- ✅ API key auth + org/user management
+- ✅ Real-time cost tracking per user/department
+- ✅ Rate limiting + budget caps
+
+### Phase 2+ (Enterprise paid tier)
+- 🔒 SSO (SAML, OIDC, OAuth)
+- 🔒 SCIM provisioning
+- 🔒 Advanced DLP and content classification
+- 🔒 Compliance dashboard (SOC 2, HIPAA, GDPR reports)
 - 🔒 Advanced observability (LangFuse, Datadog)
-- 🔒 On-premise deployment
+- 🔒 On-premise / air-gapped deployment
 - 🔒 SLA & dedicated support
 
 **Pricing:**
@@ -202,15 +208,16 @@ Current reality:
 
 ### Competitive Landscape
 
-| Competitor | Strength | Weakness |
-|------------|----------|----------|
-| **LiteLLM** | Popular OSS, good proxy | No enterprise features, no compliance |
-| **Azure AI Studio** | Microsoft integration | Vendor lock-in, limited providers |
-| **AWS Bedrock** | AWS integration | Vendor lock-in, limited providers |
-| **PromptLayer** | Good observability | Not security-focused |
-| **Portkey** | Feature-rich | Closed source, no on-premise |
+| Competitor | Strength | Weakness | Our Edge |
+|------------|----------|----------|----------|
+| **LiteLLM** | 33K★ OSS, 100+ providers | `proxy_server.py` is 508KB monolith. No PII, no compliance, no enterprise auth | We are security-first from line 1 |
+| **Portkey** | Clean architecture, feature-rich | Runs on Cloudflare Workers — not on-prem. Config via headers, not DB-backed. No compliance | Self-hosted, DB-backed org config, on-prem |
+| **Helicone** | Best observability model, ClickHouse analytics | Cloudflare Workers only — not self-hostable. No PII, no policy engine | Self-hosted + security layer |
+| **Azure AI Studio** | Microsoft integration | Vendor lock-in, only Azure/OpenAI | Provider-agnostic |
+| **AWS Bedrock** | AWS integration | Vendor lock-in, AWS only | Provider-agnostic |
+| **PromptLayer** | Good tracing/observability | Not security-focused, no on-prem | Compliance + security first |
 
-**OpenProxyAI Positioning:** The only open-core, security-first, provider-agnostic AI gateway.
+**OpenProxyAI Positioning:** Self-hosted, security-first, provider-agnostic AI gateway — the only one built specifically for regulated industries that can run on-premise.
 
 ---
 
@@ -219,43 +226,46 @@ Current reality:
 ### Phase 1: Secure Proxy MVP (Months 1-4)
 **Goal:** First paying customer
 
-- ✅ LLM proxy (OpenAI, Anthropic, Azure)
-- ✅ Token counting & cost tracking
-- ✅ Basic audit logs
-- ✅ API key auth
-- ✅ Admin dashboard
-- ✅ Docker deployment
+- ✅ LLM proxy (OpenAI, Anthropic, Azure) via LiteLLM
+- ✅ Hook-based guardrails (PII detection, keyword filter, model allowlist)
+- ✅ Token counting & cost tracking (async, non-blocking)
+- ✅ Immutable audit logs — PostgreSQL, ClickHouse-compatible schema
+- ✅ API key auth with org/user model
+- ✅ Redis rate limiting per org
+- ✅ Basic admin dashboard (cost charts, key management)
+- ✅ Docker Compose one-command deploy
 
-**Launch:** Open source on GitHub
+**Launch:** Public GitHub + HN launch
 
 ### Phase 2: Enterprise Foundation (Months 5-8)
 **Goal:** SOC 2 Type I certification
 
-- ✅ SSO (SAML, OAuth)
-- ✅ Multi-tenancy
-- ✅ Advanced audit logs
-- ✅ Policy engine
-- ✅ Department-level governance
+- ✅ SSO (SAML, OAuth, OIDC)
+- ✅ Multi-tenancy & department-level governance
+- ✅ Advanced policy engine (DLP, content classification)
+- ✅ Compliance dashboard (SOC 2, HIPAA, GDPR reports)
+- ✅ Advanced audit log export (SIEM integration)
 
 **Milestone:** 5 paying customers
 
-### Phase 3: RAG & Intelligence (Months 9-12)
+### Phase 3: Scale & Analytics (Months 9-12)
 **Goal:** $1M ARR
 
-- ✅ RAG orchestration
-- ✅ Web search integration
-- ✅ Smart routing
-- ✅ Vector DB abstraction
+- ✅ Migrate analytics to ClickHouse (10M+ requests/month)
+- ✅ Smart routing (cost-optimized, latency-optimized, fallbacks)
+- ✅ SDK (Python, TypeScript) — drop-in OpenAI replacement
+- ✅ Langfuse-compatible observability export
+- ✅ Kubernetes deployment option
 
 **Milestone:** 10 paying customers
 
 ### Phase 4: Advanced Enterprise (Months 13-18)
 **Goal:** $2M ARR, SOC 2 Type II
 
-- ✅ DLP & PII detection
-- ✅ Compliance dashboard
-- ✅ Advanced observability
-- ✅ On-premise deployment
+- ✅ RAG orchestration (Phase 4 — not Phase 1)
+- ✅ On-premise / air-gapped deployment
+- ✅ Advanced observability (Datadog, Grafana integration)
+- ✅ FedRAMP preparation
 
 **Milestone:** Series A readiness
 
