@@ -1,0 +1,42 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# LLM
+litellm>=1.50.0
+
+# Database
+sqlalchemy[asyncio]>=2.0.30
+asyncpg>=0.30.0
+alembic>=1.13.0
+
+# Cache
+redis[hiredis]>=5.0.0
+
+# Auth
+pyjwt[crypto]>=2.8.0
+passlib[bcrypt]>=1.7.4
+bcrypt<5
+
+# Config
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+email-validator>=2.2.0
+python-dotenv>=1.0.0
+
+# Serialization / HTTP
+orjson>=3.10.0
+httpx>=0.27.0
+
+# Observability
+prometheus-client>=0.20.0
+
+# Task scheduling
+apscheduler>=3.10.0
+
+# Dev / test
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-mock==3.14.0
+factory-boy==3.3.1
