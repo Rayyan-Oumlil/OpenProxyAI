@@ -18,6 +18,9 @@ build/
 
 # Node
 node_modules/
+*.tsbuildinfo
+admin-console/vite.config.js
+admin-console/vite.config.d.ts
 
 # OS
 .DS_Store

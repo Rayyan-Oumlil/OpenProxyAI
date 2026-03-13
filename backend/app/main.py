@@ -18,7 +18,9 @@ from app.routes.auth import router as auth_router
 from app.routes.api_keys import router as api_keys_router
 from app.routes.analytics import router as analytics_router
 from app.routes.health import router as health_router
+from app.routes.organizations import router as organizations_router
 from app.routes.proxy import router as proxy_router
+from app.routes.users import router as users_router
 from app.utils.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -30,6 +32,7 @@ TAGS_METADATA = [
     {"name": "Auth", "description": "Authentication and token management"},
     {"name": "API Keys", "description": "API key CRUD"},
     {"name": "Users", "description": "User management"},
+    {"name": "Organizations", "description": "Organization settings"},
     {"name": "Analytics", "description": "Usage analytics and cost tracking"},
 ]
 
@@ -109,6 +112,8 @@ add_cors_middleware(app)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(api_keys_router)
+app.include_router(users_router)
+app.include_router(organizations_router)
 app.include_router(proxy_router)
 app.include_router(analytics_router)
 
