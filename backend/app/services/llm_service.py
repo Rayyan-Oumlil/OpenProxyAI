@@ -22,6 +22,8 @@ from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
+from app.services.crypto_service import decrypt
+from app.services.policy_service import PolicyDecision, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 from app.utils.token_estimator import estimate_tokens
 
@@ -68,7 +70,7 @@ class LLMService:
 		keys = [row for row in rows if row.weight > 0]
 		if keys:
 			selected = random.choices(keys, weights=[k.weight for k in keys], k=1)[0]
-			return selected.api_key_encrypted
+			return decrypt(selected.api_key_encrypted)
 
 		env_map = {
 			"openai": settings.OPENAI_API_KEY,
@@ -100,6 +102,7 @@ class LLMService:
 		status_code: int,
 		ttft_ms: int | None = None,
 		error_message: str | None = None,
+		request_metadata: dict | None = None,
 	) -> None:
 		background_tasks.add_task(
 			log_request,
@@ -117,6 +120,24 @@ class LLMService:
 			ttft_ms=ttft_ms,
 			status_code=status_code,
 			error_message=error_message,
+			request_metadata=request_metadata,
+		)
+
+	@staticmethod
+	def _policy_block_response(decision: PolicyDecision) -> JSONResponse:
+		return JSONResponse(
+			status_code=403,
+			content={
+				"error": "policy_violation",
+				"detail": decision.detail or "Request blocked by policy.",
+				"reason_code": decision.reason_code,
+				"triggered_rules": decision.triggered_rules or [],
+			},
+			headers={
+				"X-OpenProxyAI-Gateway-Error": "true",
+				"X-OpenProxyAI-Policy-Action": decision.action,
+				"X-OpenProxyAI-Policy-Reason": decision.reason_code or "unknown",
+			},
 		)
 
 	async def chat_completion(
@@ -132,8 +153,32 @@ class LLMService:
 		start = time.perf_counter()
 		provider = "unknown"
 		rl_headers: dict[str, str] = {}
+		policy_metadata: dict | None = None
 		try:
 			provider, model_name = _split_model(request.model)
+			policy_config = await policy_store.load(user.org_id, db, redis)
+			decision = policy_service.evaluate_chat_request(request, policy_config)
+			policy_metadata = decision.as_metadata()
+			if not decision.allowed:
+				latency_ms = int((time.perf_counter() - start) * 1000)
+				await log_request(
+					redis=redis,
+					request_id=request_id,
+					org_id=user.org_id,
+					user_id=user.id,
+					api_key_id=api_key.id,
+					model=request.model,
+					provider=provider,
+					prompt_tokens=0,
+					completion_tokens=0,
+					cost_usd=Decimal("0"),
+					latency_ms=latency_ms,
+					ttft_ms=None,
+					status_code=403,
+					error_message=f"policy_blocked:{decision.reason_code}",
+					request_metadata=policy_metadata,
+				)
+				return self._policy_block_response(decision)
 
 			ok, rl_headers, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
 				redis=redis,
@@ -162,6 +207,7 @@ class LLMService:
 					ttft_ms=None,
 					status_code=429,
 					error_message=f"rate_limited:{limit_type}",
+					request_metadata=policy_metadata,
 				)
 				return JSONResponse(
 					status_code=429,
@@ -186,7 +232,7 @@ class LLMService:
 			kwargs = request.model_dump(exclude_none=True)
 			kwargs.update(
 				{
-					"model": model_name,
+					"model": request.model,
 					"api_key": provider_api_key,
 					"timeout": 30,
 					"request_timeout": 30,
@@ -230,7 +276,7 @@ class LLMService:
 					cost = Decimal("0")
 					if prompt_tokens > 0 or completion_tokens > 0:
 						cost_response = {
-							"model": model_name,
+							"model": request.model,
 							"usage": {
 								"prompt_tokens": prompt_tokens,
 								"completion_tokens": completion_tokens,
@@ -252,6 +298,7 @@ class LLMService:
 						latency_ms,
 						200,
 						ttft_ms=ttft_ms,
+						request_metadata=policy_metadata,
 					)
 
 				return StreamingResponse(
@@ -289,6 +336,7 @@ class LLMService:
 				cost,
 				latency_ms,
 				200,
+				request_metadata=policy_metadata,
 			)
 
 			return JSONResponse(
@@ -321,6 +369,7 @@ class LLMService:
 				ttft_ms=None,
 				status_code=exc.status_code,
 				error_message=str(exc.detail),
+				request_metadata=policy_metadata,
 			)
 			if rl_headers:
 				raise HTTPException(
@@ -345,6 +394,7 @@ class LLMService:
 				latency_ms,
 				504,
 				error_message=str(exc),
+				request_metadata=policy_metadata,
 			)
 			raise HTTPException(
 				status_code=504,
@@ -367,6 +417,7 @@ class LLMService:
 				latency_ms,
 				502,
 				error_message=str(exc),
+				request_metadata=policy_metadata,
 			)
 			raise HTTPException(
 				status_code=502,
@@ -387,8 +438,32 @@ class LLMService:
 		start = time.perf_counter()
 		provider = "unknown"
 		rl_headers: dict[str, str] = {}
+		policy_metadata: dict | None = None
 		try:
 			provider, model_name = _split_model(request.model)
+			policy_config = await policy_store.load(user.org_id, db, redis)
+			decision = policy_service.evaluate_embedding_request(request, policy_config)
+			policy_metadata = decision.as_metadata()
+			if not decision.allowed:
+				latency_ms = int((time.perf_counter() - start) * 1000)
+				await log_request(
+					redis=redis,
+					request_id=request_id,
+					org_id=user.org_id,
+					user_id=user.id,
+					api_key_id=api_key.id,
+					model=request.model,
+					provider=provider,
+					prompt_tokens=0,
+					completion_tokens=0,
+					cost_usd=Decimal("0"),
+					latency_ms=latency_ms,
+					ttft_ms=None,
+					status_code=403,
+					error_message=f"policy_blocked:{decision.reason_code}",
+					request_metadata=policy_metadata,
+				)
+				return self._policy_block_response(decision)
 			size = len(request.input) if isinstance(request.input, list) else len(request.input)
 			ok, rl_headers, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
 				redis=redis,
@@ -417,6 +492,7 @@ class LLMService:
 					ttft_ms=None,
 					status_code=429,
 					error_message=f"rate_limited:{limit_type}",
+					request_metadata=policy_metadata,
 				)
 				return JSONResponse(
 					status_code=429,
@@ -439,7 +515,7 @@ class LLMService:
 				) from exc
 
 			response = await aembedding(
-				model=model_name,
+				model=request.model,
 				input=request.input,
 				api_key=provider_api_key,
 				encoding_format=request.encoding_format,
@@ -464,6 +540,7 @@ class LLMService:
 				cost,
 				latency_ms,
 				200,
+				request_metadata=policy_metadata,
 			)
 
 			return JSONResponse(
@@ -495,6 +572,7 @@ class LLMService:
 				ttft_ms=None,
 				status_code=exc.status_code,
 				error_message=str(exc.detail),
+				request_metadata=policy_metadata,
 			)
 			if rl_headers:
 				raise HTTPException(
@@ -519,6 +597,7 @@ class LLMService:
 				latency_ms,
 				504,
 				error_message=str(exc),
+				request_metadata=policy_metadata,
 			)
 			raise HTTPException(
 				status_code=504,
@@ -541,6 +620,7 @@ class LLMService:
 				latency_ms,
 				502,
 				error_message=str(exc),
+				request_metadata=policy_metadata,
 			)
 			raise HTTPException(
 				status_code=502,

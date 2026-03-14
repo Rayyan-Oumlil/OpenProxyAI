@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
 import type { ApiKeyCreatedResponse, ApiKeyResponse } from "../../api/types";
@@ -31,6 +32,10 @@ export function ApiKeysPage() {
     onSuccess: (created) => {
       setLatestCreatedKey(created);
       queryClient.invalidateQueries({ queryKey: ["api-keys", token] });
+      toast.success("API key created.");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to create API key.");
     },
   });
 
@@ -38,6 +43,10 @@ export function ApiKeysPage() {
     mutationFn: (id: string) => apiClient.del<void>(`/api/v1/api-keys/${id}`, token ?? undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api-keys", token] });
+      toast.success("Key revoked.");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to revoke key.");
     },
   });
 

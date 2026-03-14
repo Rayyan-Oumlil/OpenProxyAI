@@ -11,6 +11,8 @@ class UsageOverview(BaseModel):
 	total_requests: int
 	successful_requests: int
 	failed_requests: int
+	policy_blocked_requests: int = 0
+	policy_flagged_requests: int = 0
 	total_tokens: int
 	total_cost_usd: float
 	avg_latency_ms: float
@@ -46,4 +48,23 @@ class AnalyticsResponse(BaseModel):
 	by_model: list[CostByModel]
 	by_user: list[CostByUser]
 	daily_trend: list[DailyUsageTrend]
+	generated_at: datetime
+
+
+class PolicyActionStat(BaseModel):
+	action: str
+	count: int
+
+
+class PolicyReasonStat(BaseModel):
+	reason_code: str
+	action: str
+	count: int
+
+
+class PolicyAnalyticsResponse(BaseModel):
+	period_days: int
+	total_policy_events: int
+	by_action: list[PolicyActionStat]
+	by_reason: list[PolicyReasonStat]
 	generated_at: datetime

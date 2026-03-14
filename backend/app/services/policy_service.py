@@ -1,0 +1,300 @@
+"""Policy service for pre-provider request guardrails and policy metadata."""
+
+from __future__ import annotations
+
+import json
+import re
+import uuid
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+
+from redis.asyncio import Redis
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
+
+# ── Redis key helpers ────────────────────────────────────────────────────────
+
+_POLICY_CACHE_TTL = 60  # seconds
+_POLICY_CACHE_KEY = "policy:config:{org_id}"
+
+
+# ── Policy config (per-org, loaded from DB / Redis) ──────────────────────────
+
+
+@dataclass
+class PolicyConfig:
+	"""Runtime policy configuration for a single organization."""
+
+	enforcement_mode: str = "off"
+	allowed_models: list[str] = field(default_factory=list)
+	blocked_keywords: list[str] = field(default_factory=list)
+	pii_detection_enabled: bool = True
+	pii_entities: list[str] = field(default_factory=list)
+	updated_at: datetime | None = None
+
+	@classmethod
+	def from_settings(cls) -> "PolicyConfig":
+		"""Build a config from global env settings (fallback when no org override)."""
+		return cls(
+			enforcement_mode=settings.POLICY_ENFORCEMENT_MODE,
+			allowed_models=list(settings.POLICY_ALLOWED_MODELS),
+			blocked_keywords=list(settings.POLICY_BLOCKED_KEYWORDS),
+			pii_detection_enabled=settings.POLICY_PII_DETECTION_ENABLED,
+			pii_entities=[],
+		)
+
+	@classmethod
+	def from_dict(cls, data: dict) -> "PolicyConfig":
+		return cls(
+			enforcement_mode=data.get("enforcement_mode", "off"),
+			allowed_models=list(data.get("allowed_models") or []),
+			blocked_keywords=list(data.get("blocked_keywords") or []),
+			pii_detection_enabled=bool(data.get("pii_detection_enabled", True)),
+			pii_entities=list(data.get("pii_entities") or []),
+			updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else None,
+		)
+
+	def to_dict(self) -> dict:
+		return {
+			"enforcement_mode": self.enforcement_mode,
+			"allowed_models": self.allowed_models,
+			"blocked_keywords": self.blocked_keywords,
+			"pii_detection_enabled": self.pii_detection_enabled,
+			"pii_entities": self.pii_entities,
+			"updated_at": self.updated_at.isoformat() if self.updated_at else None,
+		}
+
+
+# ── Policy store (I/O layer: Redis → DB → settings fallback) ─────────────────
+
+
+class PolicyStore:
+	"""Load and persist per-org policy config via Redis cache + PostgreSQL."""
+
+	async def load(
+		self,
+		org_id: uuid.UUID,
+		db: AsyncSession,
+		redis: Redis,
+	) -> PolicyConfig:
+		"""Return the effective policy config for org_id.
+
+		Resolution order:
+		  1. Redis cache (TTL 60 s)
+		  2. org.settings['policy'] in PostgreSQL
+		  3. Global env settings (fallback)
+		"""
+		cache_key = _POLICY_CACHE_KEY.format(org_id=org_id)
+		cached = await redis.get(cache_key)
+		if cached:
+			try:
+				return PolicyConfig.from_dict(json.loads(cached))
+			except (json.JSONDecodeError, KeyError):
+				pass
+
+		# Lazy import to avoid circular dependencies
+		from app.models.organization import Organization
+
+		try:
+			org = await db.scalar(select(Organization).where(Organization.id == org_id))
+			if org is not None:
+				policy_data = (org.settings or {}).get("policy")
+				if policy_data and isinstance(policy_data, dict):
+					config = PolicyConfig.from_dict(policy_data)
+					await redis.setex(cache_key, _POLICY_CACHE_TTL, json.dumps(config.to_dict()))
+					return config
+		except Exception:  # noqa: BLE001
+			pass  # DB unavailable — fall through to settings defaults
+
+		return PolicyConfig.from_settings()
+
+	async def save(
+		self,
+		org_id: uuid.UUID,
+		config: PolicyConfig,
+		db: AsyncSession,
+		redis: Redis,
+	) -> None:
+		"""Persist config to org.settings['policy'] and invalidate the Redis cache."""
+		from app.models.organization import Organization
+
+		org = await db.scalar(select(Organization).where(Organization.id == org_id))
+		if org is None:
+			return
+
+		merged = dict(org.settings or {})
+		merged["policy"] = config.to_dict()
+		org.settings = merged
+		await db.commit()
+		await db.refresh(org)
+
+		# Invalidate so next load re-reads from DB
+		cache_key = _POLICY_CACHE_KEY.format(org_id=org_id)
+		await redis.delete(cache_key)
+
+
+policy_store = PolicyStore()
+
+
+# ── Policy decision ───────────────────────────────────────────────────────────
+
+
+@dataclass
+class PolicyDecision:
+	allowed: bool
+	action: str
+	reason_code: str | None = None
+	detail: str | None = None
+	triggered_rules: list[str] | None = None
+	_mode: str = "off"
+
+	def as_metadata(self) -> dict[str, object]:
+		return {
+			"policy": {
+				"allowed": self.allowed,
+				"action": self.action,
+				"reason_code": self.reason_code,
+				"detail": self.detail,
+				"triggered_rules": self.triggered_rules or [],
+				"mode": self._mode,
+			}
+		}
+
+
+# ── Policy service (pure — no I/O) ───────────────────────────────────────────
+
+
+class PolicyService:
+	_EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+	_SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+	_CC_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
+
+	def evaluate_chat_request(
+		self,
+		request: ChatCompletionRequest,
+		config: PolicyConfig | None = None,
+	) -> PolicyDecision:
+		cfg = config or PolicyConfig.from_settings()
+		return self._evaluate(model=request.model, text=self._extract_chat_text(request), config=cfg)
+
+	def evaluate_embedding_request(
+		self,
+		request: EmbeddingRequest,
+		config: PolicyConfig | None = None,
+	) -> PolicyDecision:
+		cfg = config or PolicyConfig.from_settings()
+		if isinstance(request.input, list):
+			text = "\n".join(str(item) for item in request.input)
+		else:
+			text = str(request.input)
+		return self._evaluate(model=request.model, text=text, config=cfg)
+
+	def _evaluate(self, model: str, text: str, config: PolicyConfig) -> PolicyDecision:
+		mode = config.enforcement_mode.lower().strip()
+		if mode == "off":
+			return PolicyDecision(allowed=True, action="allow", _mode=mode)
+
+		triggered_rules: list[str] = []
+
+		if self._model_is_blocked(model, config):
+			triggered_rules.append("model_allowlist")
+			return self._decision_for_violation(
+				mode=mode,
+				reason_code="model_not_allowed",
+				detail="The requested model is not allowed by organization policy.",
+				triggered_rules=triggered_rules,
+			)
+
+		keyword_hit = self._keyword_hit(text, config)
+		if keyword_hit is not None:
+			triggered_rules.append("blocked_keyword")
+			return self._decision_for_violation(
+				mode=mode,
+				reason_code="blocked_keyword",
+				detail=f"Request matched blocked keyword: {keyword_hit}",
+				triggered_rules=triggered_rules,
+			)
+
+		pii_match = self._pii_hit(text, config)
+		if pii_match is not None:
+			triggered_rules.append("pii_detection")
+			return self._decision_for_violation(
+				mode=mode,
+				reason_code="pii_detected",
+				detail=f"Potential PII detected: {pii_match}",
+				triggered_rules=triggered_rules,
+			)
+
+		return PolicyDecision(allowed=True, action="allow", _mode=mode)
+
+	def _decision_for_violation(
+		self,
+		mode: str,
+		reason_code: str,
+		detail: str,
+		triggered_rules: list[str],
+	) -> PolicyDecision:
+		if mode == "log_only":
+			return PolicyDecision(
+				allowed=True,
+				action="log_only",
+				reason_code=reason_code,
+				detail=detail,
+				triggered_rules=triggered_rules,
+				_mode=mode,
+			)
+		return PolicyDecision(
+			allowed=False,
+			action="block",
+			reason_code=reason_code,
+			detail=detail,
+			triggered_rules=triggered_rules,
+			_mode=mode,
+		)
+
+	def _model_is_blocked(self, model: str, config: PolicyConfig) -> bool:
+		allowlist = {item.strip() for item in config.allowed_models if item.strip()}
+		if not allowlist:
+			return False
+		return model not in allowlist
+
+	def _keyword_hit(self, text: str, config: PolicyConfig) -> str | None:
+		blocked_keywords = [kw.strip() for kw in config.blocked_keywords if kw.strip()]
+		text_lc = text.lower()
+		for keyword in blocked_keywords:
+			if keyword.lower() in text_lc:
+				return keyword
+		return None
+
+	def _pii_hit(self, text: str, config: PolicyConfig) -> str | None:
+		if not config.pii_detection_enabled:
+			return None
+		if self._EMAIL_RE.search(text):
+			return "email"
+		if self._SSN_RE.search(text):
+			return "ssn"
+		if self._CC_RE.search(text):
+			return "payment_card"
+		return None
+
+	def _extract_chat_text(self, request: ChatCompletionRequest) -> str:
+		parts: list[str] = []
+		for message in request.messages:
+			content = message.content
+			if isinstance(content, str):
+				parts.append(content)
+				continue
+			for item in content:
+				if isinstance(item, str):
+					parts.append(item)
+				elif isinstance(item, dict):
+					text_value = item.get("text")
+					if isinstance(text_value, str):
+						parts.append(text_value)
+		return "\n".join(parts)
+
+
+policy_service = PolicyService()

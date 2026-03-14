@@ -1,12 +1,17 @@
 """Organization settings endpoints."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import CurrentUser, get_db
+from app.dependencies import CurrentUser, get_db, get_redis
 from app.models.organization import Organization
 from app.schemas.organization import OrganizationResponse, OrganizationUpdateRequest
+from app.schemas.policy import PolicyConfigRequest, PolicyConfigResponse
+from app.services.policy_service import PolicyConfig, policy_store
 
 router = APIRouter(prefix="/api/v1/organizations", tags=["Organizations"])
 
@@ -55,3 +60,60 @@ async def update_current_organization(
 	await db.commit()
 	await db.refresh(model)
 	return OrganizationResponse.model_validate(model)
+
+
+@router.get("/current/policy", response_model=PolicyConfigResponse)
+async def get_policy_config(
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+	redis: Redis = Depends(get_redis),
+) -> PolicyConfigResponse:
+	"""Return the current policy configuration for the organization."""
+	config = await policy_store.load(current_user.org_id, db, redis)
+	return PolicyConfigResponse(
+		enforcement_mode=config.enforcement_mode,
+		allowed_models=config.allowed_models,
+		blocked_keywords=config.blocked_keywords,
+		pii_detection_enabled=config.pii_detection_enabled,
+		pii_entities=config.pii_entities,
+		updated_at=config.updated_at,
+	)
+
+
+@router.patch("/current/policy", response_model=PolicyConfigResponse)
+async def update_policy_config(
+	payload: PolicyConfigRequest,
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+	redis: Redis = Depends(get_redis),
+) -> PolicyConfigResponse:
+	"""Merge-update the policy configuration for the organization.
+
+	Only provided fields are changed; omitted fields keep their current value.
+	Changes take effect within 60 seconds (Redis cache TTL).
+	"""
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+	current = await policy_store.load(current_user.org_id, db, redis)
+
+	updates = payload.model_dump(exclude_unset=True)
+	new_config = PolicyConfig(
+		enforcement_mode=updates.get("enforcement_mode", current.enforcement_mode),
+		allowed_models=updates.get("allowed_models", current.allowed_models),
+		blocked_keywords=updates.get("blocked_keywords", current.blocked_keywords),
+		pii_detection_enabled=updates.get("pii_detection_enabled", current.pii_detection_enabled),
+		pii_entities=updates.get("pii_entities", current.pii_entities),
+		updated_at=datetime.now(UTC),
+	)
+
+	await policy_store.save(current_user.org_id, new_config, db, redis)
+
+	return PolicyConfigResponse(
+		enforcement_mode=new_config.enforcement_mode,
+		allowed_models=new_config.allowed_models,
+		blocked_keywords=new_config.blocked_keywords,
+		pii_detection_enabled=new_config.pii_detection_enabled,
+		pii_entities=new_config.pii_entities,
+		updated_at=new_config.updated_at,
+	)

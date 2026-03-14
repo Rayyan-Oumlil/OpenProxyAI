@@ -42,6 +42,7 @@ Target customers: CISOs and IT teams at banks, hospitals, and government agencie
 | [Phase 1 MVP Roadmap](./06_Product_Roadmap/phase_1_mvp.md) | Week-by-week build plan, must-have features, first customer milestone |
 | [First 90 Days](./01_Getting_Started/first_90_days.md) | Day-by-day action plan from zero to first paying customer |
 | [Resources & Build Plan](./11_Resources_And_Build_Plan/01_resources_and_build_plan.md) | OSS ecosystem map (LiteLLM, Portkey, Helicone), tech stack, 3-phase build |
+| [Product Pilot Blueprint](./12_Product_Pilot_Blueprint/product_pilot_blueprint.md) | ICP lock, 14-day pilot flow, success metrics, conversion criteria |
 
 ### Operations
 | Document | What it covers |
@@ -99,11 +100,11 @@ OpenProxyAI Gateway  (your server)
 | Area | Status |
 |---|---|
 | Marketing website | Built (`web-app/`) — React + Vite, 9 sections, deployed |
-| Documentation | Complete (this folder) |
+| Documentation | Complete and evolving with execution alignment |
 | Reference repos | Cloned (`references/`) — LiteLLM, Portkey, Bifrost, Helicone, Envoy |
-| Backend proxy | **Not started** — Phase 1 starts now |
-| Admin dashboard | Not started — Week 7 of Phase 1 |
-| SDK | Not started — Week 10 of Phase 1 |
+| Backend proxy | In progress — core auth/proxy/rate limit/analytics paths implemented |
+| Admin dashboard | In progress — admin-console MVP slice implemented |
+| SDK | Not started — planned after pilot stabilization |
 
 ---
 

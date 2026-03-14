@@ -28,6 +28,8 @@ export type UsageOverview = {
   total_cost_usd: number;
   avg_latency_ms: number;
   avg_ttft_ms: number;
+  policy_blocked_requests: number;
+  policy_flagged_requests: number;
 };
 
 export type CostByModel = {
@@ -75,6 +77,8 @@ export type RequestLogItem = {
   latency_ms: number | null;
   ttft_ms: number | null;
   error_message: string | null;
+  policy_action: string | null;
+  policy_reason: string | null;
 };
 
 export type Page<T> = {
@@ -143,4 +147,49 @@ export type OrganizationUpdateRequest = {
   settings?: Record<string, unknown>;
   budget_monthly_usd?: number | null;
   is_active?: boolean;
+};
+
+export type PolicyAnalyticsResponse = {
+  total_policy_events: number;
+  by_action: { action: string; count: number }[];
+  by_reason: { reason: string; count: number }[];
+};
+
+export type RequestLogDetail = RequestLogItem & {
+  request_id: string | null;
+  user_id: string | null;
+  api_key_id: string | null;
+  request_metadata: Record<string, unknown> | null;
+  policy_triggered_rules: string[] | null;
+};
+
+export type ProviderKeyResponse = {
+  id: string;
+  provider: string;
+  alias: string | null;
+  key_prefix: string;
+  weight: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type CreateProviderKeyRequest = {
+  provider: string;
+  alias?: string;
+  api_key: string;
+  weight?: number;
+};
+
+export type UpdateProviderKeyRequest = {
+  alias?: string;
+  weight?: number;
+  is_active?: boolean;
+};
+
+export type PolicyConfigRequest = {
+  enforcement_mode: "observe" | "log_only" | "enforce";
+  allowed_models: string[];
+  blocked_keywords: string[];
+  pii_detection_enabled: boolean;
+  pii_entities: string[];
 };

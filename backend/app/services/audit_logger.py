@@ -27,6 +27,7 @@ async def log_request(
 	ttft_ms: int | None,
 	status_code: int,
 	error_message: str | None = None,
+	request_metadata: dict | None = None,
 ) -> None:
 	total_tokens = prompt_tokens + completion_tokens
 	async with AsyncSessionLocal() as db:
@@ -45,7 +46,7 @@ async def log_request(
 			ttft_ms=ttft_ms,
 			status_code=status_code,
 			error_message=error_message,
-			request_metadata={},
+			request_metadata=request_metadata or {},
 		)
 		db.add(row)
 		await db.commit()

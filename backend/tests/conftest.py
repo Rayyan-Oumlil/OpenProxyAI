@@ -119,6 +119,14 @@ class FakeRedis:
 		self._store[key] = value
 		return True
 
+	async def delete(self, *keys: str) -> int:
+		deleted = 0
+		for key in keys:
+			if key in self._store:
+				del self._store[key]
+				deleted += 1
+		return deleted
+
 	def pipeline(self, transaction: bool = True):  # noqa: ARG002
 		return self._Pipeline(self)
 

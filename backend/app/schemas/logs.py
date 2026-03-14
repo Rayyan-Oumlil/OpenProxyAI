@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,6 +22,19 @@ class RequestLogItem(BaseModel):
 	latency_ms: int | None
 	ttft_ms: int | None
 	error_message: str | None
+	policy_action: str | None = None
+	policy_reason: str | None = None
+	policy_triggered_rules: list[str] | None = None
+
+
+class RequestLogDetail(RequestLogItem):
+	"""Full detail for a single log entry — includes fields omitted from the list view."""
+
+	request_id: uuid.UUID
+	user_id: uuid.UUID
+	api_key_id: uuid.UUID | None
+	status_code: int
+	request_metadata: dict[str, Any]
 
 
 T = TypeVar("T")
