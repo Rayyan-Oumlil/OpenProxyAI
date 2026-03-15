@@ -3,14 +3,16 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import CurrentUser, get_db
 from app.models.api_key import ApiKey
+from app.models.organization import Organization
 from app.schemas.auth import APIKeyCreateRequest, APIKeyCreatedResponse, APIKeyResponse
 from app.services.auth_service import create_api_key
+from app.services.plan_service import check_api_key_limit
 
 router = APIRouter(prefix="/api/v1/api-keys", tags=["API Keys"])
 
@@ -34,6 +36,17 @@ async def create_api_key_route(
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> APIKeyCreatedResponse:
+	# Enforce per-plan API key limit
+	org = await db.get(Organization, current_user.org_id)
+	result = await db.execute(
+		select(func.count()).where(
+			ApiKey.org_id == current_user.org_id,
+			ApiKey.is_active == True,  # noqa: E712
+		)
+	)
+	key_count = result.scalar_one()
+	check_api_key_limit(org, key_count)
+
 	model, full_key = await create_api_key(
 		db=db,
 		user_id=current_user.id,

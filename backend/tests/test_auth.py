@@ -20,18 +20,35 @@ class FakeScalarResult:
 		return iter(self._rows)
 
 
+class _FakeExecuteResult:
+	"""Mimics SQLAlchemy Result for scalar_one()."""
+
+	def __init__(self, value):
+		self._value = value
+
+	def scalar_one(self):
+		return self._value
+
+
 class FakeDB:
-	def __init__(self, keys: list[SimpleNamespace] | None = None):
+	def __init__(self, keys: list[SimpleNamespace] | None = None, org: SimpleNamespace | None = None):
 		self.keys = keys or []
+		self._org = org
 
 	async def scalars(self, query):  # noqa: ARG002
 		return FakeScalarResult(self.keys)
 
 	async def get(self, model, key_id):  # noqa: ARG002
+		# Return org stub for Organization lookups (plan enforcement)
+		if self._org is not None and model.__name__ == "Organization":
+			return self._org
 		for key in self.keys:
 			if key.id == key_id:
 				return key
 		return None
+
+	async def execute(self, query):  # noqa: ARG002
+		return _FakeExecuteResult(len([k for k in self.keys if getattr(k, "is_active", True)]))
 
 	async def commit(self):
 		return None
@@ -181,8 +198,10 @@ def test_api_key_create_list_revoke(client, monkeypatch):
 	async def fake_current_user_dep():
 		return user
 
+	org = SimpleNamespace(id=user.org_id, plan="enterprise")
+
 	async def fake_get_db():
-		yield FakeDB(keys=[model])
+		yield FakeDB(keys=[model], org=org)
 
 	async def fake_create_api_key(**kwargs):  # noqa: ANN003
 		return model, "opai_dev_abcd1234_deadbeefdeadbeefdeadbeefabcd"

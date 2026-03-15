@@ -41,6 +41,7 @@ async def get_request_logs(
 	status: str | None = Query(default=None, pattern="^(success|error)$"),
 	policy_action: str | None = Query(default=None, pattern="^(allow|log_only|block)$"),
 	policy_reason: str | None = Query(default=None, min_length=1, max_length=120),
+	include_archived: bool = Query(default=False),
 	db: AsyncSession = Depends(get_db),
 ) -> Page[RequestLogItem]:
 	return await analytics_service.get_request_logs(
@@ -52,6 +53,7 @@ async def get_request_logs(
 		status=status,
 		policy_action=policy_action,
 		policy_reason=policy_reason,
+		include_archived=include_archived,
 	)
 
 

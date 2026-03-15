@@ -104,6 +104,7 @@ class AnalyticsService:
 					FROM request_logs
 					WHERE org_id = :org_id
 					  AND created_at::date >= :since
+					  AND archived_at IS NULL
 					"""
 				),
 				{"org_id": str(org_id), "since": since},
@@ -140,6 +141,7 @@ class AnalyticsService:
 					FROM request_logs
 					WHERE org_id = :org_id
 					  AND created_at::date >= :since
+					  AND archived_at IS NULL
 					  AND request_metadata->'policy'->>'action' IS NOT NULL
 					GROUP BY request_metadata->'policy'->>'action'
 					ORDER BY count DESC
@@ -160,6 +162,7 @@ class AnalyticsService:
 					FROM request_logs
 					WHERE org_id = :org_id
 					  AND created_at::date >= :since
+					  AND archived_at IS NULL
 					  AND request_metadata->'policy'->>'reason_code' IS NOT NULL
 					GROUP BY request_metadata->'policy'->>'reason_code', request_metadata->'policy'->>'action'
 					ORDER BY count DESC
@@ -317,6 +320,7 @@ class AnalyticsService:
 		status: str | None = None,
 		policy_action: str | None = None,
 		policy_reason: str | None = None,
+		include_archived: bool = False,
 	) -> Page[RequestLogItem]:
 		"""Return a paginated, filtered list of request logs for the given org.
 
@@ -326,6 +330,8 @@ class AnalyticsService:
 		offset = (page - 1) * page_size
 
 		conditions: list[Any] = [RequestLog.org_id == org_id]
+		if not include_archived:
+			conditions.append(RequestLog.archived_at.is_(None))
 		if model:
 			conditions.append(RequestLog.model == model)
 		if status == "success":
@@ -476,6 +482,7 @@ class AnalyticsService:
 			"org_id = :org_id",
 			"created_at::date >= :window_start",
 			"created_at::date <= :window_end",
+			"archived_at IS NULL",
 			"request_metadata->'policy'->>'action' IS NOT NULL",
 		]
 		params: dict[str, object] = {

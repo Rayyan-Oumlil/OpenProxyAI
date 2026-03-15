@@ -56,7 +56,40 @@ class CostTrackerService:
 		if await redis.exists(alert_key):
 			return False
 		await redis.setex(alert_key, 86400, "1")
+
+		# Webhook — budget alert
+		import asyncio
+		asyncio.create_task(_fire_budget_webhook(
+			org_id=str(org_id),
+			spend=float(current_spend),
+			budget=float(budget_daily_usd),
+		))
+
 		return True
+
+
+async def _fire_budget_webhook(org_id: str, spend: float, budget: float) -> None:
+	"""Fire-and-forget webhook for budget threshold alert. Swallows all exceptions."""
+	try:
+		from app.database import AsyncSessionLocal
+		from app.models.organization import Organization as _Org
+		from app.services import webhook_service
+
+		async with AsyncSessionLocal() as _db:
+			_org = await _db.get(_Org, org_id)
+			if _org is not None:
+				await webhook_service.dispatch_event(
+					db=_db,
+					org=_org,
+					event_type="budget.alert",
+					data={
+						"spend_usd": round(spend, 4),
+						"budget_usd": round(budget, 4),
+						"percent_used": round(spend / budget * 100, 1) if budget else 0,
+					},
+				)
+	except Exception:
+		pass
 
 
 cost_tracker_service = CostTrackerService()

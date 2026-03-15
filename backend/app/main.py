@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.config import settings
 from app.database import AsyncSessionLocal, engine
@@ -18,9 +18,12 @@ from app.routes.auth import router as auth_router
 from app.routes.api_keys import router as api_keys_router
 from app.routes.analytics import router as analytics_router
 from app.routes.health import router as health_router
+from app.routes.invites import router as invites_router
 from app.routes.organizations import router as organizations_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.proxy import router as proxy_router
+from app.routes.sso import router as sso_router
+from app.routes.metrics import router as metrics_router
 from app.routes.users import router as users_router
 from app.utils.logging import get_logger, setup_logging
 
@@ -36,6 +39,9 @@ TAGS_METADATA = [
     {"name": "Organizations", "description": "Organization settings"},
     {"name": "Provider Keys", "description": "LLM provider key management"},
     {"name": "Analytics", "description": "Usage analytics and cost tracking"},
+    {"name": "Invites", "description": "Team member invite management"},
+    {"name": "SSO", "description": "OIDC/SSO connection management"},
+    {"name": "Metrics", "description": "Prometheus metrics endpoint"},
 ]
 
 
@@ -48,6 +54,42 @@ async def refresh_materialized_view() -> None:
         logger.info("mv_daily_spend refreshed")
     except Exception:
         logger.exception("Failed to refresh mv_daily_spend")
+
+
+async def archive_old_logs() -> None:
+    """Mark request_logs older than the org's audit retention period as archived."""
+    from sqlalchemy import update as sa_update
+    import datetime
+
+    from app.config import PLAN_FEATURES
+    from app.models.organization import Organization
+    from app.models.request_log import RequestLog
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(Organization).where(Organization.is_active == True)  # noqa: E712
+            )
+            orgs = result.scalars().all()
+
+            for org in orgs:
+                plan = (org.plan or "free").lower()
+                retention_days = PLAN_FEATURES.get(plan, PLAN_FEATURES["free"])["audit_retention_days"]
+                cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=retention_days)
+
+                await session.execute(
+                    sa_update(RequestLog)
+                    .where(
+                        RequestLog.org_id == org.id,
+                        RequestLog.created_at < cutoff,
+                        RequestLog.archived_at.is_(None),
+                    )
+                    .values(archived_at=datetime.datetime.utcnow())
+                )
+            await session.commit()
+        logger.info("archive_old_logs complete")
+    except Exception:
+        logger.exception("Failed to archive old logs")
 
 
 @asynccontextmanager
@@ -77,6 +119,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         "interval",
         minutes=5,
         id="refresh_mv_daily_spend",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        archive_old_logs,
+        "interval",
+        hours=1,
+        id="archive_old_logs",
         max_instances=1,
         coalesce=True,
     )
@@ -119,6 +169,11 @@ app.include_router(organizations_router)
 app.include_router(provider_keys_router)
 app.include_router(proxy_router)
 app.include_router(analytics_router)
+app.include_router(invites_router)
+app.include_router(sso_router)
+
+if settings.PROMETHEUS_ENABLED:
+    app.include_router(metrics_router)
 
 
 # ── Global exception handler — never leak stack traces ──────────────

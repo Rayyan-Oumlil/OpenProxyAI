@@ -36,6 +36,10 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     budget_monthly_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     last_login_at: Mapped[datetime | None] = mapped_column()
+    sso_sub: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    sso_connection_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sso_connections.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="users")

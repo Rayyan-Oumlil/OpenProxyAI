@@ -9,6 +9,7 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { OrganizationSettingsPage } from "./features/placeholder/OrganizationSettingsPage";
 import { UsersRolesPage } from "./features/placeholder/UsersRolesPage";
 import { ProviderKeysPage } from "./features/providerkeys/ProviderKeysPage";
+import { OnboardingModal } from "./features/onboarding/OnboardingModal";
 import { PolicyConfigPage } from "./features/policy/PolicyConfigPage";
 import { useAuth } from "./state/AuthContext";
 
@@ -46,6 +47,8 @@ export function App() {
       {!token ? (
         <LoginPage />
       ) : (
+        <>
+        <OnboardingModal />
         <Routes>
           <Route path="/" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
@@ -58,6 +61,7 @@ export function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </>
       )}
     </>
   );

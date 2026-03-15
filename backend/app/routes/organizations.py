@@ -11,6 +11,8 @@ from app.dependencies import CurrentUser, get_db, get_redis
 from app.models.organization import Organization
 from app.schemas.organization import OrganizationResponse, OrganizationUpdateRequest
 from app.schemas.policy import PolicyConfigRequest, PolicyConfigResponse
+from app.schemas.webhook import WebhookConfigRequest, WebhookConfigResponse
+from app.services.plan_service import assert_plan_allows
 from app.services.policy_service import PolicyConfig, policy_store
 
 router = APIRouter(prefix="/api/v1/organizations", tags=["Organizations"])
@@ -95,9 +97,15 @@ async def update_policy_config(
 	if current_user.role != "admin":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
+	updates = payload.model_dump(exclude_unset=True)
+
+	# Enforce plan gate: pii_detection requires a plan that supports it
+	if updates.get("pii_detection_enabled") is True:
+		org = await db.get(Organization, current_user.org_id)
+		assert_plan_allows(org, "pii_detection")
+
 	current = await policy_store.load(current_user.org_id, db, redis)
 
-	updates = payload.model_dump(exclude_unset=True)
 	new_config = PolicyConfig(
 		enforcement_mode=updates.get("enforcement_mode", current.enforcement_mode),
 		allowed_models=updates.get("allowed_models", current.allowed_models),
@@ -116,4 +124,51 @@ async def update_policy_config(
 		pii_detection_enabled=new_config.pii_detection_enabled,
 		pii_entities=new_config.pii_entities,
 		updated_at=new_config.updated_at,
+	)
+
+
+@router.get("/current/webhooks", response_model=WebhookConfigResponse)
+async def get_webhook_config(
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+) -> WebhookConfigResponse:
+	"""Return the webhook configuration for the current organization."""
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+	org = await db.get(Organization, current_user.org_id)
+	if org is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+	cfg = (org.settings or {}).get("webhooks", {})
+	return WebhookConfigResponse(
+		url=cfg.get("url", ""),
+		events=cfg.get("events", ["policy.violation", "budget.alert"]),
+		enabled=cfg.get("enabled", False),
+	)
+
+
+@router.patch("/current/webhooks", response_model=WebhookConfigResponse)
+async def update_webhook_config(
+	payload: WebhookConfigRequest,
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+) -> WebhookConfigResponse:
+	"""Update the webhook configuration for the current organization."""
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+	org = await db.get(Organization, current_user.org_id)
+	if org is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+	new_settings = dict(org.settings or {})
+	new_settings["webhooks"] = {
+		"url": payload.url,
+		"secret": payload.secret,
+		"events": payload.events,
+		"enabled": payload.enabled,
+	}
+	org.settings = new_settings
+	await db.commit()
+	return WebhookConfigResponse(
+		url=payload.url,
+		events=payload.events,
+		enabled=payload.enabled,
 	)

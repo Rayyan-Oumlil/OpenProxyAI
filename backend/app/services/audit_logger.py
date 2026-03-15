@@ -12,6 +12,38 @@ from app.models.request_log import RequestLog
 from app.services.cost_tracker import cost_tracker_service
 
 
+async def _fire_policy_webhook(
+	org_id: uuid.UUID,
+	request_id: uuid.UUID,
+	policy_meta: dict,
+	model: str,
+	user_id: uuid.UUID,
+) -> None:
+	"""Fire-and-forget webhook for policy violation. Swallows all exceptions."""
+	try:
+		from app.models.organization import Organization as _Org
+		from app.services import webhook_service
+
+		async with AsyncSessionLocal() as _db:
+			_org = await _db.get(_Org, org_id)
+			if _org is not None:
+				await webhook_service.dispatch_event(
+					db=_db,
+					org=_org,
+					event_type="policy.violation",
+					data={
+						"request_id": str(request_id),
+						"reason_code": policy_meta.get("reason_code"),
+						"triggered_rules": policy_meta.get("triggered_rules", []),
+						"model": model,
+						"user_id": str(user_id),
+						"detail": policy_meta.get("detail"),
+					},
+				)
+	except Exception:
+		pass
+
+
 async def log_request(
 	redis: Redis,
 	request_id: uuid.UUID,
@@ -65,4 +97,61 @@ async def log_request(
 		current_spend=Decimal(str(org_spend or "0")),
 		budget_daily_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
 	)
+
+	# Webhook — policy violation events
+	if status_code == 403:
+		policy_meta = (request_metadata or {}).get("policy", {})
+		if policy_meta.get("action") == "block":
+			import asyncio as _asyncio
+			_asyncio.create_task(_fire_policy_webhook(
+				org_id=org_id,
+				request_id=request_id,
+				policy_meta=policy_meta,
+				model=model,
+				user_id=user_id,
+			))
+
+	# Optional Langfuse tracing (fire-and-forget)
+	from app.services import langfuse_service
+	if langfuse_service.is_enabled():
+		import asyncio
+		policy_meta = (request_metadata or {}).get("policy", {})
+		asyncio.create_task(langfuse_service.send_trace(
+			request_id=str(request_id),
+			org_id=str(org_id),
+			user_id=str(user_id),
+			model=model,
+			provider=provider,
+			prompt_tokens=prompt_tokens or 0,
+			completion_tokens=completion_tokens or 0,
+			cost_usd=float(cost_usd or 0),
+			latency_ms=latency_ms,
+			ttft_ms=ttft_ms,
+			status_code=status_code,
+			policy_action=policy_meta.get("action"),
+			error_message=error_message,
+		))
+
+	# Prometheus metrics
+	from app.services.metrics_service import record_request as _record_metrics
+
+	if settings.PROMETHEUS_ENABLED:
+		prom_policy_meta = (request_metadata or {}).get("policy", {})
+		limit_type = None
+		if error_message and error_message.startswith("rate_limited:"):
+			limit_type = error_message.split(":", 1)[1]
+		_record_metrics(
+			model=model,
+			provider=provider,
+			status_code=status_code,
+			org_id=str(org_id),
+			latency_ms=latency_ms,
+			ttft_ms=ttft_ms,
+			prompt_tokens=prompt_tokens or 0,
+			completion_tokens=completion_tokens or 0,
+			cost_usd=float(cost_usd or 0),
+			policy_action=prom_policy_meta.get("action"),
+			policy_reason_code=prom_policy_meta.get("reason_code"),
+			limit_type=limit_type,
+		)
 

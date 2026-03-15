@@ -1,5 +1,7 @@
 """Pydantic Settings — all configuration loaded from environment variables."""
 
+from typing import Any
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -48,6 +50,14 @@ class Settings(BaseSettings):
     POLICY_BLOCKED_KEYWORDS: list[str] = []
     POLICY_PII_DETECTION_ENABLED: bool = True
 
+    # ── Prometheus ───────────────────────────────────────────────────
+    PROMETHEUS_ENABLED: bool = True
+
+    # ── Langfuse (optional observability) ─────────────────────────────
+    LANGFUSE_SECRET_KEY: str = ""
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_HOST: str = "https://cloud.langfuse.com"
+
     # ── CORS ─────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = [
         "http://127.0.0.1:5175",
@@ -92,3 +102,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# ── Plan Feature Gates (module-level, NOT a pydantic field) ─────────────
+PLAN_FEATURES: dict[str, dict[str, Any]] = {
+    "free":       {"max_users": 3,   "max_api_keys": 5,   "sso_enabled": False, "pii_detection": False, "audit_retention_days": 7},
+    "starter":    {"max_users": 50,  "max_api_keys": 50,  "sso_enabled": False, "pii_detection": True,  "audit_retention_days": 30},
+    "growth":     {"max_users": 200, "max_api_keys": 200, "sso_enabled": False, "pii_detection": True,  "audit_retention_days": 90},
+    "enterprise": {"max_users": -1,  "max_api_keys": -1,  "sso_enabled": True,  "pii_detection": True,  "audit_retention_days": 365},
+}

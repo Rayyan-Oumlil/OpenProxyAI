@@ -30,6 +30,7 @@ orjson>=3.10.0
 httpx>=0.27.0
 
 # Observability
+langfuse>=2.0
 prometheus-client>=0.20.0
 
 # Task scheduling

@@ -399,3 +399,154 @@ code {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.84rem;
 }
+
+/* ── Onboarding Modal ── */
+
+/* Hide the default Radix DialogClose X button in the onboarding dialog */
+.onboarding-dialog > button:last-child {
+  display: none;
+}
+
+.onboarding-step {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.onboarding-step-indicator {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 0.4rem;
+}
+
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: background 200ms ease;
+}
+
+.onboarding-dot--active {
+  background: var(--accent-sky);
+}
+
+.onboarding-dot--done {
+  background: var(--accent-teal);
+}
+
+.onboarding-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.onboarding-description {
+  color: var(--muted);
+  font-size: 0.92rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.onboarding-form {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.onboarding-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.onboarding-skip {
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border: 0;
+  padding: 0.3rem;
+  text-align: center;
+}
+
+.onboarding-skip:hover {
+  color: var(--text);
+}
+
+.onboarding-key-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px dashed #b9ac95;
+  border-radius: 14px;
+  padding: 0.7rem 0.8rem;
+  background: #faf8f3;
+}
+
+.onboarding-key-display code {
+  flex: 1;
+  word-break: break-all;
+}
+
+.onboarding-key-display button {
+  flex-shrink: 0;
+  font-size: 0.84rem;
+  padding: 0.4rem 0.7rem;
+}
+
+.onboarding-warning {
+  color: var(--accent-amber);
+  font-size: 0.84rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.onboarding-lang-tabs {
+  display: flex;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.25rem;
+  background: #f5f2ea;
+}
+
+.onboarding-lang-tab {
+  flex: 1;
+  font-size: 0.84rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border: 0;
+  transition: 150ms ease;
+}
+
+.onboarding-lang-tab--active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.onboarding-code-block {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.8rem;
+  background: #1e2129;
+  overflow-x: auto;
+  max-height: 220px;
+}
+
+.onboarding-code-block pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.onboarding-code-block code {
+  color: #e8e4dc;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}

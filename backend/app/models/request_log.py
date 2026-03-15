@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -51,6 +51,7 @@ class RequestLog(UUIDPrimaryKeyMixin, Base):
         server_default="{}",
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="request_logs")

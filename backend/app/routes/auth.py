@@ -1,4 +1,4 @@
-"""Auth endpoints — POST /api/v1/auth/register, /login, /logout, /me."""
+"""Auth endpoints — POST /api/v1/auth/register, /login, /logout, /me, /accept-invite."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.dependencies import CurrentUser, get_db, get_redis
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserMeResponse
+from app.schemas.invite import AcceptInviteRequest
 from app.services.auth_service import (
 	authenticate_user,
 	blocklist_token,
@@ -17,6 +18,7 @@ from app.services.auth_service import (
 	enforce_auth_rate_limit,
 	verify_refresh_token,
 )
+from app.services import invite_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 http_bearer = HTTPBearer(auto_error=False)
@@ -108,3 +110,23 @@ async def logout(
 @router.get("/me", response_model=UserMeResponse)
 async def me(current_user: CurrentUser) -> UserMeResponse:
 	return UserMeResponse.model_validate(current_user)
+
+
+@router.post("/accept-invite", response_model=TokenResponse)
+async def accept_invite(
+	payload: AcceptInviteRequest,
+	db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+	user = await invite_service.accept_invite(
+		db=db,
+		token=payload.token,
+		name=payload.name,
+		password=payload.password,
+	)
+	access_token = create_access_token(str(user.id), str(user.org_id), user.role)
+	refresh_token = create_refresh_token(str(user.id), str(user.org_id), user.role)
+	return TokenResponse(
+		access_token=access_token,
+		refresh_token=refresh_token,
+		expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+	)
