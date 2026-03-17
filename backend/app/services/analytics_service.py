@@ -321,6 +321,8 @@ class AnalyticsService:
 		policy_action: str | None = None,
 		policy_reason: str | None = None,
 		include_archived: bool = False,
+		label_key: str | None = None,
+		label_value: str | None = None,
 	) -> Page[RequestLogItem]:
 		"""Return a paginated, filtered list of request logs for the given org.
 
@@ -347,6 +349,10 @@ class AnalyticsService:
 				RequestLog.request_metadata["policy"]["reason_code"].astext.ilike(
 					f"%{policy_reason}%"
 				)
+			)
+		if label_key is not None and label_value is not None:
+			conditions.append(
+				RequestLog.request_metadata["labels"][label_key].as_string() == label_value
 			)
 
 		where = and_(*conditions)

@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any
 
 import litellm
-from fastapi import BackgroundTasks, HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from litellm import acompletion, aembedding
 from redis.asyncio import Redis
@@ -57,6 +57,46 @@ def _to_jsonable(value: Any) -> Any:
 	if isinstance(value, (dict, list, str, int, float, bool)) or value is None:
 		return value
 	return json.loads(json.dumps(value, default=str))
+
+
+def _parse_labels(request: Request) -> dict[str, str] | None:
+	"""Parse and validate the x-openproxy-labels header.
+
+	Returns None when the header is absent.
+	Raises HTTP 400 on any validation failure — never silently swallows bad input.
+	"""
+	raw = request.headers.get("x-openproxy-labels")
+	if not raw:
+		return None
+	try:
+		labels = json.loads(raw)
+	except (json.JSONDecodeError, ValueError):
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="x-openproxy-labels must be valid JSON",
+		)
+	if not isinstance(labels, dict):
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="x-openproxy-labels must be a JSON object",
+		)
+	if len(labels) > 10:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="x-openproxy-labels: maximum 10 keys",
+		)
+	for k, v in labels.items():
+		if not isinstance(k, str) or not isinstance(v, str):
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail="x-openproxy-labels: keys and values must be strings",
+			)
+		if len(k) > 64 or len(v) > 64:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail="x-openproxy-labels: keys and values must be \u226464 chars",
+			)
+	return labels
 
 
 class LLMService:
@@ -120,6 +160,7 @@ class LLMService:
 		ttft_ms: int | None = None,
 		error_message: str | None = None,
 		request_metadata: dict | None = None,
+		labels: dict[str, str] | None = None,
 	) -> None:
 		background_tasks.add_task(
 			log_request,
@@ -138,6 +179,7 @@ class LLMService:
 			status_code=status_code,
 			error_message=error_message,
 			request_metadata=request_metadata,
+			labels=labels,
 		)
 
 	@staticmethod
@@ -166,7 +208,9 @@ class LLMService:
 		api_key: ApiKey,
 		request_id: uuid.UUID,
 		background_tasks: BackgroundTasks,
+		http_request: Request | None = None,
 	):
+		labels = _parse_labels(http_request) if http_request is not None else None
 		start = time.perf_counter()
 		provider = "unknown"
 		rl_headers: dict[str, str] = {}
@@ -194,6 +238,7 @@ class LLMService:
 					status_code=403,
 					error_message=f"policy_blocked:{decision.reason_code}",
 					request_metadata=policy_metadata,
+					labels=labels,
 				)
 				return self._policy_block_response(decision)
 
@@ -227,6 +272,7 @@ class LLMService:
 					status_code=429,
 					error_message=f"rate_limited:{limit_type}",
 					request_metadata=policy_metadata,
+					labels=labels,
 				)
 				return JSONResponse(
 					status_code=429,
@@ -378,6 +424,7 @@ class LLMService:
 						200,
 						ttft_ms=ttft_ms,
 						request_metadata=policy_metadata,
+						labels=labels,
 					)
 
 				return StreamingResponse(
@@ -422,6 +469,7 @@ class LLMService:
 						cached_latency_ms,
 						200,
 						request_metadata=policy_metadata,
+						labels=labels,
 					)
 					return JSONResponse(
 						content=cached_body,
@@ -440,6 +488,30 @@ class LLMService:
 				pass  # Cache failure must never block a real LLM call
 
 			response = await acompletion(**kwargs)
+
+			# Response guardrail check — non-streaming path
+			if policy_config.response_guardrails_enabled:
+				_resp_content = response.choices[0].message.content or ""
+				_resp_decision = policy_service.evaluate_response(_resp_content, policy_config)
+				if not _resp_decision.allowed:
+					if policy_config.enforcement_mode == "enforce":
+						raise HTTPException(
+							status_code=446,
+							detail={
+								"error": {
+									"message": _resp_decision.reason_code or "Response blocked by policy",
+									"code": "response_policy_violation",
+								}
+							},
+						)
+					else:
+						logger.warning(
+							"response guardrail violation: reason=%s",
+							_resp_decision.reason_code,
+						)
+				elif _resp_decision.redacted_text is not None:
+					response.choices[0].message.content = _resp_decision.redacted_text
+
 			body = _to_jsonable(response)
 			usage = body.get("usage", {}) if isinstance(body, dict) else {}
 			prompt_tokens = int(usage.get("prompt_tokens", 0))
@@ -472,6 +544,7 @@ class LLMService:
 				latency_ms,
 				200,
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 
 			return JSONResponse(
@@ -506,6 +579,7 @@ class LLMService:
 				status_code=exc.status_code,
 				error_message=str(exc.detail),
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 			if rl_headers:
 				raise HTTPException(
@@ -531,6 +605,7 @@ class LLMService:
 				504,
 				error_message=str(exc),
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 			raise HTTPException(
 				status_code=504,
@@ -554,6 +629,7 @@ class LLMService:
 				502,
 				error_message=str(exc),
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 			raise HTTPException(
 				status_code=502,
@@ -570,7 +646,9 @@ class LLMService:
 		api_key: ApiKey,
 		request_id: uuid.UUID,
 		background_tasks: BackgroundTasks,
+		http_request: Request | None = None,
 	) -> JSONResponse:
+		labels = _parse_labels(http_request) if http_request is not None else None
 		start = time.perf_counter()
 		provider = "unknown"
 		rl_headers: dict[str, str] = {}
@@ -598,6 +676,7 @@ class LLMService:
 					status_code=403,
 					error_message=f"policy_blocked:{decision.reason_code}",
 					request_metadata=policy_metadata,
+					labels=labels,
 				)
 				return self._policy_block_response(decision)
 			size = len(request.input) if isinstance(request.input, list) else len(request.input)
@@ -631,6 +710,7 @@ class LLMService:
 					status_code=429,
 					error_message=f"rate_limited:{limit_type}",
 					request_metadata=policy_metadata,
+					labels=labels,
 				)
 				return JSONResponse(
 					status_code=429,
@@ -679,6 +759,7 @@ class LLMService:
 				latency_ms,
 				200,
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 
 			return JSONResponse(
@@ -711,6 +792,7 @@ class LLMService:
 				status_code=exc.status_code,
 				error_message=str(exc.detail),
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 			if rl_headers:
 				raise HTTPException(
@@ -736,6 +818,7 @@ class LLMService:
 				504,
 				error_message=str(exc),
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 			raise HTTPException(
 				status_code=504,
@@ -759,6 +842,7 @@ class LLMService:
 				502,
 				error_message=str(exc),
 				request_metadata=policy_metadata,
+				labels=labels,
 			)
 			raise HTTPException(
 				status_code=502,

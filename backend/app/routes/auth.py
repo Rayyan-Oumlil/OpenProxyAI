@@ -6,7 +6,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.dependencies import CurrentUser, get_db, get_redis
+from app.dependencies import CurrentUser, get_db, get_real_ip, get_redis
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserMeResponse
 from app.schemas.invite import AcceptInviteRequest
 from app.services.auth_service import (
@@ -22,6 +22,23 @@ from app.services import invite_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 http_bearer = HTTPBearer(auto_error=False)
+
+
+async def _check_auth_rate_limit(ip: str, email: str, redis: Redis) -> None:
+    key = f"auth:attempts:{ip}:{email}"
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, 60)  # 1-minute window
+    if count > 10:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many authentication attempts. Try again in 60 seconds.",
+            headers={"Retry-After": "60"},
+        )
+
+
+async def _reset_auth_rate_limit(ip: str, email: str, redis: Redis) -> None:
+    await redis.delete(f"auth:attempts:{ip}:{email}")
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -57,10 +74,10 @@ async def login(
 	db: AsyncSession = Depends(get_db),
 	redis: Redis = Depends(get_redis),
 ) -> TokenResponse:
-	rate_key = f"login:{payload.email.lower()}:{request.client.host if request.client else 'unknown'}"
-	await enforce_auth_rate_limit(redis, rate_key)
+	await _check_auth_rate_limit(get_real_ip(request), payload.email, redis)
 
 	user = await authenticate_user(db=db, email=payload.email, password=payload.password)
+	await _reset_auth_rate_limit(get_real_ip(request), payload.email, redis)
 	access_token = create_access_token(str(user.id), str(user.org_id), user.role)
 	refresh_token = create_refresh_token(str(user.id), str(user.org_id), user.role)
 	return TokenResponse(
@@ -115,14 +132,19 @@ async def me(current_user: CurrentUser) -> UserMeResponse:
 @router.post("/accept-invite", response_model=TokenResponse)
 async def accept_invite(
 	payload: AcceptInviteRequest,
+	request: Request,
 	db: AsyncSession = Depends(get_db),
+	redis: Redis = Depends(get_redis),
 ) -> TokenResponse:
+	await _check_auth_rate_limit(get_real_ip(request), payload.token, redis)
+
 	user = await invite_service.accept_invite(
 		db=db,
 		token=payload.token,
 		name=payload.name,
 		password=payload.password,
 	)
+	await _reset_auth_rate_limit(get_real_ip(request), payload.token, redis)
 	access_token = create_access_token(str(user.id), str(user.org_id), user.role)
 	refresh_token = create_refresh_token(str(user.id), str(user.org_id), user.role)
 	return TokenResponse(

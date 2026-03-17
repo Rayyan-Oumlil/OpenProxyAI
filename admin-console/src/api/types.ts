@@ -159,7 +159,7 @@ export type RequestLogDetail = RequestLogItem & {
   request_id: string | null;
   user_id: string | null;
   api_key_id: string | null;
-  request_metadata: Record<string, unknown> | null;
+  request_metadata: (Record<string, unknown> & { labels?: Record<string, string> }) | null;
   policy_triggered_rules: string[] | null;
 };
 

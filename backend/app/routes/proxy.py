@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,7 @@ router = APIRouter(tags=["Proxy"])
 @router.post("/v1/chat/completions")
 async def chat_completions(
 	request: ChatCompletionRequest,
+	http_request: Request,
 	background_tasks: BackgroundTasks,
 	auth: ProxyAuth,
 	db: AsyncSession = Depends(get_db),
@@ -37,6 +38,7 @@ async def chat_completions(
 			api_key=api_key,
 			request_id=normalized_request_id,
 			background_tasks=background_tasks,
+			http_request=http_request,
 		)
 	except HTTPException as exc:
 		detail = exc.detail if isinstance(exc.detail, dict) else {"error": "gateway_error", "detail": str(exc.detail)}
@@ -55,6 +57,7 @@ async def chat_completions(
 @router.post("/v1/embeddings")
 async def embeddings(
 	request: EmbeddingRequest,
+	http_request: Request,
 	background_tasks: BackgroundTasks,
 	auth: ProxyAuth,
 	db: AsyncSession = Depends(get_db),
@@ -75,6 +78,7 @@ async def embeddings(
 			api_key=api_key,
 			request_id=normalized_request_id,
 			background_tasks=background_tasks,
+			http_request=http_request,
 		)
 	except HTTPException as exc:
 		detail = exc.detail if isinstance(exc.detail, dict) else {"error": "gateway_error", "detail": str(exc.detail)}

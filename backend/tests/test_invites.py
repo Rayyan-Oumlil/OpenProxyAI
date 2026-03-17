@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.dependencies import get_current_user_from_jwt, get_db
+from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
 from app.routes import invites as invite_routes
 from app.routes import auth as auth_routes
@@ -254,7 +254,7 @@ def test_revoke_invite_not_found_returns_404(client, monkeypatch):
 # Test: Accept invite creates user and returns tokens
 # ---------------------------------------------------------------------------
 
-def test_accept_invite_creates_user_and_returns_tokens(client, monkeypatch):
+def test_accept_invite_creates_user_and_returns_tokens(client, fake_redis, monkeypatch):
     admin = _admin_user()
     invite = _invite(org_id=admin.org_id)
     new_user = _user_from_invite(invite)
@@ -265,8 +265,12 @@ def test_accept_invite_creates_user_and_returns_tokens(client, monkeypatch):
     async def fake_get_db():
         yield FakeDB()
 
+    async def fake_get_redis():
+        return fake_redis
+
     monkeypatch.setattr(auth_routes.invite_service, "accept_invite", fake_accept_invite)
     app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_redis] = fake_get_redis
 
     response = client.post(
         "/api/v1/auth/accept-invite",
@@ -285,7 +289,7 @@ def test_accept_invite_creates_user_and_returns_tokens(client, monkeypatch):
 # Test: Accept expired token → 410
 # ---------------------------------------------------------------------------
 
-def test_accept_expired_invite_returns_410(client, monkeypatch):
+def test_accept_expired_invite_returns_410(client, fake_redis, monkeypatch):
     from fastapi import HTTPException, status
 
     async def fake_accept_invite(db, token, name, password):  # noqa: ARG001
@@ -297,8 +301,12 @@ def test_accept_expired_invite_returns_410(client, monkeypatch):
     async def fake_get_db():
         yield FakeDB()
 
+    async def fake_get_redis():
+        return fake_redis
+
     monkeypatch.setattr(auth_routes.invite_service, "accept_invite", fake_accept_invite)
     app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_redis] = fake_get_redis
 
     response = client.post(
         "/api/v1/auth/accept-invite",
@@ -313,7 +321,7 @@ def test_accept_expired_invite_returns_410(client, monkeypatch):
 # Test: Accept already-accepted token → 409
 # ---------------------------------------------------------------------------
 
-def test_accept_already_accepted_invite_returns_409(client, monkeypatch):
+def test_accept_already_accepted_invite_returns_409(client, fake_redis, monkeypatch):
     from fastapi import HTTPException, status
 
     async def fake_accept_invite(db, token, name, password):  # noqa: ARG001
@@ -325,8 +333,12 @@ def test_accept_already_accepted_invite_returns_409(client, monkeypatch):
     async def fake_get_db():
         yield FakeDB()
 
+    async def fake_get_redis():
+        return fake_redis
+
     monkeypatch.setattr(auth_routes.invite_service, "accept_invite", fake_accept_invite)
     app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_redis] = fake_get_redis
 
     response = client.post(
         "/api/v1/auth/accept-invite",
@@ -341,7 +353,7 @@ def test_accept_already_accepted_invite_returns_409(client, monkeypatch):
 # Test: Accept non-existent token → 404
 # ---------------------------------------------------------------------------
 
-def test_accept_nonexistent_invite_returns_404(client, monkeypatch):
+def test_accept_nonexistent_invite_returns_404(client, fake_redis, monkeypatch):
     from fastapi import HTTPException, status
 
     async def fake_accept_invite(db, token, name, password):  # noqa: ARG001
@@ -353,8 +365,12 @@ def test_accept_nonexistent_invite_returns_404(client, monkeypatch):
     async def fake_get_db():
         yield FakeDB()
 
+    async def fake_get_redis():
+        return fake_redis
+
     monkeypatch.setattr(auth_routes.invite_service, "accept_invite", fake_accept_invite)
     app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_redis] = fake_get_redis
 
     response = client.post(
         "/api/v1/auth/accept-invite",
@@ -577,7 +593,7 @@ def test_revoke_invite_then_not_in_list(client, monkeypatch):
 # Test: accept invite — user appears in GET /users
 # ---------------------------------------------------------------------------
 
-def test_accepted_user_appears_in_users_list(client, monkeypatch):
+def test_accepted_user_appears_in_users_list(client, fake_redis, monkeypatch):
     admin = _admin_user()
     invite = _invite(org_id=admin.org_id)
     new_user = _user_from_invite(invite)
@@ -591,8 +607,12 @@ def test_accepted_user_appears_in_users_list(client, monkeypatch):
     async def fake_get_db():
         yield FakeDB()
 
+    async def fake_get_redis():
+        return fake_redis
+
     monkeypatch.setattr(auth_routes.invite_service, "accept_invite", fake_accept_invite)
     app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_redis] = fake_get_redis
 
     accept_res = client.post(
         "/api/v1/auth/accept-invite",

@@ -90,8 +90,12 @@ async def log_request(
 	status_code: int,
 	error_message: str | None = None,
 	request_metadata: dict | None = None,
+	labels: dict[str, str] | None = None,
 ) -> None:
 	total_tokens = prompt_tokens + completion_tokens
+	metadata = {**(request_metadata or {})}
+	if labels:
+		metadata = {**metadata, "labels": labels}
 	async with AsyncSessionLocal() as db:
 		row = RequestLog(
 			request_id=request_id,
@@ -108,7 +112,7 @@ async def log_request(
 			ttft_ms=ttft_ms,
 			status_code=status_code,
 			error_message=error_message,
-			request_metadata=request_metadata or {},
+			request_metadata=metadata,
 		)
 		db.add(row)
 		await db.commit()

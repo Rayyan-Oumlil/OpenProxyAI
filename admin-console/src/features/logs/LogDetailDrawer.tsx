@@ -103,6 +103,21 @@ export function LogDetailDrawer({ logId, onClose }: LogDetailDrawerProps) {
                 )}
               </div>
 
+              {/* Labels */}
+              {d.request_metadata?.labels && (
+                <div className="flex flex-wrap gap-1 mt-1 mb-3">
+                  {Object.entries(d.request_metadata.labels).map(([k, v]) => (
+                    <span
+                      key={k}
+                      className="text-xs rounded-full px-2 py-0.5"
+                      style={{ background: "rgba(124,58,237,0.1)", color: "#5b21b6" }}
+                    >
+                      {k}: {v}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {/* Core metrics */}
               <DetailRow icon={Clock} label="Created" value={new Date(d.created_at).toLocaleString()} />
               <DetailRow icon={Zap} label="Latency" value={d.latency_ms != null ? formatLatency(d.latency_ms) : "—"} />
