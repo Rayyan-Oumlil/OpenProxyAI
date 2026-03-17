@@ -37,6 +37,7 @@ Task-oriented guides for specific features and deployments.
 | [Model Routing](./guides/model-routing.md) | Multi-provider fallback, weighted load balancing, and per-user model restrictions |
 | [Cost Management](./guides/cost-management.md) | Per-user budgets, department chargebacks, cost tracking, and spending alerts |
 | [Enterprise Deployment](./guides/enterprise-deployment.md) | Intercept employee AI traffic via PAC file, DNS redirection, firewall rules, or reverse proxy |
+| [Voice Integration](./guides/voice-integration.md) | Enable voice input via PTT hardware, STT engines, mobile apps, and wearables |
 
 ---
 
@@ -47,6 +48,7 @@ Deep dives into how OpenProxyAI works internally.
 | Document | Purpose |
 |----------|---------|
 | [System Overview](./architecture/overview.md) | High-level architecture, request pipeline, and key components |
+| [Architecture Decisions](./architecture/decisions.md) | Why key design choices were made — derived from studying LiteLLM, Portkey, Helicone, Bifrost |
 | [Deployment](./architecture/deployment.md) | Docker Compose, Kubernetes Helm, infrastructure requirements |
 | [Database Schema](./architecture/database-schema.md) | Detailed schema reference (organizations, API keys, logs, etc.) |
 
