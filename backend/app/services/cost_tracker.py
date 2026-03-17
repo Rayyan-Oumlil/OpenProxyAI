@@ -68,6 +68,124 @@ class CostTrackerService:
 		return True
 
 
+	async def check_anomaly(
+		self,
+		redis,
+		org_id: str,
+		user_id,
+		db_session,
+		org,
+	) -> None:
+		"""
+		Check if today's org spend is anomalously high vs. 7-day baseline.
+		Fires cost.anomaly webhook if threshold exceeded (at most once per hour).
+		Fire-and-forget — exceptions are swallowed.
+		"""
+		try:
+			from datetime import datetime, timezone, date
+			from app.config import settings
+
+			today_str = date.today().isoformat()
+			today_midnight = int(
+				datetime.combine(date.today(), datetime.min.time())
+				.replace(tzinfo=timezone.utc)
+				.timestamp()
+			)
+
+			# Get today's spend from existing Redis key
+			today_key = f"rl:usd:{org_id}:{today_str}"
+			today_raw = await redis.get(today_key)
+			today_spend = float(today_raw or 0)
+
+			# Update baseline sorted set (org)
+			baseline_key = f"cost:baseline:{org_id}"
+			member = f"{today_str}:{today_spend}"
+			await redis.zadd(baseline_key, {member: today_midnight})
+			await redis.expire(baseline_key, 86400 * 10)  # keep 10 days
+
+			# Get last 7 days
+			cutoff = today_midnight - (7 * 86400)
+			entries = await redis.zrangebyscore(baseline_key, cutoff, "+inf")
+
+			if len(entries) >= settings.COST_ANOMALY_MIN_BASELINE_DAYS:
+				values = []
+				for entry in entries:
+					try:
+						raw = entry.decode() if isinstance(entry, bytes) else entry
+						val = float(raw.split(":")[-1] if ":" in raw else raw)
+						values.append(val)
+					except (ValueError, AttributeError):
+						pass
+
+				if values:
+					avg = sum(values) / len(values)
+					if avg > 0 and today_spend > avg * settings.COST_ANOMALY_MULTIPLIER:
+						now_hour = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H")
+						fired_key = f"cost:anomaly_fired:{org_id}:{now_hour}"
+						already_fired = await redis.get(fired_key)
+						if not already_fired:
+							await redis.setex(fired_key, 3600, "1")
+							from app.services import webhook_service as _webhook_svc
+							await _webhook_svc.dispatch_event(
+								db=db_session,
+								org=org,
+								event_type="cost.anomaly",
+								data={
+									"today_spend_usd": round(today_spend, 6),
+									"baseline_avg_usd": round(avg, 6),
+									"multiplier": round(today_spend / avg, 2),
+									"org_id": str(org_id),
+								},
+							)
+
+			# Per-user anomaly check
+			if user_id is not None:
+				user_today_key = f"rl:usd:user:{user_id}:{today_str}"
+				user_raw = await redis.get(user_today_key)
+				user_today_spend = float(user_raw or 0)
+
+				user_baseline_key = f"cost:baseline:user:{user_id}"
+				user_member = f"{today_str}:{user_today_spend}"
+				await redis.zadd(user_baseline_key, {user_member: today_midnight})
+				await redis.expire(user_baseline_key, 86400 * 10)
+
+				user_entries = await redis.zrangebyscore(user_baseline_key, cutoff, "+inf")
+
+				if len(user_entries) >= settings.COST_ANOMALY_MIN_BASELINE_DAYS:
+					user_values = []
+					for entry in user_entries:
+						try:
+							raw = entry.decode() if isinstance(entry, bytes) else entry
+							val = float(raw.split(":")[-1] if ":" in raw else raw)
+							user_values.append(val)
+						except (ValueError, AttributeError):
+							pass
+
+					if user_values:
+						user_avg = sum(user_values) / len(user_values)
+						if user_avg > 0 and user_today_spend > user_avg * settings.COST_ANOMALY_MULTIPLIER:
+							now_hour = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H")
+							user_fired_key = f"cost:anomaly_fired:user:{user_id}:{now_hour}"
+							user_already_fired = await redis.get(user_fired_key)
+							if not user_already_fired:
+								await redis.setex(user_fired_key, 3600, "1")
+								from app.services import webhook_service as _webhook_svc
+								await _webhook_svc.dispatch_event(
+									db=db_session,
+									org=org,
+									event_type="cost.anomaly",
+									data={
+										"today_spend_usd": round(user_today_spend, 6),
+										"baseline_avg_usd": round(user_avg, 6),
+										"multiplier": round(user_today_spend / user_avg, 2),
+										"org_id": str(org_id),
+									},
+								)
+		except Exception as exc:
+			import logging
+			logging.getLogger(__name__).warning("Cost anomaly check failed: %s", exc)
+
+
 async def _fire_budget_webhook(org_id: str, spend: float, budget: float) -> None:
 	"""Fire-and-forget webhook for budget threshold alert. Swallows all exceptions."""
 	try:

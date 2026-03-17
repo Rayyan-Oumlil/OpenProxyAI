@@ -78,6 +78,7 @@ async def get_policy_config(
 		blocked_keywords=config.blocked_keywords,
 		pii_detection_enabled=config.pii_detection_enabled,
 		pii_entities=config.pii_entities,
+		model_rate_limits=config.model_rate_limits,
 		updated_at=config.updated_at,
 	)
 
@@ -112,6 +113,7 @@ async def update_policy_config(
 		blocked_keywords=updates.get("blocked_keywords", current.blocked_keywords),
 		pii_detection_enabled=updates.get("pii_detection_enabled", current.pii_detection_enabled),
 		pii_entities=updates.get("pii_entities", current.pii_entities),
+		model_rate_limits=updates.get("model_rate_limits", current.model_rate_limits),
 		updated_at=datetime.now(UTC),
 	)
 
@@ -123,6 +125,7 @@ async def update_policy_config(
 		blocked_keywords=new_config.blocked_keywords,
 		pii_detection_enabled=new_config.pii_detection_enabled,
 		pii_entities=new_config.pii_entities,
+		model_rate_limits=new_config.model_rate_limits,
 		updated_at=new_config.updated_at,
 	)
 

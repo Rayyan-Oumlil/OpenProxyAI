@@ -53,6 +53,8 @@ class RateLimiterService:
 		max_tpm: int,
 		max_daily_budget_usd: Decimal,
 		user_daily_budget_usd: Decimal | None = None,
+		model: str | None = None,
+		policy_config: object | None = None,
 	) -> tuple[bool, dict[str, str], str | None, str | None, int | None]:
 		now = datetime.now(UTC)
 		now_ms = int(time.time() * 1000)
@@ -168,6 +170,69 @@ class RateLimiterService:
 				retry_after,
 			)
 
+		# Per-model rate limits
+		if model and policy_config is not None:
+			model_rate_limits = getattr(policy_config, "model_rate_limits", {}) or {}
+			model_limits = model_rate_limits.get(model, {})
+			if model_limits:
+				model_rpm = model_limits.get("rpm")
+				model_tpm = model_limits.get("tpm")
+
+				if model_rpm is not None:
+					model_req_key = f"rl:req:{org_id}:{model}"
+					model_pipe = redis.pipeline(transaction=True)
+					model_pipe.zremrangebyscore(model_req_key, 0, window_start_ms)
+					model_pipe.zcard(model_req_key)
+					model_pipe.zrange(model_req_key, 0, 0, withscores=True)
+					_, model_req_count, model_oldest_entry = await model_pipe.execute()
+					if model_req_count >= model_rpm:
+						if model_oldest_entry:
+							model_oldest_score = int(model_oldest_entry[0][1])
+							retry_after = max(((model_oldest_score + 60_000) - now_ms + 999) // 1000, 1)
+						else:
+							retry_after = self._seconds_until(minute_reset_epoch)
+						headers = self._headers(
+							max_rpm=max_rpm,
+							max_tpm=max_tpm,
+							max_daily_budget_usd=max_daily_budget_usd,
+							requests_remaining=max_rpm - current_req_count,
+							tokens_remaining=max_tpm - current_tpm,
+							budget_remaining=org_budget_remaining,
+							reset_epoch=minute_reset_epoch,
+						)
+						headers["Retry-After"] = str(retry_after)
+						return (
+							False,
+							headers,
+							f"model_rpm:{model}",
+							f"{model_rpm} requests/minute limit for {model} reached. Resets in {retry_after} seconds.",
+							retry_after,
+						)
+
+				if model_tpm is not None:
+					model_tok_key = f"rl:tok:{org_id}:{model}:{minute_bucket}"
+					model_tok_raw = await redis.get(model_tok_key)
+					model_current_tpm = int(model_tok_raw or 0)
+					if model_current_tpm + est_tokens > model_tpm:
+						retry_after = self._seconds_until(minute_reset_epoch)
+						headers = self._headers(
+							max_rpm=max_rpm,
+							max_tpm=max_tpm,
+							max_daily_budget_usd=max_daily_budget_usd,
+							requests_remaining=max_rpm - current_req_count,
+							tokens_remaining=max_tpm - current_tpm,
+							budget_remaining=org_budget_remaining,
+							reset_epoch=minute_reset_epoch,
+						)
+						headers["Retry-After"] = str(retry_after)
+						return (
+							False,
+							headers,
+							f"model_tpm:{model}",
+							f"{model_tpm} tokens/minute limit for {model} reached. Resets in {retry_after} seconds.",
+							retry_after,
+						)
+
 		# Atomic consume for request and token counters.
 		request_member = f"{now_ms}:{uuid.uuid4().hex}"
 		consume = redis.pipeline(transaction=True)
@@ -175,7 +240,17 @@ class RateLimiterService:
 		consume.expire(rpm_key, 120)
 		consume.incrby(tpm_key, est_tokens)
 		consume.expire(tpm_key, 120)
-		_, _, tok_count_after, _ = await consume.execute()
+		if model and policy_config is not None:
+			model_rate_limits = getattr(policy_config, "model_rate_limits", {}) or {}
+			if model_rate_limits.get(model):
+				model_req_key = f"rl:req:{org_id}:{model}"
+				model_tok_key = f"rl:tok:{org_id}:{model}:{minute_bucket}"
+				consume.zadd(model_req_key, {request_member: now_ms})
+				consume.expire(model_req_key, 120)
+				consume.incrby(model_tok_key, est_tokens)
+				consume.expire(model_tok_key, 120)
+		results = await consume.execute()
+		tok_count_after = results[2]
 		req_count_after = current_req_count + 1
 
 		headers = self._headers(

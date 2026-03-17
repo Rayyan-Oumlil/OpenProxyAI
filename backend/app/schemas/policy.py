@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -16,6 +16,7 @@ class PolicyConfigRequest(BaseModel):
 	blocked_keywords: list[str] | None = None
 	pii_detection_enabled: bool | None = None
 	pii_entities: list[str] | None = None
+	model_rate_limits: Optional[dict] = None
 
 
 class PolicyConfigResponse(BaseModel):
@@ -24,4 +25,5 @@ class PolicyConfigResponse(BaseModel):
 	blocked_keywords: list[str]
 	pii_detection_enabled: bool
 	pii_entities: list[str]
+	model_rate_limits: dict
 	updated_at: datetime | None

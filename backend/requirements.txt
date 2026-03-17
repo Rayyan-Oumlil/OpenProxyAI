@@ -36,6 +36,13 @@ prometheus-client>=0.20.0
 # Task scheduling
 apscheduler>=3.10.0
 
+# PII detection (optional — falls back to regex if not installed)
+presidio-analyzer>=2.2
+presidio-nlp-engine-spacy>=2.2
+
+# ClickHouse analytics dual-write (optional — off when CLICKHOUSE_URL not set)
+clickhouse-connect>=0.7
+
 # Dev / test
 pytest>=8.0.0
 pytest-asyncio>=0.23.0

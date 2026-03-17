@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import re
+import re as _re
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Optional
 
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -14,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
+from app.services import presidio_service
 
 # ── Redis key helpers ────────────────────────────────────────────────────────
 
@@ -33,7 +36,11 @@ class PolicyConfig:
 	blocked_keywords: list[str] = field(default_factory=list)
 	pii_detection_enabled: bool = True
 	pii_entities: list[str] = field(default_factory=list)
+	model_rate_limits: dict = field(default_factory=dict)  # e.g. {"openai/gpt-4o": {"rpm": 100, "tpm": 50000}}
 	updated_at: datetime | None = None
+	prompt_injection_detection_enabled: bool = False
+	response_guardrails_enabled: bool = False
+	response_pii_redact: bool = False
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -54,7 +61,11 @@ class PolicyConfig:
 			blocked_keywords=list(data.get("blocked_keywords") or []),
 			pii_detection_enabled=bool(data.get("pii_detection_enabled", True)),
 			pii_entities=list(data.get("pii_entities") or []),
+			model_rate_limits=dict(data.get("model_rate_limits") or {}),
 			updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else None,
+			prompt_injection_detection_enabled=bool(data.get("prompt_injection_detection_enabled", False)),
+			response_guardrails_enabled=bool(data.get("response_guardrails_enabled", False)),
+			response_pii_redact=bool(data.get("response_pii_redact", False)),
 		)
 
 	def to_dict(self) -> dict:
@@ -64,7 +75,11 @@ class PolicyConfig:
 			"blocked_keywords": self.blocked_keywords,
 			"pii_detection_enabled": self.pii_detection_enabled,
 			"pii_entities": self.pii_entities,
+			"model_rate_limits": self.model_rate_limits,
 			"updated_at": self.updated_at.isoformat() if self.updated_at else None,
+			"prompt_injection_detection_enabled": self.prompt_injection_detection_enabled,
+			"response_guardrails_enabled": self.response_guardrails_enabled,
+			"response_pii_redact": self.response_pii_redact,
 		}
 
 
@@ -145,11 +160,12 @@ policy_store = PolicyStore()
 @dataclass
 class PolicyDecision:
 	allowed: bool
-	action: str
+	action: str = "allow"
 	reason_code: str | None = None
 	detail: str | None = None
 	triggered_rules: list[str] | None = None
 	_mode: str = "off"
+	redacted_text: Optional[str] = None
 
 	def as_metadata(self) -> dict[str, object]:
 		return {
@@ -162,6 +178,20 @@ class PolicyDecision:
 				"mode": self._mode,
 			}
 		}
+
+
+# ── Prompt injection patterns ─────────────────────────────────────────────────
+
+_INJECTION_PATTERNS = [
+	_re.compile(r"ignore\s+(all\s+)?(previous|prior|above)\s+instructions", _re.IGNORECASE),
+	_re.compile(r"you\s+are\s+now\b", _re.IGNORECASE),
+	_re.compile(r"\bact\s+as\b", _re.IGNORECASE),
+	_re.compile(r"\bpretend\s+(you\s+are|to\s+be)\b", _re.IGNORECASE),
+	_re.compile(r"\bjailbreak\b", _re.IGNORECASE),
+	_re.compile(r"\bDAN\s+mode\b", _re.IGNORECASE),
+	_re.compile(r"\bdeveloper\s+mode\b", _re.IGNORECASE),
+	_re.compile(r"disregard\s+your\s+(training|guidelines|rules)", _re.IGNORECASE),
+]
 
 
 # ── Policy service (pure — no I/O) ───────────────────────────────────────────
@@ -228,6 +258,17 @@ class PolicyService:
 				triggered_rules=triggered_rules,
 			)
 
+		if config.prompt_injection_detection_enabled:
+			hit = PolicyService._injection_hit(text)
+			if hit:
+				return PolicyDecision(
+					allowed=False,
+					action="block",
+					reason_code="prompt_injection_detected",
+					detail="Prompt injection pattern detected",
+					_mode=mode,
+				)
+
 		return PolicyDecision(allowed=True, action="allow", _mode=mode)
 
 	def _decision_for_violation(
@@ -272,6 +313,14 @@ class PolicyService:
 	def _pii_hit(self, text: str, config: PolicyConfig) -> str | None:
 		if not config.pii_detection_enabled:
 			return None
+		if presidio_service.is_enabled():
+			entities = config.pii_entities or settings.PRESIDIO_ENTITIES
+			results = presidio_service.analyze(text, entities=entities)
+			for result in results:
+				if result.score >= settings.PRESIDIO_SCORE_THRESHOLD:
+					return result.entity_type
+			return None
+		# Fallback: regex-based detection
 		if self._EMAIL_RE.search(text):
 			return "email"
 		if self._SSN_RE.search(text):
@@ -279,6 +328,70 @@ class PolicyService:
 		if self._CC_RE.search(text):
 			return "payment_card"
 		return None
+
+	@staticmethod
+	def _injection_hit(text: str) -> Optional[str]:
+		for pattern in _INJECTION_PATTERNS:
+			if pattern.search(text):
+				return "prompt_injection"
+		return None
+
+	def _redact_pii(self, text: str, config: PolicyConfig) -> str:
+		if presidio_service.is_enabled():
+			entities = config.pii_entities or settings.PRESIDIO_ENTITIES
+			results = presidio_service.analyze(text, entities=entities)
+			# Filter by score threshold and sort by start DESC to avoid index shift
+			hits = [r for r in results if r.score >= settings.PRESIDIO_SCORE_THRESHOLD]
+			hits_sorted = sorted(hits, key=lambda r: r.start, reverse=True)
+			redacted = text
+			for hit in hits_sorted:
+				redacted = redacted[:hit.start] + "[REDACTED]" + redacted[hit.end:]
+			return redacted
+		# Fallback: regex substitutions
+		redacted = self._EMAIL_RE.sub("[REDACTED]", text)
+		redacted = self._SSN_RE.sub("[REDACTED]", redacted)
+		redacted = self._CC_RE.sub("[REDACTED]", redacted)
+		return redacted
+
+	def evaluate_response(self, response_text: str, config: "PolicyConfig") -> "PolicyDecision":
+		"""
+		Evaluate policy on response text (after LLM completion).
+		Returns PolicyDecision with allowed=True if no violation.
+		If response_pii_redact=True and PII found, returns PolicyDecision with
+		allowed=True but sets redacted_text on the decision.
+		"""
+		if not config.response_guardrails_enabled:
+			return PolicyDecision(allowed=True)
+
+		# Check blocked keywords in response
+		if hasattr(config, 'blocked_keywords') and config.blocked_keywords:
+			for kw in config.blocked_keywords:
+				if kw.lower() in response_text.lower():
+					return PolicyDecision(
+						allowed=False,
+						action="block",
+						reason_code="response_keyword_blocked",
+						detail="Blocked keyword found in response",
+					)
+
+		# Check PII in response
+		pii_entity = self._pii_hit(response_text, config)
+		if pii_entity:
+			if config.response_pii_redact:
+				redacted = self._redact_pii(response_text, config)
+				decision = PolicyDecision(allowed=True)
+				decision.redacted_text = redacted
+				decision.reason_code = "response_pii_detected"
+				return decision
+			else:
+				return PolicyDecision(
+					allowed=False,
+					action="block",
+					reason_code="response_pii_detected",
+					detail=f"PII detected in response: {pii_entity}",
+				)
+
+		return PolicyDecision(allowed=True)
 
 	def _extract_chat_text(self, request: ChatCompletionRequest) -> str:
 		parts: list[str] = []

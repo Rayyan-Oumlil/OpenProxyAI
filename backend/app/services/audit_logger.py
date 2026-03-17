@@ -44,6 +44,29 @@ async def _fire_policy_webhook(
 		pass
 
 
+async def _fire_anomaly_check(
+	redis: Redis,
+	org_id: uuid.UUID,
+	user_id: uuid.UUID,
+) -> None:
+	"""Fire-and-forget cost anomaly check. Fetches org and delegates to CostTrackerService."""
+	try:
+		from app.models.organization import Organization as _Org
+
+		async with AsyncSessionLocal() as _db:
+			_org = await _db.get(_Org, org_id)
+			if _org is not None:
+				await cost_tracker_service.check_anomaly(
+					redis=redis,
+					org_id=str(org_id),
+					user_id=str(user_id) if user_id else None,
+					db_session=_db,
+					org=_org,
+				)
+	except Exception:
+		pass
+
+
 async def log_request(
 	redis: Redis,
 	request_id: uuid.UUID,
@@ -131,6 +154,37 @@ async def log_request(
 			policy_action=policy_meta.get("action"),
 			error_message=error_message,
 		))
+
+	# Fire cost anomaly check (Phase 3)
+	import asyncio as _asyncio
+	_asyncio.create_task(_fire_anomaly_check(
+		redis=redis,
+		org_id=org_id,
+		user_id=user_id,
+	))
+
+	# ClickHouse dual-write (Phase 3 — fire-and-forget)
+	import asyncio as _ch_asyncio
+	from app.services import clickhouse_service
+	if clickhouse_service.is_enabled():
+		ch_policy_meta = (request_metadata or {}).get("policy", {})
+		_ch_asyncio.create_task(clickhouse_service.write_log({
+			"request_id": request_id,
+			"org_id": org_id,
+			"user_id": user_id,
+			"api_key_id": api_key_id,
+			"model": model,
+			"provider": provider,
+			"prompt_tokens": prompt_tokens or 0,
+			"completion_tokens": completion_tokens or 0,
+			"total_tokens": total_tokens,
+			"cost_usd": float(cost_usd or 0),
+			"latency_ms": latency_ms,
+			"ttft_ms": ttft_ms or 0,
+			"status_code": status_code,
+			"policy_action": ch_policy_meta.get("action", ""),
+			"created_at": datetime.now(UTC),
+		}))
 
 	# Prometheus metrics
 	from app.services.metrics_service import record_request as _record_metrics

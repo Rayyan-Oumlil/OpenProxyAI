@@ -50,8 +50,28 @@ class Settings(BaseSettings):
     POLICY_BLOCKED_KEYWORDS: list[str] = []
     POLICY_PII_DETECTION_ENABLED: bool = True
 
+    # ── Presidio NLP PII detection ───────────────────────────────────────
+    PRESIDIO_ENTITIES: list = [
+        "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD",
+        "US_SSN", "US_PASSPORT", "PERSON", "IP_ADDRESS",
+        "IBAN_CODE", "MEDICAL_LICENSE",
+    ]
+    PRESIDIO_SCORE_THRESHOLD: float = 0.7
+
+    # ── Semantic Cache ───────────────────────────────────────────────
+    CACHE_ENABLED: bool = False
+    CACHE_TTL_SECONDS: int = 3600
+
+    # ── Cost Anomaly Detection ───────────────────────────────────────
+    COST_ANOMALY_MULTIPLIER: float = 3.0
+    COST_ANOMALY_MIN_BASELINE_DAYS: int = 3
+
     # ── Prometheus ───────────────────────────────────────────────────
     PROMETHEUS_ENABLED: bool = True
+
+    # ── ClickHouse analytics dual-write ──────────────────────────────
+    CLICKHOUSE_URL: str = ""                    # e.g. "clickhouse://localhost:8123"
+    CLICKHOUSE_DATABASE: str = "openproxy"
 
     # ── Langfuse (optional observability) ─────────────────────────────
     LANGFUSE_SECRET_KEY: str = ""

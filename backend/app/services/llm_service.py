@@ -1,5 +1,6 @@
 """LiteLLM wrapper — acompletion, cost calculation, streaming with capture."""
 
+import fnmatch
 import json
 import random
 import time
@@ -8,6 +9,7 @@ from collections.abc import AsyncGenerator
 from decimal import Decimal
 from typing import Any
 
+import litellm
 from fastapi import BackgroundTasks, HTTPException, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from litellm import acompletion, aembedding
@@ -20,6 +22,7 @@ from app.models.api_key import ApiKey
 from app.models.llm_provider_key import LLMProviderKey
 from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
+from app.services import cache_service
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
 from app.services.crypto_service import decrypt
@@ -59,6 +62,7 @@ class LLMService:
 		db: AsyncSession,
 		org_id: uuid.UUID,
 		provider: str,
+		model: str | None = None,
 	) -> str:
 		rows = await db.scalars(
 			select(LLMProviderKey).where(
@@ -69,7 +73,17 @@ class LLMService:
 		)
 		keys = [row for row in rows if row.weight > 0]
 		if keys:
-			selected = random.choices(keys, weights=[k.weight for k in keys], k=1)[0]
+			# Model-pattern routing: prefer keys whose model_patterns match the requested model
+			if model:
+				matched = [
+					k for k in keys
+					if k.model_patterns
+					and any(fnmatch.fnmatch(model, pattern) for pattern in k.model_patterns)
+				]
+				candidates = matched if matched else keys
+			else:
+				candidates = keys
+			selected = random.choices(candidates, weights=[k.weight for k in candidates], k=1)[0]
 			return decrypt(selected.api_key_encrypted)
 
 		env_map = {
@@ -189,6 +203,8 @@ class LLMService:
 				max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
 				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
 				user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
+				model=request.model,
+				policy_config=policy_config,
 			)
 			if not ok:
 				latency_ms = int((time.perf_counter() - start) * 1000)
@@ -221,7 +237,7 @@ class LLMService:
 				)
 
 			try:
-				provider_api_key = await self._select_provider_key(db, user.org_id, provider)
+				provider_api_key = await self._select_provider_key(db, user.org_id, provider, model=model_name)
 			except HTTPException as exc:
 				raise HTTPException(
 					status_code=exc.status_code,
@@ -240,6 +256,38 @@ class LLMService:
 			)
 
 			if request.stream:
+				# Streaming pre-flight budget check (best-effort, never blocks on estimate failure)
+				try:
+					_messages_list = [
+						m.model_dump() if hasattr(m, "model_dump") else m
+						for m in request.messages
+					]
+					_estimated_prompt_tokens = litellm.token_counter(
+						model=request.model, messages=_messages_list
+					)
+					_max_completion_tokens = getattr(request, "max_tokens", None) or 4096
+					_estimated_cost = litellm.completion_cost(
+						model=request.model,
+						prompt_tokens=_estimated_prompt_tokens,
+						completion_tokens=_max_completion_tokens,
+					)
+					_remaining_budget = Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD))
+					_user_budget = getattr(user, "budget_daily_usd", None)
+					if _user_budget is not None:
+						_remaining_budget = min(_remaining_budget, Decimal(str(_user_budget)))
+					if Decimal(str(_estimated_cost)) > _remaining_budget:
+						raise HTTPException(
+							status_code=402,
+							detail={
+								"error": "budget_exceeded",
+								"detail": "Estimated request cost exceeds remaining daily budget",
+							},
+						)
+				except HTTPException:
+					raise
+				except Exception:
+					pass  # Pre-flight estimate failure should never block the request
+
 				kwargs["stream"] = True
 				stream = await acompletion(**kwargs)
 				first_chunk = await stream.__anext__()
@@ -266,12 +314,33 @@ class LLMService:
 					if isinstance(first_payload, dict):
 						_update_usage(first_payload)
 					yield f"data: {json.dumps(first_payload)}\n\n"
+					collected_chunks: list[str] = []
 					async for chunk in stream:
 						chunk_payload = _to_jsonable(chunk)
 						if isinstance(chunk_payload, dict):
 							_update_usage(chunk_payload)
+							# Collect text content for response guardrail check
+							for choice in chunk_payload.get("choices", []):
+								delta = choice.get("delta", {})
+								content = delta.get("content")
+								if content:
+									collected_chunks.append(content)
 						yield f"data: {json.dumps(chunk_payload)}\n\n"
 					yield "data: [DONE]\n\n"
+					# Response guardrail check (best-effort, never blocks delivery)
+					if (
+						hasattr(policy_config, "response_guardrails_enabled")
+						and policy_config.response_guardrails_enabled
+					):
+						try:
+							from app.services.policy_service import PolicyService
+							policy_svc = PolicyService()
+							full_response_text = "".join(collected_chunks)
+							decision_resp = policy_svc.evaluate_response(full_response_text, policy_config)
+							if not decision_resp.allowed:
+								pass  # Log violation best-effort; stream already delivered
+						except Exception:
+							pass
 					latency_ms = int((time.perf_counter() - start) * 1000)
 					cost = Decimal("0")
 					if prompt_tokens > 0 or completion_tokens > 0:
@@ -315,6 +384,51 @@ class LLMService:
 					},
 				)
 
+			# Cache check for non-streaming requests
+			try:
+				_cache_messages = [
+					m.model_dump() if hasattr(m, "model_dump") else m
+					for m in request.messages
+				]
+				_cache_temperature = getattr(request, "temperature", None)
+				cached_body = await cache_service.get(redis, request.model, _cache_messages, _cache_temperature)
+				if cached_body is not None:
+					cached_usage = cached_body.get("usage", {}) if isinstance(cached_body, dict) else {}
+					cached_prompt_tokens = int(cached_usage.get("prompt_tokens", 0))
+					cached_completion_tokens = int(cached_usage.get("completion_tokens", 0))
+					cached_cost = cost_tracker_service.calculate_cost_usd(cached_body)
+					cached_latency_ms = int((time.perf_counter() - start) * 1000)
+					self._schedule_log(
+						background_tasks,
+						redis,
+						request_id,
+						user,
+						api_key,
+						request.model,
+						provider,
+						cached_prompt_tokens,
+						cached_completion_tokens,
+						cached_cost,
+						cached_latency_ms,
+						200,
+						request_metadata=policy_metadata,
+					)
+					return JSONResponse(
+						content=cached_body,
+						headers={
+							"X-OpenProxyAI-Request-Id": str(request_id),
+							"X-OpenProxyAI-Provider": provider,
+							"X-OpenProxyAI-Model": request.model,
+							"X-OpenProxyAI-Cost-USD": f"{cached_cost:.6f}",
+							"X-OpenProxyAI-Latency-Ms": str(cached_latency_ms),
+							"X-OpenProxyAI-Cache": "hit",
+							"X-OpenProxyAI-Gateway-Error": "false",
+							**rl_headers,
+						},
+					)
+			except Exception:
+				pass  # Cache failure must never block a real LLM call
+
 			response = await acompletion(**kwargs)
 			body = _to_jsonable(response)
 			usage = body.get("usage", {}) if isinstance(body, dict) else {}
@@ -322,6 +436,17 @@ class LLMService:
 			completion_tokens = int(usage.get("completion_tokens", 0))
 			cost = cost_tracker_service.calculate_cost_usd(response)
 			latency_ms = int((time.perf_counter() - start) * 1000)
+
+			# Store successful non-streaming response in cache (best-effort)
+			try:
+				_cache_messages = [
+					m.model_dump() if hasattr(m, "model_dump") else m
+					for m in request.messages
+				]
+				_cache_temperature = getattr(request, "temperature", None)
+				await cache_service.set(redis, request.model, _cache_messages, _cache_temperature, body)
+			except Exception:
+				pass
 
 			self._schedule_log(
 				background_tasks,
@@ -347,6 +472,7 @@ class LLMService:
 					"X-OpenProxyAI-Model": request.model,
 					"X-OpenProxyAI-Cost-USD": f"{cost:.6f}",
 					"X-OpenProxyAI-Latency-Ms": str(latency_ms),
+					"X-OpenProxyAI-Cache": "miss",
 					"X-OpenProxyAI-Gateway-Error": "false",
 					**rl_headers,
 				},
@@ -474,6 +600,8 @@ class LLMService:
 				max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
 				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
 				user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
+				model=request.model,
+				policy_config=policy_config,
 			)
 			if not ok:
 				latency_ms = int((time.perf_counter() - start) * 1000)
@@ -630,4 +758,3 @@ class LLMService:
 
 
 llm_service = LLMService()
-
