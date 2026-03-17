@@ -52,3 +52,11 @@ OpenProxyAI is an enterprise LLM proxy that sits between your organization and L
 |----------|---------|
 | [Security Architecture](./compliance/security.md) | Encryption, key rotation, audit log immutability, security headers |
 | [SOC 2 & HIPAA Controls](./compliance/soc2-hipaa.md) | Control mapping for CC6, CC7, CC8, CC9, and HIPAA §164.312 |
+
+---
+
+## Roadmap
+
+| Document | Purpose |
+|----------|---------|
+| [Roadmap & Next Steps](./roadmap.md) | What's built, what's incomplete, competitor gaps, and prioritized P0–P3 work |
