@@ -34,6 +34,10 @@ export interface GatewayMeta {
   latencyMs?: number;
   provider?: string;
   policyAction?: string;
+  model?: string;
+  policyReason?: string;
+  ttftMs?: number;
+  cache?: string;
 }
 
 export interface ChatCompletion {

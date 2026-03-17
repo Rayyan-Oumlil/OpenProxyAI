@@ -100,3 +100,18 @@ securityContext:
   capabilities:
     drop:
       - ALL
+
+# Pod Disruption Budget — ensures minimum availability during node drains / rolling updates
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Prometheus ServiceMonitor — enable for kube-prometheus-stack auto-discovery
+prometheus:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    additionalLabels: {}
+    # Labels to add to the ServiceMonitor for Prometheus selector matching
+    # e.g. release: prometheus

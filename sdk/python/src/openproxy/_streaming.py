@@ -110,4 +110,6 @@ def _extract_gateway_meta(headers) -> GatewayMeta:
         model=headers.get("x-openproxyai-model"),
         policy_action=headers.get("x-openproxyai-policy-action"),
         policy_reason=headers.get("x-openproxyai-policy-reason"),
+        ttft_ms=_int(headers.get("x-openproxyai-ttft-ms")),
+        cache=headers.get("x-openproxyai-cache"),
     )

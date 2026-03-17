@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CheckCircle, XCircle, DollarSign, ShieldX, ShieldAlert } from "lucide-react";
+import { Activity, CheckCircle, XCircle, DollarSign, ShieldX, ShieldAlert, Zap } from "lucide-react";
 
 import { apiClient } from "../../api/client";
 import type { AnalyticsResponse, PolicyAnalyticsResponse } from "../../api/types";
@@ -23,6 +23,7 @@ const ACCENT_COLORS: Record<string, string> = {
   teal: "var(--accent-teal)",
   rose: "var(--accent-rose)",
   sky: "var(--accent-sky)",
+  violet: "#7c3aed",
 };
 
 function MetricCard({
@@ -30,11 +31,13 @@ function MetricCard({
   value,
   icon: Icon,
   accent,
+  subtext,
 }: {
   label: string;
   value: string;
   icon: React.ElementType;
-  accent: "amber" | "teal" | "rose" | "sky";
+  accent: "amber" | "teal" | "rose" | "sky" | "violet";
+  subtext?: string;
 }) {
   return (
     <div className="metric-card" style={{ boxShadow: `inset 0 3px 0 ${ACCENT_COLORS[accent]}` }}>
@@ -43,6 +46,7 @@ function MetricCard({
         <Icon size={16} style={{ color: ACCENT_COLORS[accent] }} />
       </div>
       <strong style={{ fontSize: "1.25rem" }}>{value}</strong>
+      {subtext && <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>{subtext}</span>}
     </div>
   );
 }
@@ -157,6 +161,15 @@ export function DashboardPage() {
         <MetricCard label="Total Cost" value={formatCost(overview.total_cost_usd)} icon={DollarSign} accent="sky" />
         <MetricCard label="Policy Blocked" value={formatNumber(overview.policy_blocked_requests)} icon={ShieldX} accent="rose" />
         <MetricCard label="Policy Flagged" value={formatNumber(overview.policy_flagged_requests)} icon={ShieldAlert} accent="amber" />
+        <MetricCard
+          label="Cache Hit Rate"
+          value={(overview as { cache_hit_rate?: number }).cache_hit_rate != null
+            ? `${Math.round(((overview as { cache_hit_rate?: number }).cache_hit_rate ?? 0) * 100)}%`
+            : "—"}
+          icon={Zap}
+          accent="violet"
+          subtext={(overview as { cache_hit_rate?: number }).cache_hit_rate == null ? "Enable caching to track hits" : undefined}
+        />
       </section>
 
       <section className="surface-panel">

@@ -170,6 +170,7 @@ export type ProviderKeyResponse = {
   key_prefix: string;
   weight: number;
   is_active: boolean;
+  model_patterns: string[] | null;
   created_at: string;
 };
 
@@ -178,18 +179,37 @@ export type CreateProviderKeyRequest = {
   alias?: string;
   api_key: string;
   weight?: number;
+  model_patterns?: string[] | null;
 };
 
 export type UpdateProviderKeyRequest = {
   alias?: string;
   weight?: number;
   is_active?: boolean;
+  model_patterns?: string[] | null;
 };
 
 export type PolicyConfigRequest = {
-  enforcement_mode: "observe" | "log_only" | "enforce";
+  enforcement_mode?: "off" | "log_only" | "enforce";
+  allowed_models?: string[];
+  blocked_keywords?: string[];
+  pii_detection_enabled?: boolean;
+  pii_entities?: string[];
+  model_rate_limits?: Record<string, { rpm?: number; tpm?: number }>;
+  prompt_injection_detection_enabled?: boolean;
+  response_guardrails_enabled?: boolean;
+  response_pii_redact?: boolean;
+};
+
+export type PolicyConfigResponse = {
+  enforcement_mode: string;
   allowed_models: string[];
   blocked_keywords: string[];
   pii_detection_enabled: boolean;
   pii_entities: string[];
+  model_rate_limits: Record<string, { rpm?: number; tpm?: number }>;
+  updated_at: string | null;
+  prompt_injection_detection_enabled: boolean;
+  response_guardrails_enabled: boolean;
+  response_pii_redact: boolean;
 };

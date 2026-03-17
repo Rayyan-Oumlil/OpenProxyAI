@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
@@ -22,11 +22,15 @@ const PII_ENTITIES = [
 ];
 
 const DEFAULT_POLICY: PolicyConfigRequest = {
-  enforcement_mode: "observe",
+  enforcement_mode: "off",
   allowed_models: [],
   blocked_keywords: [],
   pii_detection_enabled: false,
   pii_entities: [],
+  model_rate_limits: {},
+  prompt_injection_detection_enabled: false,
+  response_guardrails_enabled: false,
+  response_pii_redact: false,
 };
 
 function TagInput({
@@ -124,12 +128,128 @@ function extractPolicy(org: OrganizationResponse): PolicyConfigRequest {
   const raw = org.settings?.policy as Partial<PolicyConfigRequest> | undefined;
   if (!raw) return { ...DEFAULT_POLICY };
   return {
-    enforcement_mode: raw.enforcement_mode ?? "observe",
+    enforcement_mode: raw.enforcement_mode ?? "off",
     allowed_models: raw.allowed_models ?? [],
     blocked_keywords: raw.blocked_keywords ?? [],
     pii_detection_enabled: raw.pii_detection_enabled ?? false,
     pii_entities: raw.pii_entities ?? [],
+    model_rate_limits: raw.model_rate_limits ?? {},
+    prompt_injection_detection_enabled: raw.prompt_injection_detection_enabled ?? false,
+    response_guardrails_enabled: raw.response_guardrails_enabled ?? false,
+    response_pii_redact: raw.response_pii_redact ?? false,
   };
+}
+
+type ModelRateLimit = { model: string; rpm: string; tpm: string };
+
+function ModelRateLimitsSection({
+  limits,
+  onChange,
+  disabled,
+}: {
+  limits: Record<string, { rpm?: number; tpm?: number }>;
+  onChange: (limits: Record<string, { rpm?: number; tpm?: number }>) => void;
+  disabled: boolean;
+}) {
+  const [newRow, setNewRow] = useState<ModelRateLimit>({ model: "", rpm: "", tpm: "" });
+
+  const entries = Object.entries(limits);
+
+  function addRow() {
+    const model = newRow.model.trim();
+    if (!model) return;
+    onChange({
+      ...limits,
+      [model]: {
+        rpm: newRow.rpm ? parseInt(newRow.rpm, 10) : undefined,
+        tpm: newRow.tpm ? parseInt(newRow.tpm, 10) : undefined,
+      },
+    });
+    setNewRow({ model: "", rpm: "", tpm: "" });
+  }
+
+  function removeRow(model: string) {
+    const next = { ...limits };
+    delete next[model];
+    onChange(next);
+  }
+
+  return (
+    <div className="stack-form">
+      {entries.length > 0 && (
+        <table className="data-table" style={{ fontSize: "0.85rem" }}>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>RPM</th>
+              <th>TPM</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(([model, v]) => (
+              <tr key={model}>
+                <td><code>{model}</code></td>
+                <td>{v.rpm ?? "—"}</td>
+                <td>{v.tpm ?? "—"}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(model)}
+                    disabled={disabled}
+                    style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--muted)" }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {!disabled && (
+        <div className="flex gap-2 flex-wrap items-end">
+          <div className="flex flex-col gap-1">
+            <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>Model</span>
+            <input
+              type="text"
+              value={newRow.model}
+              onChange={(e) => setNewRow((r) => ({ ...r, model: e.target.value }))}
+              placeholder="openai/gpt-4o"
+              style={{ width: 180 }}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>RPM</span>
+            <input
+              type="number"
+              value={newRow.rpm}
+              onChange={(e) => setNewRow((r) => ({ ...r, rpm: e.target.value }))}
+              placeholder="60"
+              style={{ width: 90 }}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>TPM</span>
+            <input
+              type="number"
+              value={newRow.tpm}
+              onChange={(e) => setNewRow((r) => ({ ...r, tpm: e.target.value }))}
+              placeholder="100000"
+              style={{ width: 110 }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={addRow}
+            style={{ background: "var(--accent-sky)", color: "#fff", alignSelf: "flex-end" }}
+          >
+            <Plus size={13} /> Add
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function PolicyConfigPage() {
@@ -289,6 +409,68 @@ export function PolicyConfigPage() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* Advanced Guardrails */}
+        <section className="surface-panel stack-form">
+          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Advanced Guardrails</h2>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={form.prompt_injection_detection_enabled ?? false}
+              onChange={(e) => setForm((f) => ({ ...f, prompt_injection_detection_enabled: e.target.checked }))}
+              disabled={!isAdmin}
+            />
+            <div>
+              <span style={{ fontSize: "0.9rem" }}>Prompt Injection Detection</span>
+              <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
+                Blocks jailbreak patterns (ignore instructions, DAN mode, act as, etc.)
+              </p>
+            </div>
+          </label>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={form.response_guardrails_enabled ?? false}
+              onChange={(e) => setForm((f) => ({ ...f, response_guardrails_enabled: e.target.checked }))}
+              disabled={!isAdmin}
+            />
+            <div>
+              <span style={{ fontSize: "0.9rem" }}>Response Guardrails</span>
+              <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
+                Evaluate LLM responses against policy rules before returning them.
+              </p>
+            </div>
+          </label>
+          {form.response_guardrails_enabled && (
+            <label className="check-row" style={{ marginLeft: "1.75rem" }}>
+              <input
+                type="checkbox"
+                checked={form.response_pii_redact ?? false}
+                onChange={(e) => setForm((f) => ({ ...f, response_pii_redact: e.target.checked }))}
+                disabled={!isAdmin}
+              />
+              <div>
+                <span style={{ fontSize: "0.9rem" }}>Redact PII instead of blocking</span>
+                <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
+                  Replace detected PII with [REDACTED] rather than blocking the response entirely.
+                </p>
+              </div>
+            </label>
+          )}
+        </section>
+
+        {/* Per-Model Rate Limits */}
+        <section className="surface-panel stack-form">
+          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Per-Model Rate Limits</h2>
+          <p className="muted" style={{ fontSize: "0.88rem" }}>
+            Override global RPM/TPM limits for specific models. Leave empty to use org-level limits.
+          </p>
+          <ModelRateLimitsSection
+            limits={form.model_rate_limits ?? {}}
+            onChange={(limits) => setForm((f) => ({ ...f, model_rate_limits: limits }))}
+            disabled={!isAdmin}
+          />
         </section>
 
         {isAdmin && (

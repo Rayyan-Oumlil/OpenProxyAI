@@ -17,6 +17,9 @@ class PolicyConfigRequest(BaseModel):
 	pii_detection_enabled: bool | None = None
 	pii_entities: list[str] | None = None
 	model_rate_limits: Optional[dict] = None
+	prompt_injection_detection_enabled: bool | None = None
+	response_guardrails_enabled: bool | None = None
+	response_pii_redact: bool | None = None
 
 
 class PolicyConfigResponse(BaseModel):
@@ -27,3 +30,6 @@ class PolicyConfigResponse(BaseModel):
 	pii_entities: list[str]
 	model_rate_limits: dict
 	updated_at: datetime | None
+	prompt_injection_detection_enabled: bool
+	response_guardrails_enabled: bool
+	response_pii_redact: bool

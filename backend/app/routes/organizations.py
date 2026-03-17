@@ -80,6 +80,9 @@ async def get_policy_config(
 		pii_entities=config.pii_entities,
 		model_rate_limits=config.model_rate_limits,
 		updated_at=config.updated_at,
+		prompt_injection_detection_enabled=config.prompt_injection_detection_enabled,
+		response_guardrails_enabled=config.response_guardrails_enabled,
+		response_pii_redact=config.response_pii_redact,
 	)
 
 
@@ -114,6 +117,9 @@ async def update_policy_config(
 		pii_detection_enabled=updates.get("pii_detection_enabled", current.pii_detection_enabled),
 		pii_entities=updates.get("pii_entities", current.pii_entities),
 		model_rate_limits=updates.get("model_rate_limits", current.model_rate_limits),
+		prompt_injection_detection_enabled=updates.get("prompt_injection_detection_enabled", current.prompt_injection_detection_enabled),
+		response_guardrails_enabled=updates.get("response_guardrails_enabled", current.response_guardrails_enabled),
+		response_pii_redact=updates.get("response_pii_redact", current.response_pii_redact),
 		updated_at=datetime.now(UTC),
 	)
 
@@ -127,6 +133,9 @@ async def update_policy_config(
 		pii_entities=new_config.pii_entities,
 		model_rate_limits=new_config.model_rate_limits,
 		updated_at=new_config.updated_at,
+		prompt_injection_detection_enabled=new_config.prompt_injection_detection_enabled,
+		response_guardrails_enabled=new_config.response_guardrails_enabled,
+		response_pii_redact=new_config.response_pii_redact,
 	)
 
 

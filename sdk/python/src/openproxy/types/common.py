@@ -27,3 +27,5 @@ class GatewayMeta:
     model: str | None = None
     policy_action: str | None = None
     policy_reason: str | None = None
+    ttft_ms: int | None = None
+    cache: str | None = None
