@@ -34,15 +34,11 @@ def is_enabled() -> bool:
 
 def analyze(text: str, language: str = "en", entities: Optional[list[str]] = None) -> list:
     """
-    Returns list of RecognizerResult. Empty list if Presidio not available.
+    Returns list of RecognizerResult. Empty list only if Presidio is not installed.
+    Raises on runtime errors — caller must handle or let propagate as 500.
     entities: optional filter list (e.g. ["EMAIL_ADDRESS", "US_SSN"])
     """
     analyzer = _get_analyzer()
     if analyzer is None:
         return []
-    try:
-        results = analyzer.analyze(text=text, language=language, entities=entities)
-        return results
-    except Exception as exc:
-        logger.warning("Presidio analysis failed: %s", exc)
-        return []
+    return analyzer.analyze(text=text, language=language, entities=entities)

@@ -206,8 +206,12 @@ async def _fire_budget_webhook(org_id: str, spend: float, budget: float) -> None
 						"percent_used": round(spend / budget * 100, 1) if budget else 0,
 					},
 				)
-	except Exception:
-		pass
+	except Exception as exc:
+		import logging as _logging
+		_logging.getLogger(__name__).error(
+			"budget.alert webhook failed for org %s (spend=%.4f budget=%.4f): %s",
+			org_id, spend, budget, exc,
+		)
 
 
 cost_tracker_service = CostTrackerService()

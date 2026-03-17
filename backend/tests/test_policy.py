@@ -35,11 +35,18 @@ async def test_policy_service_blocks_keyword_when_enforcing(monkeypatch):
 async def test_llm_service_blocks_before_rate_limit_for_policy_violation(monkeypatch, fake_redis):
 	from app.schemas.chat import ChatCompletionRequest
 	from app.services import llm_service as llm_service_module
+	from app.services.policy_service import PolicyConfig, policy_store
 
 	monkeypatch.setattr(settings, "POLICY_ENFORCEMENT_MODE", "enforce")
 	monkeypatch.setattr(settings, "POLICY_BLOCKED_KEYWORDS", ["forbidden phrase"])
 	monkeypatch.setattr(settings, "POLICY_ALLOWED_MODELS", [])
 	monkeypatch.setattr(settings, "POLICY_PII_DETECTION_ENABLED", False)
+
+	# Patch policy_store.load to return from env settings — avoids needing a real DB
+	async def fake_load(org_id, db, redis):
+		return PolicyConfig.from_settings()
+
+	monkeypatch.setattr(policy_store, "load", fake_load)
 
 	request = ChatCompletionRequest(
 		model="openai/gpt-4o-mini",

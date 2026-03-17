@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import re as _re
 import uuid
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Optional
@@ -121,8 +124,12 @@ class PolicyStore:
 					config = PolicyConfig.from_dict(policy_data)
 					await redis.setex(cache_key, _POLICY_CACHE_TTL, json.dumps(config.to_dict()))
 					return config
-		except Exception:  # noqa: BLE001
-			pass  # DB unavailable — fall through to settings defaults
+		except Exception as exc:
+			logger.error(
+				"Failed to load policy config for org %s — cannot proceed safely: %s",
+				org_id, exc,
+			)
+			raise
 
 		return PolicyConfig.from_settings()
 

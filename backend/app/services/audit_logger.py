@@ -40,8 +40,12 @@ async def _fire_policy_webhook(
 						"detail": policy_meta.get("detail"),
 					},
 				)
-	except Exception:
-		pass
+	except Exception as exc:
+		import logging as _logging
+		_logging.getLogger(__name__).error(
+			"policy.violation webhook failed for org %s request %s: %s",
+			org_id, request_id, exc,
+		)
 
 
 async def _fire_anomaly_check(
@@ -63,8 +67,11 @@ async def _fire_anomaly_check(
 					db_session=_db,
 					org=_org,
 				)
-	except Exception:
-		pass
+	except Exception as exc:
+		import logging as _logging
+		_logging.getLogger(__name__).warning(
+			"Cost anomaly check failed for org %s: %s", org_id, exc,
+		)
 
 
 async def log_request(

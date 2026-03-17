@@ -32,8 +32,11 @@ def test_analyze_returns_empty_when_disabled():
     assert result == []
 
 
-def test_analyze_handles_exception_gracefully():
-    """analyze() swallows exceptions and returns []."""
+def test_analyze_raises_when_presidio_crashes():
+    """analyze() propagates exceptions when Presidio is enabled but crashes at runtime.
+    Callers get a hard failure (500) instead of silently missing PII.
+    """
+    import pytest
     import app.services.presidio_service as ps
     mock_analyzer = MagicMock()
     mock_analyzer.analyze.side_effect = RuntimeError("NLP engine error")
@@ -41,7 +44,9 @@ def test_analyze_handles_exception_gracefully():
     original_initialized = ps._initialized
     ps._analyzer = mock_analyzer
     ps._initialized = True
-    result = ps.analyze("some text")
-    ps._analyzer = original_analyzer
-    ps._initialized = original_initialized
-    assert result == []
+    try:
+        with pytest.raises(RuntimeError, match="NLP engine error"):
+            ps.analyze("some text")
+    finally:
+        ps._analyzer = original_analyzer
+        ps._initialized = original_initialized

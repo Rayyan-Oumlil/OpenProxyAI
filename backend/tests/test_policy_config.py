@@ -209,13 +209,13 @@ def test_policy_config_from_dict_roundtrip():
 
 
 @pytest.mark.asyncio
-async def test_policy_store_load_falls_back_to_settings():
-	"""When Redis misses and DB is unavailable, load() returns settings defaults."""
-	from app.config import settings
+async def test_policy_store_load_raises_on_db_error():
+	"""When Redis misses and DB is unavailable, load() raises — never silently uses permissive defaults."""
+	import pytest
 
 	store = PolicyStore()
-	config = await store.load(org_id=uuid4(), db=SimpleNamespace(), redis=FakeRedis())
-	assert config.enforcement_mode == settings.POLICY_ENFORCEMENT_MODE
+	with pytest.raises(Exception):
+		await store.load(org_id=uuid4(), db=SimpleNamespace(), redis=FakeRedis())
 
 
 @pytest.mark.asyncio

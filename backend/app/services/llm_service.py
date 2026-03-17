@@ -2,9 +2,12 @@
 
 import fnmatch
 import json
+import logging
 import random
 import time
 import uuid
+
+logger = logging.getLogger(__name__)
 from collections.abc import AsyncGenerator
 from decimal import Decimal
 from typing import Any
@@ -327,7 +330,7 @@ class LLMService:
 									collected_chunks.append(content)
 						yield f"data: {json.dumps(chunk_payload)}\n\n"
 					yield "data: [DONE]\n\n"
-					# Response guardrail check (best-effort, never blocks delivery)
+					# Response guardrail check — stream already delivered, but violations must be logged
 					if (
 						hasattr(policy_config, "response_guardrails_enabled")
 						and policy_config.response_guardrails_enabled
@@ -338,9 +341,16 @@ class LLMService:
 							full_response_text = "".join(collected_chunks)
 							decision_resp = policy_svc.evaluate_response(full_response_text, policy_config)
 							if not decision_resp.allowed:
-								pass  # Log violation best-effort; stream already delivered
-						except Exception:
-							pass
+								logger.warning(
+									"Response guardrail violation (stream already delivered): "
+									"request_id=%s reason=%s",
+									request_id, decision_resp.reason_code,
+								)
+						except Exception as exc:
+							logger.error(
+								"Response guardrail check failed for request %s: %s",
+								request_id, exc,
+							)
 					latency_ms = int((time.perf_counter() - start) * 1000)
 					cost = Decimal("0")
 					if prompt_tokens > 0 or completion_tokens > 0:

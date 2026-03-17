@@ -18,6 +18,19 @@ class FakeDB:
 		return None
 
 
+@pytest.fixture(autouse=True)
+def patch_policy_store(monkeypatch):
+	"""Patch policy_store.load for all tests in this file that use SimpleNamespace() as db.
+	Direct LLMService tests bypass the DB — use env settings-based PolicyConfig.
+	"""
+	from app.services.policy_service import PolicyConfig, policy_store
+
+	async def _fake_load(org_id, db, redis):
+		return PolicyConfig.from_settings()
+
+	monkeypatch.setattr(policy_store, "load", _fake_load)
+
+
 def test_chat_completions_route_success(client, fake_redis, monkeypatch):
 	user = SimpleNamespace(id=uuid4(), org_id=uuid4(), is_active=True)
 	api_key = SimpleNamespace(id=uuid4(), org_id=user.org_id, user=user)
