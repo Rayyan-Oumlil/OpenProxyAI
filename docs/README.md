@@ -1,175 +1,135 @@
-# OpenProxyAI — Documentation
+# OpenProxyAI Documentation
 
-**Enterprise-Grade AI Control Plane**
-*A security-first LLM proxy for regulated industries — finance, healthcare, government.*
-
----
-
-## What Is OpenProxyAI?
-
-OpenProxyAI sits between your organization and every LLM provider (OpenAI, Anthropic, Azure, Mistral, etc.). Every AI request flows through it. This gives you:
-
-- **One API key** for all providers — no vendor lock-in
-- **Full audit trail** — who asked what, when, with what response, at what cost
-- **Policy enforcement** — PII redaction, content filtering, model allowlists
-- **Cost control** — per-user budgets, department chargebacks, real-time spend tracking
-- **Compliance** — immutable logs, SOC 2 / HIPAA / GDPR ready
-
-Target customers: CISOs and IT teams at banks, hospitals, and government agencies who need AI governance but cannot risk compliance violations.
+OpenProxyAI is an enterprise LLM proxy / control plane that sits between your organization and LLM providers (OpenAI, Anthropic, Azure, Mistral, etc.). It provides unified API key management, policy enforcement (PII redaction, keyword blocking, model allowlists), cost control (per-user budgets, departmental chargebacks), and complete audit trails for compliance (SOC 2, HIPAA, GDPR).
 
 ---
 
-## Documentation Map
+## Getting Started
 
-### Strategy & Vision
-| Document | What it covers |
-|---|---|
-| [Executive Summary](./00_EXECUTIVE_SUMMARY.md) | Problem, solution, market, business model, revenue targets |
-| [Product Vision](./02_Product_Vision/product_vision.md) | Market opportunity, competitive positioning, long-term vision |
-| [Business Model & Pricing](./07_Business_Model/pricing_strategy.md) | Pricing tiers, unit economics, LTV:CAC, revenue projections |
+Start here if you are new to OpenProxyAI.
 
-### Architecture & Technical Design
-| Document | What it covers |
-|---|---|
-| [System Architecture](./03_System_Architecture/system_architecture.md) | Full technical design, component diagram, data flows, stack decisions |
-| [API Design](./05_API_Design/api_reference.md) | OpenAI-compatible API reference, auth, error handling, rate limiting |
-| [Security & Compliance](./04_Security_Compliance/security_architecture.md) | Zero Trust, SOC 2, HIPAA, GDPR, PII detection, audit logging |
-| [End-User Integration](./10_End_User_Integration/01_traffic_redirection_guide.md) | IT admin guide — PAC files, DNS, firewall, TLS inspection, browser extensions |
-
-### Build Plan
-| Document | What it covers |
-|---|---|
-| [Phase 1 MVP Roadmap](./06_Product_Roadmap/phase_1_mvp.md) | Week-by-week build plan, must-have features, first customer milestone |
-| [First 90 Days](./01_Getting_Started/first_90_days.md) | Day-by-day action plan from zero to first paying customer |
-| [Resources & Build Plan](./11_Resources_And_Build_Plan/01_resources_and_build_plan.md) | OSS ecosystem map (LiteLLM, Portkey, Helicone), tech stack, 3-phase build |
-| [Product Pilot Blueprint](./12_Product_Pilot_Blueprint/product_pilot_blueprint.md) | ICP lock, 14-day pilot flow, success metrics, conversion criteria |
-
-### Operations
-| Document | What it covers |
-|---|---|
-| [Solo Founder Playbook](./08_Solo_Founder_Playbook/solo_founder_guide.md) | Time management, priorities, sustainable pace, when to hire |
-| [Marketing Website](./09_Marketing_Website/relume_prompt.md) | Relume AI builder prompt for the 15-page enterprise marketing site |
+| Document | Purpose |
+|----------|---------|
+| [Quickstart](./quickstart.md) | Create your first API key and make a request in 5 minutes |
+| [SDKs](./guides/sdks.md) | Install and use the Python or TypeScript SDK |
 
 ---
 
-## Architecture at a Glance
+## API Reference
 
-```
-Developer / Employee
-        │
-        ▼
-OpenProxyAI Gateway  (your server)
-        │
-  ┌─────┴──────────────────────────────────┐
-  │  1. Auth       — validate API key      │
-  │  2. Rate Limit — check Redis quotas    │
-  │  3. Policy     — PII scan, guardrails  │
-  │  4. Forward    — route to LLM provider │
-  │  5. Log        — async audit log       │
-  └─────┬──────────────────────────────────┘
-        │
-        ├──► OpenAI
-        ├──► Anthropic
-        ├──► Azure OpenAI
-        └──► Mistral / Cohere / Groq / ...
-```
+Complete endpoint documentation for the proxy and management APIs.
 
-**The pipeline always runs in this order.** Every request is checked, forwarded, and logged. Logging is always async — it never slows down the response.
-
-### Stack (settled decisions)
-
-| Layer | Choice | Why |
-|---|---|---|
-| Proxy engine | FastAPI + Python | Async, LiteLLM integrates natively, Presidio for PII |
-| LLM abstraction | LiteLLM | 100+ providers, token counting, cost calculation built-in |
-| Database | PostgreSQL | Audit logs, org/user data, ACID guarantees |
-| Analytics (scale) | ClickHouse | Append-only time-series at 10M+ requests/month |
-| Cache / Rate limit | Redis | Sub-ms rate limiting, session storage |
-| Auth | Custom API keys → Auth0 | Start simple, add SSO (SAML/OIDC) in Phase 2 |
-| PII detection | Microsoft Presidio | Best open-source NER/PII library |
-| Admin dashboard | React + Vite + shadcn/ui | Already built for marketing site, reuse |
-| LLM observability | Langfuse | Open-source, self-hostable, Langfuse-compatible export |
-| Metrics | Prometheus + Grafana | Industry standard |
-| Deploy (Phase 1) | Docker Compose | Simple, customer can self-host |
-| Deploy (Phase 3) | Kubernetes | When scale demands it |
+| Document | Purpose |
+|----------|---------|
+| [API Reference](./api-reference.md) | Proxy endpoints (`/v1/chat/completions`, `/v1/embeddings`), management endpoints (keys, organizations, analytics) |
+| [Webhook Events](./webhook-events.md) | Incoming webhooks for cost alerts, policy violations, and audit events |
 
 ---
 
-## Current Status
+## Guides
 
-| Area | Status |
-|---|---|
-| Marketing website | Built (`web-app/`) — React + Vite, 9 sections, deployed |
-| Documentation | Complete and evolving with execution alignment |
-| Reference repos | Cloned (`references/`) — LiteLLM, Portkey, Bifrost, Helicone, Envoy |
-| Backend proxy | In progress — core auth/proxy/rate limit/analytics paths implemented |
-| Admin dashboard | In progress — admin-console MVP slice implemented |
-| SDK | Not started — planned after pilot stabilization |
+Task-oriented guides for specific features and deployments.
 
----
-
-## Key Architecture Decisions (with rationale)
-
-These were settled after studying LiteLLM, Portkey, and Helicone source code directly.
-
-### 1. Async logging — never block the response
-Helicone's `ProxyRequestHandler.ts` is the reference implementation. They wrap the response body in a `ReadableInterceptor` that captures the stream in background while simultaneously passing it to the client. The `DBLoggable` object is created immediately but `.log()` is called only after the stream completes — completely non-blocking.
-
-**Decision:** All audit logging is fire-and-forget via background task. The proxy response latency must never increase due to logging.
-
-### 2. Hook system for guardrails — not inline code
-Portkey's `middlewares/hooks/` implements `beforeRequestHooks` and `afterRequestHooks`. Each hook is an independent function that receives the request context, runs its check (PII scan, content filter, keyword block), and returns pass/fail. This is cleaner than embedding all guardrail logic in the main proxy handler.
-
-**Decision:** Build a `hooks/` module from day one with `before_request` and `after_request` hook interfaces. PII detection, content filtering, and DLP are all hooks — not inline code.
-
-### 3. Don't build LiteLLM's proxy — use LiteLLM as a library
-LiteLLM's `proxy_server.py` is 508KB. It tries to do everything. It is enormously complex and has grown organically over years. The right approach is to use `litellm.acompletion()` as the forwarding call inside your own clean FastAPI app — not to fork or replicate their proxy server.
-
-**Decision:** LiteLLM is a dependency (`pip install litellm`), not architecture to copy. Your proxy calls `litellm.acompletion(**body)` in one line. Everything else (auth, logging, hooks) is your code.
-
-### 4. PostgreSQL for Phase 1, ClickHouse for Phase 3
-Helicone uses **ClickHouse** for request logs. PostgreSQL is fine up to ~1M requests/month but becomes slow for analytical queries at scale (aggregate cost by model across 10M rows). ClickHouse is an append-only columnar store that handles this in milliseconds.
-
-**Decision:** Start with PostgreSQL (simpler). Add ClickHouse in Phase 3 when you have paying customers generating volume. Keep the log schema identical so migration is a copy operation.
-
-### 5. Router pattern for multi-provider fallback
-LiteLLM's `route_llm_request.py` shows a clean pattern: a `Router` object holds all model configs and handles fallbacks, retries, and aliases. Instead of `if model == "gpt-4o": call_openai()`, you configure a router and call `router.acompletion(model="gpt-4o", ...)` — the router handles all the edge cases.
-
-**Decision:** Wrap LiteLLM's Router in your own `LLMService` class. This gives you one place to configure all provider credentials, fallbacks, and model aliases.
-
-### 6. Config in database, not headers
-Portkey passes routing config via `x-portkey-config` request headers. This is elegant for a stateless edge deployment (Cloudflare Workers) but not right for enterprise on-prem. Enterprise customers need IT admins to configure policy centrally, not developers to set headers per-request.
-
-**Decision:** All org config (model allowlist, rate limits, PII policy, budget caps) lives in PostgreSQL and is loaded at request time via the API key lookup. No config headers needed.
-
-### 7. HTTP 446 for guardrail blocks — not 400
-Portkey uses HTTP status code `446` when a request is blocked by a guardrail hook. This is a non-standard but correct design: `400 Bad Request` means the request was malformed. `446` means "blocked by policy" — the request was syntactically valid, just rejected by a rule. The 446 response body includes a structured `hook_results` object showing exactly which check failed and why.
-
-**Decision:** All policy violations (PII detected, keyword blocked, model not allowed, budget exceeded by hook) return HTTP 446 with a `hook_results` body. Budget cap returns 402. Rate limit returns 429. Malformed request returns 400. Each status code has a distinct, unambiguous meaning.
-
-### 8. Token-based rate limiting, not just request counting
-Envoy AI Gateway's `LLMRequestCosts` config and Helicone's rate limiter both prove that enterprise customers need **token budgets**, not just request counts. `limit: 60 requests/minute` is meaningless when one request can use 100 tokens and the next uses 100,000. The right controls are `100,000 tokens/hour` and `$50/day`.
-
-**Decision:** Rate limits are enforced at three levels from day one: requests/minute (simple DoS protection), tokens/minute (provider cost control), and dollars/day (budget cap). All three are stored per-org in Redis and checked before each request.
-
-### 9. Multiple provider keys with weighted rotation
-Bifrost's `WeightedRandomKeySelector` shows the right model for enterprise key management. Each provider (OpenAI, Anthropic, etc.) can have multiple API keys with weights. The router picks a key per request using weighted random selection. This distributes load across keys, respects per-key rate limits, and allows zero-downtime key rotation.
-
-**Decision:** The `llm_provider_keys` table stores multiple keys per provider per org. The `LLMService` class uses weighted random selection to pick a key per call. Rotating a key is an admin API call — no proxy restart needed.
+| Document | Purpose |
+|----------|---------|
+| [Authentication](./guides/authentication.md) | API key creation, rotation, and OIDC/SSO setup |
+| [Policy Configuration](./guides/policy-configuration.md) | Keyword blocking, PII detection, model allowlists, and enforcement modes |
+| [Model Routing](./guides/model-routing.md) | Multi-provider fallback, weighted load balancing, and per-user model restrictions |
+| [Cost Management](./guides/cost-management.md) | Per-user budgets, department chargebacks, cost tracking, and spending alerts |
+| [Enterprise Deployment](./guides/enterprise-deployment.md) | Intercept employee AI traffic via PAC file, DNS redirection, firewall rules, or reverse proxy |
 
 ---
 
-## Milestones
+## Architecture
 
-| When | Milestone |
-|---|---|
-| Week 4 | First proxied request through your server |
-| Week 8 | First design partner using it in production |
-| Week 12 | Admin dashboard live, first paying customer |
-| Month 8 | SOC 2 Type I certified |
-| Month 12 | $500K ARR |
-| Month 18 | $2M ARR, Series A ready |
+Deep dives into how OpenProxyAI works internally.
+
+| Document | Purpose |
+|----------|---------|
+| [System Overview](./architecture/overview.md) | High-level architecture, request pipeline, and key components |
+| [Deployment](./architecture/deployment.md) | Docker Compose, Kubernetes Helm, infrastructure requirements |
+| [Database Schema](./architecture/database-schema.md) | Detailed schema reference (organizations, API keys, logs, etc.) |
 
 ---
 
-*Last updated: February 2026 — after deep code study of LiteLLM, Portkey Gateway, Bifrost, Helicone, and Envoy AI Gateway source code.*
+## Compliance
+
+Security controls and regulatory compliance details.
+
+| Document | Purpose |
+|----------|---------|
+| [Security Architecture](./compliance/security.md) | Authentication, encryption, audit logging, rate limiting, PII detection |
+| [SOC 2 & HIPAA Controls](./compliance/soc2-hipaa.md) | Mapping to specific control requirements and certification roadmap |
+
+---
+
+## Quick Links
+
+### API Keys
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/api-keys` | POST | Create a new API key |
+| `/api/v1/api-keys` | GET | List all API keys for your organization |
+| `/api/v1/api-keys/{id}` | PATCH | Update key metadata (name, last_used_at) |
+| `/api/v1/api-keys/{id}` | DELETE | Revoke an API key |
+
+All requests require the `Authorization: Bearer opai_xxxxxxxxxxxxxx` header.
+
+### Organization Settings
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/organizations/current` | GET | Get current organization details |
+| `/api/v1/organizations/current` | PATCH | Update organization settings (name, plan) |
+| `/api/v1/organizations/current/policy` | GET | View current policy rules |
+| `/api/v1/organizations/current/policy` | PATCH | Update policy (keyword blocking, PII detection, model allowlists) |
+
+### Proxy Endpoints
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v1/chat/completions` | POST | Send messages to any LLM provider |
+| `/v1/embeddings` | POST | Generate embeddings for text |
+
+Model names are provider-prefixed: `openai/gpt-4o-mini`, `anthropic/claude-opus`, `azure/gpt-4`, etc.
+
+---
+
+## Support
+
+### Questions or Issues?
+
+- Check the [Quickstart](./quickstart.md) or relevant guide
+- Review the [API Reference](./api-reference.md)
+- Contact your account manager or support@openproxyai.com
+
+### Reporting Security Issues
+
+Please report security vulnerabilities to `security@openproxyai.com` rather than public issue trackers.
+
+---
+
+## What's New?
+
+### Phase 3 (Current)
+
+- Kubernetes Helm chart for enterprise deployment
+- Microsoft Presidio PII detection
+- Prometheus metrics endpoint
+- Webhook events for cost alerts and policy violations
+- Enhanced audit logging with immutable archival
+
+### Phase 2 (Completed)
+
+- OIDC/SSO single sign-on
+- Python and TypeScript SDKs on PyPI / npm
+- Invite system for team member onboarding
+- Plan enforcement (Free/Starter/Growth/Enterprise)
+- Admin console v2 with charts and policy editor
+
+### Phase 1 (Completed)
+
+- FastAPI proxy engine with LiteLLM integration
+- PostgreSQL + Redis backend
+- API key management
+- Rate limiting (RPM, TPM, daily budget)
+- Policy hooks (before/after request)
+- Admin console with log viewer
