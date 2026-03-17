@@ -1,5 +1,6 @@
 """LiteLLM wrapper — acompletion, cost calculation, streaming with capture."""
 
+import asyncio
 import fnmatch
 import json
 import logging
@@ -519,16 +520,16 @@ class LLMService:
 			cost = cost_tracker_service.calculate_cost_usd(response)
 			latency_ms = int((time.perf_counter() - start) * 1000)
 
-			# Store successful non-streaming response in cache (best-effort)
-			try:
+			# Store successful non-streaming response in cache (fire-and-forget sidecar)
+			if cache_service.is_enabled():
 				_cache_messages = [
 					m.model_dump() if hasattr(m, "model_dump") else m
 					for m in request.messages
 				]
 				_cache_temperature = getattr(request, "temperature", None)
-				await cache_service.set(redis, request.model, _cache_messages, _cache_temperature, body)
-			except Exception:
-				pass
+				asyncio.create_task(
+					cache_service.set(redis, request.model, _cache_messages, _cache_temperature, body)
+				)
 
 			self._schedule_log(
 				background_tasks,

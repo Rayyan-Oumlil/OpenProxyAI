@@ -1,4 +1,4 @@
-"""Redis rate limiter with sliding RPM, TPM, and daily org/user budget checks."""
+"""Redis rate limiter with fixed-window RPM, TPM, and daily org/user budget checks."""
 
 import time
 import uuid
@@ -61,20 +61,24 @@ class RateLimiterService:
 		window_start_ms = now_ms - 60_000
 		minute_bucket = int(now.timestamp()) // 60
 		day_key = now.strftime("%Y-%m-%d")
-		rpm_key = f"rl:req:{org_id}"
+		rpm_key = f"rl:req:{org_id}:{minute_bucket}"
 		tpm_key = f"rl:tok:{org_id}:{minute_bucket}"
 		org_usd_key = f"rl:usd:{org_id}:{day_key}"
 		user_usd_key = f"rl:usd:user:{user_id}:{day_key}"
 
-		# Read current counters after pruning sliding-window request entries.
+		# Fixed-window RPM counter: INCR then EXPIRE on first request in window.
+		# Read TPM and budget counters in the same pipeline.
 		pipe = redis.pipeline(transaction=True)
-		pipe.zremrangebyscore(rpm_key, 0, window_start_ms)
-		pipe.zcard(rpm_key)
-		pipe.zrange(rpm_key, 0, 0, withscores=True)
+		pipe.incr(rpm_key)
+		pipe.expire(rpm_key, 120)
 		pipe.get(tpm_key)
 		pipe.get(org_usd_key)
 		pipe.get(user_usd_key)
-		_, current_req_count, oldest_entry, current_tpm_raw, org_spend_raw, user_spend_raw = await pipe.execute()
+		current_req_count, _, current_tpm_raw, org_spend_raw, user_spend_raw = await pipe.execute()
+
+		# Set TTL only on the first request in this window.
+		if current_req_count == 1:
+			await redis.expire(rpm_key, 120)
 
 		current_tpm = int(current_tpm_raw or 0)
 		org_spend = Decimal(str(org_spend_raw or "0"))
@@ -84,12 +88,8 @@ class RateLimiterService:
 		minute_reset_epoch = self._minute_reset_epoch(now)
 		org_budget_remaining = max_daily_budget_usd - org_spend
 
-		if current_req_count >= max_rpm:
-			if oldest_entry:
-				oldest_score = int(oldest_entry[0][1])
-				retry_after = max(((oldest_score + 60_000) - now_ms + 999) // 1000, 1)
-			else:
-				retry_after = self._seconds_until(minute_reset_epoch)
+		if current_req_count > max_rpm:
+			retry_after = self._seconds_until(minute_reset_epoch)
 			headers = self._headers(
 				max_rpm=max_rpm,
 				max_tpm=max_tpm,
@@ -233,11 +233,8 @@ class RateLimiterService:
 							retry_after,
 						)
 
-		# Atomic consume for request and token counters.
-		request_member = f"{now_ms}:{uuid.uuid4().hex}"
+		# Atomic consume for token counter (request already counted by INCR above).
 		consume = redis.pipeline(transaction=True)
-		consume.zadd(rpm_key, {request_member: now_ms})
-		consume.expire(rpm_key, 120)
 		consume.incrby(tpm_key, est_tokens)
 		consume.expire(tpm_key, 120)
 		if model and policy_config is not None:
@@ -245,19 +242,19 @@ class RateLimiterService:
 			if model_rate_limits.get(model):
 				model_req_key = f"rl:req:{org_id}:{model}"
 				model_tok_key = f"rl:tok:{org_id}:{model}:{minute_bucket}"
+				request_member = f"{now_ms}:{uuid.uuid4().hex}"
 				consume.zadd(model_req_key, {request_member: now_ms})
 				consume.expire(model_req_key, 120)
 				consume.incrby(model_tok_key, est_tokens)
 				consume.expire(model_tok_key, 120)
 		results = await consume.execute()
-		tok_count_after = results[2]
-		req_count_after = current_req_count + 1
+		tok_count_after = results[0]
 
 		headers = self._headers(
 			max_rpm=max_rpm,
 			max_tpm=max_tpm,
 			max_daily_budget_usd=max_daily_budget_usd,
-			requests_remaining=max_rpm - req_count_after,
+			requests_remaining=max_rpm - current_req_count,
 			tokens_remaining=max_tpm - int(tok_count_after),
 			budget_remaining=org_budget_remaining,
 			reset_epoch=minute_reset_epoch,
@@ -266,4 +263,3 @@ class RateLimiterService:
 
 
 rate_limiter_service = RateLimiterService()
-

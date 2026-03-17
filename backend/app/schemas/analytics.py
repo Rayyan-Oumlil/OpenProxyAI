@@ -17,6 +17,9 @@ class UsageOverview(BaseModel):
 	total_cost_usd: float
 	avg_latency_ms: float
 	avg_ttft_ms: float
+	p50_latency_ms: int | None = None
+	p95_latency_ms: int | None = None
+	p99_latency_ms: int | None = None
 
 
 class CostByModel(BaseModel):

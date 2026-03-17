@@ -810,3 +810,136 @@ def test_log_detail_returns_404_when_not_found(client, monkeypatch):
 def test_log_detail_requires_auth(client):
 	response = client.get(f"/api/v1/analytics/logs/{uuid4()}")
 	assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# p50/p95/p99 latency percentile tests
+# ---------------------------------------------------------------------------
+
+
+def test_overview_response_includes_latency_percentiles(client, monkeypatch):
+	"""Overview response contains p50/p95/p99 latency fields when data exists."""
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_db():
+		yield FakeDB()
+
+	async def fake_get_overview(**kwargs):  # noqa: ANN003
+		return AnalyticsResponse(
+			overview=UsageOverview(
+				period_days=30,
+				total_requests=100,
+				successful_requests=95,
+				failed_requests=5,
+				policy_blocked_requests=2,
+				policy_flagged_requests=4,
+				total_tokens=10000,
+				total_cost_usd=5.00,
+				avg_latency_ms=210.0,
+				avg_ttft_ms=55.0,
+				p50_latency_ms=180,
+				p95_latency_ms=450,
+				p99_latency_ms=780,
+			),
+			by_model=[],
+			by_user=[],
+			daily_trend=[],
+			generated_at=datetime.now(UTC),
+		)
+
+	monkeypatch.setattr(analytics_service_module.analytics_service, "get_overview", fake_get_overview)
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_db] = fake_get_db
+
+	response = client.get("/api/v1/analytics/overview?period_days=30", headers={"Authorization": "Bearer test"})
+
+	assert response.status_code == 200
+	data = response.json()
+	assert data["overview"]["p50_latency_ms"] == 180
+	assert data["overview"]["p95_latency_ms"] == 450
+	assert data["overview"]["p99_latency_ms"] == 780
+
+
+def test_overview_response_latency_percentiles_null_when_no_data(client, monkeypatch):
+	"""Overview response returns null for percentile fields when there are no requests."""
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_db():
+		yield FakeDB()
+
+	async def fake_get_overview(**kwargs):  # noqa: ANN003
+		return AnalyticsResponse(
+			overview=UsageOverview(
+				period_days=30,
+				total_requests=0,
+				successful_requests=0,
+				failed_requests=0,
+				policy_blocked_requests=0,
+				policy_flagged_requests=0,
+				total_tokens=0,
+				total_cost_usd=0.0,
+				avg_latency_ms=0.0,
+				avg_ttft_ms=0.0,
+				p50_latency_ms=None,
+				p95_latency_ms=None,
+				p99_latency_ms=None,
+			),
+			by_model=[],
+			by_user=[],
+			daily_trend=[],
+			generated_at=datetime.now(UTC),
+		)
+
+	monkeypatch.setattr(analytics_service_module.analytics_service, "get_overview", fake_get_overview)
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_db] = fake_get_db
+
+	response = client.get("/api/v1/analytics/overview?period_days=30", headers={"Authorization": "Bearer test"})
+
+	assert response.status_code == 200
+	data = response.json()
+	assert data["overview"]["p50_latency_ms"] is None
+	assert data["overview"]["p95_latency_ms"] is None
+	assert data["overview"]["p99_latency_ms"] is None
+
+
+def test_usage_overview_schema_accepts_nullable_percentiles():
+	"""UsageOverview Pydantic model accepts None for all three percentile fields."""
+	overview = UsageOverview(
+		period_days=7,
+		total_requests=0,
+		successful_requests=0,
+		failed_requests=0,
+		total_tokens=0,
+		total_cost_usd=0.0,
+		avg_latency_ms=0.0,
+		avg_ttft_ms=0.0,
+	)
+	assert overview.p50_latency_ms is None
+	assert overview.p95_latency_ms is None
+	assert overview.p99_latency_ms is None
+
+	overview_with_data = UsageOverview(
+		period_days=7,
+		total_requests=50,
+		successful_requests=50,
+		failed_requests=0,
+		total_tokens=5000,
+		total_cost_usd=2.5,
+		avg_latency_ms=300.0,
+		avg_ttft_ms=80.0,
+		p50_latency_ms=250,
+		p95_latency_ms=600,
+		p99_latency_ms=950,
+	)
+	assert overview_with_data.p50_latency_ms == 250
+	assert overview_with_data.p95_latency_ms == 600
+	assert overview_with_data.p99_latency_ms == 950

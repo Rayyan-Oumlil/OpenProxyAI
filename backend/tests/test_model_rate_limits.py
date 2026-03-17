@@ -53,13 +53,12 @@ async def test_model_rpm_limit_type_format():
 
     redis = AsyncMock()
     # Global limits pass (well under threshold)
-    # Pipeline for global checks: zremrangebyscore, zcard (0 req), zrange (no oldest), get tpm (None), get org usd (None), get user usd (None)
-    global_pipe_results = [0, 0, [], None, None, None]
+    # Pipeline for global checks: incr (1 req so far), expire (True), get tpm (None), get org usd (None), get user usd (None)
+    global_pipe_results = [1, True, None, None, None]
     global_pipe = AsyncMock()
     global_pipe.execute = AsyncMock(return_value=global_pipe_results)
-    global_pipe.zremrangebyscore = MagicMock()
-    global_pipe.zcard = MagicMock()
-    global_pipe.zrange = MagicMock()
+    global_pipe.incr = MagicMock()
+    global_pipe.expire = MagicMock()
     global_pipe.get = MagicMock()
 
     # Model RPM pipeline: zremrangebyscore, zcard (1 req = at limit), zrange (no oldest)
@@ -112,12 +111,12 @@ async def test_model_tpm_limit_type_format():
 
     redis = AsyncMock()
     # Global limits pass
-    global_pipe_results = [0, 0, [], None, None, None]
+    # Pipeline for global checks: incr (1 req so far), expire (True), get tpm (None), get org usd (None), get user usd (None)
+    global_pipe_results = [1, True, None, None, None]
     global_pipe = AsyncMock()
     global_pipe.execute = AsyncMock(return_value=global_pipe_results)
-    global_pipe.zremrangebyscore = MagicMock()
-    global_pipe.zcard = MagicMock()
-    global_pipe.zrange = MagicMock()
+    global_pipe.incr = MagicMock()
+    global_pipe.expire = MagicMock()
     global_pipe.get = MagicMock()
 
     redis.pipeline = MagicMock(return_value=global_pipe)

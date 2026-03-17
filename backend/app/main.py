@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import redis.asyncio as aioredis
@@ -13,6 +14,7 @@ from starlette.requests import Request as StarletteRequest
 
 from app.config import settings
 from app.database import AsyncSessionLocal, engine
+from app.models.webhook_delivery import WebhookDelivery
 from app.middleware.cors import add_cors_middleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.timing import TimingMiddleware
@@ -94,6 +96,58 @@ async def archive_old_logs() -> None:
         logger.exception("Failed to archive old logs")
 
 
+async def retry_failed_webhooks() -> None:
+    """Retry failed webhook deliveries with exponential backoff. Sidecar — never raises."""
+    import httpx
+
+    try:
+        cutoff = datetime.now(UTC) - timedelta(minutes=5)
+        async with AsyncSessionLocal() as db:
+            result = await db.scalars(
+                select(WebhookDelivery)
+                .where(
+                    WebhookDelivery.status == "failed",
+                    WebhookDelivery.attempt_count < 3,
+                    WebhookDelivery.last_attempted_at < cutoff,
+                )
+                .limit(50)
+            )
+            deliveries = result.all()
+
+            for delivery in deliveries:
+                # Exponential backoff: attempt_count=0→5min, 1→25min, 2→125min
+                backoff_seconds = (5 ** delivery.attempt_count) * 60
+                elapsed = (datetime.now(UTC) - delivery.last_attempted_at.replace(tzinfo=UTC)).total_seconds()
+                if elapsed < backoff_seconds:
+                    continue
+                try:
+                    async with httpx.AsyncClient(timeout=10) as http_client:
+                        resp = await http_client.post(
+                            delivery.url,
+                            json=delivery.payload,
+                            timeout=10,
+                        )
+                    if resp.status_code < 300:
+                        delivery.status = "delivered"
+                        delivery.http_status = resp.status_code
+                    else:
+                        delivery.attempt_count += 1
+                        delivery.last_attempted_at = datetime.now(UTC)
+                        if delivery.attempt_count >= 3:
+                            delivery.status = "exhausted"
+                except Exception as exc:
+                    logger.warning("webhook retry failed url=%s: %s", delivery.url, exc)
+                    delivery.attempt_count += 1
+                    delivery.last_attempted_at = datetime.now(UTC)
+                    if delivery.attempt_count >= 3:
+                        delivery.status = "exhausted"
+
+            await db.commit()
+        logger.info("retry_failed_webhooks complete — processed %d deliveries", len(deliveries))
+    except Exception:
+        logger.exception("retry_failed_webhooks job failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup: connect DB + Redis → app.state.  Shutdown: dispose."""
@@ -129,6 +183,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         "interval",
         hours=1,
         id="archive_old_logs",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        retry_failed_webhooks,
+        "interval",
+        minutes=5,
+        id="retry_failed_webhooks",
         max_instances=1,
         coalesce=True,
     )

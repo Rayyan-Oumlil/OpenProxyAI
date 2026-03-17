@@ -21,6 +21,10 @@ class FakeRedis:
 			self._redis = redis
 			self._ops: list[tuple[str, tuple, dict]] = []
 
+		def incr(self, *args, **kwargs):
+			self._ops.append(("incr", args, kwargs))
+			return self
+
 		def zremrangebyscore(self, *args, **kwargs):
 			self._ops.append(("zremrangebyscore", args, kwargs))
 			return self

@@ -111,6 +111,28 @@ class AnalyticsService:
 			)
 		).mappings().one()
 
+		percentile_row = (
+			await db.execute(
+				text(
+					"""
+					SELECT
+						percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50_latency_ms,
+						percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_latency_ms,
+						percentile_cont(0.99) WITHIN GROUP (ORDER BY latency_ms) AS p99_latency_ms
+					FROM request_logs
+					WHERE org_id = :org_id
+					  AND created_at::date >= :since
+					  AND archived_at IS NULL
+					  AND latency_ms IS NOT NULL
+					"""
+				),
+				{"org_id": str(org_id), "since": since},
+			)
+		).mappings().one()
+
+		def _round_or_none(val: object) -> int | None:
+			return round(float(val)) if val is not None else None
+
 		return UsageOverview(
 			period_days=period_days,
 			total_requests=int(mv_row["total_requests"] or 0),
@@ -122,6 +144,9 @@ class AnalyticsService:
 			total_cost_usd=float(Decimal(str(mv_row["total_cost_usd"] or 0))),
 			avg_latency_ms=float(mv_row["avg_latency_ms"] or 0),
 			avg_ttft_ms=float(log_row["avg_ttft_ms"] or 0),
+			p50_latency_ms=_round_or_none(percentile_row["p50_latency_ms"]),
+			p95_latency_ms=_round_or_none(percentile_row["p95_latency_ms"]),
+			p99_latency_ms=_round_or_none(percentile_row["p99_latency_ms"]),
 		)
 
 	async def get_policy_summary(

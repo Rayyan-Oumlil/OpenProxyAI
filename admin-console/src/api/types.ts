@@ -30,6 +30,9 @@ export type UsageOverview = {
   avg_ttft_ms: number;
   policy_blocked_requests: number;
   policy_flagged_requests: number;
+  p50_latency_ms?: number | null;
+  p95_latency_ms?: number | null;
+  p99_latency_ms?: number | null;
 };
 
 export type CostByModel = {

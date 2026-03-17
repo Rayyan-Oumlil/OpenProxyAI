@@ -195,6 +195,24 @@ export function DashboardPage() {
                 <td style={{ fontWeight: 500 }}>{formatLatency(overview.avg_latency_ms)}</td>
               </tr>
               <tr>
+                <td style={{ color: "var(--muted)" }}>p50 Latency</td>
+                <td style={{ fontWeight: 500 }}>
+                  {overview.p50_latency_ms != null ? formatLatency(overview.p50_latency_ms) : "—"}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ color: "var(--muted)" }}>p95 Latency</td>
+                <td style={{ fontWeight: 500 }}>
+                  {overview.p95_latency_ms != null ? formatLatency(overview.p95_latency_ms) : "—"}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ color: "var(--muted)" }}>p99 Latency</td>
+                <td style={{ fontWeight: 500 }}>
+                  {overview.p99_latency_ms != null ? formatLatency(overview.p99_latency_ms) : "—"}
+                </td>
+              </tr>
+              <tr>
                 <td style={{ color: "var(--muted)" }}>Avg TTFT</td>
                 <td style={{ fontWeight: 500 }}>{formatLatency(overview.avg_ttft_ms)}</td>
               </tr>
