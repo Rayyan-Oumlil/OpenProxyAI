@@ -25,6 +25,7 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     settings: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     budget_monthly_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    data_region: Mapped[str] = mapped_column(String(50), nullable=True, default="us")
 
     # Relationships
     users: Mapped[list["User"]] = relationship(back_populates="organization", cascade="all, delete-orphan")

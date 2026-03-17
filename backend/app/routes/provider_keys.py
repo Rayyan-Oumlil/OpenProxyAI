@@ -109,6 +109,35 @@ async def update_provider_key(
 	return _to_response(key, raw)
 
 
+@router.post("/{key_id}/rotate")
+async def rotate_provider_key(
+	key_id: UUID,
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+) -> dict:
+	"""Re-encrypt the stored provider key with a fresh Fernet token (zero-downtime rotation).
+
+	The plaintext API key is unchanged — only the ciphertext is replaced.
+	This satisfies CC9.2 vendor risk management (key rotation) under SOC 2.
+	"""
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
+
+	key = await db.scalar(
+		select(LLMProviderKey).where(
+			LLMProviderKey.id == key_id,
+			LLMProviderKey.org_id == current_user.org_id,
+		)
+	)
+	if key is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider key not found")
+
+	plaintext = decrypt(key.api_key_encrypted)
+	key.api_key_encrypted = encrypt(plaintext)
+	await db.commit()
+	return {"rotated": True, "key_id": str(key_id)}
+
+
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_provider_key(
 	key_id: UUID,

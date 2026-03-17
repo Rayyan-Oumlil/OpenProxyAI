@@ -1,0 +1,6 @@
+apiVersion: v2
+name: openproxy
+description: OpenProxyAI — Enterprise LLM Gateway
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

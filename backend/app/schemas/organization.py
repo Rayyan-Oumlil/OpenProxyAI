@@ -18,6 +18,7 @@ class OrganizationResponse(BaseModel):
 	settings: dict[str, Any]
 	budget_monthly_usd: Decimal | None
 	is_active: bool
+	data_region: str | None
 	created_at: datetime
 
 
@@ -27,3 +28,4 @@ class OrganizationUpdateRequest(BaseModel):
 	settings: dict[str, Any] | None = None
 	budget_monthly_usd: Decimal | None = Field(default=None, ge=0)
 	is_active: bool | None = None
+	data_region: str | None = Field(default=None, max_length=50)

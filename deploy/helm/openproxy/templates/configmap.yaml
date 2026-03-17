@@ -1,0 +1,22 @@
+{{/*
+ConfigMap for non-secret environment defaults.
+These values are overridden by values.yaml → env section and are kept
+separate from the Secret so operators can review them freely.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openproxy.fullname" . }}-config
+  labels:
+    {{- include "openproxy.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ .Values.env.APP_ENV | default "production" | quote }}
+  PROMETHEUS_ENABLED: {{ .Values.env.PROMETHEUS_ENABLED | default "true" | quote }}
+  DEBUG: {{ .Values.env.DEBUG | default "false" | quote }}
+  LANGFUSE_HOST: {{ .Values.env.LANGFUSE_HOST | default "https://cloud.langfuse.com" | quote }}
+  {{- if .Values.env.CORS_ORIGINS }}
+  CORS_ORIGINS: {{ .Values.env.CORS_ORIGINS | quote }}
+  {{- end }}
+  {{- if .Values.env.CLICKHOUSE_URL }}
+  CLICKHOUSE_URL: {{ .Values.env.CLICKHOUSE_URL | quote }}
+  {{- end }}

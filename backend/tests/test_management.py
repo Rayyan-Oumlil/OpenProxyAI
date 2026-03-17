@@ -70,6 +70,7 @@ def _organization(*, org_id):
         settings={"timezone": "UTC"},
         budget_monthly_usd=None,
         is_active=True,
+        data_region="us",
         created_at=datetime.utcnow(),
     )
 

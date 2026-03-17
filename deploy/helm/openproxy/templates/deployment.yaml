@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openproxy.fullname" . }}
+  labels:
+    {{- include "openproxy.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "openproxy.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Force pod restart when the ConfigMap changes.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "openproxy.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "openproxy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          # Liveness probe — hits /health which is always-200, no external checks.
+          # A failure means the process is hung and the pod should be restarted.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+          # Readiness probe — hits /ready which checks Postgres + Redis.
+          # A failure removes the pod from the Service endpoints until deps recover.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 5
+          # Non-secret env vars from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: {{ include "openproxy.fullname" . }}-config
+          {{- if .Values.existingSecret }}
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+          {{- end }}
+          # Any additional env overrides from values.yaml that are not in ConfigMap
+          env:
+            {{- range $key, $value := .Values.env }}
+            {{- if and (ne $key "APP_ENV") (ne $key "PROMETHEUS_ENABLED") (ne $key "DEBUG") (ne $key "LANGFUSE_HOST") (ne $key "CORS_ORIGINS") (ne $key "CLICKHOUSE_URL") }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        # Ephemeral /tmp required because readOnlyRootFilesystem: true prevents
+        # the process from writing to the container layer (e.g. APScheduler job
+        # files, LiteLLM cache, uvicorn access logs).
+        - name: tmp
+          emptyDir: {}

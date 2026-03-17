@@ -8,6 +8,8 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 
 from app.config import settings
 from app.database import AsyncSessionLocal, engine
@@ -154,11 +156,33 @@ app = FastAPI(
     openapi_tags=TAGS_METADATA,
 )
 
-# ── Middleware (execution order: CORS → RequestID → Timing) ─────────
+# ── Middleware (execution order: CORS → RequestID → Timing → Security) ─────
 # Added in reverse because Starlette wraps outer-first.
+# SecurityHeadersMiddleware is added last so it runs first and injects headers
+# on every response, including error responses from inner middleware.
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Inject SOC 2 / HIPAA-required HTTP security headers on every response."""
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; frame-ancestors 'none'"
+        )
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        return response
+
+
 app.add_middleware(TimingMiddleware)
 app.add_middleware(RequestIdMiddleware)
 add_cors_middleware(app)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ── Routers ─────────────────────────────────────────────────────────
 app.include_router(health_router)

@@ -1,0 +1,102 @@
+replicaCount: 3
+
+image:
+  repository: openproxyai/backend
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: openproxy.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Non-secret environment variables. Secrets (DATABASE_URL, REDIS_URL, SECRET_KEY)
+# are injected via existingSecret or the postgresql/redis subcharts.
+env:
+  APP_ENV: production
+  PROMETHEUS_ENABLED: "true"
+  DEBUG: "false"
+  # Optional observability integrations (leave blank to disable)
+  CLICKHOUSE_URL: ""
+  LANGFUSE_SECRET_KEY: ""
+  LANGFUSE_PUBLIC_KEY: ""
+  LANGFUSE_HOST: "https://cloud.langfuse.com"
+  # CORS origins (comma-separated or JSON array string)
+  CORS_ORIGINS: ""
+
+# Name of an existing Kubernetes Secret that contains:
+#   DATABASE_URL, REDIS_URL, SECRET_KEY
+# When set, these are injected via envFrom instead of inline env values.
+existingSecret: ""
+
+# ── Bitnami PostgreSQL subchart ─────────────────────────────────────
+# Set postgresql.enabled=false when using an external managed database
+# (AWS RDS, Cloud SQL, Azure Database, etc.) and supply DATABASE_URL
+# via existingSecret instead.
+postgresql:
+  enabled: true
+  auth:
+    database: openproxyai
+    username: openproxyai
+    existingSecret: openproxy-pg-secret
+    secretKeys:
+      adminPasswordKey: postgres-password
+      userPasswordKey: password
+  primary:
+    persistence:
+      size: 20Gi
+
+# ── Bitnami Redis subchart ───────────────────────────────────────────
+# Set redis.enabled=false when using an external managed Redis
+# (AWS ElastiCache, Cloud Memorystore, etc.) and supply REDIS_URL
+# via existingSecret instead.
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 5Gi
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
