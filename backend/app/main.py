@@ -18,6 +18,7 @@ from app.models.webhook_delivery import WebhookDelivery
 from app.middleware.cors import add_cors_middleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.timing import TimingMiddleware
+from app.routes.admin_audit import router as admin_audit_router
 from app.routes.auth import router as auth_router
 from app.routes.api_keys import router as api_keys_router
 from app.routes.analytics import router as analytics_router
@@ -46,6 +47,7 @@ TAGS_METADATA = [
     {"name": "Invites", "description": "Team member invite management"},
     {"name": "SSO", "description": "OIDC/SSO connection management"},
     {"name": "Metrics", "description": "Prometheus metrics endpoint"},
+    {"name": "Admin Audit", "description": "Admin action audit log (SOC 2)"},
 ]
 
 
@@ -257,6 +259,7 @@ app.include_router(proxy_router)
 app.include_router(analytics_router)
 app.include_router(invites_router)
 app.include_router(sso_router)
+app.include_router(admin_audit_router)
 
 if settings.PROMETHEUS_ENABLED:
     app.include_router(metrics_router)

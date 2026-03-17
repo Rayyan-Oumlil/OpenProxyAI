@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   List,
   Shield,
+  ShieldCheck,
   ArrowLeftRight,
   Key,
   Plug2,
@@ -33,6 +34,7 @@ const NAV: NavEntry[] = [
     items: [
       { label: "Policy Events", to: "/policy-events", icon: Shield },
       { label: "Reconciliation", to: "/reconciliation", icon: ArrowLeftRight },
+      { label: "Audit Log", to: "/audit", icon: ShieldCheck },
     ],
   },
   {

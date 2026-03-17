@@ -355,7 +355,7 @@ export function PolicyConfigPage() {
             If empty, all models are allowed. Press Enter or comma to add a model.
           </p>
           <TagInput
-            tags={form.allowed_models}
+            tags={form.allowed_models ?? []}
             onChange={(tags) => setForm((f) => ({ ...f, allowed_models: tags }))}
             placeholder="gpt-4o, claude-3-5-sonnet-20241022…"
           />
@@ -368,7 +368,7 @@ export function PolicyConfigPage() {
             Requests containing these words/phrases will be flagged or blocked.
           </p>
           <TagInput
-            tags={form.blocked_keywords}
+            tags={form.blocked_keywords ?? []}
             onChange={(tags) => setForm((f) => ({ ...f, blocked_keywords: tags }))}
             placeholder="confidential, password, ssn…"
           />
@@ -393,13 +393,13 @@ export function PolicyConfigPage() {
                 <label key={entity} className="check-row">
                   <input
                     type="checkbox"
-                    checked={form.pii_entities.includes(entity)}
+                    checked={(form.pii_entities ?? []).includes(entity)}
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
                         pii_entities: e.target.checked
-                          ? [...f.pii_entities, entity]
-                          : f.pii_entities.filter((x) => x !== entity),
+                          ? [...(f.pii_entities ?? []), entity]
+                          : (f.pii_entities ?? []).filter((x) => x !== entity),
                       }))
                     }
                     disabled={!isAdmin}

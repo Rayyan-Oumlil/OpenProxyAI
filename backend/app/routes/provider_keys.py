@@ -2,13 +2,14 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import CurrentUser, get_db
 from app.models.llm_provider_key import LLMProviderKey
 from app.schemas.provider_key import ProviderKeyCreateRequest, ProviderKeyResponse, ProviderKeyUpdateRequest
+from app.services.admin_audit_service import get_ip, log_admin_action, serialize_provider_key
 from app.services.crypto_service import decrypt, encrypt
 
 router = APIRouter(prefix="/api/v1/provider-keys", tags=["Provider Keys"])
@@ -56,6 +57,7 @@ async def list_provider_keys(
 @router.post("", response_model=ProviderKeyResponse, status_code=status.HTTP_201_CREATED)
 async def create_provider_key(
 	payload: ProviderKeyCreateRequest,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> ProviderKeyResponse:
@@ -71,6 +73,20 @@ async def create_provider_key(
 		is_active=True,
 	)
 	db.add(key)
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="provider_key.created",
+		resource_type="provider_key",
+		resource_id=key.key_alias,
+		before=None,
+		after=serialize_provider_key(key),
+		ip_address=get_ip(request),
+	)
+
 	await db.commit()
 	await db.refresh(key)
 	return _to_response(key, payload.api_key)
@@ -80,6 +96,7 @@ async def create_provider_key(
 async def update_provider_key(
 	key_id: UUID,
 	payload: ProviderKeyUpdateRequest,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> ProviderKeyResponse:
@@ -95,9 +112,26 @@ async def update_provider_key(
 	if key is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider key not found")
 
+	before = serialize_provider_key(key)
+
 	updates = payload.model_dump(exclude_unset=True)
 	for field_name, field_value in updates.items():
 		setattr(key, field_name, field_value)
+
+	after = serialize_provider_key(key)
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="provider_key.updated",
+		resource_type="provider_key",
+		resource_id=str(key_id),
+		before=before,
+		after=after,
+		ip_address=get_ip(request),
+	)
 
 	await db.commit()
 	await db.refresh(key)
@@ -112,6 +146,7 @@ async def update_provider_key(
 @router.post("/{key_id}/rotate")
 async def rotate_provider_key(
 	key_id: UUID,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -134,6 +169,21 @@ async def rotate_provider_key(
 
 	plaintext = decrypt(key.api_key_encrypted)
 	key.api_key_encrypted = encrypt(plaintext)
+
+	key_prefix = key.key_alias[:8] if len(key.key_alias) >= 8 else key.key_alias
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="provider_key.rotated",
+		resource_type="provider_key",
+		resource_id=str(key_id),
+		before={"key_prefix": key_prefix},
+		after={"key_prefix": key_prefix},
+		ip_address=get_ip(request),
+	)
+
 	await db.commit()
 	return {"rotated": True, "key_id": str(key_id)}
 
@@ -141,6 +191,7 @@ async def rotate_provider_key(
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_provider_key(
 	key_id: UUID,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -155,6 +206,21 @@ async def delete_provider_key(
 	)
 	if key is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider key not found")
+
+	before = serialize_provider_key(key)
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="provider_key.deleted",
+		resource_type="provider_key",
+		resource_id=str(key_id),
+		before=before,
+		after=None,
+		ip_address=get_ip(request),
+	)
 
 	await db.delete(key)
 	await db.commit()

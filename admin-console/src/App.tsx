@@ -11,6 +11,7 @@ import { UsersRolesPage } from "./features/placeholder/UsersRolesPage";
 import { ProviderKeysPage } from "./features/providerkeys/ProviderKeysPage";
 import { OnboardingModal } from "./features/onboarding/OnboardingModal";
 import { PolicyConfigPage } from "./features/policy/PolicyConfigPage";
+import { AuditLogPage } from "./features/audit/AuditLogPage";
 import { useAuth } from "./state/AuthContext";
 
 export function App() {
@@ -58,6 +59,7 @@ export function App() {
             <Route path="policy" element={<PolicyConfigPage />} />
             <Route path="users-roles" element={<UsersRolesPage />} />
             <Route path="organization-settings" element={<OrganizationSettingsPage />} />
+            <Route path="audit" element={<AuditLogPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

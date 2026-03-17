@@ -2,13 +2,14 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import CurrentUser, get_db
 from app.models.user import User
 from app.schemas.user import UserResponse, UserUpdateRequest
+from app.services.admin_audit_service import get_ip, log_admin_action, serialize_user
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
@@ -44,6 +45,7 @@ async def get_user(
 async def update_user(
 	user_id: uuid.UUID,
 	payload: UserUpdateRequest,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
@@ -85,8 +87,31 @@ async def update_user(
 				detail="Cannot remove the last active admin in organization",
 			)
 
+	before = serialize_user(model)
+
 	for field_name, field_value in updates.items():
 		setattr(model, field_name, field_value)
+
+	# Determine the most specific action
+	if updates.get("is_active") is False:
+		action = "user.deactivated"
+	elif "role" in updates:
+		action = "user.role_changed"
+	else:
+		action = "user.updated"
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action=action,
+		resource_type="user",
+		resource_id=str(user_id),
+		before=before,
+		after=serialize_user(model),
+		ip_address=get_ip(request),
+	)
 
 	await db.commit()
 	await db.refresh(model)

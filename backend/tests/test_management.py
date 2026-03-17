@@ -21,6 +21,7 @@ class FakeDB:
         self.scalar_result = scalar_result
         self.scalars_results = scalars_results or []
         self.committed = False
+        self.added = []
 
     async def scalar(self, query):  # noqa: ARG002
         return self.scalar_result
@@ -28,6 +29,9 @@ class FakeDB:
     async def scalars(self, query):  # noqa: ARG002
         rows = self.scalars_results.pop(0) if self.scalars_results else []
         return FakeScalarResult(rows)
+
+    def add(self, obj):  # noqa: ARG002
+        self.added.append(obj)
 
     async def commit(self):
         self.committed = True

@@ -22,6 +22,7 @@ class FakeKey:
 		self.api_key_encrypted = api_key_encrypted
 		self.weight = weight
 		self.is_active = is_active
+		self.model_patterns = None
 		self.created_at = datetime.now(UTC)
 
 
@@ -135,7 +136,7 @@ def test_create_non_admin_gets_403(client, monkeypatch):
 
 def test_create_stores_encrypted_returns_masked(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, role="admin", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, role="admin", is_active=True, email="admin@test.com")
 	db = FakeDB()
 	raw_key = "sk-ant-api03-supersecretkey1234"
 
@@ -165,7 +166,8 @@ def test_create_stores_encrypted_returns_masked(client, monkeypatch):
 	# Raw key must never appear
 	assert raw_key not in str(data)
 	# DB should have received an encrypted value (not the raw key)
-	assert len(db._added) == 1
+	# _added[0] is the LLMProviderKey; _added[1] is the AdminAuditLog entry
+	assert len(db._added) >= 1
 	stored_encrypted = db._added[0].api_key_encrypted
 	assert stored_encrypted != raw_key
 	# But we can decrypt it back
@@ -220,7 +222,7 @@ def test_update_not_found_404(client, monkeypatch):
 
 def test_update_weight_and_alias(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, role="admin", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, role="admin", is_active=True, email="admin@test.com")
 	raw_key = "sk-openai-updatetest123456"
 	fake_key = FakeKey(org_id, "openai", "old-alias", encrypt(raw_key), weight=1)
 
@@ -291,7 +293,7 @@ def test_delete_not_found_404(client, monkeypatch):
 
 def test_delete_returns_204(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, role="admin", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, role="admin", is_active=True, email="admin@test.com")
 	fake_key = FakeKey(org_id, "openai", "to-delete", encrypt("sk-openai-deleteme1234567"))
 
 	async def fake_current_user_dep():

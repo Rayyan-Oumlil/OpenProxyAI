@@ -199,6 +199,8 @@ def test_list_pending_invites_returns_active_only(client, monkeypatch):
 def test_revoke_invite_returns_204(client, monkeypatch):
     admin = _admin_user()
     invite_id = uuid4()
+    invite = _invite(org_id=admin.org_id)
+    invite.id = invite_id
 
     async def fake_revoke(db, org_id, invite_id):  # noqa: ARG001
         return True
@@ -207,7 +209,7 @@ def test_revoke_invite_returns_204(client, monkeypatch):
         return admin
 
     async def fake_get_db():
-        yield FakeDB()
+        yield FakeDB(scalar_result=invite)
 
     monkeypatch.setattr(invite_routes.invite_service, "revoke_invite", fake_revoke)
     app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
@@ -564,7 +566,9 @@ def test_revoke_invite_then_not_in_list(client, monkeypatch):
         return admin
 
     async def fake_get_db():
-        yield FakeDB()
+        # The DELETE route does db.scalar() to look up the invite before delegating to the service.
+        # Yield a DB that returns the invite for the scalar() lookup.
+        yield FakeDB(scalar_result=invite)
 
     monkeypatch.setattr(invite_routes.invite_service, "revoke_invite", fake_revoke)
     monkeypatch.setattr(invite_routes.invite_service, "get_pending_invites", fake_get_pending)

@@ -12,6 +12,12 @@ from app.services.policy_service import PolicyConfig, PolicyStore
 
 
 class FakeDB:
+	def __init__(self):
+		self.added = []
+
+	def add(self, obj):
+		self.added.append(obj)
+
 	async def commit(self):
 		return None
 

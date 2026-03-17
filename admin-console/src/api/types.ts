@@ -193,7 +193,7 @@ export type UpdateProviderKeyRequest = {
 };
 
 export type PolicyConfigRequest = {
-  enforcement_mode?: "off" | "log_only" | "enforce";
+  enforcement_mode?: "off" | "observe" | "log_only" | "enforce";
   allowed_models?: string[];
   blocked_keywords?: string[];
   pii_detection_enabled?: boolean;
@@ -215,4 +215,16 @@ export type PolicyConfigResponse = {
   prompt_injection_detection_enabled: boolean;
   response_guardrails_enabled: boolean;
   response_pii_redact: boolean;
+};
+
+export type AdminAuditLogEntry = {
+  id: string;
+  actor_email: string;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
 };

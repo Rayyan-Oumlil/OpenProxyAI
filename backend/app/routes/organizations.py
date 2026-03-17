@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,12 @@ from app.models.organization import Organization
 from app.schemas.organization import OrganizationResponse, OrganizationUpdateRequest
 from app.schemas.policy import PolicyConfigRequest, PolicyConfigResponse
 from app.schemas.webhook import WebhookConfigRequest, WebhookConfigResponse
+from app.services.admin_audit_service import (
+    get_ip,
+    log_admin_action,
+    serialize_org,
+    serialize_webhook_config,
+)
 from app.services.plan_service import assert_plan_allows
 from app.services.policy_service import PolicyConfig, policy_store
 
@@ -32,6 +38,7 @@ async def get_current_organization(
 @router.patch("/current", response_model=OrganizationResponse)
 async def update_current_organization(
 	payload: OrganizationUpdateRequest,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> OrganizationResponse:
@@ -49,6 +56,8 @@ async def update_current_organization(
 			detail="Organization deactivation is not allowed from this endpoint",
 		)
 
+	before = serialize_org(model)
+
 	settings_patch = updates.pop("settings", None)
 
 	for field_name, field_value in updates.items():
@@ -58,6 +67,21 @@ async def update_current_organization(
 		merged_settings = dict(model.settings or {})
 		merged_settings.update(settings_patch)
 		model.settings = merged_settings
+
+	after = serialize_org(model)
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="organization.updated",
+		resource_type="organization",
+		resource_id=str(current_user.org_id),
+		before=before,
+		after=after,
+		ip_address=get_ip(request),
+	)
 
 	await db.commit()
 	await db.refresh(model)
@@ -89,6 +113,7 @@ async def get_policy_config(
 @router.patch("/current/policy", response_model=PolicyConfigResponse)
 async def update_policy_config(
 	payload: PolicyConfigRequest,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 	redis: Redis = Depends(get_redis),
@@ -109,6 +134,7 @@ async def update_policy_config(
 		assert_plan_allows(org, "pii_detection")
 
 	current = await policy_store.load(current_user.org_id, db, redis)
+	before_data = current.to_dict()
 
 	new_config = PolicyConfig(
 		enforcement_mode=updates.get("enforcement_mode", current.enforcement_mode),
@@ -121,6 +147,19 @@ async def update_policy_config(
 		response_guardrails_enabled=updates.get("response_guardrails_enabled", current.response_guardrails_enabled),
 		response_pii_redact=updates.get("response_pii_redact", current.response_pii_redact),
 		updated_at=datetime.now(UTC),
+	)
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="policy.updated",
+		resource_type="policy",
+		resource_id=str(current_user.org_id),
+		before=before_data,
+		after=new_config.to_dict(),
+		ip_address=get_ip(request),
 	)
 
 	await policy_store.save(current_user.org_id, new_config, db, redis)
@@ -161,6 +200,7 @@ async def get_webhook_config(
 @router.patch("/current/webhooks", response_model=WebhookConfigResponse)
 async def update_webhook_config(
 	payload: WebhookConfigRequest,
+	request: Request,
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> WebhookConfigResponse:
@@ -170,6 +210,9 @@ async def update_webhook_config(
 	org = await db.get(Organization, current_user.org_id)
 	if org is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+
+	before = serialize_webhook_config((org.settings or {}).get("webhooks", {}))
+
 	new_settings = dict(org.settings or {})
 	new_settings["webhooks"] = {
 		"url": payload.url,
@@ -178,6 +221,22 @@ async def update_webhook_config(
 		"enabled": payload.enabled,
 	}
 	org.settings = new_settings
+
+	after = serialize_webhook_config(new_settings["webhooks"])
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="webhook.updated",
+		resource_type="webhook",
+		resource_id=str(current_user.org_id),
+		before=before,
+		after=after,
+		ip_address=get_ip(request),
+	)
+
 	await db.commit()
 	return WebhookConfigResponse(
 		url=payload.url,
