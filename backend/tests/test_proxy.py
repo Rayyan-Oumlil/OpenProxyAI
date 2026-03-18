@@ -279,11 +279,11 @@ async def test_llm_service_rate_limit_contract(monkeypatch, fake_redis):
 		return None
 
 	async def fake_provider_key(*args, **kwargs):  # noqa: ANN002, ANN003
-		return "dummy"
+		return ["dummy"]
 
 	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", fake_check_limits)
 	monkeypatch.setattr(llm_service_module, "log_request", fake_log_request)
-	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_key", fake_provider_key)
+	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", fake_provider_key)
 
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
@@ -343,7 +343,7 @@ async def test_llm_service_preserves_rl_headers_on_provider_key_error(monkeypatc
 
 	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", fake_check_limits)
 	monkeypatch.setattr(llm_service_module, "log_request", fake_log_request)
-	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_key", fake_provider_key)
+	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", fake_provider_key)
 
 	with pytest.raises(HTTPException) as exc_info:
 		await llm_service_module.llm_service.chat_completion(

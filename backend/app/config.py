@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     DEFAULT_RATE_LIMIT_TPM: int = 100_000
     DEFAULT_BUDGET_DAILY_USD: float = 50.0
 
+    # ── Provider Fallback ─────────────────────────────────────────────
+    MAX_PROVIDER_FALLBACK_ATTEMPTS: int = 3
+
     # ── Policy Engine ────────────────────────────────────────────────
     POLICY_ENFORCEMENT_MODE: str = "off"
     POLICY_ALLOWED_MODELS: list[str] = []

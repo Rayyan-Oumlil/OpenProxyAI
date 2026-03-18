@@ -35,6 +35,15 @@ from app.services.rate_limiter import rate_limiter_service
 from app.utils.token_estimator import estimate_tokens
 
 
+_RETRYABLE_STATUS_CODES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
+
+
+def _is_retryable(exc: Exception) -> bool:
+	"""Return True if the exception represents a transient provider error (ADR-9)."""
+	status_code = getattr(exc, "status_code", None)
+	return isinstance(status_code, int) and status_code in _RETRYABLE_STATUS_CODES
+
+
 def _split_model(model_name: str) -> tuple[str, str]:
 	if "/" not in model_name:
 		raise HTTPException(
@@ -101,13 +110,19 @@ def _parse_labels(request: Request) -> dict[str, str] | None:
 
 
 class LLMService:
-	async def _select_provider_key(
+	async def _select_provider_keys(
 		self,
 		db: AsyncSession,
 		org_id: uuid.UUID,
 		provider: str,
 		model: str | None = None,
-	) -> str:
+	) -> list[str]:
+		"""Return ordered list of decrypted API keys: [primary, fallback1, ...].
+
+		The primary key is selected via weighted random (preserving existing behaviour).
+		Fallbacks are the remaining candidates sorted by weight descending.
+		Total list is capped at settings.MAX_PROVIDER_FALLBACK_ATTEMPTS.
+		"""
 		rows = await db.scalars(
 			select(LLMProviderKey).where(
 				LLMProviderKey.org_id == org_id,
@@ -127,8 +142,14 @@ class LLMService:
 				candidates = matched if matched else keys
 			else:
 				candidates = keys
-			selected = random.choices(candidates, weights=[k.weight for k in candidates], k=1)[0]
-			return decrypt(selected.api_key_encrypted)
+			primary = random.choices(candidates, weights=[k.weight for k in candidates], k=1)[0]
+			fallbacks = sorted(
+				[k for k in candidates if k is not primary],
+				key=lambda k: k.weight,
+				reverse=True,
+			)
+			ordered = [primary, *fallbacks][: settings.MAX_PROVIDER_FALLBACK_ATTEMPTS + 1]
+			return [decrypt(k.api_key_encrypted) for k in ordered]
 
 		env_map = {
 			"openai": settings.OPENAI_API_KEY,
@@ -137,7 +158,7 @@ class LLMService:
 		}
 		api_key = env_map.get(provider, "")
 		if api_key:
-			return api_key
+			return [api_key]
 
 		raise HTTPException(
 			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -287,7 +308,7 @@ class LLMService:
 				)
 
 			try:
-				provider_api_key = await self._select_provider_key(db, user.org_id, provider, model=model_name)
+				candidate_keys = await self._select_provider_keys(db, user.org_id, provider, model=model_name)
 			except HTTPException as exc:
 				raise HTTPException(
 					status_code=exc.status_code,
@@ -299,7 +320,6 @@ class LLMService:
 			kwargs.update(
 				{
 					"model": request.model,
-					"api_key": provider_api_key,
 					"timeout": 30,
 					"request_timeout": 30,
 				}
@@ -339,13 +359,46 @@ class LLMService:
 					pass  # Pre-flight estimate failure should never block the request
 
 				kwargs["stream"] = True
-				stream = await acompletion(**kwargs)
-				first_chunk = await stream.__anext__()
-				if getattr(first_chunk, "error", None) is not None:
+				stream = None
+				first_chunk = None
+				_stream_success = False
+				_stream_fallback_count = 0
+				_stream_last_exc: Exception | None = None
+				if not candidate_keys:
 					raise HTTPException(
-						status_code=502,
-						detail={"error": "provider_error", "detail": str(first_chunk.error)},
+						status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+						detail={"error": "no_provider_key", "detail": "No provider keys available"},
 					)
+				for _idx, _key in enumerate(candidate_keys):
+					if _idx > 0:
+						_stream_fallback_count += 1
+						logger.warning(
+							"provider fallback (stream) attempt=%d model=%s", _idx + 1, request.model
+						)
+					kwargs["api_key"] = _key
+					try:
+						stream = await acompletion(**kwargs)
+						first_chunk = await stream.__anext__()
+						if getattr(first_chunk, "error", None) is not None:
+							raise HTTPException(
+								status_code=502,
+								detail={"error": "provider_error", "detail": str(first_chunk.error)},
+							)
+						_stream_success = True
+						break
+					except HTTPException:
+						raise
+					except Exception as _exc:
+						if _is_retryable(_exc) and _idx < len(candidate_keys) - 1:
+							_stream_last_exc = _exc
+							continue
+						raise
+				if not _stream_success:
+					raise _stream_last_exc  # type: ignore[misc]
+				if _stream_fallback_count > 0 and policy_metadata is not None:
+					policy_metadata["fallback_count"] = _stream_fallback_count
+				elif _stream_fallback_count > 0:
+					policy_metadata = {"fallback_count": _stream_fallback_count}
 
 				ttft_ms = int((time.perf_counter() - start) * 1000)
 				prompt_tokens = 0
@@ -488,7 +541,35 @@ class LLMService:
 			except Exception:
 				pass  # Cache failure must never block a real LLM call
 
-			response = await acompletion(**kwargs)
+			response = None
+			_last_exc: Exception | None = None
+			_fallback_count = 0
+			if not candidate_keys:
+				raise HTTPException(
+					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+					detail={"error": "no_provider_key", "detail": "No provider keys available"},
+				)
+			for _idx, _key in enumerate(candidate_keys):
+				if _idx > 0:
+					_fallback_count += 1
+					logger.warning(
+						"provider fallback attempt=%d model=%s", _idx + 1, request.model
+					)
+				kwargs["api_key"] = _key
+				try:
+					response = await acompletion(**kwargs)
+					break
+				except Exception as _exc:
+					if _is_retryable(_exc) and _idx < len(candidate_keys) - 1:
+						_last_exc = _exc
+						continue
+					raise
+			if response is None:
+				raise _last_exc  # type: ignore[misc]
+			if _fallback_count > 0 and policy_metadata is not None:
+				policy_metadata["fallback_count"] = _fallback_count
+			elif _fallback_count > 0:
+				policy_metadata = {"fallback_count": _fallback_count}
 
 			# Response guardrail check — non-streaming path
 			if policy_config.response_guardrails_enabled:
@@ -725,7 +806,7 @@ class LLMService:
 				)
 
 			try:
-				provider_api_key = await self._select_provider_key(db, user.org_id, provider)
+				candidate_keys = await self._select_provider_keys(db, user.org_id, provider, model=model_name)
 			except HTTPException as exc:
 				raise HTTPException(
 					status_code=exc.status_code,
@@ -733,13 +814,40 @@ class LLMService:
 					headers={**rl_headers, **(exc.headers or {})},
 				) from exc
 
-			response = await aembedding(
-				model=request.model,
-				input=request.input,
-				api_key=provider_api_key,
-				encoding_format=request.encoding_format,
-				timeout=30,
-			)
+			response = None
+			_emb_last_exc: Exception | None = None
+			_emb_fallback_count = 0
+			if not candidate_keys:
+				raise HTTPException(
+					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+					detail={"error": "no_provider_key", "detail": "No provider keys available"},
+				)
+			for _idx, _key in enumerate(candidate_keys):
+				if _idx > 0:
+					_emb_fallback_count += 1
+					logger.warning(
+						"provider fallback (embed) attempt=%d model=%s", _idx + 1, request.model
+					)
+				try:
+					response = await aembedding(
+						model=request.model,
+						input=request.input,
+						api_key=_key,
+						encoding_format=request.encoding_format,
+						timeout=30,
+					)
+					break
+				except Exception as _exc:
+					if _is_retryable(_exc) and _idx < len(candidate_keys) - 1:
+						_emb_last_exc = _exc
+						continue
+					raise
+			if response is None:
+				raise _emb_last_exc  # type: ignore[misc]
+			if _emb_fallback_count > 0 and policy_metadata is not None:
+				policy_metadata["fallback_count"] = _emb_fallback_count
+			elif _emb_fallback_count > 0:
+				policy_metadata = {"fallback_count": _emb_fallback_count}
 			body = _to_jsonable(response)
 			usage = body.get("usage", {}) if isinstance(body, dict) else {}
 			prompt_tokens = int(usage.get("prompt_tokens", usage.get("total_tokens", 0)))

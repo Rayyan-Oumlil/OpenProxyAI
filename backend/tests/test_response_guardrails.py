@@ -117,7 +117,7 @@ async def test_response_blocked_keyword_enforcement_mode(monkeypatch, fake_redis
 		)
 
 	async def _fake_provider_key(*args, **kwargs):
-		return "sk-fake"
+		return ["sk-fake"]
 
 	async def _fake_acompletion(**kwargs):
 		return fake_llm_response
@@ -130,7 +130,7 @@ async def test_response_blocked_keyword_enforcement_mode(monkeypatch, fake_redis
 
 	monkeypatch.setattr(llm_service_module.policy_store, "load", _fake_load)
 	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", _fake_check_limits)
-	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_key", _fake_provider_key)
+	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _fake_provider_key)
 	monkeypatch.setattr(llm_service_module, "acompletion", _fake_acompletion)
 	monkeypatch.setattr(llm_service_module.cost_tracker_service, "calculate_cost_usd", _fake_calculate_cost)
 	monkeypatch.setattr(llm_service_module, "log_request", _fake_log)
@@ -184,7 +184,7 @@ async def test_response_pii_redacted_when_response_pii_redact_true(monkeypatch, 
 		return (True, {"X-RateLimit-Requests-Remaining": "59"}, None, None, None)
 
 	async def _fake_provider_key(*args, **kwargs):
-		return "sk-fake"
+		return ["sk-fake"]
 
 	async def _fake_acompletion(**kwargs):
 		return fake_llm_response
@@ -204,7 +204,7 @@ async def test_response_pii_redacted_when_response_pii_redact_true(monkeypatch, 
 
 	monkeypatch.setattr(llm_service_module.policy_store, "load", _fake_load)
 	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", _fake_check_limits)
-	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_key", _fake_provider_key)
+	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _fake_provider_key)
 	monkeypatch.setattr(llm_service_module, "acompletion", _fake_acompletion)
 	monkeypatch.setattr(llm_service_module.cost_tracker_service, "calculate_cost_usd", _fake_calculate_cost)
 	monkeypatch.setattr(llm_service_module, "log_request", _fake_log)
@@ -258,7 +258,7 @@ async def test_response_blocked_keyword_log_only_mode_passes_through(monkeypatch
 		return (True, {"X-RateLimit-Requests-Remaining": "59"}, None, None, None)
 
 	async def _fake_provider_key(*args, **kwargs):
-		return "sk-fake"
+		return ["sk-fake"]
 
 	async def _fake_acompletion(**kwargs):
 		return fake_llm_response
@@ -271,7 +271,7 @@ async def test_response_blocked_keyword_log_only_mode_passes_through(monkeypatch
 
 	monkeypatch.setattr(llm_service_module.policy_store, "load", _fake_load)
 	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", _fake_check_limits)
-	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_key", _fake_provider_key)
+	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _fake_provider_key)
 	monkeypatch.setattr(llm_service_module, "acompletion", _fake_acompletion)
 	monkeypatch.setattr(llm_service_module.cost_tracker_service, "calculate_cost_usd", _fake_calculate_cost)
 	monkeypatch.setattr(llm_service_module, "log_request", _fake_log)
