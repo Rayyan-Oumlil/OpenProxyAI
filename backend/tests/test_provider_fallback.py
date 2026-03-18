@@ -97,18 +97,17 @@ def _patch_common(monkeypatch):
 		lambda *a, **kw: Decimal("0"),
 	)
 	# policy_service evaluate returns allow
-	monkeypatch.setattr(
-		llm_service_module.policy_service,
-		"evaluate_chat_request",
-		lambda req, cfg: SimpleNamespace(
+	async def _fake_evaluate(req, cfg):
+		return SimpleNamespace(
 			allowed=True,
 			action="allow",
 			detail=None,
 			reason_code=None,
 			triggered_rules=[],
 			as_metadata=lambda: None,
-		),
-	)
+		)
+
+	monkeypatch.setattr(llm_service_module.policy_service, "evaluate_chat_request", _fake_evaluate)
 
 
 def _make_request(stream: bool = False):

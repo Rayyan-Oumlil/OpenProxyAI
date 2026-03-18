@@ -240,7 +240,7 @@ class LLMService:
 		try:
 			provider, model_name = _split_model(request.model)
 			policy_config = await policy_store.load(user.org_id, db, redis)
-			decision = policy_service.evaluate_chat_request(request, policy_config)
+			decision = await policy_service.evaluate_chat_request(request, policy_config)
 			policy_metadata = decision.as_metadata()
 			if not decision.allowed:
 				latency_ms = int((time.perf_counter() - start) * 1000)
@@ -738,7 +738,7 @@ class LLMService:
 		try:
 			provider, model_name = _split_model(request.model)
 			policy_config = await policy_store.load(user.org_id, db, redis)
-			decision = policy_service.evaluate_embedding_request(request, policy_config)
+			decision = await policy_service.evaluate_embedding_request(request, policy_config)
 			policy_metadata = decision.as_metadata()
 			if not decision.allowed:
 				latency_ms = int((time.perf_counter() - start) * 1000)

@@ -40,6 +40,10 @@ apscheduler>=3.10.0
 presidio-analyzer>=2.2
 presidio-nlp-engine-spacy>=2.2
 
+# ML prompt injection detection (optional — falls back to regex if not installed)
+transformers>=4.30.0
+torch>=2.0.0
+
 # ClickHouse analytics dual-write (optional — off when CLICKHOUSE_URL not set)
 clickhouse-connect>=0.7
 

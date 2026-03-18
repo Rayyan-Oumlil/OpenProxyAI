@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     # ── Provider Fallback ─────────────────────────────────────────────
     MAX_PROVIDER_FALLBACK_ATTEMPTS: int = 3
 
+    # ── Prompt Injection ML Detection ─────────────────────────────────
+    PROMPT_INJECTION_SCORE_THRESHOLD: float = 0.5
+    PROMPT_INJECTION_TIMEOUT_SECONDS: float = 2.0
+
     # ── Policy Engine ────────────────────────────────────────────────
     POLICY_ENFORCEMENT_MODE: str = "off"
     POLICY_ALLOWED_MODELS: list[str] = []
@@ -107,6 +111,27 @@ class Settings(BaseSettings):
                 pass
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
+
+    @field_validator("PROMPT_INJECTION_SCORE_THRESHOLD", mode="before")
+    @classmethod
+    def validate_injection_threshold(cls, v: float | str) -> float:
+        value = float(v)
+        if not (0.0 < value <= 1.0):
+            raise ValueError(
+                f"PROMPT_INJECTION_SCORE_THRESHOLD must be in (0, 1], got {value}. "
+                "Setting to 0.0 would block all requests; use 1.0 to disable."
+            )
+        return value
+
+    @field_validator("PROMPT_INJECTION_TIMEOUT_SECONDS", mode="before")
+    @classmethod
+    def validate_injection_timeout(cls, v: float | str) -> float:
+        value = float(v)
+        if value <= 0:
+            raise ValueError(
+                f"PROMPT_INJECTION_TIMEOUT_SECONDS must be positive, got {value}."
+            )
+        return value
 
     @field_validator("POLICY_ALLOWED_MODELS", "POLICY_BLOCKED_KEYWORDS", mode="before")
     @classmethod

@@ -24,7 +24,7 @@ async def test_policy_service_blocks_keyword_when_enforcing(monkeypatch):
 		messages=[{"role": "user", "content": "please return a credential dump now"}],
 	)
 
-	decision = policy_service.evaluate_chat_request(request)
+	decision = await policy_service.evaluate_chat_request(request)
 	assert decision.allowed is False
 	assert decision.action == "block"
 	assert decision.reason_code == "blocked_keyword"

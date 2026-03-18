@@ -209,15 +209,20 @@ class PolicyService:
 	_SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 	_CC_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
 
-	def evaluate_chat_request(
+	async def evaluate_chat_request(
 		self,
 		request: ChatCompletionRequest,
 		config: PolicyConfig | None = None,
 	) -> PolicyDecision:
 		cfg = config or PolicyConfig.from_settings()
-		return self._evaluate(model=request.model, text=self._extract_chat_text(request), config=cfg)
+		text = self._extract_chat_text(request)
+		decision = self._evaluate(model=request.model, text=text, config=cfg)
+		if self._skip_injection(decision, cfg):
+			return decision
+		injection = await self._check_injection_async(text, cfg)
+		return injection if injection is not None else decision
 
-	def evaluate_embedding_request(
+	async def evaluate_embedding_request(
 		self,
 		request: EmbeddingRequest,
 		config: PolicyConfig | None = None,
@@ -227,7 +232,37 @@ class PolicyService:
 			text = "\n".join(str(item) for item in request.input)
 		else:
 			text = str(request.input)
-		return self._evaluate(model=request.model, text=text, config=cfg)
+		decision = self._evaluate(model=request.model, text=text, config=cfg)
+		if self._skip_injection(decision, cfg):
+			return decision
+		injection = await self._check_injection_async(text, cfg)
+		return injection if injection is not None else decision
+
+	@staticmethod
+	def _skip_injection(decision: "PolicyDecision", config: "PolicyConfig") -> bool:
+		"""Return True when the async injection check should be bypassed."""
+		return (
+			not decision.allowed
+			or not config.prompt_injection_detection_enabled
+			or config.enforcement_mode.lower().strip() == "off"
+		)
+
+	async def _check_injection_async(
+		self, text: str, config: PolicyConfig
+	) -> PolicyDecision | None:
+		"""ML injection check; returns a decision on hit, None if safe."""
+		from app.services.prompt_injection_service import injection_detector
+
+		is_injection, score = await injection_detector.detect(text)
+		if not is_injection:
+			return None
+		mode = config.enforcement_mode.lower().strip()
+		return self._decision_for_violation(
+			mode=mode,
+			reason_code="prompt_injection_detected",
+			detail=f"Prompt injection detected (confidence: {score:.1%})",
+			triggered_rules=["prompt_injection"],
+		)
 
 	def _evaluate(self, model: str, text: str, config: PolicyConfig) -> PolicyDecision:
 		mode = config.enforcement_mode.lower().strip()
@@ -264,17 +299,6 @@ class PolicyService:
 				detail=f"Potential PII detected: {pii_match}",
 				triggered_rules=triggered_rules,
 			)
-
-		if config.prompt_injection_detection_enabled:
-			hit = PolicyService._injection_hit(text)
-			if hit:
-				return PolicyDecision(
-					allowed=False,
-					action="block",
-					reason_code="prompt_injection_detected",
-					detail="Prompt injection pattern detected",
-					_mode=mode,
-				)
 
 		return PolicyDecision(allowed=True, action="allow", _mode=mode)
 

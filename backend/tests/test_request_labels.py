@@ -144,7 +144,7 @@ async def test_labels_forwarded_to_log_request_on_policy_block(monkeypatch, fake
 		captured.append(kwargs)
 
 	# Make policy service block every request
-	def fake_evaluate(req, cfg):
+	async def fake_evaluate(req, cfg):
 		return PolicyDecision(
 			allowed=False,
 			action="block",
@@ -193,7 +193,7 @@ async def test_labels_absent_no_error_on_policy_block(monkeypatch, fake_redis):
 	async def fake_log_request(**kwargs):
 		captured.append(kwargs)
 
-	def fake_evaluate(req, cfg):
+	async def fake_evaluate(req, cfg):
 		return PolicyDecision(
 			allowed=False,
 			action="block",
