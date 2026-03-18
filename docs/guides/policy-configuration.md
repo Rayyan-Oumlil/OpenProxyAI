@@ -137,18 +137,12 @@ Detect personally identifiable information (emails, phone numbers, SSNs, credit 
 
 ### Requirements
 
-PII detection requires the **Presidio service** to be enabled:
-
-```bash
-export PRESIDIO_ENABLED=true
-export PRESIDIO_ENDPOINT=http://presidio:8000
-export PRESIDIO_SCORE_THRESHOLD=0.7
-```
-
-If Presidio is not available, a fallback regex-based detector checks for:
+Regex-based PII detection is active by default — no additional setup required. It detects:
 - Email addresses
 - SSN (XXX-XX-XXXX)
 - Credit card numbers (13-19 digits)
+
+Presidio NLP is available but disabled by default due to image size (+800MB) — uncomment `presidio-analyzer` in `requirements.txt` to enable.
 
 ### Configuration
 
@@ -168,7 +162,7 @@ If Presidio is not available, a fallback regex-based detector checks for:
 }
 ```
 
-**Supported Presidio Entities:**
+**Supported Entities (Presidio NLP, when enabled):**
 
 | Entity | Description |
 |--------|-------------|

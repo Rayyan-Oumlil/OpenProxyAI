@@ -1,7 +1,8 @@
 """
-Microsoft Presidio NLP-based PII analyzer.
+Regex-based PII detection (active by default).
+Presidio NLP is available but disabled by default due to image size (+800MB) —
+uncomment presidio-analyzer in requirements.txt to enable.
 Lazy-init singleton pattern — safe to import always.
-Falls back gracefully if presidio-analyzer is not installed.
 """
 from __future__ import annotations
 import logging
@@ -23,7 +24,7 @@ def _get_analyzer():
         _analyzer = AnalyzerEngine()
         logger.info("Presidio AnalyzerEngine initialized")
     except ImportError:
-        logger.warning("presidio-analyzer not installed — PII detection falling back to regex")
+        logger.info("presidio-analyzer not installed — regex-based PII detection is active (uncomment presidio-analyzer in requirements.txt to enable NLP)")
         _analyzer = None
     return _analyzer
 
@@ -34,7 +35,7 @@ def is_enabled() -> bool:
 
 def analyze(text: str, language: str = "en", entities: Optional[list[str]] = None) -> list:
     """
-    Returns list of RecognizerResult. Empty list only if Presidio is not installed.
+    Returns list of RecognizerResult. Empty list only if Presidio NLP is not enabled (default).
     Raises on runtime errors — caller must handle or let propagate as 500.
     entities: optional filter list (e.g. ["EMAIL_ADDRESS", "US_SSN"])
     """

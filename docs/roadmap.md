@@ -85,18 +85,18 @@ it saves an invalid plan string that maps to nothing — plan enforcement silent
 
 ---
 
-### Bug 2 — Presidio PII detection is not installed
+### Bug 2 — Presidio PII detection docs were inaccurate ✓ Fixed (docs only)
 **File:** `backend/requirements.txt`
 
 ```
 # presidio-analyzer>=2.2   ← commented out
 ```
 
-The roadmap and docs say "Microsoft Presidio NLP PII detection" is shipped.
-It is not. `presidio_service.py` falls back immediately to an empty list.
-PII detection is regex-only. This is fine for now, but the docs are inaccurate.
+Docs now accurately state: regex-based PII detection is active; Presidio NLP is available but
+disabled by default due to image size (+800MB) — uncomment `presidio-analyzer` in
+`requirements.txt` to enable.
 
-**Fix when ready:** Uncomment the requirement, rebuild the Docker image.
+**To enable Presidio NLP:** Uncomment the requirement, rebuild the Docker image.
 Note: Presidio adds ~800MB to the image and requires spaCy language model download on first run.
 
 ---

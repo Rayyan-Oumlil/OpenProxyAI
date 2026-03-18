@@ -230,11 +230,11 @@ X-OpenProxyAI-Budget-Remaining-Usd: 45.32
 
 ## PII Detection
 
-Personally identifiable information (PII) is detected in-flight using **Microsoft Presidio**. No data is stored; detection happens on request/response content only.
+Personally identifiable information (PII) is detected in-flight using **regex-based detection** (active by default). No data is stored; detection happens on request/response content only. Presidio NLP is available but disabled by default due to image size (+800MB) — uncomment `presidio-analyzer` in `requirements.txt` to enable.
 
 ### Detectable Patterns
 
-Presidio can detect:
+The active regex detector handles:
 
 - Email addresses
 - Phone numbers

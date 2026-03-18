@@ -26,7 +26,7 @@
 ### CC9 — Risk Mitigation
 | Control | Implementation |
 |---------|---------------|
-| CC9.1 — Risk identification | Per-org policy config; model allowlist; PII detection (Presidio) |
+| CC9.1 — Risk identification | Per-org policy config; model allowlist; PII detection (regex-based; Presidio NLP disabled by default) |
 | CC9.2 — Vendor risk management | Provider key rotation endpoint (`POST /provider-keys/{id}/rotate`) |
 
 ## HIPAA Technical Safeguards (§164.312)
