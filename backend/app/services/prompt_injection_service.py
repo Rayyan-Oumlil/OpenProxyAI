@@ -72,8 +72,17 @@ class PromptInjectionDetector:
 		Confidence is 0.0–1.0 from the ML model, or 1.0/0.0 from regex fallback.
 		Fail-open: errors and timeouts return ``(False, 0.0)``.
 		"""
-		if not text or len(text.strip()) < 3:
+		if not text:
 			return False, 0.0
+
+		from app.config import settings
+
+		stripped = text.strip()
+		if len(stripped) < settings.PROMPT_INJECTION_MIN_TEXT_LENGTH:
+			# Text is too short for reliable ML classification.
+			# Real injection attempts require enough words to reference and override
+			# system instructions — fall through to regex patterns only.
+			return self._regex_fallback(stripped)
 
 		await self.ensure_loaded()
 

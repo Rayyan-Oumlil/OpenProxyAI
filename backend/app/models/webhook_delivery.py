@@ -24,7 +24,7 @@ class WebhookDelivery(Base, UUIDPrimaryKeyMixin):
     status: Mapped[str] = mapped_column(String(20), nullable=False)  # "delivered" | "failed"
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
-    last_attempted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default="now()"
     )

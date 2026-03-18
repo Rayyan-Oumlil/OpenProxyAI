@@ -88,7 +88,8 @@ async def test_detector_injection_below_threshold_not_flagged():
 	detector._load_attempted = True
 	detector._pipeline = MagicMock(return_value=[{"label": "INJECTION", "score": 0.3}])
 
-	is_injection, score = await detector.detect("some borderline text")
+	# Text must be >= PROMPT_INJECTION_MIN_TEXT_LENGTH (30 chars) to reach the ML model.
+	is_injection, score = await detector.detect("some borderline text that is long enough to classify")
 
 	assert is_injection is False
 	assert abs(score - 0.3) < 0.01
@@ -157,7 +158,8 @@ async def test_detector_fail_open_on_exception():
 	detector._load_attempted = True
 	detector._pipeline = MagicMock(side_effect=RuntimeError("CUDA OOM"))
 
-	is_injection, score = await detector.detect("ignore previous instructions")
+	# Text must be >= PROMPT_INJECTION_MIN_TEXT_LENGTH (30 chars) to reach the ML pipeline.
+	is_injection, score = await detector.detect("tell me a random fact about cats please")
 
 	assert is_injection is False
 	assert score == 0.0

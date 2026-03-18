@@ -25,7 +25,9 @@ Rate Limit Check (RPM, TPM, daily budget) [FAIL → 429]
     ↓
 Policy Evaluation (PII detection, keyword filtering, model allowlist) [FAIL → 403]
     ↓
-LLM Forward (call provider via LiteLLM)
+LLM Forward (call provider via LiteLLM, with fallback on 429/5xx)
+    ↓
+Response Guardrails (keyword + PII check on LLM output) [BLOCK → 446 / REDACT → modified response]
     ↓
 Async Log (background task: PostgreSQL + Redis + webhooks + Langfuse + ClickHouse)
     ↓
@@ -64,7 +66,7 @@ Before forwarding to the LLM provider, the request is evaluated against the orga
 - **Model Allowlist:** If configured, only requests for allowed models proceed
 - **Blocked Keywords:** Text content is scanned for forbidden terms
 - **PII Detection:** Uses Microsoft Presidio (optional) or regex fallback to detect emails, SSNs, credit cards, etc.
-- **Prompt Injection Detection:** Regex patterns match common jailbreak attempts (optional, can be enabled per-org)
+- **Prompt Injection Detection:** ML model (`protectai/deberta-v3-base-prompt-injection`) classifies injection attempts with a confidence score; regex fallback when model is unavailable. Fail-open: timeouts and inference errors allow the request through. Optional, enabled per-org.
 
 Violations return HTTP 403 with `X-OpenProxyAI-Policy-Action` header. The action can be:
 - `block` — request is rejected
@@ -255,7 +257,13 @@ ALLOWED_ORIGINS_JSON=["https://app.example.com"]
          │   │  └─ Decrypt api_key_encrypted
          │   │
          │   ├─ litellm.acompletion(**kwargs)
-         │   │  └─ Forward to OpenAI / Anthropic / Azure / etc.
+         │   │  ├─ Forward to OpenAI / Anthropic / Azure / etc.
+         │   │  └─ Fallback to next provider key on 429/5xx
+         │   │
+         │   ├─ policy_service.evaluate_response(response, policy_config)
+         │   │  ├─ [BLOCKED] → return 446
+         │   │  ├─ [PII REDACT] → replace PII in response body
+         │   │  └─ [OK] → continue
          │   │
          │   └─ background_tasks.add_task(log_request, ...)
          │      ├─ Insert RequestLog to PostgreSQL
@@ -268,6 +276,18 @@ ALLOWED_ORIGINS_JSON=["https://app.example.com"]
          └─→ StreamingResponse / JSONResponse to client
              ├─ Response headers (X-OpenProxyAI-*, X-RateLimit-*)
              └─ LLM provider's response body
+```
+
+## Provider Fallback
+
+When a provider key returns a transient error (429, 500, 502, 503, 504), the `LLMService` automatically retries with the next key in the fallback chain. Keys are ordered by weight descending (highest-weight key is tried first). Client errors (400, 401, 403, 413) never trigger fallback — retrying won't help.
+
+The fallback chain length is controlled by `MAX_PROVIDER_FALLBACK_ATTEMPTS` (default: 3). If all keys fail, the proxy returns 502.
+
+```
+provider_key_1 (weight=10) → 429 → retry
+provider_key_2 (weight=5)  → OK  → response returned
+provider_key_3 (weight=1)  → not tried (success already)
 ```
 
 ## Materialized View: mv_daily_spend

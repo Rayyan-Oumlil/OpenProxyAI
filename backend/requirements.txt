@@ -36,11 +36,11 @@ prometheus-client>=0.20.0
 # Task scheduling
 apscheduler>=3.10.0
 
-# PII detection (optional — falls back to regex if not installed)
-presidio-analyzer>=2.2
-presidio-nlp-engine-spacy>=2.2
+# PII detection (uncomment when ready: also run `python -m spacy download en_core_web_lg`)
+# presidio-analyzer>=2.2
+# spacy>=3.0.0
 
-# ML prompt injection detection (optional — falls back to regex if not installed)
+# ML prompt injection detection
 transformers>=4.30.0
 torch>=2.0.0
 

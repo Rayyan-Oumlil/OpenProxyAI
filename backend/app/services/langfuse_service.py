@@ -1,4 +1,10 @@
-"""Optional Langfuse LLM tracing -- fire-and-forget, no-ops when not configured."""
+"""Optional Langfuse LLM tracing -- fire-and-forget, no-ops when not configured.
+
+Langfuse v4 API:
+  client.start_observation(name=..., as_type='generation', trace_context={trace_id: ...}, ...)
+  observation.end()
+  client.flush()
+"""
 
 from __future__ import annotations
 
@@ -56,39 +62,39 @@ async def send_trace(
     policy_action: str | None,
     error_message: str | None,
 ) -> None:
-    """Send a trace to Langfuse. Swallows all exceptions."""
+    """Send a trace to Langfuse (v4 API). Swallows all exceptions."""
     client = _get_client()
     if client is None:
         return
     try:
-        trace = client.trace(
-            id=request_id,
+        from langfuse.types import TraceContext
+
+        # Langfuse v4 requires a 32-char lowercase hex trace_id (no dashes).
+        trace_ctx: TraceContext = {"trace_id": request_id.replace("-", "")}
+        observation = client.start_observation(
+            trace_context=trace_ctx,
             name="openproxy.proxy_request",
-            user_id=user_id,
-            metadata={
-                "org_id": org_id,
-                "provider": provider,
-                "policy_action": policy_action or "allow",
-                "status_code": status_code,
-            },
-            tags=[model, provider, policy_action or "allow"],
-        )
-        trace.generation(
-            name="llm_call",
+            as_type="generation",
             model=model,
-            usage={
+            usage_details={
                 "input": prompt_tokens,
                 "output": completion_tokens,
                 "total": prompt_tokens + completion_tokens,
-                "unit": "TOKENS",
             },
+            cost_details={"total": cost_usd},
             metadata={
-                "cost_usd": cost_usd,
+                "org_id": org_id,
+                "user_id": user_id,
+                "provider": provider,
+                "policy_action": policy_action or "allow",
+                "status_code": status_code,
                 "latency_ms": latency_ms,
                 "ttft_ms": ttft_ms,
                 "error": error_message,
             },
+            level="ERROR" if error_message else "DEFAULT",
         )
+        observation.end()
         client.flush()
     except Exception:
         logger.exception(

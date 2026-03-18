@@ -48,8 +48,9 @@ class Settings(BaseSettings):
     MAX_PROVIDER_FALLBACK_ATTEMPTS: int = 3
 
     # ── Prompt Injection ML Detection ─────────────────────────────────
-    PROMPT_INJECTION_SCORE_THRESHOLD: float = 0.5
+    PROMPT_INJECTION_SCORE_THRESHOLD: float = 0.85
     PROMPT_INJECTION_TIMEOUT_SECONDS: float = 2.0
+    PROMPT_INJECTION_MIN_TEXT_LENGTH: int = 30
 
     # ── Policy Engine ────────────────────────────────────────────────
     POLICY_ENFORCEMENT_MODE: str = "off"
