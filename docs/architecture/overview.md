@@ -65,7 +65,7 @@ Before forwarding to the LLM provider, the request is evaluated against the orga
 
 - **Model Allowlist:** If configured, only requests for allowed models proceed
 - **Blocked Keywords:** Text content is scanned for forbidden terms
-- **PII Detection:** Uses Microsoft Presidio (optional) or regex fallback to detect emails, SSNs, credit cards, etc.
+- **PII Detection:** Regex-based PII detection is active; Presidio NLP is available but disabled by default due to image size (+800MB) — uncomment `presidio-analyzer` in `requirements.txt` to enable.
 - **Prompt Injection Detection:** ML model (`protectai/deberta-v3-base-prompt-injection`) classifies injection attempts with a confidence score; regex fallback when model is unavailable. Fail-open: timeouts and inference errors allow the request through. Optional, enabled per-org.
 
 Violations return HTTP 403 with `X-OpenProxyAI-Policy-Action` header. The action can be:
@@ -199,7 +199,7 @@ CLICKHOUSE_URL=http://localhost:8123/default
 ### Optional: Policy & Compliance
 
 ```
-# PII Detection (Microsoft Presidio)
+# PII Detection (regex-based; Presidio NLP disabled by default — uncomment presidio-analyzer in requirements.txt to enable)
 PRESIDIO_ENABLED=true
 PRESIDIO_ENTITIES=PERSON,EMAIL_ADDRESS,PHONE_NUMBER
 PRESIDIO_SCORE_THRESHOLD=0.5
