@@ -114,8 +114,8 @@ export function OrganizationSettingsPage() {
             disabled={!canManageSettings || updateMutation.isPending}
           >
             <option value="free">free</option>
-            <option value="pro">pro</option>
-            <option value="team">team</option>
+            <option value="starter">starter</option>
+            <option value="growth">growth</option>
             <option value="enterprise">enterprise</option>
           </select>
 
