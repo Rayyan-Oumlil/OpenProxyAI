@@ -38,8 +38,12 @@ class FakeDB:
 	async def scalars(self, query):  # noqa: ARG002
 		return FakeScalarResult(self.keys)
 
+	async def scalar(self, query):  # noqa: ARG002
+		if self.keys:
+			return self.keys[0]
+		return None
+
 	async def get(self, model, key_id):  # noqa: ARG002
-		# Return org stub for Organization lookups (plan enforcement)
 		if self._org is not None and model.__name__ == "Organization":
 			return self._org
 		for key in self.keys:
@@ -146,11 +150,15 @@ def test_me_returns_current_user(client):
 
 
 def test_refresh_and_logout_blocklist(client, fake_redis):
+	user_id = str(uuid4())
+	org_id = str(uuid4())
 	refresh_payload = {
-		"sub": str(uuid4()),
-		"org_id": str(uuid4()),
+		"sub": user_id,
+		"org_id": org_id,
 		"role": "admin",
 	}
+
+	fake_user = SimpleNamespace(id=user_id, org_id=org_id, role="admin", is_active=True, email="a@test.com")
 
 	async def fake_verify_refresh_token(token, redis=None):  # noqa: ANN001
 		return refresh_payload
@@ -161,7 +169,17 @@ def test_refresh_and_logout_blocklist(client, fake_redis):
 	async def fake_get_redis():
 		return fake_redis
 
+	class _RefreshFakeDB:
+		async def scalar(self, *args, **kwargs):
+			return fake_user
+		async def commit(self):
+			return None
+
+	async def fake_get_db():
+		yield _RefreshFakeDB()
+
 	app.dependency_overrides[get_redis] = fake_get_redis
+	app.dependency_overrides[get_db] = fake_get_db
 
 	refresh_res = client.post("/api/v1/auth/refresh", headers={"Authorization": "Bearer rtok"})
 	assert refresh_res.status_code == 200

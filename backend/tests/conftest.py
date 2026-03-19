@@ -119,6 +119,12 @@ class FakeRedis:
 	async def exists(self, key: str) -> int:
 		return 1 if key in self._store else 0
 
+	async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False) -> bool:  # noqa: ARG002
+		if nx and key in self._store:
+			return False
+		self._store[key] = value
+		return True
+
 	async def setex(self, key: str, ttl: int, value: str) -> bool:  # noqa: ARG002
 		self._store[key] = value
 		return True

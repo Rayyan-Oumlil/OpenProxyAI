@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
 import type { UserResponse } from "../../api/types";
@@ -21,6 +22,10 @@ export function UsersRolesPage() {
     mutationFn: ({ userId, payload }: { userId: string; payload: Record<string, unknown> }) =>
       apiClient.patch<UserResponse>(`/api/v1/users/${userId}`, payload, token!),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users", token] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update user");
       queryClient.invalidateQueries({ queryKey: ["users", token] });
     },
   });

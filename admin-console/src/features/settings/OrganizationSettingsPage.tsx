@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 
 import { apiClient } from "../../api/client";
 import type { OrganizationResponse } from "../../api/types";
@@ -14,7 +15,6 @@ export function OrganizationSettingsPage() {
   const queryClient = useQueryClient();
 
   const [name, setName] = useState("");
-  const [plan, setPlan] = useState("free");
   const [budgetMonthly, setBudgetMonthly] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [settingsJson, setSettingsJson] = useState("{}");
@@ -31,7 +31,6 @@ export function OrganizationSettingsPage() {
       return;
     }
     setName(orgQuery.data.name);
-    setPlan(orgQuery.data.plan);
     setBudgetMonthly(orgQuery.data.budget_monthly_usd ?? "");
     setIsActive(orgQuery.data.is_active);
     setSettingsJson(JSON.stringify(orgQuery.data.settings ?? {}, null, 2));
@@ -54,17 +53,24 @@ export function OrganizationSettingsPage() {
       return;
     }
 
+    let parsedSettings: Record<string, unknown>;
     try {
-      const parsedSettings = JSON.parse(settingsJson) as Record<string, unknown>;
+      parsedSettings = JSON.parse(settingsJson) as Record<string, unknown>;
+    } catch {
+      setFormError("Settings must be valid JSON.");
+      return;
+    }
+
+    try {
       await updateMutation.mutateAsync({
         name,
-        plan,
         budget_monthly_usd: budgetMonthly === "" ? null : Number(budgetMonthly),
         is_active: isActive,
         settings: parsedSettings,
       });
-    } catch {
-      setFormError("Settings must be valid JSON.");
+      setFormError(null);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to save settings.");
     }
   };
 
@@ -106,18 +112,11 @@ export function OrganizationSettingsPage() {
             disabled={!canManageSettings || updateMutation.isPending}
           />
 
-          <label htmlFor="org-plan">Plan</label>
-          <select
-            id="org-plan"
-            value={plan}
-            onChange={(event) => setPlan(event.target.value)}
-            disabled={!canManageSettings || updateMutation.isPending}
-          >
-            <option value="free">free</option>
-            <option value="starter">starter</option>
-            <option value="growth">growth</option>
-            <option value="enterprise">enterprise</option>
-          </select>
+          <label>Plan</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+            <span>{orgQuery.data.plan}</span>
+            <Link to="/billing">Manage in Billing →</Link>
+          </div>
 
           <label htmlFor="org-budget">Monthly budget (USD)</label>
           <input

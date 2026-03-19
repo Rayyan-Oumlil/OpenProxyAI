@@ -32,6 +32,26 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function requestBlob(path: string, options: RequestOptions): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method ?? "GET",
+    headers: {
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = (await response.json().catch(() => null)) as
+      | { detail?: string; error?: string }
+      | null;
+    const message =
+      errorData?.detail ?? errorData?.error ?? `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
+
 export const apiClient = {
   get: <T>(path: string, token?: string) => request<T>(path, { method: "GET", token }),
   post: <T>(path: string, body: unknown, token?: string) =>
@@ -39,4 +59,17 @@ export const apiClient = {
   patch: <T>(path: string, body: unknown, token?: string) =>
     request<T>(path, { method: "PATCH", body, token }),
   del: <T>(path: string, token?: string) => request<T>(path, { method: "DELETE", token }),
+  getBlob: (path: string, token?: string) => requestBlob(path, { method: "GET", token }),
+  createCheckoutSession: (plan: "starter" | "growth", token?: string) =>
+    request<{ checkout_url: string }>("/api/v1/billing/checkout", {
+      method: "POST",
+      body: { plan },
+      token,
+    }),
+  createPortalSession: (token?: string) =>
+    request<{ portal_url: string }>("/api/v1/billing/portal", {
+      method: "POST",
+      body: {},
+      token,
+    }),
 };

@@ -28,6 +28,7 @@ python-dotenv>=1.0.0
 # Serialization / HTTP
 orjson>=3.10.0
 httpx>=0.27.0
+stripe>=7.0.0
 
 # Observability
 langfuse>=2.0

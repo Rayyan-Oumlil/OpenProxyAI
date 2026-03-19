@@ -1,6 +1,18 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, CheckCircle, XCircle, DollarSign, ShieldX, ShieldAlert, Zap } from "lucide-react";
+import {
+  Activity,
+  CheckCircle,
+  XCircle,
+  DollarSign,
+  ShieldX,
+  ShieldAlert,
+  Zap,
+  TrendingUp,
+  Download,
+} from "lucide-react";
+
+import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
 import type { AnalyticsResponse, PolicyAnalyticsResponse } from "../../api/types";
@@ -84,6 +96,30 @@ function PolicyStrip({ data }: { data: PolicyAnalyticsResponse }) {
 export function DashboardPage() {
   const { token } = useAuth();
   const [period, setPeriod] = useState(30);
+  const [isExportingCompliance, setIsExportingCompliance] = useState(false);
+
+  const downloadComplianceReport = async () => {
+    if (!token || isExportingCompliance) return;
+    try {
+      setIsExportingCompliance(true);
+      const blob = await apiClient.getBlob(
+        `/api/v1/analytics/compliance/export?period_days=${period}`,
+        token
+      );
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "compliance-report.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to export compliance report");
+    } finally {
+      setIsExportingCompliance(false);
+    }
+  };
 
   const overviewQuery = useQuery({
     queryKey: ["analytics", "overview", period, token],
@@ -125,6 +161,19 @@ export function DashboardPage() {
           <h1>Gateway Dashboard</h1>
         </div>
         <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={downloadComplianceReport}
+            disabled={isExportingCompliance || !token}
+            className="px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+            style={{
+              border: "1px solid var(--line)",
+              color: "var(--muted)",
+            }}
+          >
+            <Download size={14} />
+            {isExportingCompliance ? "Exporting..." : "Export Compliance CSV"}
+          </button>
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -159,6 +208,21 @@ export function DashboardPage() {
         <MetricCard label="Successful" value={formatNumber(overview.successful_requests)} icon={CheckCircle} accent="teal" />
         <MetricCard label="Failed" value={formatNumber(overview.failed_requests)} icon={XCircle} accent="rose" />
         <MetricCard label="Total Cost" value={formatCost(overview.total_cost_usd)} icon={DollarSign} accent="sky" />
+        <MetricCard
+          label="Projected Month-End Cost"
+          value={
+            overview.projected_month_end_cost_usd != null
+              ? formatCost(overview.projected_month_end_cost_usd)
+              : "—"
+          }
+          icon={TrendingUp}
+          accent="violet"
+          subtext={
+            overview.forecast_basis_days != null
+              ? `Based on ${overview.forecast_basis_days} elapsed day(s)`
+              : undefined
+          }
+        />
         <MetricCard label="Policy Blocked" value={formatNumber(overview.policy_blocked_requests)} icon={ShieldX} accent="rose" />
         <MetricCard label="Policy Flagged" value={formatNumber(overview.policy_flagged_requests)} icon={ShieldAlert} accent="amber" />
         <MetricCard

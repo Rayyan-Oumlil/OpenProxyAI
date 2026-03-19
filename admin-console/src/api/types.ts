@@ -40,6 +40,8 @@ export type UsageOverview = {
   p50_latency_ms?: number | null;
   p95_latency_ms?: number | null;
   p99_latency_ms?: number | null;
+  projected_month_end_cost_usd?: number | null;
+  forecast_basis_days?: number | null;
 };
 
 export type CostByModel = {
@@ -148,7 +150,11 @@ export type OrganizationResponse = {
   settings: Record<string, unknown>;
   budget_monthly_usd: string | null;
   is_active: boolean;
+  data_region?: string | null;
   created_at: string;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_subscription_status?: string | null;
 };
 
 export type OrganizationUpdateRequest = {
@@ -157,6 +163,14 @@ export type OrganizationUpdateRequest = {
   settings?: Record<string, unknown>;
   budget_monthly_usd?: number | null;
   is_active?: boolean;
+};
+
+export type CheckoutResponse = {
+  checkout_url: string;
+};
+
+export type PortalResponse = {
+  portal_url: string;
 };
 
 export type PolicyAnalyticsResponse = {

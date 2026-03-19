@@ -36,8 +36,9 @@ async def create_api_key_route(
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> APIKeyCreatedResponse:
-	# Enforce per-plan API key limit
 	org = await db.get(Organization, current_user.org_id)
+	if org is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 	result = await db.execute(
 		select(func.count()).where(
 			ApiKey.org_id == current_user.org_id,
@@ -68,12 +69,11 @@ async def revoke_api_key(
 	current_user: CurrentUser,
 	db: AsyncSession = Depends(get_db),
 ) -> None:
-	model = await db.get(ApiKey, key_id)
+	model = await db.scalar(
+		select(ApiKey).where(ApiKey.id == key_id, ApiKey.org_id == current_user.org_id)
+	)
 	if model is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
-
-	if model.org_id != current_user.org_id:
-		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 	model.is_active = False
 	await db.commit()

@@ -6,7 +6,10 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from sqlalchemy import select
+
 from app.dependencies import CurrentUser, get_db, get_real_ip, get_redis
+from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserMeResponse
 from app.schemas.invite import AcceptInviteRequest
 from app.services.auth_service import (
@@ -90,6 +93,7 @@ async def login(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
 	credentials: HTTPAuthorizationCredentials | None = Depends(http_bearer),
+	db: AsyncSession = Depends(get_db),
 	redis: Redis = Depends(get_redis),
 ) -> TokenResponse:
 	if credentials is None or not credentials.credentials:
@@ -98,12 +102,17 @@ async def refresh_token(
 	payload = await verify_refresh_token(credentials.credentials, redis=redis)
 	user_id = payload.get("sub")
 	org_id = payload.get("org_id")
-	role = payload.get("role", "developer")
 	if not user_id or not org_id:
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-	access_token = create_access_token(user_id, org_id, role=role)
-	new_refresh_token = create_refresh_token(user_id, org_id, role=role)
+	user = await db.scalar(
+		select(User).where(User.id == user_id, User.org_id == org_id)
+	)
+	if user is None or not user.is_active:
+		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+	access_token = create_access_token(str(user.id), str(user.org_id), role=user.role)
+	new_refresh_token = create_refresh_token(str(user.id), str(user.org_id), role=user.role)
 	await blocklist_token(redis, credentials.credentials)
 	return TokenResponse(
 		access_token=access_token,

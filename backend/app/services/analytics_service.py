@@ -1,6 +1,7 @@
 """Analytics service querying mv_daily_spend and request logs with org isolation."""
 
 from datetime import UTC, date, datetime, timedelta
+from calendar import monthrange
 from decimal import Decimal
 from math import ceil
 from typing import Any
@@ -130,6 +131,29 @@ class AnalyticsService:
 			)
 		).mappings().one()
 
+		today = datetime.now(UTC).date()
+		month_start = today.replace(day=1)
+		days_elapsed = today.day
+		days_in_month = monthrange(today.year, today.month)[1]
+		month_cost_row = (
+			await db.execute(
+				text(
+					"""
+					SELECT COALESCE(SUM(total_cost_usd), 0) AS month_cost_usd
+					FROM mv_daily_spend
+					WHERE org_id = :org_id
+					  AND day::date >= :month_start
+					  AND day::date <= :today
+					"""
+				),
+				{"org_id": str(org_id), "month_start": month_start, "today": today},
+			)
+		).mappings().one()
+		month_cost = float(Decimal(str(month_cost_row["month_cost_usd"] or 0)))
+		projected_month_end_cost_usd = (
+			round((month_cost / days_elapsed) * days_in_month, 6) if days_elapsed > 0 else None
+		)
+
 		def _round_or_none(val: object) -> int | None:
 			return round(float(val)) if val is not None else None
 
@@ -147,6 +171,8 @@ class AnalyticsService:
 			p50_latency_ms=_round_or_none(percentile_row["p50_latency_ms"]),
 			p95_latency_ms=_round_or_none(percentile_row["p95_latency_ms"]),
 			p99_latency_ms=_round_or_none(percentile_row["p99_latency_ms"]),
+			projected_month_end_cost_usd=projected_month_end_cost_usd,
+			forecast_basis_days=days_elapsed,
 		)
 
 	async def get_policy_summary(
@@ -507,7 +533,7 @@ class AnalyticsService:
 		end_date: date | None = None,
 		action: str | None = None,
 		reason_code: str | None = None,
-	) -> list[dict[str, Any]]:
+	) -> tuple[list[dict[str, Any]], bool]:
 		window_start, window_end = self.resolve_window(period_days, start_date, end_date)
 		filters = [
 			"org_id = :org_id",
@@ -578,6 +604,171 @@ class AnalyticsService:
 				}
 			)
 		return events, truncated
+
+	async def get_compliance_report_rows(
+		self,
+		db: AsyncSession,
+		org_id: UUID,
+		period_days: int = 30,
+	) -> list[dict[str, Any]]:
+		"""Build a flattened compliance report for CSV export.
+
+		The output is a normalized row list so downstream CSV generation stays simple
+		and stable for auditors.
+		"""
+		since = datetime.now(UTC).date() - timedelta(days=period_days - 1)
+
+		policy_rows = (
+			await db.execute(
+				text(
+					"""
+					SELECT
+						created_at,
+						'policy_violation' AS record_type,
+						COALESCE(request_metadata->'policy'->>'action', '') AS action,
+						COALESCE(request_metadata->'policy'->>'reason_code', '') AS detail,
+						COALESCE(model, '') AS model,
+						COALESCE(provider, '') AS provider,
+						COALESCE(status_code, 0) AS status_code
+					FROM request_logs
+					WHERE org_id = :org_id
+					  AND created_at::date >= :since
+					  AND archived_at IS NULL
+					  AND request_metadata->'policy'->>'action' IN ('block', 'log_only')
+					ORDER BY created_at DESC
+					LIMIT 10000
+					"""
+				),
+				{"org_id": str(org_id), "since": since},
+			)
+		).mappings().all()
+
+		user_rows = (
+			await db.execute(
+				text(
+					"""
+					SELECT
+						created_at,
+						'user_access' AS record_type,
+						email,
+						role,
+						is_active,
+						last_login_at
+					FROM users
+					WHERE org_id = :org_id
+					  AND (created_at::date >= :since OR last_login_at::date >= :since)
+					ORDER BY created_at DESC
+					"""
+				),
+				{"org_id": str(org_id), "since": since},
+			)
+		).mappings().all()
+
+		key_rotation_rows = (
+			await db.execute(
+				text(
+					"""
+					SELECT
+						created_at,
+						'provider_key_rotation' AS record_type,
+						actor_email,
+						resource_id,
+						action
+					FROM admin_audit_logs
+					WHERE org_id = :org_id
+					  AND created_at::date >= :since
+					  AND action = 'provider_key.rotated'
+					ORDER BY created_at DESC
+					"""
+				),
+				{"org_id": str(org_id), "since": since},
+			)
+		).mappings().all()
+
+		budget_rows = (
+			await db.execute(
+				text(
+					"""
+					SELECT
+						now() AS created_at,
+						'budget_vs_actual' AS record_type,
+						COALESCE(o.budget_monthly_usd, 0) AS budget_monthly_usd,
+						COALESCE(SUM(m.total_cost_usd), 0) AS actual_cost_period_usd
+					FROM organizations o
+					LEFT JOIN mv_daily_spend m
+						ON m.org_id = o.id
+						AND m.day::date >= :since
+					WHERE o.id = :org_id
+					GROUP BY o.budget_monthly_usd
+					"""
+				),
+				{"org_id": str(org_id), "since": since},
+			)
+		).mappings().all()
+
+		rows: list[dict[str, Any]] = []
+		for row in policy_rows:
+			rows.append(
+				{
+					"record_type": row["record_type"],
+					"timestamp": row["created_at"].isoformat(),
+					"subject": "",
+					"action": row["action"],
+					"detail": row["detail"],
+					"model": row["model"],
+					"provider": row["provider"],
+					"status": str(row["status_code"]),
+					"budget_monthly_usd": "",
+					"actual_cost_period_usd": "",
+				}
+			)
+		for row in user_rows:
+			last_login = row["last_login_at"].isoformat() if row["last_login_at"] else ""
+			rows.append(
+				{
+					"record_type": row["record_type"],
+					"timestamp": row["created_at"].isoformat(),
+					"subject": row["email"],
+					"action": "role_assigned",
+					"detail": f"role={row['role']};active={row['is_active']};last_login={last_login}",
+					"model": "",
+					"provider": "",
+					"status": "",
+					"budget_monthly_usd": "",
+					"actual_cost_period_usd": "",
+				}
+			)
+		for row in key_rotation_rows:
+			rows.append(
+				{
+					"record_type": row["record_type"],
+					"timestamp": row["created_at"].isoformat(),
+					"subject": row["actor_email"],
+					"action": row["action"],
+					"detail": f"resource_id={row['resource_id']}",
+					"model": "",
+					"provider": "",
+					"status": "",
+					"budget_monthly_usd": "",
+					"actual_cost_period_usd": "",
+				}
+			)
+		for row in budget_rows:
+			rows.append(
+				{
+					"record_type": row["record_type"],
+					"timestamp": row["created_at"].isoformat(),
+					"subject": "",
+					"action": "budget_snapshot",
+					"detail": f"period_days={period_days}",
+					"model": "",
+					"provider": "",
+					"status": "",
+					"budget_monthly_usd": str(row["budget_monthly_usd"] or 0),
+					"actual_cost_period_usd": str(row["actual_cost_period_usd"] or 0),
+				}
+			)
+		return rows
 
 
 	async def reconcile_with_provider(

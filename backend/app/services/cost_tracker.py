@@ -53,9 +53,9 @@ class CostTrackerService:
 		if current_spend < trigger:
 			return False
 		alert_key = f"alert:budget:{org_id}:{_today_iso()}"
-		if await redis.exists(alert_key):
+		was_set = await redis.set(alert_key, "1", ex=86400, nx=True)
+		if not was_set:
 			return False
-		await redis.setex(alert_key, 86400, "1")
 
 		# Webhook — budget alert
 		import asyncio
@@ -82,40 +82,26 @@ class CostTrackerService:
 		Fire-and-forget — exceptions are swallowed.
 		"""
 		try:
-			from datetime import datetime, timezone, date
+			from datetime import datetime, timezone
 			from app.config import settings
 
-			today_str = date.today().isoformat()
-			today_midnight = int(
-				datetime.combine(date.today(), datetime.min.time())
-				.replace(tzinfo=timezone.utc)
-				.timestamp()
-			)
+			today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 			# Get today's spend from existing Redis key
 			today_key = f"rl:usd:{org_id}:{today_str}"
 			today_raw = await redis.get(today_key)
 			today_spend = float(today_raw or 0)
 
-			# Update baseline sorted set (org)
+			# Update baseline: one entry per day, spend stored as score
 			baseline_key = f"cost:baseline:{org_id}"
-			member = f"{today_str}:{today_spend}"
-			await redis.zadd(baseline_key, {member: today_midnight})
+			await redis.zadd(baseline_key, {today_str: today_spend})
 			await redis.expire(baseline_key, 86400 * 10)  # keep 10 days
 
-			# Get last 7 days
-			cutoff = today_midnight - (7 * 86400)
-			entries = await redis.zrangebyscore(baseline_key, cutoff, "+inf")
+			# Get all baseline entries (member=date, score=spend)
+			entries = await redis.zrange(baseline_key, 0, -1, withscores=True)
 
 			if len(entries) >= settings.COST_ANOMALY_MIN_BASELINE_DAYS:
-				values = []
-				for entry in entries:
-					try:
-						raw = entry.decode() if isinstance(entry, bytes) else entry
-						val = float(raw.split(":")[-1] if ":" in raw else raw)
-						values.append(val)
-					except (ValueError, AttributeError):
-						pass
+				values = [score for _member, score in entries]
 
 				if values:
 					avg = sum(values) / len(values)
@@ -145,21 +131,13 @@ class CostTrackerService:
 				user_today_spend = float(user_raw or 0)
 
 				user_baseline_key = f"cost:baseline:user:{user_id}"
-				user_member = f"{today_str}:{user_today_spend}"
-				await redis.zadd(user_baseline_key, {user_member: today_midnight})
+				await redis.zadd(user_baseline_key, {today_str: user_today_spend})
 				await redis.expire(user_baseline_key, 86400 * 10)
 
-				user_entries = await redis.zrangebyscore(user_baseline_key, cutoff, "+inf")
+				user_entries = await redis.zrange(user_baseline_key, 0, -1, withscores=True)
 
 				if len(user_entries) >= settings.COST_ANOMALY_MIN_BASELINE_DAYS:
-					user_values = []
-					for entry in user_entries:
-						try:
-							raw = entry.decode() if isinstance(entry, bytes) else entry
-							val = float(raw.split(":")[-1] if ":" in raw else raw)
-							user_values.append(val)
-						except (ValueError, AttributeError):
-							pass
+					user_values = [score for _member, score in user_entries]
 
 					if user_values:
 						user_avg = sum(user_values) / len(user_values)
@@ -189,12 +167,14 @@ class CostTrackerService:
 async def _fire_budget_webhook(org_id: str, spend: float, budget: float) -> None:
 	"""Fire-and-forget webhook for budget threshold alert. Swallows all exceptions."""
 	try:
+		from uuid import UUID as _UUID
+
 		from app.database import AsyncSessionLocal
 		from app.models.organization import Organization as _Org
 		from app.services import webhook_service
 
 		async with AsyncSessionLocal() as _db:
-			_org = await _db.get(_Org, org_id)
+			_org = await _db.get(_Org, _UUID(org_id))
 			if _org is not None:
 				await webhook_service.dispatch_event(
 					db=_db,

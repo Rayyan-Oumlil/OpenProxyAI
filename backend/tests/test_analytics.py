@@ -23,7 +23,7 @@ class FakeDB:
 
 def test_analytics_overview_route_success(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -72,9 +72,52 @@ def test_analytics_overview_route_success(client, monkeypatch):
 	assert data["by_model"][0]["provider"] == "openai"
 
 
+def test_analytics_overview_includes_budget_forecast_fields(client, monkeypatch):
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_db():
+		yield FakeDB()
+
+	async def fake_get_overview(**kwargs):  # noqa: ANN003
+		return AnalyticsResponse(
+			overview=UsageOverview(
+				period_days=30,
+				total_requests=10,
+				successful_requests=8,
+				failed_requests=2,
+				policy_blocked_requests=1,
+				policy_flagged_requests=2,
+				total_tokens=100,
+				total_cost_usd=1.25,
+				avg_latency_ms=120.0,
+				avg_ttft_ms=45.0,
+				projected_month_end_cost_usd=8.75,
+				forecast_basis_days=5,
+			),
+			by_model=[],
+			by_user=[],
+			daily_trend=[],
+			generated_at=datetime.now(UTC),
+		)
+
+	monkeypatch.setattr(analytics_service_module.analytics_service, "get_overview", fake_get_overview)
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_db] = fake_get_db
+
+	response = client.get("/api/v1/analytics/overview?period_days=30", headers={"Authorization": "Bearer test"})
+	assert response.status_code == 200
+	data = response.json()
+	assert data["overview"]["projected_month_end_cost_usd"] == 8.75
+	assert data["overview"]["forecast_basis_days"] == 5
+
+
 def test_analytics_logs_route_success(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -134,7 +177,7 @@ def test_analytics_overview_requires_auth(client):
 
 def test_analytics_policy_route_success(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -172,7 +215,7 @@ def test_analytics_policy_route_success(client, monkeypatch):
 
 def test_analytics_policy_export_json(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -217,7 +260,7 @@ def test_analytics_policy_export_json(client, monkeypatch):
 
 def test_analytics_policy_export_csv(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -255,6 +298,53 @@ def test_analytics_policy_export_csv(client, monkeypatch):
 	assert "policy-events.csv" in response.headers["content-disposition"]
 	assert "policy_action" in response.text
 	assert "log_only" in response.text
+
+
+def test_analytics_compliance_export_csv(client, monkeypatch):
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_db():
+		yield FakeDB()
+
+	async def fake_get_compliance_report_rows(**kwargs):  # noqa: ANN003
+		assert kwargs["org_id"] == org_id
+		assert kwargs["period_days"] == 30
+		return [
+			{
+				"record_type": "policy_violation",
+				"timestamp": datetime.now(UTC).isoformat(),
+				"subject": "",
+				"action": "block",
+				"detail": "blocked_keyword",
+				"model": "openai/gpt-4o-mini",
+				"provider": "openai",
+				"status": "403",
+				"budget_monthly_usd": "",
+				"actual_cost_period_usd": "",
+			}
+		]
+
+	monkeypatch.setattr(
+		analytics_service_module.analytics_service,
+		"get_compliance_report_rows",
+		fake_get_compliance_report_rows,
+	)
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_db] = fake_get_db
+
+	response = client.get(
+		"/api/v1/analytics/compliance/export?period_days=30",
+		headers={"Authorization": "Bearer test"},
+	)
+	assert response.status_code == 200
+	assert response.headers["content-type"].startswith("text/csv")
+	assert "compliance-report.csv" in response.headers["content-disposition"]
+	assert "record_type" in response.text
+	assert "policy_violation" in response.text
 
 
 def test_analytics_logs_requires_auth(client):
@@ -296,7 +386,7 @@ def test_resolve_window_period_days_only():
 def test_policy_export_invalid_date_range_422(client, monkeypatch):
 	"""start_date > end_date must return 422."""
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -318,7 +408,7 @@ def test_policy_export_invalid_date_range_422(client, monkeypatch):
 def test_policy_export_empty_events_json(client, monkeypatch):
 	"""Empty event list returns {items: [], total: 0}."""
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -347,7 +437,7 @@ def test_policy_export_empty_events_json(client, monkeypatch):
 def test_policy_export_multi_rule_csv(client, monkeypatch):
 	"""Multiple triggered_rules are joined with semicolons in CSV output."""
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -386,7 +476,7 @@ def test_policy_export_multi_rule_csv(client, monkeypatch):
 def test_policy_export_empty_events_csv(client, monkeypatch):
 	"""Empty event list returns CSV with only a header row."""
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -425,7 +515,7 @@ def test_reconcile_route_requires_auth(client):
 
 def test_reconcile_route_empty_records_422(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -447,7 +537,7 @@ def test_reconcile_route_empty_records_422(client, monkeypatch):
 
 def test_reconcile_route_returns_report(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -729,7 +819,7 @@ async def test_reconcile_service_multi_day_summary():
 def test_log_detail_returns_full_record(client, monkeypatch):
 	"""GET /analytics/logs/{id} returns RequestLogDetail with metadata."""
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 	log_id = uuid4()
 
 	async def fake_current_user_dep():
@@ -785,7 +875,7 @@ def test_log_detail_returns_full_record(client, monkeypatch):
 
 def test_log_detail_returns_404_when_not_found(client, monkeypatch):
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -820,7 +910,7 @@ def test_log_detail_requires_auth(client):
 def test_overview_response_includes_latency_percentiles(client, monkeypatch):
 	"""Overview response contains p50/p95/p99 latency fields when data exists."""
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user
@@ -867,7 +957,7 @@ def test_overview_response_includes_latency_percentiles(client, monkeypatch):
 def test_overview_response_latency_percentiles_null_when_no_data(client, monkeypatch):
 	"""Overview response returns null for percentile fields when there are no requests."""
 	org_id = uuid4()
-	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True)
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
 
 	async def fake_current_user_dep():
 		return user

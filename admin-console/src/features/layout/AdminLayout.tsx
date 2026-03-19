@@ -16,6 +16,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
@@ -45,6 +46,7 @@ const NAV: NavEntry[] = [
       { label: "API Keys", to: "/api-keys", icon: Key },
       { label: "Provider Keys", to: "/provider-keys", icon: Plug2 },
       { label: "Policy Config", to: "/policy", icon: Sliders },
+      { label: "Billing", to: "/billing", icon: CreditCard },
     ],
   },
   {

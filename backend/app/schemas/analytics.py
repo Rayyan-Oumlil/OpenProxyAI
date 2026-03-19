@@ -20,6 +20,8 @@ class UsageOverview(BaseModel):
 	p50_latency_ms: int | None = None
 	p95_latency_ms: int | None = None
 	p99_latency_ms: int | None = None
+	projected_month_end_cost_usd: float | None = None
+	forecast_basis_days: int | None = None
 
 
 class CostByModel(BaseModel):
