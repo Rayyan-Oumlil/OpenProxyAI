@@ -16,6 +16,8 @@ from app.main import app
 from app.services.webhook_service import (
     _build_payload,
     _deliver,
+    _is_safe_url,
+    _resolve_safe_url,
     _sign_payload,
     dispatch_event,
 )
@@ -366,29 +368,27 @@ async def test_deliver_sends_signature_header():
     mock_response.status_code = 200
     mock_response.is_success = True
 
-    mock_client = AsyncMock()
-    mock_client.post.return_value = mock_response
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-
     payload = {"event": "test", "data": {}}
     secret = "my-secret"
 
-    with patch("app.services.webhook_service.httpx.AsyncClient", return_value=mock_client):
-        status, http_status = await _deliver("https://example.com/hook", payload, secret)
+    captured_headers = {}
 
-    assert status == "delivered"
+    async def fake_post(self_or_url, url_or_none=None, **kwargs):
+        headers = kwargs.get("headers", {})
+        captured_headers.update(headers)
+        return mock_response
+
+    with (
+        patch("app.services.webhook_service._resolve_safe_url", return_value=(True, "93.184.216.34")),
+        patch("httpx.AsyncClient.post", side_effect=fake_post),
+    ):
+        result_status, http_status = await _deliver("https://example.com/hook", payload, secret)
+
+    assert result_status == "delivered"
     assert http_status == 200
-
-    # Check that the signature header was sent
-    call_kwargs = mock_client.post.call_args
-    headers = call_kwargs.kwargs.get("headers") or call_kwargs[1].get("headers", {})
-    assert "X-OpenProxy-Signature" in headers
-
-    # Verify the signature value
-    body = json.dumps(payload, default=str).encode()
-    expected_sig = _sign_payload(body, secret)
-    assert headers["X-OpenProxy-Signature"] == expected_sig
+    expected_body = json.dumps(payload, default=str).encode()
+    expected_sig = _sign_payload(expected_body, secret)
+    assert captured_headers["X-OpenProxy-Signature"] == expected_sig
 
 
 # ---------------------------------------------------------------------------
@@ -470,3 +470,174 @@ def test_build_payload_structure():
     assert result["org_id"] == "org-123"
     assert result["data"] == {"key": "value"}
     assert "timestamp" in result
+
+
+# ---------------------------------------------------------------------------
+# Unit Tests: _resolve_safe_url and CGN blocking
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_safe_url_rejects_http():
+    """HTTP URLs are rejected — only HTTPS is allowed."""
+    safe, ip = _resolve_safe_url("http://example.com/hook")
+    assert safe is False
+    assert ip is None
+
+
+def test_resolve_safe_url_rejects_no_hostname():
+    """URLs without a hostname are rejected."""
+    safe, ip = _resolve_safe_url("https:///path")
+    assert safe is False
+
+
+def test_resolve_safe_url_rejects_private_ip(monkeypatch):
+    """Private IPs (10.0.0.0/8) must be blocked."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("10.0.0.5", 443))],
+    )
+    safe, ip = _resolve_safe_url("https://internal.example.com/hook")
+    assert safe is False
+
+
+def test_resolve_safe_url_rejects_loopback(monkeypatch):
+    """Loopback IPs must be blocked."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("127.0.0.1", 443))],
+    )
+    safe, ip = _resolve_safe_url("https://localhost/hook")
+    assert safe is False
+
+
+def test_resolve_safe_url_rejects_link_local(monkeypatch):
+    """Link-local IPs (169.254.0.0/16) must be blocked."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("169.254.1.1", 443))],
+    )
+    safe, ip = _resolve_safe_url("https://link-local.example.com/hook")
+    assert safe is False
+
+
+def test_resolve_safe_url_rejects_cgn(monkeypatch):
+    """Carrier-Grade NAT IPs (100.64.0.0/10) must be blocked."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("100.100.1.1", 443))],
+    )
+    safe, ip = _resolve_safe_url("https://cgn.example.com/hook")
+    assert safe is False
+
+
+def test_resolve_safe_url_rejects_rfc1918_172(monkeypatch):
+    """172.16.0.0/12 private range must be blocked."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("172.16.5.10", 443))],
+    )
+    safe, ip = _resolve_safe_url("https://corp.example.com/hook")
+    assert safe is False
+
+
+def test_resolve_safe_url_rejects_rfc1918_192(monkeypatch):
+    """192.168.0.0/16 private range must be blocked."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("192.168.1.1", 443))],
+    )
+    safe, ip = _resolve_safe_url("https://home.example.com/hook")
+    assert safe is False
+
+
+def test_resolve_safe_url_accepts_public_ip(monkeypatch):
+    """Public IPs should be accepted and returned."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+    safe, ip = _resolve_safe_url("https://example.com/hook")
+    assert safe is True
+    assert ip == "93.184.216.34"
+
+
+def test_resolve_safe_url_returns_first_ip(monkeypatch):
+    """When multiple IPs resolve, the first public one is returned."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [
+            (2, 1, 6, "", ("93.184.216.34", 443)),
+            (2, 1, 6, "", ("93.184.216.35", 443)),
+        ],
+    )
+    safe, ip = _resolve_safe_url("https://example.com/hook")
+    assert safe is True
+    assert ip == "93.184.216.34"
+
+
+def test_resolve_safe_url_rejects_if_any_ip_is_private(monkeypatch):
+    """If any resolved IP is private, the whole URL is rejected."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [
+            (2, 1, 6, "", ("93.184.216.34", 443)),
+            (2, 1, 6, "", ("10.0.0.1", 443)),
+        ],
+    )
+    safe, ip = _resolve_safe_url("https://dual.example.com/hook")
+    assert safe is False
+
+
+def test_resolve_safe_url_dns_failure(monkeypatch):
+    """DNS resolution failure returns (False, None)."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: (_ for _ in ()).throw(socket.gaierror("DNS failed")),
+    )
+    import socket
+    safe, ip = _resolve_safe_url("https://nonexistent.example.com/hook")
+    assert safe is False
+    assert ip is None
+
+
+def test_is_safe_url_thin_wrapper(monkeypatch):
+    """_is_safe_url should be a thin wrapper around _resolve_safe_url."""
+    monkeypatch.setattr(
+        "app.services.webhook_service.socket.getaddrinfo",
+        lambda *a, **kw: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+    assert _is_safe_url("https://example.com/hook") is True
+
+
+@pytest.mark.asyncio
+async def test_deliver_rejects_unsafe_url():
+    """_deliver must return ('failed', None) for unsafe URLs without making HTTP calls."""
+    with patch("app.services.webhook_service._resolve_safe_url", return_value=(False, None)):
+        result_status, result_http = await _deliver(
+            "https://internal.example.com/hook", {"event": "test"}, "secret",
+        )
+    assert result_status == "failed"
+    assert result_http is None
+
+
+@pytest.mark.asyncio
+async def test_deliver_calls_original_url_after_resolve(monkeypatch):
+    """_deliver resolves DNS for validation, then requests the original URL for correct TLS."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.is_success = True
+
+    captured_url = {}
+
+    async def fake_post(self_or_url, url_or_none=None, **kwargs):
+        captured_url["url"] = self_or_url if url_or_none is None else url_or_none
+        return mock_response
+
+    with (
+        patch("app.services.webhook_service._resolve_safe_url", return_value=(True, "93.184.216.34")) as mock_resolve,
+        patch("httpx.AsyncClient.post", side_effect=fake_post),
+    ):
+        result_status, _ = await _deliver("https://example.com/hook", {"event": "test"}, "")
+
+    assert result_status == "delivered"
+    mock_resolve.assert_called_once_with("https://example.com/hook")

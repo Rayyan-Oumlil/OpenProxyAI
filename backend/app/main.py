@@ -22,6 +22,7 @@ from app.routes.admin_audit import router as admin_audit_router
 from app.routes.auth import router as auth_router
 from app.routes.api_keys import router as api_keys_router
 from app.routes.analytics import router as analytics_router
+from app.routes.billing import router as billing_router
 from app.routes.health import router as health_router
 from app.routes.invites import router as invites_router
 from app.routes.organizations import router as organizations_router
@@ -30,6 +31,8 @@ from app.routes.proxy import router as proxy_router
 from app.routes.sso import router as sso_router
 from app.routes.metrics import router as metrics_router
 from app.routes.users import router as users_router
+from app.models.organization import Organization
+from app.services.webhook_service import _deliver as _webhook_deliver
 from app.utils.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -48,6 +51,7 @@ TAGS_METADATA = [
     {"name": "SSO", "description": "OIDC/SSO connection management"},
     {"name": "Metrics", "description": "Prometheus metrics endpoint"},
     {"name": "Admin Audit", "description": "Admin action audit log (SOC 2)"},
+    {"name": "Billing", "description": "Stripe billing management"},
 ]
 
 
@@ -99,9 +103,10 @@ async def archive_old_logs() -> None:
 
 
 async def retry_failed_webhooks() -> None:
-    """Retry failed webhook deliveries with exponential backoff. Sidecar — never raises."""
-    import httpx
+    """Retry failed webhook deliveries with exponential backoff.
 
+    Uses _deliver() which handles SSRF validation, HMAC signing, and retries.
+    """
     try:
         cutoff = datetime.now(UTC) - timedelta(minutes=5)
         async with AsyncSessionLocal() as db:
@@ -117,28 +122,24 @@ async def retry_failed_webhooks() -> None:
             deliveries = result.all()
 
             for delivery in deliveries:
-                # Exponential backoff: attempt_count=0→5min, 1→25min, 2→125min
                 backoff_seconds = (5 ** delivery.attempt_count) * 60
                 elapsed = (datetime.now(UTC) - delivery.last_attempted_at.replace(tzinfo=UTC)).total_seconds()
                 if elapsed < backoff_seconds:
                     continue
-                try:
-                    async with httpx.AsyncClient(timeout=10) as http_client:
-                        resp = await http_client.post(
-                            delivery.url,
-                            json=delivery.payload,
-                            timeout=10,
-                        )
-                    if resp.status_code < 300:
-                        delivery.status = "delivered"
-                        delivery.http_status = resp.status_code
-                    else:
-                        delivery.attempt_count += 1
-                        delivery.last_attempted_at = datetime.now(UTC)
-                        if delivery.attempt_count >= 3:
-                            delivery.status = "exhausted"
-                except Exception as exc:
-                    logger.warning("webhook retry failed url=%s: %s", delivery.url, exc)
+
+                org = await db.get(Organization, delivery.org_id)
+                secret = ""
+                if org is not None:
+                    secret = ((org.settings or {}).get("webhooks", {})).get("secret", "")
+
+                new_status, http_status = await _webhook_deliver(
+                    delivery.url, delivery.payload, secret,
+                )
+
+                if new_status == "delivered":
+                    delivery.status = "delivered"
+                    delivery.http_status = http_status
+                else:
                     delivery.attempt_count += 1
                     delivery.last_attempted_at = datetime.now(UTC)
                     if delivery.attempt_count >= 3:
@@ -154,6 +155,16 @@ async def retry_failed_webhooks() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup: connect DB + Redis → app.state.  Shutdown: dispose."""
     setup_logging()
+
+    _DEFAULT_SECRET = "dev-secret-key-change-in-production"
+    if settings.APP_ENV != "development" and settings.SECRET_KEY == _DEFAULT_SECRET:
+        raise RuntimeError(
+            "SECRET_KEY must be changed from its default value in non-development environments. "
+            "Set the SECRET_KEY environment variable to a strong random string."
+        )
+    if settings.STRIPE_SECRET_KEY and not settings.STRIPE_WEBHOOK_SECRET:
+        logger.error("STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set")
+
     logger.info(
         "Starting %s env=%s debug=%s",
         settings.APP_NAME,
@@ -260,6 +271,7 @@ app.include_router(analytics_router)
 app.include_router(invites_router)
 app.include_router(sso_router)
 app.include_router(admin_audit_router)
+app.include_router(billing_router)
 
 if settings.PROMETHEUS_ENABLED:
     app.include_router(metrics_router)

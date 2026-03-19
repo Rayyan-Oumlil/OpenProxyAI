@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # ── App ──────────────────────────────────────────────────────────
     APP_NAME: str = "OpenProxyAI"
     APP_ENV: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
     SECRET_KEY: str = "dev-secret-key-change-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1_440
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
@@ -85,6 +85,15 @@ class Settings(BaseSettings):
     LANGFUSE_SECRET_KEY: str = ""
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
+
+    # ── Stripe Billing ────────────────────────────────────────────────
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_STARTER_PRICE_ID: str = ""
+    STRIPE_GROWTH_PRICE_ID: str = ""
+    STRIPE_SUCCESS_URL: str = "http://localhost:5173/billing?success=1"
+    STRIPE_CANCEL_URL: str = "http://localhost:5173/billing?canceled=1"
 
     # ── CORS ─────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = [

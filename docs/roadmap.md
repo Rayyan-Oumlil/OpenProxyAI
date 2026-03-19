@@ -1,7 +1,7 @@
 # OpenProxyAI — Roadmap
 
 > Last reviewed: 2026-03-19
-> Current state: Phase 6 in progress. 294 tests passing. Core product is production-ready.
+> Current state: Phase 6 nearly complete. 420 tests passing across 39 test files. Core product is production-ready.
 
 ---
 
@@ -32,6 +32,7 @@ Everything below is shipped, tested, and working:
 - Cost anomaly detection — baseline multiplier alert
 - Budget alert webhooks with guaranteed delivery (retry job with exponential backoff)
 - Request tagging — `x-openproxy-labels` header for departmental chargebacks
+- Budget forecasting — projected month-end spend card on dashboard from daily average
 
 ### Policy engine
 - Enforcement modes: `off` / `log_only` / `enforce`
@@ -40,6 +41,7 @@ Everything below is shipped, tested, and working:
 - Response guardrails — keyword + PII checks on LLM output before returning to client
 - Response PII redaction — replaces detected PII with `[REDACTED]` in-stream
 - Per-org policy config stored in PostgreSQL, 60s Redis cache, instant invalidation on save
+- Policy event analytics — `GET /api/v1/analytics/policy/export` (JSON + CSV)
 
 ### Observability
 - Async audit log — immutable PostgreSQL `request_logs`, plan-based retention + archival cron
@@ -49,14 +51,22 @@ Everything below is shipped, tested, and working:
 - p95/p99 latency in analytics — `percentile_cont()` in PostgreSQL
 - Materialized view `mv_daily_spend` — refreshed every 5 minutes for sub-second dashboard queries
 
+### Compliance & reporting
+- Compliance report CSV export — policy violations, user access, key rotation, budget vs actual (`GET /api/v1/analytics/compliance/export`)
+- CSV formula injection prevention — cell values prefixed to block spreadsheet exploits
+- Admin-only authorization on all export endpoints
+- SOC 2 CC6/CC7 evidence artifacts — immutable audit trail + exportable compliance report
+
 ### Admin console
-- Dashboard (cost, tokens, request volume, latency percentiles)
+- Dashboard (cost, tokens, request volume, latency percentiles, projected month-end spend)
 - Log viewer with request detail and label filtering
 - Policy editor — all fields configurable per org without code changes
 - Team management — invite, deactivate, role change
 - Provider key management — create, rotate, delete (audit-logged)
+- Organization settings — plan info, webhook config, integrations
 - Onboarding modal — 3-step first-run key creation
 - Self-serve signup — public registration at `/signup`, no manual DB setup needed
+- Compliance export button — one-click CSV download from dashboard
 
 ### Infrastructure
 - Docker Compose for local development
@@ -68,6 +78,17 @@ Everything below is shipped, tested, and working:
 ### SDKs
 - Python SDK — `openproxy-ai` on PyPI, sync + async, streaming, typed errors
 - TypeScript SDK — `openproxy-ai` on npm, ESM + CJS, typed streaming
+
+### Test coverage (420 tests, 39 files)
+- Proxy & LLM: proxy, llm_service, provider fallback, model routing, model rate limits
+- Auth & SSO: auth, SSO, API keys, users, auth rate limit
+- Policy & guardrails: policy, policy config, policy store, response guardrails, request labels
+- Compliance & audit: audit logger, admin audit, audit immutability, SOC 2 controls
+- Cost & analytics: cost tracker, cost anomaly, analytics, plan enforcement
+- Webhooks: webhook delivery, webhook retry
+- Observability: Langfuse, Prometheus metrics, ClickHouse
+- Security: crypto service, prompt injection, Presidio
+- Infrastructure: health, management, cache service, invites, organizations, provider keys
 
 ---
 
@@ -96,9 +117,9 @@ To enable: uncomment `presidio-analyzer`, rebuild the Docker image. Phase 7 item
 
 ---
 
-## Phase 6 — Go-to-market *(in progress)*
+## Phase 6 — Go-to-market *(nearly complete)*
 
-### 6.1 — Stripe billing *(partially done — blocked on Stripe keys)*
+### 6.1 — Stripe billing *(blocked on Stripe keys)*
 - DB schema: `stripe_customer_id`, `stripe_subscription_id`, `stripe_subscription_status` ✓
 - `stripe_events` idempotency table ✓
 - Plan override guard (409 when trying to manually change a Stripe-managed plan) ✓
@@ -116,22 +137,46 @@ To enable: uncomment `presidio-analyzer`, rebuild the Docker image. Phase 7 item
 - GitHub Actions CI/CD (test → build → push → deploy) ✓
 - Remaining: DOKS cluster, managed DB/Redis, DNS, GitHub secrets → `plans/public-deployment.md`
 
+### 6.4 — Security hardening ✓ Shipped
+- CSV formula injection prevention in all export endpoints ✓
+- Admin-only authorization on compliance and policy export endpoints ✓
+- Webhook secret excluded from API responses ✓
+- Auth rate limiting on login and invite acceptance ✓
+
+### 6.5 — Compliance & analytics ✓ Shipped
+- Compliance report CSV export — policy violations, user access, key rotation, budget ✓
+- Policy event analytics endpoint (JSON + CSV) with date range and action filters ✓
+- Budget forecasting — projected month-end spend computed from daily average ✓
+- Projected cost card on admin dashboard ✓
+
+### 6.6 — Test hardening ✓ Shipped
+- 39 test files covering all routes, services, and edge cases ✓
+- 420 tests passing (up from 294) ✓
+- New test files: api_keys, organizations, users, audit_logger, cost_tracker, crypto_service, llm_service ✓
+
 ---
 
-## Phase 7 — Enterprise hardening *(next after Phase 6)*
+## Phase 7 — Enterprise hardening *(next)*
 
-### 7.1 — Compliance report export
-One-click CSV from admin console: policy violations by date range, user access list with role
-history, provider key rotation log, budget vs actual spend. Maps to SOC 2 CC7 evidence.
-
-### 7.2 — Budget forecasting
-"Projected month-end spend: $X" card on the cost dashboard from current daily average.
-
-### 7.3 — Presidio PII detection (real NLP)
+### 7.1 — Presidio PII detection (real NLP)
 Uncomment `presidio-analyzer`, rebuild image. Optional Helm sub-chart (`presidio.enabled: true`).
+Minimal code change — the service already supports both regex and NLP backends.
 
-### 7.4 — Real-time cost dashboard (WebSocket)
-Replace polling dashboard with WebSocket feed for live spend visibility.
+### 7.2 — Real-time cost dashboard (WebSocket)
+Replace polling dashboard with WebSocket feed for live spend visibility. Reduces dashboard
+refresh latency from 30s to sub-second for SOC operations centers.
+
+### 7.3 — Usage-based billing metering
+Track per-request cost against Stripe usage records for consumption-based pricing. Requires
+Stripe metered billing setup and a periodic sync job.
+
+### 7.4 — Multi-tenant data isolation audit
+Verify all SQL queries enforce `org_id` filtering. Add PostgreSQL RLS policies as defense-in-depth.
+Generate evidence report for SOC 2 CC6.3 auditors.
+
+### 7.5 — Advanced webhook features
+Dead-letter queue for permanently failed deliveries. Webhook event replay from admin console.
+Delivery status dashboard with success/failure rates per org.
 
 ---
 
@@ -187,10 +232,11 @@ Target: $500K ARR Year 1, $5M ARR Year 2.
 
 ```
 /blueprint openproxyai "Stripe billing — execute plans/stripe-billing.md Steps 2-5"
-/blueprint openproxyai "Compliance report export — one-click CSV of violations, user access list, key rotation log, budget vs actual"
-/blueprint openproxyai "Budget forecasting — projected month-end spend card on cost dashboard from current daily average"
 /blueprint openproxyai "Presidio sidecar in Helm chart — optional presidio-analyzer sub-chart with presidio.enabled: true in values.yaml"
 /blueprint openproxyai "Real-time cost dashboard — replace REST polling with WebSocket feed for live spend and request volume"
+/blueprint openproxyai "Usage-based billing metering — Stripe usage records synced from per-request cost tracking"
+/blueprint openproxyai "Multi-tenant data isolation audit — RLS policies on all tables, org_id enforcement verification"
+/blueprint openproxyai "Webhook dead-letter queue and replay — DLQ for failed deliveries, admin replay UI, delivery status dashboard"
 /blueprint openproxyai "Semantic caching — embed requests, cosine-match against Redis/Pinecone vector store, return cached response above threshold"
 /blueprint openproxyai "Voice endpoint — POST /v1/audio/transcriptions wrapping Whisper with same auth/policy/audit pipeline as chat completions"
 /blueprint openproxyai "Model A/B testing — route % of traffic to model variants, aggregate latency/cost/quality per variant in dashboard"

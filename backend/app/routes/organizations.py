@@ -1,17 +1,26 @@
 """Organization settings endpoints."""
 
+import math
+import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import CurrentUser, get_db, get_redis
 from app.models.organization import Organization
+from app.models.webhook_delivery import WebhookDelivery
+from app.schemas.logs import Page
 from app.schemas.organization import OrganizationResponse, OrganizationUpdateRequest
 from app.schemas.policy import PolicyConfigRequest, PolicyConfigResponse
-from app.schemas.webhook import WebhookConfigRequest, WebhookConfigResponse
+from app.schemas.webhook import (
+    WebhookConfigRequest,
+    WebhookConfigResponse,
+    WebhookDeliveryDetailResponse,
+    WebhookDeliveryResponse,
+)
 from app.services.admin_audit_service import (
     get_ip,
     log_admin_action,
@@ -20,6 +29,7 @@ from app.services.admin_audit_service import (
 )
 from app.services.plan_service import assert_plan_allows
 from app.services.policy_service import PolicyConfig, policy_store
+from app.services.webhook_service import _deliver
 
 router = APIRouter(prefix="/api/v1/organizations", tags=["Organizations"])
 
@@ -32,7 +42,18 @@ async def get_current_organization(
 	model = await db.scalar(select(Organization).where(Organization.id == current_user.org_id))
 	if model is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
-	return OrganizationResponse.model_validate(model)
+	resp = OrganizationResponse.model_validate(model)
+	resp.settings = _sanitize_settings_for_response(resp.settings)
+	return resp
+
+
+def _sanitize_settings_for_response(settings: dict) -> dict:
+	"""Strip secrets from the settings dict before sending to the client."""
+	safe = dict(settings)
+	webhooks = safe.get("webhooks")
+	if isinstance(webhooks, dict):
+		safe["webhooks"] = {k: v for k, v in webhooks.items() if k != "secret"}
+	return safe
 
 
 @router.patch("/current", response_model=OrganizationResponse)
@@ -55,11 +76,18 @@ async def update_current_organization(
 			status_code=status.HTTP_400_BAD_REQUEST,
 			detail="Organization deactivation is not allowed from this endpoint",
 		)
-	if "plan" in updates and model.stripe_subscription_id is not None:
-		raise HTTPException(
-			status_code=status.HTTP_409_CONFLICT,
-			detail="Plan is managed by Stripe. Use the billing portal to change plans.",
-		)
+	if "plan" in updates:
+		if model.stripe_subscription_id is not None:
+			raise HTTPException(
+				status_code=status.HTTP_409_CONFLICT,
+				detail="Plan is managed by Stripe. Use the billing portal to change plans.",
+			)
+		allowed_manual_plans = {"free", "starter"}
+		if updates["plan"] not in allowed_manual_plans:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail=f"Plan '{updates['plan']}' requires a Stripe subscription.",
+			)
 
 	before = serialize_org(model)
 
@@ -68,7 +96,15 @@ async def update_current_organization(
 	for field_name, field_value in updates.items():
 		setattr(model, field_name, field_value)
 
+	_RESERVED_SETTINGS_KEYS = {"webhooks", "policy"}
+
 	if settings_patch is not None:
+		for reserved_key in _RESERVED_SETTINGS_KEYS:
+			if reserved_key in settings_patch:
+				raise HTTPException(
+					status_code=status.HTTP_400_BAD_REQUEST,
+					detail=f"Cannot set '{reserved_key}' via this endpoint. Use the dedicated /{reserved_key} endpoint.",
+				)
 		merged_settings = dict(model.settings or {})
 		merged_settings.update(settings_patch)
 		model.settings = merged_settings
@@ -248,3 +284,89 @@ async def update_webhook_config(
 		events=payload.events,
 		enabled=payload.enabled,
 	)
+
+
+@router.get("/current/webhooks/deliveries", response_model=Page[WebhookDeliveryResponse])
+async def list_webhook_deliveries(
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+	page: int = Query(1, ge=1),
+	page_size: int = Query(20, ge=1, le=100),
+	delivery_status: str | None = Query(None, alias="status"),
+) -> Page[WebhookDeliveryResponse]:
+	"""Paginated list of webhook delivery attempts for the org."""
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+
+	base = select(WebhookDelivery).where(WebhookDelivery.org_id == current_user.org_id)
+	count_q = select(func.count()).select_from(WebhookDelivery).where(WebhookDelivery.org_id == current_user.org_id)
+
+	if delivery_status is not None:
+		base = base.where(WebhookDelivery.status == delivery_status)
+		count_q = count_q.where(WebhookDelivery.status == delivery_status)
+
+	total = (await db.execute(count_q)).scalar_one()
+	rows = (
+		await db.scalars(
+			base.order_by(WebhookDelivery.created_at.desc())
+			.offset((page - 1) * page_size)
+			.limit(page_size)
+		)
+	).all()
+
+	return Page[WebhookDeliveryResponse](
+		items=[WebhookDeliveryResponse.model_validate(r) for r in rows],
+		total=total,
+		page=page,
+		page_size=page_size,
+		total_pages=max(1, math.ceil(total / page_size)),
+	)
+
+
+@router.post(
+	"/current/webhooks/deliveries/{delivery_id}/retry",
+	response_model=WebhookDeliveryDetailResponse,
+)
+async def retry_webhook_delivery(
+	delivery_id: uuid.UUID,
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+) -> WebhookDeliveryDetailResponse:
+	"""Manually retry a failed webhook delivery."""
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+
+	delivery = await db.scalar(
+		select(WebhookDelivery).where(
+			WebhookDelivery.id == delivery_id,
+			WebhookDelivery.org_id == current_user.org_id,
+		)
+	)
+	if delivery is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delivery not found")
+
+	if delivery.status == "delivered":
+		raise HTTPException(
+			status_code=status.HTTP_409_CONFLICT,
+			detail="Delivery already succeeded — nothing to retry",
+		)
+
+	org = await db.get(Organization, current_user.org_id)
+	if org is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+	secret = ((org.settings or {}).get("webhooks", {})).get("secret", "")
+
+	new_status, http_status = await _deliver(delivery.url, delivery.payload, secret)
+	if new_status == "failed" and http_status is None:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="Webhook URL is no longer considered safe",
+		)
+	delivery.status = new_status
+	delivery.http_status = http_status
+	delivery.attempt_count += 1
+	delivery.last_attempted_at = datetime.now(UTC)
+	await db.commit()
+	await db.refresh(delivery)
+
+	return WebhookDeliveryDetailResponse.model_validate(delivery)

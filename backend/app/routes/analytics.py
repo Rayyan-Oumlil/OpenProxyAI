@@ -18,6 +18,20 @@ from app.services.analytics_service import analytics_service
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["Analytics"])
 
+_CSV_FORMULA_PREFIXES = frozenset({"=", "+", "-", "@", "\t", "\r"})
+
+
+def _sanitize_csv_row(row: dict) -> dict:
+	"""Prefix cell values that could be interpreted as spreadsheet formulas."""
+	safe = {}
+	for k, v in row.items():
+		s = str(v) if v is not None else ""
+		if s and s[0] in _CSV_FORMULA_PREFIXES:
+			s = f"'{s}"
+		s = s.replace("\n", " ").replace("\r", " ")
+		safe[k] = s
+	return safe
+
 
 @router.get("/overview", response_model=AnalyticsResponse)
 async def get_analytics_overview(
@@ -101,6 +115,8 @@ async def export_policy_events(
 	reason_code: str | None = Query(default=None, min_length=1, max_length=120),
 	db: AsyncSession = Depends(get_db),
 ):
+	if current_user.role != "admin":
+		raise HTTPException(status_code=403, detail="Admin required")
 	try:
 		events, truncated = await analytics_service.get_policy_events(
 			db=db,
@@ -138,7 +154,7 @@ async def export_policy_events(
 		for event in events:
 			row = dict(event)
 			row["policy_triggered_rules"] = ";".join(event.get("policy_triggered_rules") or [])
-			writer.writerow(row)
+			writer.writerow(_sanitize_csv_row(row))
 
 		return Response(
 			content=buffer.getvalue(),
@@ -170,4 +186,45 @@ async def reconcile_usage(
 		org_id=current_user.org_id,
 		provider=body.provider,
 		records=body.records,
+	)
+
+
+@router.get("/compliance/export")
+async def export_compliance_report(
+	current_user: CurrentUser,
+	period_days: int = Query(default=30, ge=1, le=365),
+	db: AsyncSession = Depends(get_db),
+) -> Response:
+	if current_user.role != "admin":
+		raise HTTPException(status_code=403, detail="Admin required")
+	rows = await analytics_service.get_compliance_report_rows(
+		db=db,
+		org_id=current_user.org_id,
+		period_days=period_days,
+	)
+
+	buffer = io.StringIO()
+	writer = csv.DictWriter(
+		buffer,
+		fieldnames=[
+			"record_type",
+			"timestamp",
+			"subject",
+			"action",
+			"detail",
+			"model",
+			"provider",
+			"status",
+			"budget_monthly_usd",
+			"actual_cost_period_usd",
+		],
+	)
+	writer.writeheader()
+	for row in rows:
+		writer.writerow(_sanitize_csv_row(row))
+
+	return Response(
+		content=buffer.getvalue(),
+		media_type="text/csv",
+		headers={"Content-Disposition": "attachment; filename=compliance-report.csv"},
 	)

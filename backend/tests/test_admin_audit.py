@@ -205,7 +205,7 @@ def test_webhook_update_creates_audit_row(client, monkeypatch):
     admin = _admin_user()
     org = _org(
         admin.org_id,
-        settings={"webhooks": {"url": "https://old.example.com", "secret": "s3cr3t", "events": [], "enabled": False}},
+        settings={"webhooks": {"url": "https://1.1.1.1/old", "secret": "s3cr3t", "events": [], "enabled": False}},
     )
     fake_db = FakeDB(get_result=org)
 
@@ -224,7 +224,7 @@ def test_webhook_update_creates_audit_row(client, monkeypatch):
         response = client.patch(
             "/api/v1/organizations/current/webhooks",
             headers={"Authorization": "Bearer test"},
-            json={"url": "https://new.example.com", "secret": "newsecret", "events": ["policy.violation"], "enabled": True},
+            json={"url": "https://1.1.1.1/new", "secret": "newsecret", "events": ["policy.violation"], "enabled": True},
         )
 
     assert response.status_code == 200, response.text
