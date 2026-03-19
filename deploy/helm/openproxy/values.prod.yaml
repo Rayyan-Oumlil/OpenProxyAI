@@ -1,0 +1,74 @@
+# Production overrides for OpenProxyAI Helm chart.
+# Usage: helm upgrade --install openproxyai ./deploy/helm/openproxy \
+#          -f deploy/helm/openproxy/values.prod.yaml \
+#          --set image.tag=$IMAGE_TAG
+
+replicaCount: 3
+
+image:
+  repository: ghcr.io/openproxyai/backend
+  pullPolicy: Always
+  # tag: set via --set image.tag=<git-sha> in CI
+
+ingress:
+  enabled: true
+  className: nginx
+  host: app.openproxyai.com
+  tls:
+    secretName: openproxyai-tls
+
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: ghcr.io/openproxyai/frontend
+    pullPolicy: Always
+    # tag: set via --set frontend.image.tag=<git-sha> in CI
+
+env:
+  APP_ENV: production
+  PROMETHEUS_ENABLED: "true"
+  DEBUG: "false"
+  LANGFUSE_HOST: "https://cloud.langfuse.com"
+  CORS_ORIGINS: "https://app.openproxyai.com"
+
+# Secrets injected from Kubernetes secret (created once, out-of-band):
+#   kubectl create secret generic openproxy-app-secret \
+#     --from-literal=DATABASE_URL=postgres://... \
+#     --from-literal=REDIS_URL=redis://... \
+#     --from-literal=SECRET_KEY=...
+existingSecret: openproxy-app-secret
+
+# Use managed DB (AWS RDS / Cloud SQL / DOKS managed PG) — disable subchart
+postgresql:
+  enabled: false
+
+# Use managed Redis (AWS ElastiCache / Cloud Memorystore) — disable subchart
+redis:
+  enabled: false
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 70
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 768Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+prometheus:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    additionalLabels:
+      release: prometheus

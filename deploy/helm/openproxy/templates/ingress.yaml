@@ -5,37 +5,60 @@ metadata:
   name: {{ include "openproxy.fullname" . }}
   labels:
     {{- include "openproxy.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+    {{- if .Values.ingress.tls }}
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
   {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
-    {{- range .Values.ingress.tls }}
     - hosts:
-        {{- range .hosts }}
-        - {{ . | quote }}
-        {{- end }}
-      secretName: {{ .secretName }}
-    {{- end }}
+        - {{ .Values.ingress.host | quote }}
+      secretName: {{ .Values.ingress.tls.secretName | default "openproxyai-tls" }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
+    - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
+          # API routes → backend
+          - path: /api
+            pathType: Prefix
             backend:
               service:
-                name: {{ include "openproxy.fullname" $ }}
+                name: {{ include "openproxy.fullname" . }}
                 port:
-                  number: {{ $.Values.service.port }}
+                  number: {{ .Values.service.port }}
+          # Health + metrics → backend
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openproxy.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+          {{- if .Values.frontend.enabled }}
+          # Everything else → frontend (React SPA)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openproxy.fullname" . }}-frontend
+                port:
+                  number: 80
+          {{- else }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openproxy.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
           {{- end }}
-    {{- end }}
 {{- end }}
