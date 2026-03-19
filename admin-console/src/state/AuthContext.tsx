@@ -4,15 +4,20 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { apiClient } from "../api/client";
+import { decodeJwtExp } from "../lib/jwt";
 import type { LoginRequest, TokenResponse, UserMeResponse } from "../api/types";
 
 const ACCESS_KEY = "openproxy_access_token";
 const REFRESH_KEY = "openproxy_refresh_token";
+
+/** Fire a proactive refresh this many seconds before access token expiry. */
+const REFRESH_BEFORE_SECS = 300; // 5 minutes
 
 type AuthState = {
   token: string | null;
@@ -36,7 +41,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Restore session from localStorage on mount
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Holds the latest scheduleRefresh to break the circular doRefresh ↔ scheduleRefresh dep.
+  const scheduleRefreshRef = useRef<((accessToken: string) => void) | null>(null);
+
+  const clearScheduledRefresh = useCallback(() => {
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const doRefresh = useCallback(async () => {
+    const refreshToken = localStorage.getItem(REFRESH_KEY);
+    if (!refreshToken) {
+      clearScheduledRefresh();
+      setToken(null);
+      setUser(null);
+      return;
+    }
+    try {
+      const tokens = await apiClient.post<TokenResponse>(
+        "/api/v1/auth/refresh",
+        undefined,
+        refreshToken,
+      );
+      localStorage.setItem(ACCESS_KEY, tokens.access_token);
+      if (tokens.refresh_token) {
+        localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
+      }
+      setToken(tokens.access_token);
+      scheduleRefreshRef.current?.(tokens.access_token);
+    } catch {
+      // Refresh failed (401 or network) — clear all auth state.
+      clearScheduledRefresh();
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem(ACCESS_KEY);
+      localStorage.removeItem(REFRESH_KEY);
+    }
+  }, [clearScheduledRefresh]);
+
+  const scheduleRefresh = useCallback(
+    (accessToken: string) => {
+      clearScheduledRefresh();
+      const exp = decodeJwtExp(accessToken);
+      if (exp === null) return;
+      const delayMs = (exp - Math.floor(Date.now() / 1000) - REFRESH_BEFORE_SECS) * 1000;
+      if (delayMs <= 0) {
+        void doRefresh();
+        return;
+      }
+      intervalRef.current = setInterval(() => {
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
+        void doRefresh();
+      }, delayMs);
+    },
+    [clearScheduledRefresh, doRefresh],
+  );
+
+  // Keep ref current so doRefresh can trigger rescheduling without a circular dep.
+  scheduleRefreshRef.current = scheduleRefresh;
+
+  // Clean up the refresh interval on unmount.
+  useEffect(() => {
+    return () => clearScheduledRefresh();
+  }, [clearScheduledRefresh]);
+
+  // Restore session from localStorage on mount.
   useEffect(() => {
     async function restore() {
       const stored = localStorage.getItem(ACCESS_KEY);
@@ -48,22 +121,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await apiClient.get<UserMeResponse>("/api/v1/auth/me", stored);
         setToken(stored);
         setUser(me);
+        scheduleRefreshRef.current?.(stored);
       } catch {
-        // Token expired — try refresh
+        // Access token expired — try silent refresh with the refresh token.
         const refreshToken = localStorage.getItem(REFRESH_KEY);
         if (refreshToken) {
           try {
             const tokens = await apiClient.post<TokenResponse>(
               "/api/v1/auth/refresh",
-              { refresh_token: refreshToken }
+              undefined,
+              refreshToken,
             );
             localStorage.setItem(ACCESS_KEY, tokens.access_token);
             if (tokens.refresh_token) {
               localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
             }
-            const me = await apiClient.get<UserMeResponse>("/api/v1/auth/me", tokens.access_token);
+            const me = await apiClient.get<UserMeResponse>(
+              "/api/v1/auth/me",
+              tokens.access_token,
+            );
             setToken(tokens.access_token);
             setUser(me);
+            scheduleRefreshRef.current?.(tokens.access_token);
           } catch {
             localStorage.removeItem(ACCESS_KEY);
             localStorage.removeItem(REFRESH_KEY);
@@ -75,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsRestoring(false);
       }
     }
-    restore();
+    void restore();
   }, []);
 
   const login = useCallback(async (payload: LoginRequest) => {
@@ -90,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await apiClient.get<UserMeResponse>("/api/v1/auth/me", tokens.access_token);
       setToken(tokens.access_token);
       setUser(me);
+      scheduleRefreshRef.current?.(tokens.access_token);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
       setToken(null);
@@ -101,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    clearScheduledRefresh();
     const t = token;
     setToken(null);
     setUser(null);
@@ -114,11 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // best-effort
       }
     }
-  }, [token]);
+  }, [token, clearScheduledRefresh]);
 
   const value = useMemo(
     () => ({ token, user, isAuthenticating, isRestoring, error, login, logout }),
-    [error, isAuthenticating, isRestoring, login, logout, token, user]
+    [error, isAuthenticating, isRestoring, login, logout, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
