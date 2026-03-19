@@ -1,7 +1,7 @@
 # OpenProxyAI — Roadmap
 
 > Last reviewed: 2026-03-19
-> Current state: Phase 6 nearly complete. 420 tests passing across 39 test files. Core product is production-ready.
+> Current state: Phase 6 nearly complete. 462 tests passing across 40 test files. Stripe billing shipped. Public deployment is the only remaining gate to first revenue.
 
 ---
 
@@ -112,25 +112,28 @@ To enable: uncomment `presidio-analyzer`, rebuild the Docker image. Phase 7 item
 
 | Item | Status | Where |
 |---|---|---|
-| **Stripe billing** | Step 1 done (DB schema); Steps 2–5 waiting on Stripe keys | `plans/stripe-billing.md` |
+| **Stripe billing** | ✓ Shipped | — |
 | **Public deployment** | Code complete; waiting on DOKS cluster + DNS setup | `plans/public-deployment.md` |
 
 ---
 
 ## Phase 6 — Go-to-market *(nearly complete)*
 
-### 6.1 — Stripe billing *(blocked on Stripe keys)*
+### 6.1 — Stripe billing ✓ Shipped
 - DB schema: `stripe_customer_id`, `stripe_subscription_id`, `stripe_subscription_status` ✓
-- `stripe_events` idempotency table ✓
-- Plan override guard (409 when trying to manually change a Stripe-managed plan) ✓
-- `billing_service.py`, routes (`/checkout`, `/portal`, `/webhook`), frontend UI — see `plans/stripe-billing.md`
+- `stripe_events` idempotency table with atomic `ON CONFLICT DO NOTHING` idempotency ✓
+- `billing_service.py` — checkout, portal, webhook handler with `SELECT FOR UPDATE` ✓
+- Routes: `POST /api/v1/billing/checkout`, `/portal`, `/webhook` ✓
+- `BillingPage.tsx` — plan cards, upgrade flow, post-checkout polling, portal redirect ✓
+- Plan override guard (409 when Stripe-managed) ✓
+- 15 billing tests — all webhook event types, idempotency, unpaid checkout guard ✓
 
 ### 6.2 — Self-serve signup ✓ Shipped
 - `/signup` route in admin console
 - `signup()` in AuthContext calling `POST /api/v1/auth/register`
 - Login page links to signup
 
-### 6.3 — Public deployment *(code done — manual infra pending)*
+### 6.3 — Public deployment *(one manual step away from live)*
 - Frontend Dockerfile + nginx SPA config ✓
 - Helm frontend templates + `values.prod.yaml` ✓
 - `cert-manager` ClusterIssuer ✓
@@ -209,8 +212,8 @@ Air-gapped Helm chart + license key validation for healthcare/government custome
 
 ## Fastest path to first revenue
 
-1. Get Stripe keys → execute `plans/stripe-billing.md` (Steps 2–5)
-2. Create DOKS cluster → execute `plans/public-deployment.md` (manual steps)
+1. ~~Get Stripe keys → execute Stripe billing~~ ✓ Done
+2. Create DOKS cluster → execute `plans/public-deployment.md` (manual steps, ~1 hour)
 3. Target one fintech or healthcare startup at `app.openproxyai.com`
 
 ---
@@ -231,7 +234,6 @@ Target: $500K ARR Year 1, $5M ARR Year 2.
 ## Blueprint one-liners
 
 ```
-/blueprint openproxyai "Stripe billing — execute plans/stripe-billing.md Steps 2-5"
 /blueprint openproxyai "Presidio sidecar in Helm chart — optional presidio-analyzer sub-chart with presidio.enabled: true in values.yaml"
 /blueprint openproxyai "Real-time cost dashboard — replace REST polling with WebSocket feed for live spend and request volume"
 /blueprint openproxyai "Usage-based billing metering — Stripe usage records synced from per-request cost tracking"
