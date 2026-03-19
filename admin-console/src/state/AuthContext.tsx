@@ -11,7 +11,7 @@ import {
 
 import { apiClient } from "../api/client";
 import { decodeJwtExp } from "../lib/jwt";
-import type { LoginRequest, TokenResponse, UserMeResponse } from "../api/types";
+import type { LoginRequest, RegisterRequest, TokenResponse, UserMeResponse } from "../api/types";
 
 const ACCESS_KEY = "openproxy_access_token";
 const REFRESH_KEY = "openproxy_refresh_token";
@@ -29,6 +29,7 @@ type AuthState = {
 
 type AuthContextValue = AuthState & {
   login: (payload: LoginRequest) => Promise<void>;
+  signup: (payload: RegisterRequest) => Promise<void>;
   logout: () => void;
 };
 
@@ -180,6 +181,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signup = useCallback(async (payload: RegisterRequest) => {
+    setIsAuthenticating(true);
+    setError(null);
+    try {
+      const tokens = await apiClient.post<TokenResponse>("/api/v1/auth/register", payload);
+      localStorage.setItem(ACCESS_KEY, tokens.access_token);
+      if (tokens.refresh_token) {
+        localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
+      }
+      const me = await apiClient.get<UserMeResponse>("/api/v1/auth/me", tokens.access_token);
+      setToken(tokens.access_token);
+      setUser(me);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create account.");
+      setToken(null);
+      setUser(null);
+      throw err;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     clearScheduledRefresh();
     const t = token;
@@ -198,8 +221,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token, clearScheduledRefresh]);
 
   const value = useMemo(
-    () => ({ token, user, isAuthenticating, isRestoring, error, login, logout }),
-    [error, isAuthenticating, isRestoring, login, logout, token, user],
+    () => ({ token, user, isAuthenticating, isRestoring, error, login, signup, logout }),
+    [error, isAuthenticating, isRestoring, login, signup, logout, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

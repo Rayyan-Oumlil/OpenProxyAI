@@ -1,12 +1,13 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../../state/AuthContext";
 
 export function LoginPage() {
   const { login, isAuthenticating, error } = useAuth();
-  const [email, setEmail] = useState("admin@openproxy.ai");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,8 +48,12 @@ export function LoginPage() {
             {isAuthenticating ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <p className="auth-footer">
+          Don't have an account?{" "}
+          <Link to="/signup">Create one free</Link>
+        </p>
       </section>
     </main>
   );
 }
-

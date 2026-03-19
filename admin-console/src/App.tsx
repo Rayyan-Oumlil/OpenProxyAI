@@ -6,6 +6,7 @@ import { AdminLayout } from "./features/layout/AdminLayout";
 import { LogsPage } from "./features/logs/LogsPage";
 import { ApiKeysPage } from "./features/keys/ApiKeysPage";
 import { LoginPage } from "./features/auth/LoginPage";
+import { SignupPage } from "./features/auth/SignupPage";
 import { OrganizationSettingsPage } from "./features/placeholder/OrganizationSettingsPage";
 import { UsersRolesPage } from "./features/placeholder/UsersRolesPage";
 import { ProviderKeysPage } from "./features/providerkeys/ProviderKeysPage";
@@ -46,7 +47,10 @@ export function App() {
         }}
       />
       {!token ? (
-        <LoginPage />
+        <Routes>
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="*" element={<LoginPage />} />
+        </Routes>
       ) : (
         <>
         <OnboardingModal />
