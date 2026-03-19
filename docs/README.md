@@ -1,6 +1,6 @@
 # OpenProxyAI Documentation
 
-OpenProxyAI is an enterprise LLM proxy that sits between your organization and LLM providers (OpenAI, Anthropic, Azure, Mistral, etc.). It provides unified API key management, policy enforcement (PII redaction, keyword blocking, model allowlists), cost control (per-user budgets, departmental chargebacks), and a complete audit trail for SOC 2, HIPAA, and GDPR compliance.
+OpenProxyAI is an enterprise LLM proxy that sits between your organization and LLM providers (OpenAI, Anthropic, Azure, Mistral, etc.). It provides unified API key management, policy enforcement (PII redaction, keyword blocking, model allowlists), cost control (per-user budgets, departmental chargebacks), semantic caching (3-tier: in-memory + Redis + pgvector), data residency routing, compliance templates (HIPAA, PCI-DSS, FedRAMP), a prompt playground with model comparison, and a complete audit trail for SOC 2, HIPAA, and GDPR compliance.
 
 ---
 

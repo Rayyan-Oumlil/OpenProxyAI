@@ -19,74 +19,17 @@ Everything below is post-launch, prioritized by competitive gap and revenue impa
 
 ---
 
-## P0 — Table stakes gaps (competitors already ship these)
-
-### Semantic caching
-**RFP signal:** 58% of enterprise RFPs ask for it. Portkey, Helicone, Kong, and Bifrost all ship it.
-
-**Why:** Exact-match cache only helps CI/eval loops. Semantic cache reduces token spend 20–40% for production chatbot and RAG workloads — the top cost justification for choosing a gateway over raw API calls.
-
-**Scope:**
-- Embed request messages via a lightweight model (e.g. `text-embedding-3-small`)
-- Store in vector store (pgvector or Pinecone) alongside the cached response
-- Cosine-similarity match above configurable threshold (default 0.95)
-- Per-request override via `x-openproxy-cache: skip` header
-- Dashboard metric: cache hit rate (exact vs semantic) with cost savings estimate
-- Optional: in-memory L1 + Redis L2 dual cache layer (from LiteLLM DualCache pattern)
-
-**Files:** Extend `backend/app/services/cache_service.py`, new vector store client, config flags.
-
-### Prompt playground / model compare
-**RFP signal:** 42% of RFPs ask for prompt management. LiteLLM Proxy, Portkey Studio, and Helicone all ship comparison UIs.
-
-**Why:** Without this, developers test prompts in external tools and lose the audit trail. Portkey charges separately for Prompt Studio — opportunity to include it.
-
-**Scope:**
-- New admin console page: side-by-side prompt testing against 2–3 models
-- Show TTFT, total latency, token count, cost per response
-- Save prompt templates (name, system message, user template with `{{variables}}`)
-- Prompt history linked to request logs for audit
-
-**Files:** New `admin-console/src/features/playground/`, new `backend/app/routes/playground.py`.
-
-### `GET /v1/models` endpoint
-**Why:** Every competitor exposes this. SDKs expect it. Quick win for compatibility.
-
-**Scope:** Aggregate available models from provider keys + `model_patterns`. Return OpenAI-compatible model list.
-
----
-
 ## P1 — Revenue accelerators (directly close deals)
 
-### Data residency & regional routing
-**RFP signal:** 65% of enterprise RFPs — the #1 deal blocker. Helicone, Kong, LiteLLM, Envoy, AWS, and Azure all support it.
+### Data residency — Tier 2 (self-hosted)
+Tier 1 (config-based routing) is shipped. Tier 2 remains:
 
-**Why:** EU enterprises refuse to sign if data leaves region. GDPR compliance is non-negotiable. Even a config-level solution unblocks conversations.
-
-**Scope (Tier 1 — config-based, 1 sprint):**
-- `data_region` field on organizations (e.g. `eu`, `us`, `ap`)
-- Routing rules: "If org is EU, use only EU-region provider keys"
-- Provider keys gain `region` field for geographic tagging
-
-**Scope (Tier 2 — self-hosted, 2–3 sprints):**
+**Scope:**
 - Publish hardened Helm chart for on-premise deployment
 - Air-gapped mode: license key validation, no outbound telemetry
 - Ops documentation for healthcare and government customers
 
-**Deal impact:** $100K+ ACV per customer. Self-hosted unlocks $1M+ ARR from regulated sectors.
-
-### Vertical-specific compliance templates
-**RFP signal:** 35% of RFPs. No competitor does this well — unique moat opportunity.
-
-**Why:** Healthcare (HIPAA), finance (PCI-DSS), and government (FedRAMP) each need pre-built policy sets. Today every customer hand-configures policies. Templates let sales say "HIPAA-ready out of the box."
-
-**Scope:**
-- Healthcare template: SSN/MRN PII rules, PHI keyword list, audit retention 7 years, model allowlist (no external fine-tunes)
-- Finance template: PCI credit card regex, trade compliance keywords, SOX audit export format
-- Government template: FedRAMP-aligned security headers, US-only provider keys, classified keyword blocking
-- `POST /api/v1/orgs/{id}/apply-template` endpoint + admin console "Quick Setup" wizard
-
-**Deal impact:** $75K+ per healthcare customer, $50K+ per finance customer.
+**Deal impact:** Self-hosted unlocks $1M+ ARR from regulated sectors.
 
 ### Usage-based billing metering
 **Why:** Enterprise customers expect pay-per-token pricing or hybrid models. Stripe supports metered billing natively.

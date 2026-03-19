@@ -1,6 +1,6 @@
 # OpenProxyAI — Feature Reference
 
-> Complete inventory of shipped capabilities. 462 tests, 46 test files.
+> Complete inventory of shipped capabilities. 506 tests, 51 test files.
 
 ---
 
@@ -16,9 +16,35 @@
 | Model pattern matching | `fnmatch` patterns on provider keys (e.g. `gpt-4*`, `claude-*`) |
 | Streaming peek | First SSE chunk inspected — provider errors surface as proper HTTP codes, not buried in stream |
 | Response caching | SHA-256 exact-match Redis cache with configurable TTL (off by default) |
+| Semantic caching | 3-tier cache: L1 in-memory TTLCache, L2 Redis exact-match, L3 pgvector cosine similarity. Configurable threshold (default 0.95). Per-request override via `x-openproxy-cache` header (`skip`, `no-store`, `no-cache`). Dashboard hit-rate metrics with tokens-saved tracking |
+| Model list | `GET /v1/models` — OpenAI-compatible model list aggregated from provider keys + `model_patterns` via fnmatch expansion |
+| Data residency | `region` field on provider keys (`us`, `eu`, `ap`, `global`), `data_region` on orgs. SQL filtering ensures EU orgs never route through US-only keys |
 | Budget pre-flight | Estimated cost check before streaming begins — rejects with 402 if remaining budget is too low |
 | Response headers | Every response includes `X-OpenProxyAI-Request-Id`, `-Cost-USD`, `-Latency-Ms`, `-TTFT-Ms`, `-Cache`, `-Provider`, `-Model`, `-Gateway-Error`, `-Policy-Action`, and `X-RateLimit-*` headers |
 | Request labels | `x-openproxy-labels` header for departmental chargebacks, stored in log metadata |
+
+---
+
+## Prompt Playground
+
+| Feature | Details |
+|---|---|
+| Model compare | Side-by-side testing against 2+ models with TTFT, total latency, token count, and cost per response |
+| Prompt templates | CRUD for named templates with system message, user template (`{{variables}}`), versioning, and soft-delete |
+| Policy enforcement | Compare endpoint evaluates org policy (model allowlist, keywords, PII) before running comparisons |
+| Audit integration | All playground requests logged through the same audit pipeline as proxy requests |
+
+---
+
+## Compliance Templates
+
+| Feature | Details |
+|---|---|
+| Healthcare / HIPAA | PII entities (SSN, MRN, PHI), blocked keywords, model allowlist, 7-year audit retention |
+| Finance / PCI-DSS | Credit card regex, trade compliance keywords, SOX export format |
+| Government / FedRAMP | US-only provider keys, classified keyword blocking, FedRAMP security headers |
+| Apply endpoint | `POST /api/v1/organizations/current/policy/apply-template` — merge semantics preserving existing org config |
+| Template listing | `GET /api/v1/organizations/current/policy/templates` — returns all available templates with metadata |
 
 ---
 
@@ -127,11 +153,12 @@
 | Dashboard | 8 metric cards, daily trend chart, top models chart, performance table, compliance export |
 | Log Viewer | Filterable request log table with detail drawer |
 | API Keys | Create, list, revoke gateway API keys |
-| Provider Keys | Add, toggle, delete upstream provider keys |
-| Policy Config | Full policy editor: enforcement mode, model allowlist, keywords, PII, prompt injection, response guardrails, per-model rate limits |
+| Provider Keys | Add, toggle, delete upstream provider keys with region tagging |
+| Policy Config | Full policy editor: enforcement mode, model allowlist, keywords, PII, prompt injection, response guardrails, per-model rate limits, compliance template quick-apply |
 | Billing | Plan cards, Stripe checkout upgrade, portal redirect, subscription status |
 | Audit Log | Paginated admin action log with before/after JSON diff |
-| Organization Settings | Name, budget, read-only plan display |
+| Prompt Playground | Side-by-side model comparison, prompt template management, variable substitution |
+| Organization Settings | Name, budget, data region selector, read-only plan display |
 | Users & Roles | Invite, deactivate, role management |
 | Onboarding | 3-step wizard for first-run key creation |
 
