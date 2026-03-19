@@ -26,6 +26,11 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     budget_monthly_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     data_region: Mapped[str] = mapped_column(String(50), nullable=True, default="us")
+    # Stripe billing fields — nullable until org subscribes
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    stripe_subscription_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # stripe_subscription_status mirrors Stripe values: active, past_due, canceled, paused, incomplete
 
     # Relationships
     users: Mapped[list["User"]] = relationship(back_populates="organization", cascade="all, delete-orphan")

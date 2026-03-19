@@ -20,6 +20,9 @@ class OrganizationResponse(BaseModel):
 	is_active: bool
 	data_region: str | None
 	created_at: datetime
+	stripe_customer_id: str | None = None
+	stripe_subscription_id: str | None = None
+	stripe_subscription_status: str | None = None
 
 
 class OrganizationUpdateRequest(BaseModel):
