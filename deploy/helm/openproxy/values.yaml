@@ -82,6 +82,22 @@ redis:
     persistence:
       size: 5Gi
 
+# ── Frontend (admin console) ─────────────────────────────────────────
+frontend:
+  enabled: false
+  replicaCount: 2
+  image:
+    repository: openproxyai/frontend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 serviceAccount:
   create: true
   name: ""
