@@ -14,8 +14,10 @@ from app.models.organization import Organization  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.api_key import ApiKey  # noqa: F401
 from app.models.llm_provider_key import LLMProviderKey  # noqa: F401
+from app.models.prompt_template import PromptTemplate  # noqa: F401
 from app.models.request_log import RequestLog  # noqa: F401
 from app.models.stripe_event import StripeEvent  # noqa: F401
+from app.models.semantic_cache import SemanticCacheEntry  # noqa: F401
 
 config = context.config
 

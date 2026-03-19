@@ -3,9 +3,11 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+_DataRegion = Literal["us", "eu", "ap"]
 
 
 class OrganizationResponse(BaseModel):
@@ -31,4 +33,11 @@ class OrganizationUpdateRequest(BaseModel):
 	settings: dict[str, Any] | None = None
 	budget_monthly_usd: Decimal | None = Field(default=None, ge=0)
 	is_active: bool | None = None
-	data_region: str | None = Field(default=None, max_length=50)
+	data_region: _DataRegion | None = Field(default=None, description="Data region: us, eu, or ap")
+
+	@field_validator("data_region", mode="before")
+	@classmethod
+	def _normalize_data_region(cls, v: str | None) -> str | None:
+		if v is None:
+			return None
+		return v.strip().lower() if isinstance(v, str) else v

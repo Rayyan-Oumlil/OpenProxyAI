@@ -10,8 +10,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-import pytest
-
 from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
 from app.services.crypto_service import encrypt
@@ -56,6 +54,7 @@ def _fake_key(org_id):
         api_key_encrypted=encrypt("sk-test1234"),
         weight=1,
         is_active=True,
+        region="us",
         model_patterns=None,
         created_at=datetime.now(UTC),
     )
@@ -432,7 +431,7 @@ def test_invite_sent_creates_audit_row(client, monkeypatch):
 
     # Stub invite_service.create_invite so it doesn't need a real DB
     async def fake_create_invite(db, org_id, email, role, invited_by_id, base_url="https://app.openproxyai.com"):
-        return invite, f"https://app.openproxyai.com/accept-invite?token=fake"
+        return invite, "https://app.openproxyai.com/accept-invite?token=fake"
 
     monkeypatch.setattr("app.routes.invites.invite_service.create_invite", fake_create_invite)
 

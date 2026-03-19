@@ -1,8 +1,10 @@
+import type { PlaygroundCompareRequest, PlaygroundCompareResponse, PromptTemplate } from "./types";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 type RequestOptions = {
   token?: string;
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
 };
 
@@ -56,6 +58,8 @@ export const apiClient = {
   get: <T>(path: string, token?: string) => request<T>(path, { method: "GET", token }),
   post: <T>(path: string, body: unknown, token?: string) =>
     request<T>(path, { method: "POST", body, token }),
+  put: <T>(path: string, body: unknown, token?: string) =>
+    request<T>(path, { method: "PUT", body, token }),
   patch: <T>(path: string, body: unknown, token?: string) =>
     request<T>(path, { method: "PATCH", body, token }),
   del: <T>(path: string, token?: string) => request<T>(path, { method: "DELETE", token }),
@@ -72,4 +76,23 @@ export const apiClient = {
       body: {},
       token,
     }),
+  getPromptTemplates: (token?: string) =>
+    request<PromptTemplate[]>("/api/v1/prompt-templates", { method: "GET", token }),
+  createPromptTemplate: (
+    data: {
+      name: string;
+      description?: string | null;
+      system_message?: string | null;
+      user_template: string;
+      variables_schema?: Array<{ name: string; type?: string; default?: string; required?: boolean }>;
+    },
+    token?: string
+  ) =>
+    request<PromptTemplate>("/api/v1/prompt-templates", { method: "POST", body: data, token }),
+  updatePromptTemplate: (id: string, data: Partial<Pick<PromptTemplate, "name" | "description" | "system_message" | "user_template">>, token?: string) =>
+    request<PromptTemplate>(`/api/v1/prompt-templates/${id}`, { method: "PUT", body: data, token }),
+  deletePromptTemplate: (id: string, token?: string) =>
+    request<void>(`/api/v1/prompt-templates/${id}`, { method: "DELETE", token }),
+  compareModels: (data: PlaygroundCompareRequest, token?: string) =>
+    request<PlaygroundCompareResponse>("/api/v1/playground/compare", { method: "POST", body: data, token }),
 };

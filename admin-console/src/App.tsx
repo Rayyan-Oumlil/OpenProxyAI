@@ -14,6 +14,7 @@ import { OnboardingModal } from "./features/onboarding/OnboardingModal";
 import { PolicyConfigPage } from "./features/policy/PolicyConfigPage";
 import { AuditLogPage } from "./features/audit/AuditLogPage";
 import { BillingPage } from "./features/billing/BillingPage";
+import { PlaygroundPage } from "./features/playground/PlaygroundPage";
 import { useAuth } from "./state/AuthContext";
 
 export function App() {
@@ -66,6 +67,7 @@ export function App() {
             <Route path="organization-settings" element={<OrganizationSettingsPage />} />
             <Route path="billing" element={<BillingPage />} />
             <Route path="audit" element={<AuditLogPage />} />
+            <Route path="playground" element={<PlaygroundPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

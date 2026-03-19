@@ -49,6 +49,7 @@ def serialize_provider_key(key) -> dict:
         "provider": key.provider,
         "weight": key.weight,
         "is_active": key.is_active,
+        "region": key.region,
         "model_patterns": key.model_patterns,
     }
 

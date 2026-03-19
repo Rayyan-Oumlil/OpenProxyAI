@@ -30,6 +30,7 @@ def _to_response(key: LLMProviderKey, raw_key: str) -> ProviderKeyResponse:
 		key_prefix=_mask_key(raw_key),
 		weight=key.weight,
 		is_active=key.is_active,
+		region=key.region,
 		created_at=key.created_at,
 	)
 
@@ -71,6 +72,7 @@ async def create_provider_key(
 		api_key_encrypted=encrypt(payload.api_key),
 		weight=payload.weight,
 		is_active=True,
+		region=payload.region,
 	)
 	db.add(key)
 

@@ -163,6 +163,7 @@ export type OrganizationUpdateRequest = {
   settings?: Record<string, unknown>;
   budget_monthly_usd?: number | null;
   is_active?: boolean;
+  data_region?: string | null;
 };
 
 export type CheckoutResponse = {
@@ -191,9 +192,11 @@ export type ProviderKeyResponse = {
   id: string;
   provider: string;
   alias: string | null;
+  key_alias: string;
   key_prefix: string;
   weight: number;
   is_active: boolean;
+  region: string;
   model_patterns: string[] | null;
   created_at: string;
 };
@@ -201,15 +204,19 @@ export type ProviderKeyResponse = {
 export type CreateProviderKeyRequest = {
   provider: string;
   alias?: string;
+  key_alias?: string;
   api_key: string;
   weight?: number;
+  region?: string;
   model_patterns?: string[] | null;
 };
 
 export type UpdateProviderKeyRequest = {
   alias?: string;
+  key_alias?: string;
   weight?: number;
   is_active?: boolean;
+  region?: string;
   model_patterns?: string[] | null;
 };
 
@@ -236,6 +243,53 @@ export type PolicyConfigResponse = {
   prompt_injection_detection_enabled: boolean;
   response_guardrails_enabled: boolean;
   response_pii_redact: boolean;
+};
+
+export type PolicyTemplate = {
+  name: string;
+  description: string;
+  configures: string[];
+};
+
+export type ApplyTemplateRequest = {
+  template: "healthcare_hipaa" | "finance_pci" | "government_fedramp";
+};
+
+export type PromptTemplate = {
+  id: string;
+  org_id: string;
+  name: string;
+  description: string | null;
+  system_message: string | null;
+  user_template: string;
+  variables_schema: Array<{ name: string; type?: string; default?: string; required?: boolean }>;
+  version: number;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PlaygroundCompareRequest = {
+  models: string[];
+  messages: Array<{ role: string; content: string }>;
+  temperature?: number | null;
+  max_tokens?: number | null;
+};
+
+export type PlaygroundCompareResult = {
+  model: string;
+  content: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_usd: number;
+  latency_ms: number;
+  ttft_ms: number | null;
+  error: string | null;
+};
+
+export type PlaygroundCompareResponse = {
+  results: PlaygroundCompareResult[];
 };
 
 export type AdminAuditLogEntry = {

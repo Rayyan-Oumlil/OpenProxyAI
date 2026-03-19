@@ -66,9 +66,18 @@ class Settings(BaseSettings):
     ]
     PRESIDIO_SCORE_THRESHOLD: float = 0.7
 
-    # ── Semantic Cache ───────────────────────────────────────────────
+    # ── Cache (exact-match L2) ──────────────────────────────────────
     CACHE_ENABLED: bool = False
     CACHE_TTL_SECONDS: int = 3600
+
+    # ── Semantic Cache (L1 + L3 pgvector) ───────────────────────────
+    SEMANTIC_CACHE_ENABLED: bool = False
+    SEMANTIC_CACHE_SIMILARITY_THRESHOLD: float = 0.95
+    SEMANTIC_CACHE_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    SEMANTIC_CACHE_MAX_ENTRIES_PER_ORG: int = 10000
+    SEMANTIC_CACHE_L1_MAX_SIZE: int = 1000
+    SEMANTIC_CACHE_L1_TTL_SECONDS: int = 300
+    SEMANTIC_CACHE_COST_PER_TOKEN_ESTIMATE_USD: float = 0.00003
 
     # ── Cost Anomaly Detection ───────────────────────────────────────
     COST_ANOMALY_MULTIPLIER: float = 3.0

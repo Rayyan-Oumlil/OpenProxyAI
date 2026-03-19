@@ -4,6 +4,8 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from app.config import settings
+
 
 @pytest.fixture
 def mock_redis():
@@ -15,33 +17,48 @@ def mock_redis():
 
 @pytest.mark.asyncio
 async def test_cache_disabled_returns_none(mock_redis):
-    """When CACHE_ENABLED=False, get() always returns None."""
+    """When cache disabled, get() returns (None, None)."""
     from app.services import cache_service
     with patch.object(cache_service, 'is_enabled', return_value=False):
-        result = await cache_service.get(mock_redis, "gpt-4", [{"role": "user", "content": "hi"}], 0.7)
+        result, tier = await cache_service.get(mock_redis, "gpt-4", [{"role": "user", "content": "hi"}], 0.7)
     assert result is None
+    assert tier is None
     mock_redis.get.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_cache_hit_returns_cached_value(mock_redis):
-    """When cache is enabled and key exists, get() returns the cached response."""
+    """When cache is enabled and L2 key exists, get() returns the cached response."""
     from app.services import cache_service
     cached_data = {"choices": [{"message": {"content": "Hello!"}}]}
-    mock_redis.get = AsyncMock(return_value=json.dumps(cached_data).encode())
-    with patch.object(cache_service, 'is_enabled', return_value=True):
-        result = await cache_service.get(mock_redis, "gpt-4", [{"role": "user", "content": "hi"}], 0.7)
+    mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
+    mock_redis.incr = AsyncMock(return_value=1)
+    mock_redis.incrby = AsyncMock(return_value=1)
+    with (
+        patch.object(cache_service, 'is_enabled', return_value=True),
+        patch.object(settings, 'CACHE_ENABLED', True),
+        patch.object(settings, 'SEMANTIC_CACHE_ENABLED', False),
+    ):
+        result, tier = await cache_service.get(
+            mock_redis, "gpt-4", [{"role": "user", "content": "hi"}], 0.7
+        )
     assert result == cached_data
+    assert tier == "hit:exact"
 
 
 @pytest.mark.asyncio
 async def test_cache_miss_returns_none(mock_redis):
-    """Cache miss (key not in Redis) returns None."""
+    """Cache miss (key not in Redis) returns (None, None)."""
     from app.services import cache_service
     mock_redis.get = AsyncMock(return_value=None)
-    with patch.object(cache_service, 'is_enabled', return_value=True):
-        result = await cache_service.get(mock_redis, "gpt-4", [{"role": "user", "content": "hi"}], 0.7)
+    with (
+        patch.object(cache_service, 'is_enabled', return_value=True),
+        patch.object(settings, 'CACHE_ENABLED', True),
+        patch.object(settings, 'SEMANTIC_CACHE_ENABLED', False),
+    ):
+        result, tier = await cache_service.get(mock_redis, "gpt-4", [{"role": "user", "content": "hi"}], 0.7)
     assert result is None
+    assert tier is None
 
 
 @pytest.mark.asyncio
@@ -55,12 +72,17 @@ async def test_cache_set_disabled_does_nothing(mock_redis):
 
 @pytest.mark.asyncio
 async def test_cache_get_swallows_redis_exception(mock_redis):
-    """Redis exception in get() returns None, does not propagate."""
+    """Redis exception in get() returns (None, None), does not propagate."""
     from app.services import cache_service
     mock_redis.get = AsyncMock(side_effect=ConnectionError("redis down"))
-    with patch.object(cache_service, 'is_enabled', return_value=True):
-        result = await cache_service.get(mock_redis, "gpt-4", [], None)
+    with (
+        patch.object(cache_service, 'is_enabled', return_value=True),
+        patch.object(settings, 'CACHE_ENABLED', True),
+        patch.object(settings, 'SEMANTIC_CACHE_ENABLED', False),
+    ):
+        result, tier = await cache_service.get(mock_redis, "gpt-4", [], None)
     assert result is None
+    assert tier is None
 
 
 @pytest.mark.asyncio
@@ -94,7 +116,7 @@ async def test_llm_service_calls_cache_set_after_successful_response(mock_redis)
     set_called = asyncio.Event()
     original_set = cache_service.set
 
-    async def mock_set(redis, model, messages, temperature, response, ttl=None):
+    async def mock_set(redis, model, messages, temperature, response, ttl=None, **kwargs):
         set_called.set()
 
     with (
@@ -125,7 +147,7 @@ async def test_llm_service_does_not_call_cache_set_when_disabled(mock_redis):
 
     set_called = asyncio.Event()
 
-    async def mock_set(redis, model, messages, temperature, response, ttl=None):
+    async def mock_set(redis, model, messages, temperature, response, ttl=None, **kwargs):
         set_called.set()
 
     with (
@@ -150,7 +172,7 @@ async def test_llm_service_cache_set_not_called_on_error(mock_redis):
 
     set_called = asyncio.Event()
 
-    async def mock_set(redis, model, messages, temperature, response, ttl=None):
+    async def mock_set(redis, model, messages, temperature, response, ttl=None, **kwargs):
         set_called.set()
 
     with (
@@ -181,7 +203,7 @@ async def test_llm_service_cache_set_not_called_for_streaming():
 
     set_called = asyncio.Event()
 
-    async def mock_set(redis, model, messages, temperature, response, ttl=None):
+    async def mock_set(redis, model, messages, temperature, response, ttl=None, **kwargs):
         set_called.set()
 
     with (

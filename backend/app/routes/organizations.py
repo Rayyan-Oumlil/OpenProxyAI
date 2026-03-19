@@ -14,7 +14,7 @@ from app.models.organization import Organization
 from app.models.webhook_delivery import WebhookDelivery
 from app.schemas.logs import Page
 from app.schemas.organization import OrganizationResponse, OrganizationUpdateRequest
-from app.schemas.policy import PolicyConfigRequest, PolicyConfigResponse
+from app.schemas.policy import ApplyTemplateRequest, PolicyConfigRequest, PolicyConfigResponse, TemplateListItem
 from app.schemas.webhook import (
     WebhookConfigRequest,
     WebhookConfigResponse,
@@ -27,8 +27,9 @@ from app.services.admin_audit_service import (
     serialize_org,
     serialize_webhook_config,
 )
+from app.services.compliance_templates import get_template, list_templates
 from app.services.plan_service import assert_plan_allows
-from app.services.policy_service import PolicyConfig, policy_store
+from app.services.policy_service import PolicyConfig, _POLICY_CACHE_KEY, policy_store
 from app.services.webhook_service import _deliver
 
 router = APIRouter(prefix="/api/v1/organizations", tags=["Organizations"])
@@ -216,6 +217,98 @@ async def update_policy_config(
 		prompt_injection_detection_enabled=new_config.prompt_injection_detection_enabled,
 		response_guardrails_enabled=new_config.response_guardrails_enabled,
 		response_pii_redact=new_config.response_pii_redact,
+	)
+
+
+@router.get("/current/policy/templates", response_model=list[TemplateListItem])
+async def list_policy_templates(
+	current_user: CurrentUser,
+) -> list[TemplateListItem]:
+	"""Return available compliance templates (no DB query)."""
+	return [TemplateListItem.model_validate(t) for t in list_templates()]
+
+
+@router.post("/current/policy/apply-template", response_model=PolicyConfigResponse)
+async def apply_policy_template(
+	payload: ApplyTemplateRequest,
+	request: Request,
+	current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db),
+	redis: Redis = Depends(get_redis),
+) -> PolicyConfigResponse:
+	"""Apply a compliance template to the org policy. Merges with existing; preserves allowed_models and model_rate_limits."""
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+	template_def = get_template(payload.template)
+	if template_def is None:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail=f"Unknown template: {payload.template}",
+		)
+
+	org = await db.scalar(select(Organization).where(Organization.id == current_user.org_id))
+	if org is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+
+	assert_plan_allows(org, "pii_detection")
+
+	current = await policy_store.load(current_user.org_id, db, redis)
+
+	merged_config = PolicyConfig(
+		enforcement_mode=template_def.enforcement_mode,
+		allowed_models=current.allowed_models,
+		blocked_keywords=list(template_def.blocked_keywords),
+		pii_detection_enabled=template_def.pii_detection_enabled,
+		pii_entities=list(template_def.pii_entities),
+		model_rate_limits=dict(current.model_rate_limits),
+		prompt_injection_detection_enabled=template_def.prompt_injection_detection_enabled,
+		response_guardrails_enabled=template_def.response_guardrails_enabled,
+		response_pii_redact=template_def.response_pii_redact,
+		updated_at=datetime.now(UTC),
+	)
+
+	policy_dict = merged_config.to_dict()
+	policy_dict["metadata"] = {
+		"template": template_def.metadata.template,
+		"template_version": template_def.metadata.template_version,
+		"audit_retention_days": template_def.metadata.audit_retention_days,
+	}
+
+	merged_settings = dict(org.settings or {})
+	merged_settings["policy"] = policy_dict
+	org.settings = merged_settings
+
+	await log_admin_action(
+		db,
+		org_id=current_user.org_id,
+		actor_id=current_user.id,
+		actor_email=current_user.email,
+		action="apply_compliance_template",
+		resource_type="policy",
+		resource_id=str(current_user.org_id),
+		before=current.to_dict(),
+		after={"template": payload.template},
+		ip_address=get_ip(request),
+	)
+
+	await db.commit()
+	await db.refresh(org)
+
+	cache_key = _POLICY_CACHE_KEY.format(org_id=current_user.org_id)
+	await redis.delete(cache_key)
+
+	return PolicyConfigResponse(
+		enforcement_mode=merged_config.enforcement_mode,
+		allowed_models=merged_config.allowed_models,
+		blocked_keywords=merged_config.blocked_keywords,
+		pii_detection_enabled=merged_config.pii_detection_enabled,
+		pii_entities=merged_config.pii_entities,
+		model_rate_limits=merged_config.model_rate_limits,
+		updated_at=merged_config.updated_at,
+		prompt_injection_detection_enabled=merged_config.prompt_injection_detection_enabled,
+		response_guardrails_enabled=merged_config.response_guardrails_enabled,
+		response_pii_redact=merged_config.response_pii_redact,
 	)
 
 

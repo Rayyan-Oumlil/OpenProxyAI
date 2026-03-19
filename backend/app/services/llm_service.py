@@ -18,15 +18,17 @@ from fastapi import BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from litellm import acompletion, aembedding
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.api_key import ApiKey
 from app.models.llm_provider_key import LLMProviderKey
+from app.models.organization import Organization
 from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.services import cache_service
+from app.services.cache_service import CacheOverride
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
 from app.services.crypto_service import decrypt
@@ -115,6 +117,19 @@ def _parse_labels(request: Request) -> dict[str, str] | None:
 # ---------------------------------------------------------------------------
 
 
+def _parse_cache_override(request: Request | None) -> CacheOverride | None:
+	"""Parse x-openproxy-cache header: skip | no-store | no-cache."""
+	if request is None:
+		return None
+	raw = request.headers.get("x-openproxy-cache")
+	if not raw:
+		return None
+	v = raw.strip().lower()
+	if v in ("skip", "no-store", "no-cache"):
+		return v  # type: ignore[return-value]
+	return None
+
+
 @dataclass
 class _RequestContext:
 	request: ChatCompletionRequest
@@ -125,6 +140,7 @@ class _RequestContext:
 	redis: Redis
 	labels: dict[str, str] | None
 	start: float
+	http_request: Request | None = None
 	provider: str = "unknown"
 	model_name: str = ""
 	rl_headers: dict[str, str] = field(default_factory=dict)
@@ -147,12 +163,20 @@ class LLMService:
 		The primary key is selected via weighted random (preserving existing behaviour).
 		Fallbacks are the remaining candidates sorted by weight descending.
 		Total list is capped at settings.MAX_PROVIDER_FALLBACK_ATTEMPTS.
+		Only keys matching org data_region or region='global' are eligible.
 		"""
+		org = await db.get(Organization, org_id)
+		data_region = (org.data_region or "us").strip().lower() if org else "us"
+
 		rows = await db.scalars(
 			select(LLMProviderKey).where(
 				LLMProviderKey.org_id == org_id,
 				LLMProviderKey.provider == provider,
 				LLMProviderKey.is_active.is_(True),
+				or_(
+					LLMProviderKey.region == data_region,
+					LLMProviderKey.region == "global",
+				),
 			)
 		)
 		keys = [row for row in rows if row.weight > 0]
@@ -186,7 +210,10 @@ class LLMService:
 
 		raise HTTPException(
 			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-			detail={"error": "no_provider_key", "detail": "No active key for provider"},
+			detail={
+				"error": "no_provider_key",
+				"detail": f"No provider keys available for region '{data_region}'. Add provider keys tagged with region '{data_region}' or 'global'.",
+			},
 		)
 
 	@staticmethod
@@ -526,6 +553,7 @@ class LLMService:
 		db: AsyncSession,
 	) -> JSONResponse:
 		"""Cache check, fallback call, response guardrail, cost/log, return."""
+		cache_override = _parse_cache_override(ctx.http_request)
 		# Cache check — failure must never block a real LLM call
 		try:
 			cache_messages = [
@@ -533,17 +561,26 @@ class LLMService:
 				for m in ctx.request.messages
 			]
 			cache_temperature = getattr(ctx.request, "temperature", None)
-			cached_body = await cache_service.get(ctx.redis, ctx.request.model, cache_messages, cache_temperature)
-			if cached_body is not None:
+			cached_body, cache_tier = await cache_service.get(
+				ctx.redis,
+				ctx.request.model,
+				cache_messages,
+				cache_temperature,
+				org_id=ctx.user.org_id,
+				db=db,
+				cache_override=cache_override,
+			)
+			if cached_body is not None and cache_tier:
 				cached_usage = cached_body.get("usage", {}) if isinstance(cached_body, dict) else {}
 				cached_prompt = int(cached_usage.get("prompt_tokens", 0))
 				cached_completion = int(cached_usage.get("completion_tokens", 0))
 				cached_cost = cost_tracker_service.calculate_cost_usd(cached_body)
 				cached_latency = int((time.perf_counter() - ctx.start) * 1000)
+				request_metadata = {**(ctx.policy_metadata or {}), "cache": cache_tier}
 				self._schedule_log(
 					ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
 					ctx.request.model, ctx.provider, cached_prompt, cached_completion, cached_cost,
-					cached_latency, 200, request_metadata=ctx.policy_metadata, labels=ctx.labels,
+					cached_latency, 200, request_metadata=request_metadata, labels=ctx.labels,
 				)
 				return JSONResponse(
 					content=cached_body,
@@ -553,7 +590,7 @@ class LLMService:
 						"X-OpenProxyAI-Model": ctx.request.model,
 						"X-OpenProxyAI-Cost-USD": f"{cached_cost:.6f}",
 						"X-OpenProxyAI-Latency-Ms": str(cached_latency),
-						"X-OpenProxyAI-Cache": "hit",
+						"X-OpenProxyAI-Cache": cache_tier,
 						"X-OpenProxyAI-Gateway-Error": "false",
 						**ctx.rl_headers,
 					},
@@ -599,13 +636,23 @@ class LLMService:
 			]
 			cache_temperature = getattr(ctx.request, "temperature", None)
 			asyncio.create_task(
-				cache_service.set(ctx.redis, ctx.request.model, cache_messages, cache_temperature, body)
+				cache_service.set(
+					ctx.redis,
+					ctx.request.model,
+					cache_messages,
+					cache_temperature,
+					body,
+					org_id=ctx.user.org_id,
+					db=db,
+					cache_override=cache_override,
+				)
 			)
 
+		request_metadata = {**(ctx.policy_metadata or {}), "cache": "miss"}
 		self._schedule_log(
 			ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
 			ctx.request.model, ctx.provider, prompt_tokens, completion_tokens, cost,
-			latency_ms, 200, request_metadata=ctx.policy_metadata, labels=ctx.labels,
+			latency_ms, 200, request_metadata=request_metadata, labels=ctx.labels,
 		)
 
 		return JSONResponse(
@@ -646,6 +693,7 @@ class LLMService:
 			redis=redis,
 			labels=_parse_labels(http_request) if http_request is not None else None,
 			start=time.perf_counter(),
+			http_request=http_request,
 		)
 		try:
 			early = await self._build_litellm_kwargs(ctx, db)
@@ -789,10 +837,7 @@ class LLMService:
 				candidate_keys, _emb_call, request.model, tag=" (embed)",
 			)
 			if fb_count > 0:
-				if policy_metadata is not None:
-					policy_metadata["fallback_count"] = fb_count
-				else:
-					policy_metadata = {"fallback_count": fb_count}
+				policy_metadata = {**(policy_metadata or {}), "fallback_count": fb_count}
 
 			body = _to_jsonable(response)
 			usage = body.get("usage", {}) if isinstance(body, dict) else {}

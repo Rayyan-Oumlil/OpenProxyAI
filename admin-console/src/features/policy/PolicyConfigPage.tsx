@@ -1,13 +1,33 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Shield, Landmark, Building2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
-import type { OrganizationResponse, PolicyConfigRequest } from "../../api/types";
+import type { ApplyTemplateRequest, OrganizationResponse, PolicyConfigRequest, PolicyTemplate } from "../../api/types";
 import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import { useAuth } from "../../state/AuthContext";
+
+const TEMPLATE_ICONS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+  healthcare_hipaa: Shield,
+  finance_pci: Landmark,
+  government_fedramp: Building2,
+};
+
+const TEMPLATE_LABELS: Record<string, string> = {
+  healthcare_hipaa: "Healthcare (HIPAA)",
+  finance_pci: "Finance (PCI-DSS)",
+  government_fedramp: "Government (FedRAMP)",
+};
 
 const PII_ENTITIES = [
   "EMAIL_ADDRESS",
@@ -138,6 +158,94 @@ function extractPolicy(org: OrganizationResponse): PolicyConfigRequest {
     response_guardrails_enabled: raw.response_guardrails_enabled ?? false,
     response_pii_redact: raw.response_pii_redact ?? false,
   };
+}
+
+function TemplateCard({
+  template,
+  isApplied,
+  isAdmin,
+  onApply,
+  isApplying,
+}: {
+  template: PolicyTemplate;
+  isApplied: boolean;
+  isAdmin: boolean;
+  onApply: () => void;
+  isApplying: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const Icon = TEMPLATE_ICONS[template.name] ?? Shield;
+  const label = TEMPLATE_LABELS[template.name] ?? template.name;
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{
+        borderColor: "var(--line)",
+        background: isApplied ? "rgba(14,165,233,0.05)" : "#fff",
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="rounded-lg p-2 shrink-0"
+          style={{ background: "rgba(14,165,233,0.1)", color: "#0369a1" }}
+        >
+          <Icon size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 style={{ fontSize: "0.95rem", fontWeight: 600 }}>{label}</h3>
+            {isApplied && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(34,197,94,0.15)", color: "#15803d" }}
+              >
+                Applied
+              </span>
+            )}
+          </div>
+          <p className="muted" style={{ fontSize: "0.82rem", marginTop: 4 }}>
+            {template.description}
+          </p>
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="flex items-center gap-1 mt-2 text-sm"
+            style={{ color: "var(--accent-sky)", background: "none", border: "none", cursor: "pointer" }}
+          >
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            What it configures
+          </button>
+          {expanded && (
+            <ul className="mt-2 pl-4 text-sm text-muted space-y-1" style={{ listStyle: "disc" }}>
+              {template.configures.map((c, i) => (
+                <li key={i}>{c}</li>
+              ))}
+            </ul>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={onApply}
+              disabled={isApplying}
+              style={{
+                marginTop: 12,
+                padding: "0.4rem 0.8rem",
+                fontSize: "0.85rem",
+                borderRadius: 8,
+                background: "var(--accent-sky)",
+                color: "#fff",
+                border: "none",
+                cursor: isApplying ? "not-allowed" : "pointer",
+              }}
+            >
+              {isApplying ? "Applying…" : "Apply Template"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type ModelRateLimit = { model: string; rpm: string; tpm: string };
@@ -282,6 +390,28 @@ export function PolicyConfigPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to save policy"),
   });
 
+  const templatesQuery = useQuery({
+    queryKey: ["policy", "templates", token],
+    queryFn: () => apiClient.get<PolicyTemplate[]>("/api/v1/organizations/current/policy/templates", token!),
+    enabled: Boolean(token),
+  });
+
+  const applyTemplateMutation = useMutation({
+    mutationFn: (data: ApplyTemplateRequest) =>
+      apiClient.post("/api/v1/organizations/current/policy/apply-template", data, token!),
+    onSuccess: () => {
+      toast.success("Compliance template applied.");
+      qc.invalidateQueries({ queryKey: ["organizations", "current"] });
+      setConfirmTemplate(null);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to apply template"),
+  });
+
+  const currentTemplate = (orgQuery.data?.settings?.policy as { metadata?: { template?: string } } | undefined)
+    ?.metadata?.template;
+
+  const [confirmTemplate, setConfirmTemplate] = useState<string | null>(null);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     saveMutation.mutate(form);
@@ -311,6 +441,64 @@ export function PolicyConfigPage() {
           You need admin privileges to modify policy settings.
         </div>
       )}
+
+      {/* Quick Setup — Compliance Templates */}
+      {templatesQuery.data && templatesQuery.data.length > 0 && (
+        <section className="surface-panel stack-form">
+          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Quick Setup</h2>
+          <p className="muted" style={{ fontSize: "0.88rem" }}>
+            Apply a pre-built compliance template to configure guardrails for your industry.
+          </p>
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+          >
+            {templatesQuery.data.map((tpl) => (
+              <TemplateCard
+                key={tpl.name}
+                template={tpl}
+                isApplied={currentTemplate === tpl.name}
+                isAdmin={isAdmin}
+                onApply={() => setConfirmTemplate(tpl.name)}
+                isApplying={applyTemplateMutation.isPending && confirmTemplate === tpl.name}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Dialog open={confirmTemplate !== null} onOpenChange={(open) => !open && setConfirmTemplate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Apply compliance template</DialogTitle>
+            <DialogDescription>
+              This will override your current policy settings. Your model allowlist and rate limits will be preserved.
+              Continue?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setConfirmTemplate(null)}
+              style={{ padding: "0.5rem 1rem", borderRadius: 8, border: "1px solid var(--line)" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (confirmTemplate) {
+                  applyTemplateMutation.mutate({ template: confirmTemplate as ApplyTemplateRequest["template"] });
+                }
+              }}
+              disabled={applyTemplateMutation.isPending}
+              style={{ background: "var(--accent-sky)", color: "#fff", padding: "0.5rem 1rem", borderRadius: 8 }}
+            >
+              {applyTemplateMutation.isPending ? "Applying…" : "Apply Template"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <form onSubmit={handleSubmit} className="stack-form">
         {/* Enforcement Mode */}

@@ -7,9 +7,9 @@ from uuid import uuid4
 
 import pytest
 
-from app.dependencies import get_current_user_from_jwt, get_db
+from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
-from app.schemas.analytics import AnalyticsResponse, CostByModel, CostByUser, DailyUsageTrend, UsageOverview
+from app.schemas.analytics import AnalyticsResponse, CacheAnalyticsResponse, CostByModel, CostByUser, DailyUsageTrend, UsageOverview
 from app.schemas.logs import Page, RequestLogItem
 from app.schemas.reconcile import ProviderRecord
 from app.services import analytics_service as analytics_service_module
@@ -70,6 +70,44 @@ def test_analytics_overview_route_success(client, monkeypatch):
 	assert data["overview"]["total_requests"] == 10
 	assert data["overview"]["policy_blocked_requests"] == 1
 	assert data["by_model"][0]["provider"] == "openai"
+
+
+def test_analytics_cache_route_success(client, monkeypatch, fake_redis):
+	"""GET /api/v1/analytics/cache returns cache metrics."""
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_redis(request=None):
+		return fake_redis
+
+	async def fake_get_cache_metrics(**kwargs):
+		assert kwargs["org_id"] == org_id
+		return CacheAnalyticsResponse(
+			period_days=7,
+			exact_hits=100,
+			semantic_hits=50,
+			misses=200,
+			hit_rate=0.4286,
+			estimated_savings_usd=12.34,
+		)
+
+	monkeypatch.setattr(analytics_service_module.analytics_service, "get_cache_metrics", fake_get_cache_metrics)
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_redis] = fake_get_redis
+
+	response = client.get("/api/v1/analytics/cache?period_days=7", headers={"Authorization": "Bearer test"})
+
+	assert response.status_code == 200
+	data = response.json()
+	assert data["period_days"] == 7
+	assert data["exact_hits"] == 100
+	assert data["semantic_hits"] == 50
+	assert data["misses"] == 200
+	assert data["hit_rate"] == 0.4286
+	assert data["estimated_savings_usd"] == 12.34
 
 
 def test_analytics_overview_includes_budget_forecast_fields(client, monkeypatch):

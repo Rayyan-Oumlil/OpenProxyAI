@@ -13,6 +13,8 @@ alembic>=1.13.0
 
 # Cache
 redis[hiredis]>=5.0.0
+cachetools>=5.3.0
+pgvector>=0.2.0
 
 # Auth
 pyjwt[crypto]>=2.8.0

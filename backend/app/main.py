@@ -26,6 +26,7 @@ from app.routes.billing import router as billing_router
 from app.routes.health import router as health_router
 from app.routes.invites import router as invites_router
 from app.routes.organizations import router as organizations_router
+from app.routes.playground import router as playground_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.proxy import router as proxy_router
 from app.routes.sso import router as sso_router
@@ -52,6 +53,7 @@ TAGS_METADATA = [
     {"name": "Metrics", "description": "Prometheus metrics endpoint"},
     {"name": "Admin Audit", "description": "Admin action audit log (SOC 2)"},
     {"name": "Billing", "description": "Stripe billing management"},
+    {"name": "Playground", "description": "Prompt playground and model comparison"},
 ]
 
 
@@ -272,6 +274,7 @@ app.include_router(invites_router)
 app.include_router(sso_router)
 app.include_router(admin_audit_router)
 app.include_router(billing_router)
+app.include_router(playground_router)
 
 if settings.PROMETHEUS_ENABLED:
     app.include_router(metrics_router)
