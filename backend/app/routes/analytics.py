@@ -10,8 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import CurrentUser, get_db
-from app.schemas.analytics import AnalyticsResponse, PolicyAnalyticsResponse
+from redis.asyncio import Redis
+
+from app.dependencies import CurrentUser, get_db, get_redis
+from app.schemas.analytics import AnalyticsResponse, CacheAnalyticsResponse, PolicyAnalyticsResponse
 from app.schemas.logs import Page, RequestLogDetail, RequestLogItem
 from app.schemas.reconcile import ReconcileReport, ReconcileRequest
 from app.services.analytics_service import analytics_service
@@ -41,6 +43,20 @@ async def get_analytics_overview(
 ) -> AnalyticsResponse:
 	return await analytics_service.get_overview(
 		db=db,
+		org_id=current_user.org_id,
+		period_days=period_days,
+	)
+
+
+@router.get("/cache", response_model=CacheAnalyticsResponse)
+async def get_cache_analytics(
+	current_user: CurrentUser,
+	period_days: int = Query(default=7, ge=1, le=90),
+	redis: Redis = Depends(get_redis),
+) -> CacheAnalyticsResponse:
+	"""Cache hit/miss metrics and estimated savings for the org."""
+	return await analytics_service.get_cache_metrics(
+		redis=redis,
 		org_id=current_user.org_id,
 		period_days=period_days,
 	)

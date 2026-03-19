@@ -17,8 +17,10 @@ export function OrganizationSettingsPage() {
   const [name, setName] = useState("");
   const [budgetMonthly, setBudgetMonthly] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [dataRegion, setDataRegion] = useState<string>("us");
   const [settingsJson, setSettingsJson] = useState("{}");
   const [formError, setFormError] = useState<string | null>(null);
+  const [showDataRegionWarning, setShowDataRegionWarning] = useState(false);
 
   const orgQuery = useQuery({
     queryKey: ["organization", "current", token],
@@ -33,6 +35,7 @@ export function OrganizationSettingsPage() {
     setName(orgQuery.data.name);
     setBudgetMonthly(orgQuery.data.budget_monthly_usd ?? "");
     setIsActive(orgQuery.data.is_active);
+    setDataRegion(orgQuery.data.data_region ?? "us");
     setSettingsJson(JSON.stringify(orgQuery.data.settings ?? {}, null, 2));
   }, [orgQuery.data]);
 
@@ -66,9 +69,11 @@ export function OrganizationSettingsPage() {
         name,
         budget_monthly_usd: budgetMonthly === "" ? null : Number(budgetMonthly),
         is_active: isActive,
+        data_region: dataRegion,
         settings: parsedSettings,
       });
       setFormError(null);
+      setShowDataRegionWarning(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Failed to save settings.");
     }
@@ -139,6 +144,40 @@ export function OrganizationSettingsPage() {
             />
             Organization active
           </label>
+
+          <label htmlFor="org-data-region">Data Region</label>
+          <select
+            id="org-data-region"
+            value={dataRegion}
+            onChange={(e) => {
+              const newVal = e.target.value;
+              const prev = orgQuery.data?.data_region ?? "us";
+              setDataRegion(newVal);
+              setShowDataRegionWarning(newVal !== prev);
+            }}
+            disabled={!canManageSettings || updateMutation.isPending}
+            style={{ maxWidth: "12rem" }}
+          >
+            <option value="us">US</option>
+            <option value="eu">EU</option>
+            <option value="ap">Asia-Pacific</option>
+          </select>
+          {showDataRegionWarning ? (
+            <p
+              className="form-warning"
+              style={{
+                marginTop: "0.25rem",
+                padding: "0.5rem",
+                background: "rgba(234, 179, 8, 0.15)",
+                borderRadius: "4px",
+                fontSize: "0.875rem",
+              }}
+            >
+              Changing your data region means only provider keys tagged for the new region (or
+              &quot;global&quot;) will be used. Ensure you have keys configured for the target
+              region.
+            </p>
+          ) : null}
 
           <label htmlFor="org-settings-json">Settings JSON</label>
           <textarea

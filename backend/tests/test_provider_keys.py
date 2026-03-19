@@ -14,7 +14,7 @@ from app.services.crypto_service import encrypt
 class FakeKey:
 	"""Minimal LLMProviderKey ORM model substitute."""
 
-	def __init__(self, org_id, provider, key_alias, api_key_encrypted, weight=1, is_active=True):
+	def __init__(self, org_id, provider, key_alias, api_key_encrypted, weight=1, is_active=True, region="us"):
 		self.id = uuid4()
 		self.org_id = org_id
 		self.provider = provider
@@ -22,6 +22,7 @@ class FakeKey:
 		self.api_key_encrypted = api_key_encrypted
 		self.weight = weight
 		self.is_active = is_active
+		self.region = region
 		self.model_patterns = None
 		self.created_at = datetime.now(UTC)
 

@@ -32,8 +32,6 @@ def _error(status_code: int) -> Exception:
 
 def _make_litellm_response(content: str = "Hello!") -> object:
 	"""Minimal response object that satisfies llm_service's usage."""
-	import json
-
 	body = {
 		"id": "chatcmpl-test",
 		"object": "chat.completion",
@@ -201,6 +199,7 @@ async def test_select_provider_keys_single_key():
 	key.api_key_encrypted = encrypt("sk-only-key-123456")
 
 	fake_db = MagicMock()
+	fake_db.get = AsyncMock(return_value=None)
 	fake_db.scalars = AsyncMock(return_value=iter([key]))
 
 	result = await LLMService()._select_provider_keys(fake_db, uuid4(), "openai")
@@ -214,6 +213,7 @@ async def test_select_provider_keys_no_keys_raises_503():
 	from fastapi import HTTPException
 
 	fake_db = MagicMock()
+	fake_db.get = AsyncMock(return_value=None)
 	fake_db.scalars = AsyncMock(return_value=iter([]))
 
 	with pytest.raises(HTTPException) as exc_info:
@@ -247,6 +247,7 @@ async def test_select_provider_keys_multiple_ordered():
 	key_high.api_key_encrypted = encrypt("sk-high-weight-key1")
 
 	fake_db = MagicMock()
+	fake_db.get = AsyncMock(return_value=None)
 	fake_db.scalars = AsyncMock(return_value=iter([key_low, key_mid, key_high]))
 
 	random.seed(0)
@@ -255,7 +256,6 @@ async def test_select_provider_keys_multiple_ordered():
 	assert len(result) == 3
 	assert set(result) == {"sk-low-weight-key123", "sk-mid-weight-key123", "sk-high-weight-key1"}
 	# Fallbacks (index 1+) must be in descending weight order
-	primary_val = result[0]
 	remaining = result[1:]
 	remaining_weights = {
 		"sk-low-weight-key123": 1,

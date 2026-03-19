@@ -1,17 +1,79 @@
-"""LLM proxy endpoints — POST /v1/chat/completions, POST /v1/embeddings."""
+"""LLM proxy endpoints — POST /v1/chat/completions, POST /v1/embeddings, GET /v1/models."""
 
+import fnmatch
 import uuid
 
+import litellm
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import ProxyAuth, get_db, get_redis, get_request_id
+from app.models.llm_provider_key import LLMProviderKey
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
+from app.schemas.models import ModelListResponse, ModelResponse
 from app.services.llm_service import llm_service
 
 router = APIRouter(tags=["Proxy"])
+
+
+def _expand_models_for_provider_key(
+	provider: str,
+	model_patterns: list[str] | None,
+) -> set[str]:
+	"""Expand model_patterns into concrete model IDs using LiteLLM's local registry.
+
+	If model_patterns is null/empty, include all models for the provider.
+	Returns set of model IDs in provider/model format.
+	"""
+	all_models: list[str] = litellm.models_by_provider.get(provider, [])
+	if not all_models:
+		return set()
+
+	if not model_patterns:
+		return {f"{provider}/{m}" for m in all_models}
+
+	matched: set[str] = set()
+	for model in all_models:
+		if any(fnmatch.fnmatch(model, pat) for pat in model_patterns):
+			matched.add(f"{provider}/{model}")
+	return matched
+
+
+@router.get("/v1/models", response_model=ModelListResponse)
+async def list_models(
+	auth: ProxyAuth,
+	db: AsyncSession = Depends(get_db),
+):
+	"""Return OpenAI-compatible model list aggregated from the org's provider keys."""
+	_user, api_key = auth
+	org_id = api_key.org_id
+
+	rows = await db.scalars(
+		select(LLMProviderKey).where(
+			LLMProviderKey.org_id == org_id,
+			LLMProviderKey.is_active.is_(True),
+		)
+	)
+	keys = list(rows.all())
+
+	model_ids: set[str] = set()
+	for key in keys:
+		patterns: list[str] | None = key.model_patterns
+		model_ids |= _expand_models_for_provider_key(key.provider, patterns)
+
+	sorted_ids = sorted(model_ids)
+	data = [
+		ModelResponse(
+			id=mid,
+			object="model",
+			owned_by=mid.split("/", 1)[0],
+		)
+		for mid in sorted_ids
+	]
+	return ModelListResponse(object="list", data=data)
 
 
 @router.post("/v1/chat/completions")

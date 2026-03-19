@@ -12,7 +12,9 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.api_key import ApiKey
     from app.models.llm_provider_key import LLMProviderKey
+    from app.models.prompt_template import PromptTemplate
     from app.models.request_log import RequestLog
+    from app.models.semantic_cache import SemanticCacheEntry
     from app.models.user import User
 
 
@@ -36,7 +38,11 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     users: Mapped[list["User"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
     provider_keys: Mapped[list["LLMProviderKey"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    prompt_templates: Mapped[list["PromptTemplate"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
     request_logs: Mapped[list["RequestLog"]] = relationship(back_populates="organization")
+    semantic_cache_entries: Mapped[list["SemanticCacheEntry"]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Organization {self.slug!r}>"

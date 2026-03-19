@@ -10,6 +10,7 @@ from app.models.sso_connection import SSOConnection
 from app.models.user_invite import UserInvite
 from app.models.webhook_delivery import WebhookDelivery
 from app.models.stripe_event import StripeEvent
+from app.models.semantic_cache import SemanticCacheEntry
 
 __all__ = [
     "Base",
@@ -22,4 +23,5 @@ __all__ = [
     "UserInvite",
     "WebhookDelivery",
     "StripeEvent",
+    "SemanticCacheEntry",
 ]

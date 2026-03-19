@@ -55,8 +55,17 @@ OpenProxyAI is an enterprise LLM proxy that sits between your organization and L
 
 ---
 
+## What's Shipped
+
+| Document | Purpose |
+|----------|---------|
+| [Feature Reference](./features.md) | Complete inventory of every shipped capability with details |
+
+---
+
 ## Roadmap
 
 | Document | Purpose |
 |----------|---------|
-| [Roadmap & Next Steps](./roadmap.md) | What's built, what's incomplete, competitor gaps, and prioritized P0–P3 work |
+| [Roadmap](./roadmap.md) | Forward-looking only — prioritized P0–P3 work informed by competitive landscape |
+| [Reference Analysis](./reference-analysis.md) | Competitor architecture notes and RFP signal data that informed the roadmap |

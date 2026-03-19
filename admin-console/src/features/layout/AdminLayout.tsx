@@ -17,6 +17,7 @@ import {
   PanelLeftOpen,
   LogOut,
   CreditCard,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
@@ -28,6 +29,7 @@ type NavEntry = NavItem | ({ group: true } & NavGroup);
 const NAV: NavEntry[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
   { label: "Request Logs", to: "/logs", icon: List },
+  { label: "Playground", to: "/playground", icon: FlaskConical },
   {
     group: true,
     label: "Monitor",

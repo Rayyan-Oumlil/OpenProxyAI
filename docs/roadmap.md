@@ -1,246 +1,220 @@
 # OpenProxyAI — Roadmap
 
-> Last reviewed: 2026-03-19
-> Current state: Phase 6 nearly complete. 462 tests passing across 40 test files. Stripe billing shipped. Public deployment is the only remaining gate to first revenue.
+> Forward-looking only. For shipped features, see [features.md](./features.md).
+>
+> Prioritized by enterprise RFP frequency and revenue impact, informed by competitive analysis of Portkey, Helicone, Kong, Cloudflare, LiteLLM, Envoy, AWS Bedrock, Azure API Management, Bifrost, Martian, Braintrust, and LangSmith.
+>
+> Last updated: 2026-03-19
 
 ---
 
-## What is production-ready today
+## Blocking: Go-live
 
-Everything below is shipped, tested, and working:
-
-### Core proxy
-- `/v1/chat/completions` and `/v1/embeddings` — streaming and non-streaming
-- LiteLLM multi-provider (OpenAI, Anthropic, Azure, Mistral, and 100+ others)
-- Provider fallback chains — automatic retry on 429/5xx, never on 4xx client errors
-- Weighted provider key rotation with per-model pattern matching
-- Streaming peek — errors surface as proper HTTP codes, never buried in SSE
-
-### Auth & access
-- API key auth (SHA-256 hash, plaintext never stored)
-- RBAC — admin / developer / viewer roles
-- OIDC/SSO — per-org generic OIDC connector, auth-code flow, JIT provisioning
-- Invite system — SHA-256 tokens, 7-day TTL
-- Auth brute-force protection — Redis-backed IP+email counter, 429 after N attempts
-- JWT silent refresh — proactive token renewal 5 min before expiry, transparent to user
-- Admin action audit log — every policy change, key rotation, user invite/deactivate logged (SOC 2 CC6)
-
-### Rate limiting & cost
-- RPM, TPM, per-user daily budget — all enforced in Redis
-- O(1) rate limiter — fixed-window counter (not sorted-set sliding window)
-- Per-model rate limits via policy config
-- Cost anomaly detection — baseline multiplier alert
-- Budget alert webhooks with guaranteed delivery (retry job with exponential backoff)
-- Request tagging — `x-openproxy-labels` header for departmental chargebacks
-- Budget forecasting — projected month-end spend card on dashboard from daily average
-
-### Policy engine
-- Enforcement modes: `off` / `log_only` / `enforce`
-- Model allowlist, keyword blocking, regex-based PII detection
-- ML-based prompt injection detection — `protectai/deberta-v3-base-prompt-injection`, fail-open
-- Response guardrails — keyword + PII checks on LLM output before returning to client
-- Response PII redaction — replaces detected PII with `[REDACTED]` in-stream
-- Per-org policy config stored in PostgreSQL, 60s Redis cache, instant invalidation on save
-- Policy event analytics — `GET /api/v1/analytics/policy/export` (JSON + CSV)
-
-### Observability
-- Async audit log — immutable PostgreSQL `request_logs`, plan-based retention + archival cron
-- ClickHouse dual-write — fire-and-forget sidecar for OLAP analytics at scale
-- Langfuse tracing — optional, fire-and-forget (v4 SDK, OTel transport)
-- Prometheus metrics — `/metrics` endpoint, ServiceMonitor for Kubernetes
-- p95/p99 latency in analytics — `percentile_cont()` in PostgreSQL
-- Materialized view `mv_daily_spend` — refreshed every 5 minutes for sub-second dashboard queries
-
-### Compliance & reporting
-- Compliance report CSV export — policy violations, user access, key rotation, budget vs actual (`GET /api/v1/analytics/compliance/export`)
-- CSV formula injection prevention — cell values prefixed to block spreadsheet exploits
-- Admin-only authorization on all export endpoints
-- SOC 2 CC6/CC7 evidence artifacts — immutable audit trail + exportable compliance report
-
-### Admin console
-- Dashboard (cost, tokens, request volume, latency percentiles, projected month-end spend)
-- Log viewer with request detail and label filtering
-- Policy editor — all fields configurable per org without code changes
-- Team management — invite, deactivate, role change
-- Provider key management — create, rotate, delete (audit-logged)
-- Organization settings — plan info, webhook config, integrations
-- Onboarding modal — 3-step first-run key creation
-- Self-serve signup — public registration at `/signup`, no manual DB setup needed
-- Compliance export button — one-click CSV download from dashboard
-
-### Infrastructure
-- Docker Compose for local development
-- Kubernetes Helm chart — HPA, PDB, ServiceMonitor, init-container migrations
-- Frontend Docker build — multi-stage nginx image with SPA fallback
-- GitHub Actions CI/CD — test → build → push GHCR → helm upgrade on every push to main
-- Exact-match Redis cache with configurable TTL (off by default)
-
-### SDKs
-- Python SDK — `openproxy-ai` on PyPI, sync + async, streaming, typed errors
-- TypeScript SDK — `openproxy-ai` on npm, ESM + CJS, typed streaming
-
-### Test coverage (420 tests, 39 files)
-- Proxy & LLM: proxy, llm_service, provider fallback, model routing, model rate limits
-- Auth & SSO: auth, SSO, API keys, users, auth rate limit
-- Policy & guardrails: policy, policy config, policy store, response guardrails, request labels
-- Compliance & audit: audit logger, admin audit, audit immutability, SOC 2 controls
-- Cost & analytics: cost tracker, cost anomaly, analytics, plan enforcement
-- Webhooks: webhook delivery, webhook retry
-- Observability: Langfuse, Prometheus metrics, ClickHouse
-- Security: crypto service, prompt injection, Presidio
-- Infrastructure: health, management, cache service, invites, organizations, provider keys
-
----
-
-## Known gaps (intentional, not bugs)
-
-### Gap — Cache is exact-match, not semantic
-**File:** `backend/app/services/cache_service.py`
-
-SHA-256 hash of `(model, messages, temperature)` → Redis lookup. Only hits on byte-for-byte
-identical requests. Good for CI/eval loops. **Semantic caching** is a Phase 8 item.
-
-### Gap — Presidio NLP is disabled by default
-**File:** `backend/requirements.txt`
-
-`presidio-analyzer` is commented out due to +800MB image size. Regex PII detection is active.
-To enable: uncomment `presidio-analyzer`, rebuild the Docker image. Phase 7 item.
-
----
-
-## What's still needed before first paying customer
-
-| Item | Status | Where |
+| Item | What's needed | Time estimate |
 |---|---|---|
-| **Stripe billing** | ✓ Shipped | — |
-| **Public deployment** | Code complete; waiting on DOKS cluster + DNS setup | `plans/public-deployment.md` |
+| Public deployment | Create DOKS cluster, provision managed DB/Redis, configure DNS, set GitHub secrets. All code is done. See `plans/public-deployment.md` | ~1 hour of infra work |
+| Stripe keys | Create Stripe products/prices, set env vars in production. All code is done. See `docs/guides/stripe-setup.md` | ~30 min |
+
+Everything below is post-launch, prioritized by competitive gap and revenue impact.
 
 ---
 
-## Phase 6 — Go-to-market *(nearly complete)*
+## P0 — Table stakes gaps (competitors already ship these)
 
-### 6.1 — Stripe billing ✓ Shipped
-- DB schema: `stripe_customer_id`, `stripe_subscription_id`, `stripe_subscription_status` ✓
-- `stripe_events` idempotency table with atomic `ON CONFLICT DO NOTHING` idempotency ✓
-- `billing_service.py` — checkout, portal, webhook handler with `SELECT FOR UPDATE` ✓
-- Routes: `POST /api/v1/billing/checkout`, `/portal`, `/webhook` ✓
-- `BillingPage.tsx` — plan cards, upgrade flow, post-checkout polling, portal redirect ✓
-- Plan override guard (409 when Stripe-managed) ✓
-- 15 billing tests — all webhook event types, idempotency, unpaid checkout guard ✓
+### Semantic caching
+**RFP signal:** 58% of enterprise RFPs ask for it. Portkey, Helicone, Kong, and Bifrost all ship it.
 
-### 6.2 — Self-serve signup ✓ Shipped
-- `/signup` route in admin console
-- `signup()` in AuthContext calling `POST /api/v1/auth/register`
-- Login page links to signup
+**Why:** Exact-match cache only helps CI/eval loops. Semantic cache reduces token spend 20–40% for production chatbot and RAG workloads — the top cost justification for choosing a gateway over raw API calls.
 
-### 6.3 — Public deployment *(one manual step away from live)*
-- Frontend Dockerfile + nginx SPA config ✓
-- Helm frontend templates + `values.prod.yaml` ✓
-- `cert-manager` ClusterIssuer ✓
-- GitHub Actions CI/CD (test → build → push → deploy) ✓
-- Remaining: DOKS cluster, managed DB/Redis, DNS, GitHub secrets → `plans/public-deployment.md`
+**Scope:**
+- Embed request messages via a lightweight model (e.g. `text-embedding-3-small`)
+- Store in vector store (pgvector or Pinecone) alongside the cached response
+- Cosine-similarity match above configurable threshold (default 0.95)
+- Per-request override via `x-openproxy-cache: skip` header
+- Dashboard metric: cache hit rate (exact vs semantic) with cost savings estimate
+- Optional: in-memory L1 + Redis L2 dual cache layer (from LiteLLM DualCache pattern)
 
-### 6.4 — Security hardening ✓ Shipped
-- CSV formula injection prevention in all export endpoints ✓
-- Admin-only authorization on compliance and policy export endpoints ✓
-- Webhook secret excluded from API responses ✓
-- Auth rate limiting on login and invite acceptance ✓
+**Files:** Extend `backend/app/services/cache_service.py`, new vector store client, config flags.
 
-### 6.5 — Compliance & analytics ✓ Shipped
-- Compliance report CSV export — policy violations, user access, key rotation, budget ✓
-- Policy event analytics endpoint (JSON + CSV) with date range and action filters ✓
-- Budget forecasting — projected month-end spend computed from daily average ✓
-- Projected cost card on admin dashboard ✓
+### Prompt playground / model compare
+**RFP signal:** 42% of RFPs ask for prompt management. LiteLLM Proxy, Portkey Studio, and Helicone all ship comparison UIs.
 
-### 6.6 — Test hardening ✓ Shipped
-- 39 test files covering all routes, services, and edge cases ✓
-- 420 tests passing (up from 294) ✓
-- New test files: api_keys, organizations, users, audit_logger, cost_tracker, crypto_service, llm_service ✓
+**Why:** Without this, developers test prompts in external tools and lose the audit trail. Portkey charges separately for Prompt Studio — opportunity to include it.
+
+**Scope:**
+- New admin console page: side-by-side prompt testing against 2–3 models
+- Show TTFT, total latency, token count, cost per response
+- Save prompt templates (name, system message, user template with `{{variables}}`)
+- Prompt history linked to request logs for audit
+
+**Files:** New `admin-console/src/features/playground/`, new `backend/app/routes/playground.py`.
+
+### `GET /v1/models` endpoint
+**Why:** Every competitor exposes this. SDKs expect it. Quick win for compatibility.
+
+**Scope:** Aggregate available models from provider keys + `model_patterns`. Return OpenAI-compatible model list.
 
 ---
 
-## Phase 7 — Enterprise hardening *(next)*
+## P1 — Revenue accelerators (directly close deals)
 
-### 7.1 — Presidio PII detection (real NLP)
-Uncomment `presidio-analyzer`, rebuild image. Optional Helm sub-chart (`presidio.enabled: true`).
-Minimal code change — the service already supports both regex and NLP backends.
+### Data residency & regional routing
+**RFP signal:** 65% of enterprise RFPs — the #1 deal blocker. Helicone, Kong, LiteLLM, Envoy, AWS, and Azure all support it.
 
-### 7.2 — Real-time cost dashboard (WebSocket)
-Replace polling dashboard with WebSocket feed for live spend visibility. Reduces dashboard
-refresh latency from 30s to sub-second for SOC operations centers.
+**Why:** EU enterprises refuse to sign if data leaves region. GDPR compliance is non-negotiable. Even a config-level solution unblocks conversations.
 
-### 7.3 — Usage-based billing metering
-Track per-request cost against Stripe usage records for consumption-based pricing. Requires
-Stripe metered billing setup and a periodic sync job.
+**Scope (Tier 1 — config-based, 1 sprint):**
+- `data_region` field on organizations (e.g. `eu`, `us`, `ap`)
+- Routing rules: "If org is EU, use only EU-region provider keys"
+- Provider keys gain `region` field for geographic tagging
 
-### 7.4 — Multi-tenant data isolation audit
-Verify all SQL queries enforce `org_id` filtering. Add PostgreSQL RLS policies as defense-in-depth.
-Generate evidence report for SOC 2 CC6.3 auditors.
+**Scope (Tier 2 — self-hosted, 2–3 sprints):**
+- Publish hardened Helm chart for on-premise deployment
+- Air-gapped mode: license key validation, no outbound telemetry
+- Ops documentation for healthcare and government customers
 
-### 7.5 — Advanced webhook features
-Dead-letter queue for permanently failed deliveries. Webhook event replay from admin console.
-Delivery status dashboard with success/failure rates per org.
+**Deal impact:** $100K+ ACV per customer. Self-hosted unlocks $1M+ ARR from regulated sectors.
 
----
+### Vertical-specific compliance templates
+**RFP signal:** 35% of RFPs. No competitor does this well — unique moat opportunity.
 
-## Phase 8 — Advanced gateway
+**Why:** Healthcare (HIPAA), finance (PCI-DSS), and government (FedRAMP) each need pre-built policy sets. Today every customer hand-configures policies. Templates let sales say "HIPAA-ready out of the box."
 
-### 8.1 — Semantic caching
-Embed requests, cosine-match against vector store, return cached response above threshold.
-Reduces cost 20–40% for repetitive workloads like chatbots.
+**Scope:**
+- Healthcare template: SSN/MRN PII rules, PHI keyword list, audit retention 7 years, model allowlist (no external fine-tunes)
+- Finance template: PCI credit card regex, trade compliance keywords, SOX audit export format
+- Government template: FedRAMP-aligned security headers, US-only provider keys, classified keyword blocking
+- `POST /api/v1/orgs/{id}/apply-template` endpoint + admin console "Quick Setup" wizard
 
-### 8.2 — Voice endpoint
-`POST /v1/audio/transcriptions` — Whisper with same auth/policy/audit pipeline as chat.
+**Deal impact:** $75K+ per healthcare customer, $50K+ per finance customer.
 
-### 8.3 — Model A/B testing
-Route configurable % of traffic to model variants. Aggregate latency/cost/quality per variant.
+### Usage-based billing metering
+**Why:** Enterprise customers expect pay-per-token pricing or hybrid models. Stripe supports metered billing natively.
 
-### 8.4 — Multi-region routing
-Wire `data_region` on organizations to a routing layer for GDPR data residency compliance.
+**Scope:**
+- Periodic job (hourly) syncs aggregated token usage to Stripe usage records
+- New plan tier option: "metered" with per-token pricing
+- Dashboard shows usage vs included quota with overage projection
+- Invoice line items show token breakdown by model
 
----
+**Files:** Extend `billing_service.py`, new `metering_service.py`, Stripe usage record API.
 
-## Phase 9 — Moat features
+### Multi-tenant RLS audit
+**Why:** Every enterprise sales conversation asks "how do you isolate our data?" Application-level `org_id` filtering exists, but PostgreSQL RLS is defense-in-depth and produces audit evidence for SOC 2 CC6.3.
 
-### 9.1 — WASM plugin system
-Customer-written `before_request` / `after_request` hooks compiled to WASM.
+**Scope:**
+- Enable RLS on `request_logs`, `api_keys`, `llm_provider_keys`, `webhook_deliveries`
+- `SET LOCAL app.current_org_id = ?` per transaction
+- Verification script proving cross-org access is impossible
+- PDF/CSV evidence report for auditors
 
-### 9.2 — On-premise distribution
-Air-gapped Helm chart + license key validation for healthcare/government customers.
+**Files:** Alembic migration, `backend/app/database.py` session hook, verification test suite.
 
----
+### Team/project scoping
+**Why:** Larger customers need to group users and attribute costs to departments. `x-openproxy-labels` handles chargebacks today but lacks first-class entities for budgets and key isolation.
 
-## Fastest path to first revenue
-
-1. ~~Get Stripe keys → execute Stripe billing~~ ✓ Done
-2. Create DOKS cluster → execute `plans/public-deployment.md` (manual steps, ~1 hour)
-3. Target one fintech or healthcare startup at `app.openproxyai.com`
-
----
-
-## Business model
-
-| Plan | Price | Users | Notes |
-|---|---|---|---|
-| Free | $0 | 3 | Self-serve, no PII detection |
-| Starter | $2,500/mo | 50 | PII detection, 30-day log retention |
-| Growth | $7,500/mo | 200 | 90-day log retention |
-| Enterprise | $25,000+/mo | Unlimited | SSO, on-premise, 365-day retention |
-
-Target: $500K ARR Year 1, $5M ARR Year 2.
+**Scope:**
+- New `teams` table: org_id, name, budget_monthly_usd
+- Users belong to one or more teams; API keys scoped to a team
+- Team-level rate limits and budget caps
+- Dashboard filter by team; cost breakdown in analytics
 
 ---
 
-## Blueprint one-liners
+## P2 — Competitive differentiators (win bake-offs)
 
-```
-/blueprint openproxyai "Presidio sidecar in Helm chart — optional presidio-analyzer sub-chart with presidio.enabled: true in values.yaml"
-/blueprint openproxyai "Real-time cost dashboard — replace REST polling with WebSocket feed for live spend and request volume"
-/blueprint openproxyai "Usage-based billing metering — Stripe usage records synced from per-request cost tracking"
-/blueprint openproxyai "Multi-tenant data isolation audit — RLS policies on all tables, org_id enforcement verification"
-/blueprint openproxyai "Webhook dead-letter queue and replay — DLQ for failed deliveries, admin replay UI, delivery status dashboard"
-/blueprint openproxyai "Semantic caching — embed requests, cosine-match against Redis/Pinecone vector store, return cached response above threshold"
-/blueprint openproxyai "Voice endpoint — POST /v1/audio/transcriptions wrapping Whisper with same auth/policy/audit pipeline as chat completions"
-/blueprint openproxyai "Model A/B testing — route % of traffic to model variants, aggregate latency/cost/quality per variant in dashboard"
-/blueprint openproxyai "WASM plugin system — customer-written before/after hooks compiled to WASM, loaded and executed per request"
-```
+### Model A/B testing & canary deployments
+**RFP signal:** 28% of RFPs. Portkey and Kong offer it. No mainstream gateway does it natively with quality tracking.
+
+**Scope:**
+- New `experiments` table: name, model variants with traffic weight
+- Gateway routes requests by experiment weights
+- Per-variant metrics: latency, cost, token usage, policy violation rate
+- Admin console page to create/stop experiments and view results
+- Optional: quality scoring via LLM-as-judge
+
+### Adaptive load balancing
+**Why:** Bifrost and Portkey recompute provider weights dynamically (every 5s) based on latency and error rates. Static weights mean a degraded provider keeps getting traffic.
+
+**Scope:**
+- Background job samples recent latency and error rates per provider key
+- Adjusts effective weights: healthy keys get more, degraded keys get less
+- Configurable sensitivity and floor (minimum weight)
+- Dashboard shows real-time provider health
+
+### Circuit breaker
+**Source:** Portkey pattern — stops routing to a provider when failure rate exceeds threshold.
+
+**Scope:**
+- Per-provider-key `failure_threshold`, `failure_threshold_percentage`, `cooldown_interval`
+- When open, skip key in fallback chain until cooldown expires
+- Complements adaptive load balancing
+
+### Prompt management & versioning
+**Why:** Portkey Studio and Braintrust Loop offer prompt registries. Teams need version-controlled prompts with rollback, not just a playground.
+
+**Scope:**
+- `prompt_templates` table: name, version, system message, user template, variables schema
+- API: `POST /v1/chat/completions` accepts `prompt_id` + `variables` instead of raw messages
+- Version history with diff view in admin console
+- Promote/rollback controls
+
+### Session/trace grouping
+**Source:** Helicone Sessions — group related LLM calls for agent trace visibility.
+
+**Scope:**
+- Accept `x-openproxy-session-id` (and optional path/name)
+- Store in `request_logs`; dashboard filter by session
+- View multi-step agent traces as a single unit
+
+### Per-request config overrides
+**Source:** Portkey `x-portkey-*` headers — routing, retries, and overrides from HTTP headers.
+
+**Scope:**
+- `x-openproxy-retries`, `x-openproxy-fallback-model`, `x-openproxy-cache` headers
+- Per-request overrides without changing org config
+
+---
+
+## P3 — Future moat
+
+### MCP gateway (tool calling governance)
+**RFP signal:** 12% today, projected 40% by year-end as agent frameworks mature. AWS Bedrock AgentCore and Envoy AI Gateway already support it.
+
+**Scope:** Optional MCP proxy so agents call tools through the gateway with policy enforcement, audit logging, and rate limiting on tool calls.
+
+### Voice endpoint
+`POST /v1/audio/transcriptions` — Whisper with the same auth/policy/audit pipeline. Enables voice-first enterprise use cases (call centers, field workers).
+
+### WASM plugin system
+Customer-written `before_request` / `after_request` hooks compiled to WebAssembly. Runs sandboxed in the request pipeline. Enables custom transformations without forking the gateway.
+
+### Vault / external secrets
+Support fetching provider keys from HashiCorp Vault instead of DB. Enterprise ask for regulated industries with centralized secret management.
+
+### Eval scores API
+`POST /api/v1/requests/{id}/scores` — submit numeric/boolean eval metrics per request. Dashboard trends over time. Pattern from Helicone.
+
+---
+
+## Operational improvements (low effort, high polish)
+
+| Item | Source | Scope |
+|---|---|---|
+| Batched spend writes | LiteLLM | Redis queue → PostgreSQL flush every 60s. Reduces DB write load at scale. |
+| Provider health check job | LiteLLM | APScheduler pings provider keys, marks unhealthy. Feeds adaptive load balancing. |
+| Weekly/monthly spend reports | LiteLLM | Slack or email digest per org. |
+| Key rotation scheduler | LiteLLM | Auto-rotate provider keys on interval. |
+| Drop-in base URL docs | Bifrost | Document `base_url` swap for OpenAI/Anthropic SDKs — zero code change migration. |
+| Router strategies | LiteLLM | Pluggable: `lowest_latency` (p95), `simple_shuffle` (current), `round_robin`. |
+
+---
+
+## What NOT to build (and why)
+
+| Temptation | Why skip it |
+|---|---|
+| Fine-tuning management | Out of scope — gateways route, they don't train. Customers use their own pipelines. |
+| Agent orchestration | LangChain/CrewAI territory. The gateway should be a dumb pipe with smart policies. |
+| Image/video generation proxy | Different latency profile, different billing model. Revisit only if customers ask. |
+| Custom LLM hosting | The value prop is provider-agnostic routing, not competing with Replicate/Together. |

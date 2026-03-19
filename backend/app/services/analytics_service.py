@@ -7,13 +7,16 @@ from math import ceil
 from typing import Any
 from uuid import UUID
 
+from redis.asyncio import Redis
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.request_log import RequestLog
 
 from app.schemas.analytics import (
 	AnalyticsResponse,
+	CacheAnalyticsResponse,
 	CostByModel,
 	CostByUser,
 	DailyUsageTrend,
@@ -921,6 +924,49 @@ class AnalyticsService:
 				total_delta_cost_usd=round(total_gw_cost - total_pr_cost, 6),
 			),
 			generated_at=datetime.now(UTC),
+		)
+
+	async def get_cache_metrics(
+		self,
+		redis: Redis,
+		org_id: UUID,
+		period_days: int = 7,
+	) -> CacheAnalyticsResponse:
+		"""Aggregate cache hit/miss metrics from Redis for the org over period_days."""
+		org = str(org_id)
+		exact_hits = 0
+		semantic_hits = 0
+		misses = 0
+		tokens_saved = 0
+
+		for i in range(period_days):
+			d = (datetime.now(UTC).date() - timedelta(days=i)).strftime("%Y-%m-%d")
+			try:
+				raw_exact = await redis.get(f"cache:hits:exact:{org}:{d}")
+				raw_semantic = await redis.get(f"cache:hits:semantic:{org}:{d}")
+				raw_misses = await redis.get(f"cache:misses:{org}:{d}")
+				raw_tokens = await redis.get(f"cache:tokens_saved:{org}:{d}")
+			except Exception:
+				continue
+			exact_hits += int(raw_exact or 0)
+			semantic_hits += int(raw_semantic or 0)
+			misses += int(raw_misses or 0)
+			tokens_saved += int(raw_tokens or 0)
+
+		total_requests = exact_hits + semantic_hits + misses
+		hit_rate = (exact_hits + semantic_hits) / total_requests if total_requests > 0 else 0.0
+		cost_per_token = getattr(
+			settings, "SEMANTIC_CACHE_COST_PER_TOKEN_ESTIMATE_USD", 0.00003
+		)
+		estimated_savings_usd = round(tokens_saved * cost_per_token, 2)
+
+		return CacheAnalyticsResponse(
+			period_days=period_days,
+			exact_hits=exact_hits,
+			semantic_hits=semantic_hits,
+			misses=misses,
+			hit_rate=round(hit_rate, 4),
+			estimated_savings_usd=estimated_savings_usd,
 		)
 
 

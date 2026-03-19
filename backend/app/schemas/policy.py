@@ -33,3 +33,13 @@ class PolicyConfigResponse(BaseModel):
 	prompt_injection_detection_enabled: bool
 	response_guardrails_enabled: bool
 	response_pii_redact: bool
+
+
+class ApplyTemplateRequest(BaseModel):
+	template: str  # Validated in route to return 400 for unknown values
+
+
+class TemplateListItem(BaseModel):
+	name: str
+	description: str
+	configures: list[str]

@@ -35,6 +35,13 @@ const PROVIDERS = [
   "other",
 ];
 
+const REGIONS = [
+  { value: "us", label: "US" },
+  { value: "eu", label: "EU" },
+  { value: "ap", label: "Asia-Pacific" },
+  { value: "global", label: "Global" },
+] as const;
+
 function AddKeyModal({
   open,
   onClose,
@@ -50,6 +57,7 @@ function AddKeyModal({
   const [alias, setAlias] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [weight, setWeight] = useState("1.0");
+  const [region, setRegion] = useState<"us" | "eu" | "ap" | "global">("us");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,9 +67,10 @@ function AddKeyModal({
     }
     onSave({
       provider,
-      alias: alias.trim() || provider,
+      key_alias: alias.trim() || provider,
       api_key: apiKey.trim(),
       weight: parseFloat(weight) || 1.0,
+      region,
     });
   }
 
@@ -118,6 +127,16 @@ function AddKeyModal({
               step="0.1"
             />
           </label>
+          <label className="inline-control">
+            Region
+            <select value={region} onChange={(e) => setRegion(e.target.value as "us" | "eu" | "ap" | "global")}>
+              {REGIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <DialogFooter>
             <button
               type="button"
@@ -140,6 +159,7 @@ export function ProviderKeysPage() {
   const { token } = useAuth();
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [regionFilter, setRegionFilter] = useState<string>("all");
 
   const keysQuery = useQuery({
     queryKey: ["provider-keys", token],
@@ -197,6 +217,8 @@ export function ProviderKeysPage() {
     );
 
   const keys = keysQuery.data ?? [];
+  const filteredKeys =
+    regionFilter === "all" ? keys : keys.filter((k) => k.region === regionFilter);
 
   return (
     <section className="page-wrap">
@@ -223,11 +245,30 @@ export function ProviderKeysPage() {
         />
       ) : (
         <section className="surface-panel">
+          <div className="flex items-center gap-2" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="region-filter" style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
+              Filter by region:
+            </label>
+            <select
+              id="region-filter"
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid var(--line)" }}
+            >
+              <option value="all">All</option>
+              {REGIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <table className="data-table">
             <thead>
               <tr>
                 <th>Provider</th>
                 <th>Alias</th>
+                <th>Region</th>
                 <th>Key Prefix</th>
                 <th>Weight</th>
                 <th>Status</th>
@@ -236,7 +277,7 @@ export function ProviderKeysPage() {
               </tr>
             </thead>
             <tbody>
-              {keys.map((k) => (
+              {filteredKeys.map((k) => (
                 <tr key={k.id}>
                   <td>
                     <div className="flex items-center gap-1.5">
@@ -244,7 +285,12 @@ export function ProviderKeysPage() {
                       {k.provider}
                     </div>
                   </td>
-                  <td>{k.alias ?? "—"}</td>
+                  <td>{k.key_alias ?? k.alias ?? "—"}</td>
+                  <td>
+                    <Badge variant="muted" style={{ fontSize: "0.75rem" }}>
+                      {REGIONS.find((r) => r.value === k.region)?.label ?? k.region ?? "US"}
+                    </Badge>
+                  </td>
                   <td>
                     <code>{k.key_prefix}…</code>
                   </td>

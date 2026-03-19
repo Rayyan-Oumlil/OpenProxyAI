@@ -25,6 +25,7 @@ class LLMProviderKey(UUIDPrimaryKeyMixin, Base):
     api_key_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
     weight: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    region: Mapped[str] = mapped_column(String(10), server_default="us", nullable=False)
     model_patterns = mapped_column(JSON, nullable=True, default=list)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 

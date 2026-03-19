@@ -73,3 +73,12 @@ class PolicyAnalyticsResponse(BaseModel):
 	by_action: list[PolicyActionStat]
 	by_reason: list[PolicyReasonStat]
 	generated_at: datetime
+
+
+class CacheAnalyticsResponse(BaseModel):
+	period_days: int
+	exact_hits: int
+	semantic_hits: int
+	misses: int
+	hit_rate: float
+	estimated_savings_usd: float
