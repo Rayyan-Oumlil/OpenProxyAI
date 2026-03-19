@@ -18,6 +18,7 @@ A provider key is a credential (API key) for an LLM provider (OpenAI, Anthropic,
 | `api_key_encrypted` | string | Encrypted provider API key (stored securely) |
 | `weight` | integer | Selection weight for weighted random routing (1-100) |
 | `is_active` | boolean | Whether this key is usable |
+| `region` | string | Data residency region: `us`, `eu`, `ap`, or `global` |
 | `model_patterns` | array[string] | fnmatch patterns for model-specific routing |
 | `created_at` | datetime | Creation timestamp |
 
@@ -45,6 +46,7 @@ curl -X POST https://api.openproxy.ai/api/v1/provider-keys \
 | `key_alias` | string | Yes | 1-100 chars | Friendly name for this key |
 | `api_key` | string | Yes | 8+ chars | Raw API key (stored encrypted, never returned) |
 | `weight` | integer | No | 1-100, default=1 | Selection weight for load balancing |
+| `region` | string | No | `us` (default), `eu`, `ap`, `global` | Data residency region for this key |
 
 **Response (201 Created):**
 
@@ -323,6 +325,48 @@ Configure keys for multiple providers simultaneously:
 ```
 
 Requests for `openai/gpt-4o` use the OpenAI key, while `anthropic/claude-3-sonnet` uses the Anthropic key, and so on.
+
+## Data Residency & Regional Routing
+
+Provider keys can be tagged with a `region` to enforce data residency. When an organization has `data_region` set (e.g., `eu`), only provider keys with a matching region or `region = 'global'` are eligible for routing.
+
+### Region Values
+
+| Region | Meaning |
+|--------|---------|
+| `us` | United States (default) |
+| `eu` | European Union |
+| `ap` | Asia-Pacific |
+| `global` | Available to all regions |
+
+### Example: EU Data Residency
+
+```bash
+# Create an EU-only key
+curl -X POST https://api.openproxy.ai/api/v1/provider-keys \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "openai",
+    "key_alias": "OpenAI EU (Azure Sweden)",
+    "api_key": "sk-...",
+    "weight": 5,
+    "region": "eu"
+  }'
+```
+
+If the org's `data_region = 'eu'`:
+- Keys with `region = 'eu'` are eligible
+- Keys with `region = 'global'` are eligible
+- Keys with `region = 'us'` or `region = 'ap'` are **excluded**
+
+Set an org's data region via the Organization Settings page or `PATCH /api/v1/organizations/current`:
+
+```json
+{
+  "data_region": "eu"
+}
+```
 
 ## Error Handling
 

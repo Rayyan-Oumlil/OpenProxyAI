@@ -379,6 +379,45 @@ When policy violations occur, webhooks can be dispatched. See [Cost Management](
 
 - `policy.violation` — Fired when a request is blocked or logged (depending on mode and configuration)
 
+## Compliance Templates
+
+Pre-built policy configurations for regulated industries. Templates apply on top of existing policy using merge semantics — your current `allowed_models` and `model_rate_limits` are preserved.
+
+### Available Templates
+
+| Template | Industry | What it configures |
+|----------|----------|-------------------|
+| `healthcare_hipaa` | Healthcare | SSN/MRN PII detection, PHI keyword blocking, `enforce` mode, model allowlist (no external fine-tunes) |
+| `finance_pci` | Finance | Credit card regex, trade compliance keywords, `enforce` mode, SOX audit format |
+| `government_fedramp` | Government | US-only model allowlist, classified keyword blocking, `enforce` mode, strict PII |
+
+### Listing Templates
+
+```bash
+curl https://api.openproxy.ai/api/v1/organizations/current/policy/templates \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Applying a Template
+
+```bash
+curl -X POST https://api.openproxy.ai/api/v1/organizations/current/policy/apply-template \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"template_id": "healthcare_hipaa"}'
+```
+
+**Merge behavior:**
+- `enforcement_mode` is set to the template's value (typically `enforce`)
+- `blocked_keywords` are replaced with the template's list
+- `pii_entities` are replaced with the template's list
+- `allowed_models` are **preserved** (not overwritten)
+- `model_rate_limits` are **preserved** (not overwritten)
+
+An audit log entry is created with `action = "policy.template_applied"`.
+
+The Redis policy cache is invalidated immediately — the new config takes effect on the next request.
+
 ## Caching and Propagation
 
 Policy changes are cached in Redis with a 60-second TTL. After updating:

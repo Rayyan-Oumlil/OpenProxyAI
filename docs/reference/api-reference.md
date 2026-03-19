@@ -141,6 +141,164 @@ All standard OpenProxyAI headers apply (request ID, cost, latency, policy action
 
 ---
 
+### GET /v1/models
+
+List available models for your organization, aggregated from configured provider keys and their `model_patterns`.
+
+**Response (200 OK)**
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "openai/gpt-4o",
+      "object": "model",
+      "created": 0,
+      "owned_by": "openai"
+    },
+    {
+      "id": "anthropic/claude-3-5-sonnet",
+      "object": "model",
+      "created": 0,
+      "owned_by": "anthropic"
+    }
+  ]
+}
+```
+
+Models are derived by expanding `model_patterns` on active provider keys using `litellm.models_by_provider`. If a key has no patterns, all models for that provider are included. Duplicates are removed.
+
+---
+
+## Playground Endpoints
+
+### POST /api/v1/playground/compare
+
+Run the same prompt against multiple models side-by-side. Requires admin or developer role.
+
+**Request**
+
+```json
+{
+  "models": ["openai/gpt-4o", "anthropic/claude-3-5-sonnet"],
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "Explain quantum computing in 2 sentences."}
+  ],
+  "temperature": 0.7,
+  "max_tokens": 200
+}
+```
+
+**Response (200 OK)**
+
+```json
+{
+  "results": [
+    {
+      "model": "openai/gpt-4o",
+      "content": "Quantum computing uses...",
+      "prompt_tokens": 28,
+      "completion_tokens": 45,
+      "cost_usd": 0.000234,
+      "latency_ms": 1250,
+      "ttft_ms": 420
+    },
+    {
+      "model": "anthropic/claude-3-5-sonnet",
+      "content": "Quantum computers leverage...",
+      "prompt_tokens": 28,
+      "completion_tokens": 42,
+      "cost_usd": 0.000189,
+      "latency_ms": 980,
+      "ttft_ms": 310
+    }
+  ]
+}
+```
+
+Policy evaluation runs for each model before comparison begins. If any model is blocked by policy, the request returns HTTP 403.
+
+### Prompt Template CRUD
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/playground/templates` | List all templates for your org |
+| `POST` | `/api/v1/playground/templates` | Create a template |
+| `GET` | `/api/v1/playground/templates/{id}` | Get a specific template |
+| `PATCH` | `/api/v1/playground/templates/{id}` | Update a template |
+| `DELETE` | `/api/v1/playground/templates/{id}` | Soft-delete a template |
+
+**Create Template Request**
+
+```json
+{
+  "name": "Customer Support",
+  "description": "Standard support response template",
+  "system_message": "You are a helpful customer support agent for {{company}}.",
+  "user_template": "Customer says: {{message}}\n\nRespond helpfully.",
+  "variables_schema": [
+    {"name": "company", "type": "string", "default": "Acme Corp"},
+    {"name": "message", "type": "string"}
+  ]
+}
+```
+
+---
+
+## Compliance Template Endpoints
+
+### GET /api/v1/organizations/current/policy/templates
+
+List available compliance templates.
+
+**Response (200 OK)**
+
+```json
+{
+  "templates": [
+    {
+      "id": "healthcare_hipaa",
+      "name": "Healthcare — HIPAA",
+      "description": "HIPAA-ready policy: PHI keyword blocking, PII detection for SSN/MRN, model allowlist, 7-year audit retention",
+      "industry": "healthcare",
+      "regulation": "HIPAA"
+    },
+    {
+      "id": "finance_pci",
+      "name": "Finance — PCI-DSS",
+      "description": "PCI-compliant policy: credit card detection, trade compliance keywords, SOX audit format",
+      "industry": "finance",
+      "regulation": "PCI-DSS"
+    },
+    {
+      "id": "government_fedramp",
+      "name": "Government — FedRAMP",
+      "description": "FedRAMP-aligned policy: US-only models, classified keyword blocking, strict enforcement",
+      "industry": "government",
+      "regulation": "FedRAMP"
+    }
+  ]
+}
+```
+
+### POST /api/v1/organizations/current/policy/apply-template
+
+Apply a compliance template to your organization's policy. Uses merge semantics: the template's settings are applied on top of existing policy, preserving your current `allowed_models` and `model_rate_limits`.
+
+**Request**
+
+```json
+{
+  "template_id": "healthcare_hipaa"
+}
+```
+
+**Response (200 OK)** — Returns the merged policy configuration.
+
+---
+
 ## Response Headers
 
 Every response from the proxy includes the following headers:
