@@ -4,7 +4,6 @@ from datetime import datetime, UTC
 from types import SimpleNamespace
 from uuid import uuid4
 
-import pytest
 
 from app.dependencies import get_current_user_from_jwt, get_db
 from app.main import app

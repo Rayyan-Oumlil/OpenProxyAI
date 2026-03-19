@@ -171,6 +171,18 @@ Models are derived by expanding `model_patterns` on active provider keys using `
 
 ---
 
+### Optional proxy request headers
+
+Send these on `POST /v1/chat/completions` and `POST /v1/embeddings` (gateway **API key** auth — same as `Authorization: Bearer opai_...`).
+
+| Header | Values / format | Purpose |
+|--------|-----------------|--------|
+| `x-openproxy-cache` | `skip`, `no-store`, `no-cache` | Override cache behavior when caching is enabled (`skip` = bypass read/write; `no-store` = don’t write; `no-cache` = bypass read, still write). |
+| `x-openproxy-labels` | JSON object, string keys/values (≤64 chars each, max 10 keys) | Departmental or chargeback labels; stored on request logs / metadata. |
+| `x-openproxy-team-id` | UUID | Optional team context; team must exist in the org and the API key’s user must be a member. |
+
+---
+
 ## Playground Endpoints
 
 ### POST /api/v1/playground/compare
@@ -333,6 +345,69 @@ Every response from the proxy includes the following headers:
 | 502 | Bad Gateway | Provider returned an error | OpenAI API error, Anthropic API error, etc. |
 | 503 | Service Unavailable | No active provider key | No configured provider key for the requested provider |
 | 504 | Gateway Timeout | Provider timeout | Provider did not respond within timeout window |
+
+---
+
+## Management API authentication
+
+Endpoints under `/api/v1/` (except the proxy’s `/v1/chat/*` and `/v1/embeddings`) expect a **JWT access token** from email/password (or SSO) login in the admin console — not the gateway API key:
+
+```
+Authorization: Bearer <jwt_access_token>
+```
+
+The gateway OpenAI-compatible surface (`/v1/chat/completions`, `/v1/embeddings`, `/v1/models`) uses **API keys** (`opai_...`) as documented in [Authentication](#authentication) above.
+
+---
+
+## Teams API
+
+Prefix: `/api/v1/teams`. **JWT required.** **Admin role only** for every endpoint (list, get, create, update, delete, add/remove members).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/teams` | List teams with member counts |
+| `POST` | `/api/v1/teams` | Create team (`name`, optional `budget_monthly_usd`) |
+| `GET` | `/api/v1/teams/{team_id}` | Team detail + members |
+| `PATCH` | `/api/v1/teams/{team_id}` | Update name / budget |
+| `DELETE` | `/api/v1/teams/{team_id}` | Delete team |
+| `POST` | `/api/v1/teams/{team_id}/members/{user_id}` | Add user to team |
+| `DELETE` | `/api/v1/teams/{team_id}/members/{user_id}` | Remove user from team |
+
+---
+
+## Experiments (A/B testing) API
+
+Prefix: `/api/v1/experiments`. **JWT required.**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/experiments` | List experiments |
+| `POST` | `/api/v1/experiments` | Create (admin) — `name`, `target_model`, `variants[]` with `model` + `traffic_weight` |
+| `GET` | `/api/v1/experiments/{id}` | Get one |
+| `PATCH` | `/api/v1/experiments/{id}` | Update (admin) |
+| `DELETE` | `/api/v1/experiments/{id}` | Delete (admin) |
+| `POST` | `/api/v1/experiments/{id}/start` | Activate (admin) |
+| `POST` | `/api/v1/experiments/{id}/stop` | Deactivate (admin) |
+| `GET` | `/api/v1/experiments/{id}/results` | Aggregated metrics per variant from logs |
+
+When the org policy **`allowed_models`** list is non-empty, create/update reject models not on the allowlist (HTTP 400).
+
+Traffic routing happens on **`POST /v1/chat/completions`** when the request `model` matches an active experiment’s `target_model`. See [Experiments & teams guide](../guides/experiments-and-teams.md).
+
+---
+
+## Billing API (Stripe)
+
+Prefix: `/api/v1/billing`. **JWT required.** Checkout/portal: **admin** only. Webhook: Stripe signature, no JWT.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/billing/checkout` | Body `{ "plan": "starter" \| "growth" \| "metered" }` → Stripe Checkout URL |
+| `POST` | `/api/v1/billing/portal` | Customer Portal URL for subscription self-service |
+| `POST` | `/api/v1/billing/webhook` | Stripe events (`checkout.session.completed`, invoices, subscriptions, …) |
+
+Metered usage and env vars: [Stripe setup guide](../guides/stripe-setup.md#9-usage-based-metered-plan-optional).
 
 ---
 
@@ -592,4 +667,4 @@ OpenProxyAI provides official SDKs for popular languages. All endpoints are acce
 - **Python** — `openproxy-ai` on PyPI (sync + async)
 - **TypeScript/JavaScript** — `openproxy-ai` on npm (ESM + CJS)
 
-See [quickstart.md](./quickstart.md) for SDK usage examples.
+See [quickstart.md](../getting-started/quickstart.md) for SDK usage examples.

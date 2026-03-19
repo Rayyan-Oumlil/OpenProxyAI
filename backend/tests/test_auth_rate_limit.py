@@ -1,6 +1,6 @@
 """Tests for auth brute-force protection — _check_auth_rate_limit / _reset_auth_rate_limit."""
 
-from unittest.mock import AsyncMock, call
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
@@ -17,7 +17,6 @@ async def test_rate_limit_blocks_on_11th_attempt():
     """First 10 calls succeed; the 11th raises HTTP 429."""
     ip = "1.2.3.4"
     email = "attacker@example.com"
-    key = f"auth:attempts:{ip}:{email}"
 
     redis = AsyncMock()
 

@@ -25,6 +25,8 @@ class OrganizationResponse(BaseModel):
 	stripe_customer_id: str | None = None
 	stripe_subscription_id: str | None = None
 	stripe_subscription_status: str | None = None
+	# Populated for usage-metered plans (see ``METERED_INCLUDED_TOKENS_MONTHLY``).
+	included_tokens_monthly: int | None = None
 
 
 class OrganizationUpdateRequest(BaseModel):

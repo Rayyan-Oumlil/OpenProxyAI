@@ -1,13 +1,11 @@
 from __future__ import annotations
-import json
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..._client import OpenProxy
     from ..._async_client import AsyncOpenProxy
 
 from ..._streaming import SyncStream, AsyncStream, _extract_gateway_meta
 from ...types.chat import ChatCompletion, Choice, Message, Usage
-from ...types.common import GatewayMeta
 
 
 def _parse_completion(body: dict, headers) -> ChatCompletion:

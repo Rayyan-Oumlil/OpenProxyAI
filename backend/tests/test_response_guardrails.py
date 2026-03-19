@@ -7,6 +7,8 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
+from tests.conftest import FakeDB
+
 from app.services.policy_service import PolicyConfig, PolicyDecision
 
 
@@ -138,7 +140,7 @@ async def test_response_blocked_keyword_enforcement_mode(monkeypatch, fake_redis
 	with pytest.raises(HTTPException) as exc_info:
 		await llm_service_module.llm_service.chat_completion(
 			request=request,
-			db=SimpleNamespace(),
+			db=FakeDB(),
 			redis=fake_redis,
 			user=user,
 			api_key=api_key,
@@ -212,7 +214,7 @@ async def test_response_pii_redacted_when_response_pii_redact_true(monkeypatch, 
 
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
-		db=SimpleNamespace(),
+		db=FakeDB(),
 		redis=fake_redis,
 		user=user,
 		api_key=api_key,
@@ -279,7 +281,7 @@ async def test_response_blocked_keyword_log_only_mode_passes_through(monkeypatch
 	# Should NOT raise — log_only mode lets the response through
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
-		db=SimpleNamespace(),
+		db=FakeDB(),
 		redis=fake_redis,
 		user=user,
 		api_key=api_key,

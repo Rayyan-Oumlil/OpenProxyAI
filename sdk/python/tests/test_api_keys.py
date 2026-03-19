@@ -1,4 +1,3 @@
-import pytest
 import respx
 import httpx
 from openproxy import OpenProxy

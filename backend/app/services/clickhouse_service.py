@@ -6,7 +6,6 @@ All operations are fire-and-forget; exceptions never propagate to caller.
 """
 from __future__ import annotations
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

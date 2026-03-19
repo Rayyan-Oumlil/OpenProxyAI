@@ -446,6 +446,34 @@ The schema is versioned with Alembic. Migrations run automatically at startup (`
 12. **e6f7a34b9d0c** — Add prompt templates
     - `prompt_templates` table with versioning and soft-delete
 
+13. **f8a9b0c1d2e3** — Add RLS policies for multi-tenant isolation
+    - `app_user` role for application connections
+    - `get_api_key_by_hash(TEXT)` SECURITY DEFINER function for API key lookup
+    - RLS policies on: request_logs, api_keys, llm_provider_keys, webhook_deliveries, semantic_cache_entries, prompt_templates
+    - `SET LOCAL app.current_org_id` required at start of each request
+
+## Row-Level Security (RLS)
+
+Multi-tenant isolation is enforced via PostgreSQL Row-Level Security on the following tables:
+
+| Table | Policy |
+|-------|--------|
+| request_logs | `org_id = current_setting('app.current_org_id')::uuid` |
+| api_keys | Same |
+| llm_provider_keys | Same |
+| webhook_deliveries | Same |
+| semantic_cache_entries | Same |
+| prompt_templates | Same |
+
+**Application behavior:**
+- At the start of each authenticated request, the app executes `SET LOCAL app.current_org_id = '{org_id}'` on the DB session.
+- `SET LOCAL` is transaction-scoped — it resets automatically at commit/rollback.
+- Org ID comes from JWT (`org_id` claim) or API key lookup (`get_api_key_by_hash` SECURITY DEFINER function).
+- `FORCE ROW LEVEL SECURITY` ensures even the table owner is subject to policies.
+- Superuser (migration role) bypasses RLS.
+
+**Verification:** Run `python -m scripts.verify_rls` to generate CSV evidence for auditors.
+
 Run `alembic history` to see current state:
 
 ```bash
@@ -453,7 +481,7 @@ alembic history
 # 54c0ed90559e -> c4f9a12e8b7d
 # c4f9a12e8b7d -> b3e8d87fd2f1
 # ...
-# c3d4e5f6a7b8 (head)
+# e6f7a34b9d0c -> f8a9b0c1d2e3 (head)
 ```
 
 To create a new migration after schema changes:

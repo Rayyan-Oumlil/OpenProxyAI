@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.api_key import ApiKey
     from app.models.organization import Organization
     from app.models.request_log import RequestLog
+    from app.models.team import Team
 
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -45,6 +46,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     organization: Mapped["Organization"] = relationship(back_populates="users")
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     request_logs: Mapped[list["RequestLog"]] = relationship(back_populates="user")
+    teams: Mapped[list["Team"]] = relationship(
+        "Team",
+        secondary="team_members",
+        back_populates="members",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email!r}>"

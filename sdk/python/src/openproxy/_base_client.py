@@ -1,7 +1,4 @@
 from __future__ import annotations
-import time
-import json
-from typing import Any
 import httpx
 
 from ._exceptions import (
@@ -12,7 +9,6 @@ from ._exceptions import (
     ProviderError,
     APIError,
 )
-from ._streaming import _extract_gateway_meta
 
 DEFAULT_BASE_URL = "https://api.openproxyai.com"
 DEFAULT_TIMEOUT = 60.0

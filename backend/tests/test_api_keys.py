@@ -6,8 +6,6 @@ from uuid import uuid4
 
 from app.dependencies import get_current_user_from_jwt, get_db
 from app.main import app
-from app.services import auth_service as auth_service_module
-from app.services import plan_service as plan_service_module
 
 
 # ---------------------------------------------------------------------------

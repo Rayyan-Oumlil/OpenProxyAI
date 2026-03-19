@@ -1,7 +1,6 @@
 """Tests for presidio_service — must pass even without presidio-analyzer installed."""
 from unittest.mock import patch, MagicMock
 import sys
-import importlib
 
 
 def test_is_enabled_returns_false_when_presidio_missing():

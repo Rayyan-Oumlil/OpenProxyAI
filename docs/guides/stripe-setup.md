@@ -74,3 +74,18 @@ stripe trigger customer.subscription.deleted
 ## 8. Enterprise plans
 
 Enterprise ($25,000+/mo) is handled manually — no Stripe price ID required. Set `org.plan = "enterprise"` directly via the admin API after confirming the contract.
+
+## 9. Usage-based metered plan (optional)
+
+Create a **metered** price in Stripe (per-unit usage, aggregate usage = **sum**) for token billing. Optionally add a fixed recurring **base** price on the same subscription.
+
+**Environment variables:**
+
+```bash
+STRIPE_METERED_PRICE_ID=price_...           # required for metered checkout + usage sync
+STRIPE_METERED_BASE_PRICE_ID=price_...      # optional second line item (e.g. platform fee)
+METERED_SYNC_ENABLED=true                   # set false to disable hourly usage reporting job
+METERED_INCLUDED_TOKENS_MONTHLY=1000000     # included allowance shown in admin UI / org API
+```
+
+The backend reports **hourly** token totals from `request_logs` to Stripe using idempotent usage records (`opai-meter-{org_id}-{YYYYMMDDHH}`). The job is a **sidecar**: failures are logged and never crash the API process.

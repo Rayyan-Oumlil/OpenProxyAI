@@ -1,6 +1,4 @@
 import pytest
-import respx
-import httpx
 
 
 FAKE_API_KEY = "opai_testkey123"

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json
-from typing import Iterator, AsyncIterator, TYPE_CHECKING
+from typing import Iterator, TYPE_CHECKING
 if TYPE_CHECKING:
     import httpx
 

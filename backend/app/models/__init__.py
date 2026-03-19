@@ -11,6 +11,8 @@ from app.models.user_invite import UserInvite
 from app.models.webhook_delivery import WebhookDelivery
 from app.models.stripe_event import StripeEvent
 from app.models.semantic_cache import SemanticCacheEntry
+from app.models.team import Team
+from app.models.experiment import Experiment, ExperimentVariant
 
 __all__ = [
     "Base",
@@ -24,4 +26,7 @@ __all__ = [
     "WebhookDelivery",
     "StripeEvent",
     "SemanticCacheEntry",
+    "Team",
+    "Experiment",
+    "ExperimentVariant",
 ]

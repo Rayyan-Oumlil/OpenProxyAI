@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 
-from app.config import PLAN_FEATURES
+from app.config import PLAN_FEATURES, settings as config_settings
 from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
 from app.services import invite_service
@@ -15,6 +15,7 @@ from app.services.plan_service import (
     check_api_key_limit,
     check_user_limit,
     get_plan_feature,
+    included_tokens_monthly_for_org,
 )
 from app.services.policy_service import PolicyConfig
 from app.services import policy_service as policy_service_module
@@ -280,6 +281,19 @@ class TestAssertPlanAllows:
         org = _org("free")
         assert_plan_allows(org, "max_users")  # 3 is not False, should not raise
 
+    def test_metered_plan_pii_detection_passes(self):
+        org = _org("metered")
+        assert_plan_allows(org, "pii_detection")
+
+
+class TestIncludedTokensMonthly:
+    def test_included_tokens_none_for_non_metered(self):
+        assert included_tokens_monthly_for_org(_org("growth")) is None
+
+    def test_included_tokens_for_metered_uses_settings(self, monkeypatch):
+        monkeypatch.setattr(config_settings, "METERED_INCLUDED_TOKENS_MONTHLY", 2_000_000)
+        assert included_tokens_monthly_for_org(_org("metered")) == 2_000_000
+
 
 # ===========================================================================
 # Integration tests — invite accept with plan enforcement
@@ -355,7 +369,6 @@ class TestInviteAcceptPlanEnforcement:
         # After the user limit check, accept_invite will check for existing email.
         # We chain scalar calls: first returns the invite, second returns None (no dup).
         call_count = 0
-        original_scalar = FakeDB.scalar
 
         async def multi_scalar(self, query):  # noqa: ARG001
             nonlocal call_count
@@ -621,10 +634,17 @@ class TestPlanFeaturesIntegrity:
     """Verify the PLAN_FEATURES dict has all required tiers and keys."""
 
     def test_all_plans_present(self):
-        assert set(PLAN_FEATURES.keys()) == {"free", "starter", "growth", "enterprise"}
+        assert set(PLAN_FEATURES.keys()) == {"free", "starter", "growth", "enterprise", "metered"}
 
     def test_all_plans_have_same_keys(self):
-        expected_keys = {"max_users", "max_api_keys", "sso_enabled", "pii_detection", "audit_retention_days"}
+        expected_keys = {
+            "max_users",
+            "max_api_keys",
+            "sso_enabled",
+            "pii_detection",
+            "audit_retention_days",
+            "included_tokens_monthly",
+        }
         for plan, features in PLAN_FEATURES.items():
             assert set(features.keys()) == expected_keys, f"Plan '{plan}' has wrong keys"
 

@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
-from app.config import PLAN_FEATURES
+from app.config import PLAN_FEATURES, settings
 from app.models.organization import Organization
 
 
@@ -13,6 +13,17 @@ def get_plan_feature(org: Organization, feature: str) -> Any:
     plan = (org.plan or "free").lower()
     features = PLAN_FEATURES.get(plan, PLAN_FEATURES["free"])
     return features.get(feature)
+
+
+def included_tokens_monthly_for_org(org: Organization) -> int | None:
+    """Return included token quota for metered plans; None if not usage-metered.
+
+    Uses ``METERED_INCLUDED_TOKENS_MONTHLY`` from settings for the ``metered`` tier.
+    """
+    plan = (org.plan or "free").lower()
+    if plan != "metered":
+        return None
+    return int(settings.METERED_INCLUDED_TOKENS_MONTHLY)
 
 
 def assert_plan_allows(org: Organization, feature: str) -> None:

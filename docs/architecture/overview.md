@@ -23,7 +23,11 @@ Auth (validate API key) [FAIL → 401]
     ↓
 Rate Limit Check (RPM, TPM, daily budget) [FAIL → 429]
     ↓
-Policy Evaluation (PII detection, keyword filtering, model allowlist) [FAIL → 403]
+Optional context: x-openproxy-team-id (validate membership), x-openproxy-labels, x-openproxy-cache overrides
+    ↓
+Experiment resolution (if request model matches an active experiment target_model, may replace with weighted variant)
+    ↓
+Policy Evaluation (PII detection, keyword filtering, model allowlist on resolved model) [FAIL → 403]
     ↓
 Cache Check (L1 in-memory → L2 Redis → L3 pgvector semantic) [HIT → return cached response]
     ↓
@@ -46,10 +50,10 @@ API requests must include a Bearer token:
 
 ```bash
 curl https://api.openproxy.ai/v1/chat/completions \
-  -H "Authorization: Bearer sk_org_abc123_user_def456_hash789"
+  -H "Authorization: Bearer opai_xxxxxxxxxxxxxx"
 ```
 
-The token format is `sk_org_{org_id}_{user_id}_{hash_suffix}`. The `key_hash` column in `api_keys` table stores the SHA-256 hash for verification; the plaintext key is never persisted.
+Gateway keys are issued from the admin console; the prefix is typically `opai_` (e.g. `opai_live_…` / `opai_test_…` depending on environment). The server stores only a **SHA-256 hash** of the key — plaintext is shown once at creation.
 
 ### Rate Limiting
 

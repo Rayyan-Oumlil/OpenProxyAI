@@ -9,7 +9,9 @@ import { LoginPage } from "./features/auth/LoginPage";
 import { SignupPage } from "./features/auth/SignupPage";
 import { OrganizationSettingsPage } from "./features/settings/OrganizationSettingsPage";
 import { UsersRolesPage } from "./features/users/UsersRolesPage";
+import { TeamsPage } from "./features/teams/TeamsPage";
 import { ProviderKeysPage } from "./features/providerkeys/ProviderKeysPage";
+import { ExperimentsPage } from "./features/experiments/ExperimentsPage";
 import { OnboardingModal } from "./features/onboarding/OnboardingModal";
 import { PolicyConfigPage } from "./features/policy/PolicyConfigPage";
 import { AuditLogPage } from "./features/audit/AuditLogPage";
@@ -62,7 +64,9 @@ export function App() {
             <Route path="logs" element={<LogsPage />} />
             <Route path="api-keys" element={<ApiKeysPage />} />
             <Route path="provider-keys" element={<ProviderKeysPage />} />
+            <Route path="experiments" element={<ExperimentsPage />} />
             <Route path="policy" element={<PolicyConfigPage />} />
+            <Route path="teams" element={<TeamsPage />} />
             <Route path="users-roles" element={<UsersRolesPage />} />
             <Route path="organization-settings" element={<OrganizationSettingsPage />} />
             <Route path="billing" element={<BillingPage />} />

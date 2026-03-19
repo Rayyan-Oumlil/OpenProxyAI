@@ -442,7 +442,6 @@ def test_double_accept_same_invite_raises_409(monkeypatch):
     The second call should raise HTTP 409 because accepted_at is set.
     """
     import asyncio
-    from datetime import UTC
     from fastapi import HTTPException
 
     past = datetime.utcnow() - timedelta(hours=1)
@@ -625,7 +624,6 @@ def test_accepted_user_appears_in_users_list(client, fake_redis, monkeypatch):
     assert accept_res.status_code == 200
 
     # Now simulate GET /users finding that new user
-    from app.routes import users as users_routes
 
     async def fake_list_db():
         yield FakeDB(scalars_results=[[new_user]])

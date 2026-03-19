@@ -11,7 +11,6 @@ from fastapi import HTTPException
 
 from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
-from app.routes import sso as sso_routes
 from app.services import sso_service
 
 

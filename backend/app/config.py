@@ -101,8 +101,16 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_STARTER_PRICE_ID: str = ""
     STRIPE_GROWTH_PRICE_ID: str = ""
+    # Metered usage (Stripe price with usage_type=metered, billing_scheme=per_unit, aggregate_usage=sum)
+    STRIPE_METERED_PRICE_ID: str = ""
+    # Optional fixed recurring line item paired with metered usage (e.g. platform fee)
+    STRIPE_METERED_BASE_PRICE_ID: str = ""
     STRIPE_SUCCESS_URL: str = "http://localhost:5173/billing?success=1"
     STRIPE_CANCEL_URL: str = "http://localhost:5173/billing?canceled=1"
+
+    # Metered billing sidecar (hourly Stripe usage record sync)
+    METERED_SYNC_ENABLED: bool = True
+    METERED_INCLUDED_TOKENS_MONTHLY: int = 1_000_000
 
     # ── CORS ─────────────────────────────────────────────────────────
     CORS_ORIGINS: list[str] = [
@@ -172,8 +180,9 @@ settings = Settings()
 
 # ── Plan Feature Gates (module-level, NOT a pydantic field) ─────────────
 PLAN_FEATURES: dict[str, dict[str, Any]] = {
-    "free":       {"max_users": 3,   "max_api_keys": 5,   "sso_enabled": False, "pii_detection": False, "audit_retention_days": 7},
-    "starter":    {"max_users": 50,  "max_api_keys": 50,  "sso_enabled": False, "pii_detection": True,  "audit_retention_days": 30},
-    "growth":     {"max_users": 200, "max_api_keys": 200, "sso_enabled": False, "pii_detection": True,  "audit_retention_days": 90},
-    "enterprise": {"max_users": -1,  "max_api_keys": -1,  "sso_enabled": True,  "pii_detection": True,  "audit_retention_days": 365},
+    "free":       {"max_users": 3,   "max_api_keys": 5,   "sso_enabled": False, "pii_detection": False, "audit_retention_days": 7,   "included_tokens_monthly": -1},
+    "starter":    {"max_users": 50,  "max_api_keys": 50,  "sso_enabled": False, "pii_detection": True,  "audit_retention_days": 30,  "included_tokens_monthly": -1},
+    "growth":     {"max_users": 200, "max_api_keys": 200, "sso_enabled": False, "pii_detection": True,  "audit_retention_days": 90,  "included_tokens_monthly": -1},
+    "enterprise": {"max_users": -1,  "max_api_keys": -1,  "sso_enabled": True,  "pii_detection": True,  "audit_retention_days": 365, "included_tokens_monthly": -1},
+    "metered":    {"max_users": 500, "max_api_keys": 500, "sso_enabled": False, "pii_detection": True,  "audit_retention_days": 90,  "included_tokens_monthly": -1},
 }

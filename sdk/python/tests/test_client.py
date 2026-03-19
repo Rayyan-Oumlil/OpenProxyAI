@@ -2,7 +2,7 @@ import pytest
 import respx
 import httpx
 from openproxy import OpenProxy
-from openproxy._exceptions import AuthError, APIError
+from openproxy._exceptions import AuthError
 
 
 def test_client_init():
