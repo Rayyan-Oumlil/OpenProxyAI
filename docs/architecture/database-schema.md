@@ -100,8 +100,13 @@ Currently only `proxy:llm` is implemented. Additional scopes are reserved for fu
 | api_key_encrypted | TEXT | NOT NULL | AES-256 encrypted provider API key |
 | weight | INTEGER | NOT NULL, DEFAULT 1 | Routing weight for probabilistic selection (0 = disabled) |
 | is_active | BOOLEAN | NOT NULL, DEFAULT true | Disable without deleting |
+| region | VARCHAR(10) | NOT NULL, DEFAULT 'us', CHECK IN ('us', 'eu', 'ap', 'global') | Data residency region for this key |
 | model_patterns | JSON | Nullable | Array of fnmatch patterns (e.g., ["gpt-4*", "gpt-3.5*"]) |
 | created_at | TIMESTAMP | NOT NULL, DEFAULT now() | Immutable |
+
+**Region Filtering:**
+
+When an org has `data_region = 'eu'`, only provider keys with `region = 'eu'` or `region = 'global'` are eligible for routing. This ensures EU orgs never route through US-only keys.
 
 **Weighted Routing Example:**
 
@@ -294,6 +299,58 @@ INDEX idx_user_invites_org_pending (org_id, accepted_at, expires_at)
 - Fire-and-forget webhook dispatch in `log_request` (no retries in critical path)
 - Optional async retry job (Phase 3) checks failed deliveries and retries up to 3 times
 
+## Table: semantic_cache_entries
+
+**Purpose:** L3 semantic cache — stores embeddings of past requests for cosine-similarity matching. Requires pgvector extension.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| id | UUID | PK, DEFAULT gen_random_uuid() | Unique cache entry identifier |
+| org_id | UUID | FK → organizations, NOT NULL, CASCADE | Org boundary for cache isolation |
+| model | VARCHAR(100) | NOT NULL | Model that produced the cached response |
+| messages_hash | VARCHAR(64) | NOT NULL | SHA-256 of the original messages (dedup key) |
+| embedding | VECTOR(1536) | NOT NULL | Embedding of concatenated message content |
+| response_json | JSONB | NOT NULL | Full cached LLM response |
+| token_count | INTEGER | NOT NULL, DEFAULT 0 | Tokens saved on cache hit |
+| expires_at | TIMESTAMP | NOT NULL | TTL-based expiration |
+| created_at | TIMESTAMP | NOT NULL, DEFAULT now() | Immutable |
+
+**Indexes:**
+```sql
+INDEX idx_semantic_cache_org_model (org_id, model)
+-- ivfflat index on embedding column for approximate nearest neighbor search
+```
+
+**Cache Lookup Flow:**
+1. Embed the incoming request messages via `text-embedding-3-small`
+2. Query for nearest neighbor within same org + model where `expires_at > now()`
+3. If cosine similarity >= threshold (default 0.95), return cached response
+4. Fire-and-forget task creates its own DB session (not request-scoped) to avoid session lifetime issues
+
+## Table: prompt_templates
+
+**Purpose:** Versioned prompt templates for the playground feature. Supports `{{variable}}` substitution.
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| id | UUID | PK, DEFAULT gen_random_uuid() | Unique template identifier |
+| org_id | UUID | FK → organizations, NOT NULL, CASCADE | Org boundary |
+| name | VARCHAR(255) | NOT NULL | Template display name |
+| description | TEXT | Nullable | Optional description |
+| system_message | TEXT | Nullable | System prompt template |
+| user_template | TEXT | NOT NULL | User message template with `{{variables}}` |
+| variables_schema | JSONB | NOT NULL, DEFAULT '[]' | Array of `{name, type, default}` variable definitions |
+| version | INTEGER | NOT NULL, DEFAULT 1 | Auto-incremented on update |
+| is_active | BOOLEAN | NOT NULL, DEFAULT true | Soft-delete flag |
+| created_by | UUID | FK → users, Nullable, SET NULL | Creator |
+| created_at | TIMESTAMP | NOT NULL, DEFAULT now() | Immutable |
+| updated_at | TIMESTAMP | NOT NULL, DEFAULT now() | Updated on any write |
+
+**Indexes:**
+```sql
+INDEX idx_prompt_templates_org_active (org_id, is_active)
+```
+
 ## Materialized View: mv_daily_spend
 
 **Purpose:** Fast aggregation for dashboard queries without hitting raw `request_logs`.
@@ -377,6 +434,18 @@ The schema is versioned with Alembic. Migrations run automatically at startup (`
 9. **c3d4e5f6a7b8** — Add data_region to organizations
    - Support multi-region deployments
 
+10. **f7a8b9c0d1e2** — Add region to llm_provider_keys
+    - `region` column with CHECK constraint (`us`, `eu`, `ap`, `global`)
+    - Composite index on `(org_id, provider, is_active, region)`
+
+11. **e6f7a8b9c0d1** — Add pgvector semantic cache
+    - Creates `pgvector` extension
+    - `semantic_cache_entries` table with `VECTOR(1536)` column
+    - ivfflat index for approximate nearest neighbor search
+
+12. **e6f7a34b9d0c** — Add prompt templates
+    - `prompt_templates` table with versioning and soft-delete
+
 Run `alembic history` to see current state:
 
 ```bash
@@ -396,18 +465,12 @@ alembic upgrade head
 
 ## PostgreSQL Extensions
 
-The schema requires one extension (created in the initial migration):
+The schema requires two extensions:
 
 ```sql
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS vector;      -- pgvector for semantic cache
 ```
-
-`pgcrypto` provides `gen_random_uuid()` for UUID generation.
-
-In Phase 3, consider also:
-- `uuid-ossp` — Alternative UUID generation
-- `pg_trgm` — Text search trigrams for prompt search
-- `timescaledb` — Time-series optimizations for request_logs
 
 ## Performance Considerations
 

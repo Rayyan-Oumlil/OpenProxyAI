@@ -25,7 +25,11 @@ Rate Limit Check (RPM, TPM, daily budget) [FAIL → 429]
     ↓
 Policy Evaluation (PII detection, keyword filtering, model allowlist) [FAIL → 403]
     ↓
-LLM Forward (call provider via LiteLLM, with fallback on 429/5xx)
+Cache Check (L1 in-memory → L2 Redis → L3 pgvector semantic) [HIT → return cached response]
+    ↓
+LLM Forward (call provider via LiteLLM, with region-filtered key selection + fallback on 429/5xx)
+    ↓
+Cache Store (fire-and-forget: L1 + L2 + L3 write)
     ↓
 Response Guardrails (keyword + PII check on LLM output) [BLOCK → 446 / REDACT → modified response]
     ↓
@@ -72,16 +76,33 @@ Violations return HTTP 403 with `X-OpenProxyAI-Policy-Action` header. The action
 - `block` — request is rejected
 - `log_only` — request proceeds but violation is logged
 
+### 3-Tier Cache
+
+Before forwarding to the LLM, the request is checked against a 3-tier cache (off by default — enable via `CACHE_ENABLED` and `SEMANTIC_CACHE_ENABLED`):
+
+| Tier | Storage | Match Type | Latency |
+|------|---------|-----------|---------|
+| L1 | In-memory TTLCache | SHA-256 exact match | ~0.01ms |
+| L2 | Redis | SHA-256 exact match | ~1ms |
+| L3 | pgvector (PostgreSQL) | Cosine similarity ≥ 0.95 | ~10ms |
+
+Cache key includes model, messages, and temperature. Per-request override via `x-openproxy-cache` header: `skip` (bypass entirely), `no-store` (don't write), `no-cache` (force fresh, store result).
+
+L3 semantic cache embeds request messages via `text-embedding-3-small` and queries pgvector for the nearest neighbor. The fire-and-forget L3 write task creates its own DB session to avoid request-scoped session lifetime issues.
+
+Cache hit metrics (exact vs semantic, tokens saved) are tracked per org per day in Redis.
+
 ### LLM Forward
 
 The `LLMService` class wraps LiteLLM:
 
-1. Selects the correct provider API key from `llm_provider_keys` table (supports weighted random rotation)
-2. Calls `litellm.acompletion()` with the provider key
-3. Handles streaming responses by peeking at the first chunk to detect provider errors
-4. Calculates token counts and cost using LiteLLM's built-in pricing
+1. Selects the correct provider API key from `llm_provider_keys` table — filtered by org `data_region` (only keys matching `region = data_region` or `region = 'global'` are eligible)
+2. Weighted random selection from eligible keys, with fallback chain ordered by weight descending
+3. Calls `litellm.acompletion()` with the decrypted provider key
+4. Handles streaming responses by peeking at the first chunk to detect provider errors
+5. Calculates token counts and cost using LiteLLM's built-in pricing
 
-Provider keys are encrypted at rest and decrypted only when needed. Multiple keys per provider are supported with `weight` field for probabilistic selection.
+Provider keys are encrypted at rest and decrypted only when needed.
 
 ### Async Logging
 

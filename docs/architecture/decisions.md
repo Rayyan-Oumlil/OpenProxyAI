@@ -86,9 +86,9 @@ After studying all reference implementations, these features look important but 
 
 | Feature | Source | Decision |
 |---|---|---|
-| Semantic caching | LiteLLM | Phase 3 — not valuable at <10K users |
+| ~~Semantic caching~~ | LiteLLM | **Shipped** — 3-tier cache (L1 in-memory + L2 Redis + L3 pgvector) |
+| ~~Multi-region~~ | Helicone | **Shipped (Tier 1)** — config-based region routing. Tier 2 (self-hosted) deferred |
 | WASM plugin system | Envoy | Enterprise Phase 4 |
-| Multi-region | Helicone | Phase 3 — when EU customers arrive |
 | WebSocket/Realtime proxy | Portkey | Almost no enterprise use case yet |
 | Auto-updated model cost DB | LiteLLM | Use `litellm.completion_cost()` instead |
 
@@ -138,3 +138,48 @@ Falling back on every non-2xx response creates silent bugs:
 Analytics queries (`SELECT SUM(cost_usd) GROUP BY model`) over millions of rows are expensive if run on raw tables. Materialized views pre-aggregate the data so dashboard queries return in milliseconds.
 
 **Decision:** `mv_daily_spend` pre-aggregates cost and token usage by org, model, and day. It refreshes via APScheduler every 5 minutes. The analytics overview endpoint reads from the view, not the raw `request_logs` table. This keeps the dashboard fast even at millions of requests.
+
+---
+
+## ADR-11: 3-tier semantic cache with pgvector
+
+**Source:** LiteLLM's `DualCache` pattern (in-memory + Redis), extended with vector similarity.
+
+**Why three tiers:**
+- L1 (in-memory TTLCache) — sub-millisecond for hot paths, no network hop
+- L2 (Redis) — exact-match across all instances, survives restarts
+- L3 (pgvector) — catches semantically equivalent but not identical prompts (e.g., "What is 2+2?" vs "What's two plus two?")
+
+**Key decision:** L3 fire-and-forget writes must create their own DB session. The request-scoped SQLAlchemy session is closed by FastAPI's dependency lifecycle after the response is sent — any `asyncio.create_task()` using that session will crash with "Session is closed." This is a critical pattern: **fire-and-forget tasks are sidecars and must manage their own connections.**
+
+**Threshold:** Default 0.95 cosine similarity. Lower thresholds risk returning wrong answers; higher thresholds reduce hit rate. Configurable via `SEMANTIC_CACHE_SIMILARITY_THRESHOLD`.
+
+---
+
+## ADR-12: Data residency via region-tagged provider keys
+
+**Source:** 65% of enterprise RFPs require geographic data isolation.
+
+**Decision:** Config-based Tier 1 approach:
+- `data_region` field on `organizations` (`us`, `eu`, `ap`)
+- `region` field on `llm_provider_keys` (`us`, `eu`, `ap`, `global`)
+- SQL filter: `WHERE region = data_region OR region = 'global'`
+
+This ensures EU orgs never route through US-only keys. The `global` value allows shared keys (e.g., Azure's EU-hosted endpoint accessible to all regions).
+
+**Not built (Tier 2):** Self-hosted air-gapped deployment, license key validation. Deferred until first enterprise customer requires on-premise.
+
+---
+
+## ADR-13: Compliance templates as frozen dataclasses
+
+**Source:** 35% of enterprise RFPs ask for industry-specific pre-built policies.
+
+**Decision:** Templates are frozen Python dataclasses (`@dataclass(frozen=True)`) — not database rows. This means:
+- Templates are versioned with the code, not with customer data
+- No migration needed to add/update templates
+- Templates can't be mutated at runtime
+
+**Apply semantics:** Merge, not replace. When applying a template, existing `allowed_models` and `model_rate_limits` are preserved. The template adds its PII rules, keywords, and enforcement mode on top. This prevents a template apply from accidentally removing a customer's custom model allowlist.
+
+Redis cache is invalidated immediately after applying a template. An audit log entry records the template application.
