@@ -1,404 +1,113 @@
 # Plan — Public Deployment (Phase 6.3)
 
 **Objective:** Deploy OpenProxyAI to a public URL with SSL, custom domain, and CI/CD.
-**Target:** DigitalOcean Kubernetes (DOKS) — cheapest managed K8s, 1-click cert-manager.
-**Created:** 2026-03-19
-**Status:** Ready to execute
+**Target:** DigitalOcean Kubernetes (DOKS)
+**Status:** Code complete — waiting on manual infra setup
 
 ---
 
-## Context Brief (read this cold)
+## What's already shipped (2026-03-19)
 
-### What already exists
-- `backend/Dockerfile` — multi-stage, non-root, production-ready
-- `deploy/helm/openproxy/` — full Helm chart with HPA, PDB, ingress template, ServiceMonitor
-- `docker-compose.yml` — local dev only (not used for deployment)
-- Admin console: Vite + React, `npm run build` → `dist/` static files
+| File | What it does |
+|------|-------------|
+| `admin-console/Dockerfile` | Multi-stage build: node:20-alpine → nginx:1.27-alpine |
+| `admin-console/nginx.conf` | SPA fallback, asset caching, `/nginx-health` probe |
+| `deploy/helm/openproxy/templates/frontend-deployment.yaml` | nginx Deployment (conditional on `frontend.enabled`) |
+| `deploy/helm/openproxy/templates/frontend-service.yaml` | ClusterIP Service for frontend |
+| `deploy/helm/openproxy/templates/ingress.yaml` | Path-based: `/api` + `/health` → backend, `/` → frontend; cert-manager TLS |
+| `deploy/helm/openproxy/values.prod.yaml` | Production overrides (GHCR images, managed DB/Redis, HPA 3-15 replicas) |
+| `deploy/k8s/cluster-issuer.yaml` | cert-manager Let's Encrypt HTTP-01 ClusterIssuer |
+| `.github/workflows/deploy.yml` | test → build+push GHCR → helm upgrade pipeline |
 
-### What's missing
-- Frontend Dockerfile (nginx serving `dist/`)
-- GitHub Actions CI/CD (build → push → deploy)
-- Production `values.yaml` override
-- TLS cert-manager setup
-- DNS pointing to the cluster
-
-### Domain strategy
-```
-app.openproxyai.com   → admin console (frontend nginx)
-api.openproxyai.com   → FastAPI backend
-```
-(Or single domain with path-based routing — decided in Step 2)
+CI/CD fires on every push to `main`. Images pushed to `ghcr.io/rayyan-oumlil/openproxyai/{backend,frontend}:<sha>`.
 
 ---
 
-## Dependency Graph
+## Remaining manual steps (do when ready to go live)
 
-```
-Step 1 (Frontend Dockerfile)
-Step 2 (Helm values.prod.yaml)        ← parallel with Step 1
-  └── Step 3 (GitHub Actions CI/CD)   ← needs Steps 1+2
-        └── Step 4 (DOKS cluster + deploy)
-              └── Step 5 (DNS + TLS)
-```
+### Step 1 — Create DOKS cluster (~30 min, DigitalOcean console)
 
----
+1. Create cluster: region NYC3 or FRA1, node pool 2× `s-2vcpu-4gb` ($48/mo)
+2. Create **Managed PostgreSQL** (Starter, $15/mo) — database `openproxyai`, user `openproxyai`
+3. Create **Managed Redis** (Starter, $15/mo)
 
-## Step 1 — Frontend Dockerfile
+### Step 2 — Bootstrap cluster (~20 min, terminal)
 
-**Branch:** `feat/deploy-frontend-dockerfile`
-**Risk:** low — new file, no existing code changed
-
-### Tasks
-- [ ] Create `admin-console/Dockerfile`:
-  ```dockerfile
-  # Stage 1 — build
-  FROM node:20-alpine AS builder
-  WORKDIR /app
-  COPY package*.json ./
-  RUN npm ci
-  COPY . .
-  RUN npm run build
-
-  # Stage 2 — serve
-  FROM nginx:1.27-alpine
-  COPY --from=builder /app/dist /usr/share/nginx/html
-  COPY deploy/nginx/admin-console.conf /etc/nginx/conf.d/default.conf
-  EXPOSE 80
-  ```
-
-- [ ] Create `deploy/nginx/admin-console.conf`:
-  ```nginx
-  server {
-      listen 80;
-      root /usr/share/nginx/html;
-      index index.html;
-
-      # SPA fallback — all routes serve index.html
-      location / {
-          try_files $uri $uri/ /index.html;
-      }
-
-      # Cache static assets aggressively (hashed filenames)
-      location /assets/ {
-          expires 1y;
-          add_header Cache-Control "public, immutable";
-      }
-  }
-  ```
-
-- [ ] Add `.dockerignore` to `admin-console/`:
-  ```
-  node_modules
-  dist
-  .env*
-  ```
-
-- [ ] Add a `frontend` service to `deploy/helm/openproxy/templates/`:
-  - `frontend-deployment.yaml` — 2 replicas, nginx container, liveness probe on `/`
-  - `frontend-service.yaml` — ClusterIP, port 80
-  - Add `frontend.image` to `values.yaml`
-
-### Verification
 ```bash
-cd admin-console && docker build -t openproxyai/frontend:test .
-docker run -p 3000:80 openproxyai/frontend:test
-# open http://localhost:3000 — should serve the React app
+# Download kubeconfig from DO console, then:
+
+# Install nginx-ingress
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
+
+# Install cert-manager
+helm repo add jetstack https://charts.jetstack.io
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager --create-namespace \
+  --set installCRDs=true
+
+# Apply ClusterIssuer
+kubectl apply -f deploy/k8s/cluster-issuer.yaml
+
+# Create app secret
+kubectl create namespace openproxyai
+kubectl create secret generic openproxy-app-secret \
+  --namespace openproxyai \
+  --from-literal=DATABASE_URL="postgresql+asyncpg://openproxyai:<password>@<host>:25060/openproxyai?sslmode=require" \
+  --from-literal=REDIS_URL="rediss://:<password>@<host>:25061" \
+  --from-literal=SECRET_KEY="$(openssl rand -hex 32)"
 ```
 
-### Exit criteria
-- Docker image builds in < 3 minutes
-- `http://localhost:3000` serves the React app
-- `http://localhost:3000/logs` (deep link) works — nginx SPA fallback
+### Step 3 — Add GitHub secret
 
----
-
-## Step 2 — Production Helm values
-
-**Branch:** `feat/deploy-helm-prod-values`
-**Parallel with:** Step 1
-
-### Tasks
-- [ ] Create `deploy/helm/openproxy/values.prod.yaml`:
-  ```yaml
-  # Backend
-  image:
-    repository: ghcr.io/rayyan-oumlil/openproxyai-backend
-    tag: ""  # overridden by CI with git SHA
-  replicaCount: 2
-
-  # Frontend
-  frontend:
-    image:
-      repository: ghcr.io/rayyan-oumlil/openproxyai-frontend
-      tag: ""
-    replicaCount: 2
-
-  # Ingress — path-based routing on single domain
-  ingress:
-    enabled: true
-    className: nginx
-    host: app.openproxyai.com
-    tls:
-      enabled: true
-      secretName: openproxyai-tls
-    paths:
-      - path: /api
-        service: backend
-      - path: /
-        service: frontend
-
-  # Use external managed DB + Redis (not bundled subcharts)
-  postgresql:
-    enabled: false
-  redis:
-    enabled: false
-
-  # External DB + Redis injected via K8s secret
-  externalDatabase:
-    secretName: openproxyai-secrets
-    databaseUrlKey: DATABASE_URL
-    redisUrlKey: REDIS_URL
-  ```
-
-- [ ] Update `deploy/helm/openproxy/values.yaml` — add `frontend` section with defaults
-- [ ] Update `deploy/helm/openproxy/Chart.yaml` — add `kubeVersion: ">=1.28"`
-
-### Verification
 ```bash
-helm template openproxy deploy/helm/openproxy -f deploy/helm/openproxy/values.prod.yaml | grep kind
-# Should show: Deployment (×2), Service (×2), Ingress, HPA, PDB, ServiceAccount
+cat ~/.kube/config | base64
+# Paste output into: GitHub repo → Settings → Environments → production → Secrets → KUBECONFIG
 ```
 
-### Exit criteria
-- `helm template` renders without errors
-- Ingress routes `/api/*` to backend, `/*` to frontend
-- No bundled DB/Redis in prod (managed services used instead)
+### Step 4 — First deploy
 
----
-
-## Step 3 — GitHub Actions CI/CD
-
-**Branch:** `feat/deploy-github-actions`
-**Depends on:** Steps 1 + 2
-
-### Tasks
-- [ ] Create `.github/workflows/deploy.yml`:
-
-```yaml
-name: Build and Deploy
-
-on:
-  push:
-    branches: [main]
-
-env:
-  REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/openproxyai-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/openproxyai-frontend
-
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: |
-            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-            ${{ env.BACKEND_IMAGE }}:latest
-
-      - name: Build and push frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./admin-console
-          push: true
-          tags: |
-            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
-            ${{ env.FRONTEND_IMAGE }}:latest
-
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install kubectl + helm
-        uses: azure/setup-helm@v4
-
-      - name: Set kubeconfig
-        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > /tmp/kubeconfig
-
-      - name: Deploy
-        env:
-          KUBECONFIG: /tmp/kubeconfig
-        run: |
-          helm upgrade --install openproxy deploy/helm/openproxy \
-            -f deploy/helm/openproxy/values.prod.yaml \
-            --set image.tag=${{ github.sha }} \
-            --set frontend.image.tag=${{ github.sha }} \
-            --namespace openproxy \
-            --create-namespace \
-            --wait --timeout 5m
+```bash
+git push origin main  # triggers CI/CD — watch the Actions tab
 ```
 
-- [ ] Add GitHub repository secrets:
-  - `KUBECONFIG` — base64-encoded kubeconfig from DOKS cluster (see Step 4)
+### Step 5 — DNS + TLS (~5 min + propagation)
 
-### Exit criteria
-- Pushing to `main` triggers the workflow
-- Both images push to GHCR
-- Helm upgrade runs and waits for rollout
-- Failed deploy does NOT mark the workflow as success
+```bash
+# Get load balancer IP
+kubectl get svc -n ingress-nginx ingress-nginx-controller \
+  -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
 
----
+Add DNS A record in your domain registrar:
+```
+app.openproxyai.com  A  <LOAD_BALANCER_IP>  TTL 300
+```
 
-## Step 4 — DOKS cluster + first deploy
-
-**Depends on:** Step 3
-
-### Manual steps (one-time, done in DigitalOcean console)
-
-1. **Create DOKS cluster:**
-   - Region: choose closest to target customers (NYC3 or FRA1)
-   - Node pool: 2× `s-2vcpu-4gb` ($48/mo total) — enough for early traffic
-   - K8s version: latest stable
-
-2. **Create managed PostgreSQL:**
-   - DigitalOcean Managed Postgres (Starter, $15/mo)
-   - Create database `openproxyai`, user `openproxyai`
-   - Copy connection string → add to K8s secret
-
-3. **Create managed Redis:**
-   - DigitalOcean Managed Redis (Starter, $15/mo)
-   - Copy connection string → add to K8s secret
-
-4. **Create K8s secrets:**
-   ```bash
-   kubectl create namespace openproxy
-   kubectl create secret generic openproxyai-secrets \
-     --namespace openproxy \
-     --from-literal=DATABASE_URL="postgresql+asyncpg://..." \
-     --from-literal=REDIS_URL="rediss://..." \
-     --from-literal=SECRET_KEY="$(openssl rand -hex 32)"
-   ```
-
-5. **Install nginx-ingress + cert-manager:**
-   ```bash
-   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-   helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
-
-   helm repo add jetstack https://charts.jetstack.io
-   helm install cert-manager jetstack/cert-manager \
-     --namespace cert-manager --create-namespace \
-     --set installCRDs=true
-   ```
-
-6. **Create LetsEncrypt ClusterIssuer:**
-   ```yaml
-   # deploy/k8s/cluster-issuer.yaml
-   apiVersion: cert-manager.io/v1
-   kind: ClusterIssuer
-   metadata:
-     name: letsencrypt-prod
-   spec:
-     acme:
-       server: https://acme-v02.api.letsencrypt.org/directory
-       email: rayya@openproxyai.com
-       privateKeySecretRef:
-         name: letsencrypt-prod
-       solvers:
-         - http01:
-             ingress:
-               class: nginx
-   ```
-   ```bash
-   kubectl apply -f deploy/k8s/cluster-issuer.yaml
-   ```
-
-7. **Download kubeconfig → encode → add to GitHub secret:**
-   ```bash
-   cat ~/.kube/config | base64 | pbcopy  # macOS
-   # paste into GitHub → Settings → Secrets → KUBECONFIG
-   ```
-
-8. **Trigger first deploy:**
-   ```bash
-   git push origin main  # CI/CD fires
-   ```
-
-### Exit criteria
-- `kubectl get pods -n openproxy` shows all pods Running
-- `kubectl get ingress -n openproxy` shows ADDRESS (load balancer IP)
+Wait for cert: `kubectl get certificate -n openproxyai --watch`
 
 ---
 
-## Step 5 — DNS + TLS
+## Done when
 
-**Depends on:** Step 4 (need the load balancer IP)
-
-### Tasks
-- [ ] Get load balancer IP:
-  ```bash
-  kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-  ```
-- [ ] Add DNS A records (in your DNS provider, e.g. Cloudflare):
-  ```
-  app.openproxyai.com  A  <LOAD_BALANCER_IP>
-  ```
-- [ ] Update ingress in `values.prod.yaml` with `host: app.openproxyai.com`
-- [ ] Add cert-manager annotation to ingress template:
-  ```yaml
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-  ```
-- [ ] Re-deploy via `git push origin main`
-- [ ] Wait for certificate: `kubectl get certificate -n openproxy`
-
-### Exit criteria
-- `https://app.openproxyai.com` loads the React app with valid TLS
+- `https://app.openproxyai.com` loads the React app
 - `https://app.openproxyai.com/api/health` returns `{"status": "ok"}`
-- Certificate is valid (not self-signed)
+- Certificate is valid (Let's Encrypt, not self-signed)
 
 ---
 
-## Cost estimate (DigitalOcean)
+## Cost (DigitalOcean)
 
-| Resource | Monthly cost |
-|----------|-------------|
+| Resource | Monthly |
+|----------|---------|
 | DOKS (2× s-2vcpu-4gb) | $48 |
-| Managed PostgreSQL (Starter) | $15 |
-| Managed Redis (Starter) | $15 |
+| Managed PostgreSQL Starter | $15 |
+| Managed Redis Starter | $15 |
 | Load balancer | $12 |
 | **Total** | **~$90/mo** |
 
-At $2,500/mo Starter plan, first paying customer covers 28 months of infra.
-
----
-
-## Execution order
-
-```
-Day 1: Step 1 + Step 2 in parallel (code changes)
-Day 1: Step 3 (GitHub Actions)
-Day 2: Step 4 (manual DOKS setup — ~2 hours)
-Day 2: Step 5 (DNS + TLS — ~30 min + propagation wait)
-```
+First Starter customer ($2,500/mo) covers 28 months of infra.
 
 ## Rollback
 
-- Bad deploy: `helm rollback openproxy -n openproxy` — instant
-- Bad DNS: revert A record — propagates in seconds (low TTL during setup)
+Bad deploy: `helm rollback openproxyai --namespace openproxyai`
