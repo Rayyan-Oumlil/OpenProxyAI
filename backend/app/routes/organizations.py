@@ -55,6 +55,11 @@ async def update_current_organization(
 			status_code=status.HTTP_400_BAD_REQUEST,
 			detail="Organization deactivation is not allowed from this endpoint",
 		)
+	if "plan" in updates and model.stripe_subscription_id is not None:
+		raise HTTPException(
+			status_code=status.HTTP_409_CONFLICT,
+			detail="Plan is managed by Stripe. Use the billing portal to change plans.",
+		)
 
 	before = serialize_org(model)
 
