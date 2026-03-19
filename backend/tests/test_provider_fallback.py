@@ -133,9 +133,11 @@ async def _call(monkeypatch, fake_redis, candidate_keys, acompletion_fn, stream=
 
 	from fastapi import BackgroundTasks
 
+	from tests.conftest import FakeDB
+
 	return await svc.chat_completion(
 		request=_make_request(stream=stream),
-		db=SimpleNamespace(),
+		db=FakeDB(),
 		redis=fake_redis,
 		user=user,
 		api_key=api_key,

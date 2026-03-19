@@ -63,6 +63,14 @@ def serialize_webhook_config(cfg: dict) -> dict:
     }
 
 
+def serialize_team(team) -> dict:
+    return {
+        "id": str(team.id),
+        "name": team.name,
+        "budget_monthly_usd": str(team.budget_monthly_usd) if team.budget_monthly_usd else None,
+    }
+
+
 def serialize_user(user) -> dict:
     return {
         "id": str(user.id),

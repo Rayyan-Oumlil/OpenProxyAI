@@ -1,5 +1,4 @@
 import pytest
-import respx
 import httpx
 from openproxy._streaming import _parse_chunk, _extract_gateway_meta
 from openproxy.types.common import GatewayMeta

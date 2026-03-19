@@ -13,7 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 
 from app.config import settings
-from app.database import AsyncSessionLocal, engine
+from app.database import AsyncSessionLocal, engine, set_session_org_id
 from app.models.webhook_delivery import WebhookDelivery
 from app.middleware.cors import add_cors_middleware
 from app.middleware.request_id import RequestIdMiddleware
@@ -28,11 +28,14 @@ from app.routes.invites import router as invites_router
 from app.routes.organizations import router as organizations_router
 from app.routes.playground import router as playground_router
 from app.routes.provider_keys import router as provider_keys_router
+from app.routes.experiments import router as experiments_router
+from app.routes.teams import router as teams_router
 from app.routes.proxy import router as proxy_router
 from app.routes.sso import router as sso_router
 from app.routes.metrics import router as metrics_router
 from app.routes.users import router as users_router
 from app.models.organization import Organization
+from app.services.metering_service import run_hourly_metered_sync
 from app.services.webhook_service import _deliver as _webhook_deliver
 from app.utils.logging import get_logger, setup_logging
 
@@ -47,6 +50,8 @@ TAGS_METADATA = [
     {"name": "Users", "description": "User management"},
     {"name": "Organizations", "description": "Organization settings"},
     {"name": "Provider Keys", "description": "LLM provider key management"},
+    {"name": "Experiments", "description": "Model A/B testing with traffic splitting"},
+    {"name": "Teams", "description": "Team/project scoping for cost attribution"},
     {"name": "Analytics", "description": "Usage analytics and cost tracking"},
     {"name": "Invites", "description": "Team member invite management"},
     {"name": "SSO", "description": "OIDC/SSO connection management"},
@@ -85,6 +90,7 @@ async def archive_old_logs() -> None:
             orgs = result.scalars().all()
 
             for org in orgs:
+                await set_session_org_id(session, org.id)
                 plan = (org.plan or "free").lower()
                 retention_days = PLAN_FEATURES.get(plan, PLAN_FEATURES["free"])["audit_retention_days"]
                 cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=retention_days)
@@ -108,47 +114,58 @@ async def retry_failed_webhooks() -> None:
     """Retry failed webhook deliveries with exponential backoff.
 
     Uses _deliver() which handles SSRF validation, HMAC signing, and retries.
+    Sets org_id per org for RLS when querying webhook_deliveries.
     """
     try:
         cutoff = datetime.now(UTC) - timedelta(minutes=5)
         async with AsyncSessionLocal() as db:
-            result = await db.scalars(
-                select(WebhookDelivery)
-                .where(
-                    WebhookDelivery.status == "failed",
-                    WebhookDelivery.attempt_count < 3,
-                    WebhookDelivery.last_attempted_at < cutoff,
-                )
-                .limit(50)
+            orgs_result = await db.scalars(
+                select(Organization).where(Organization.is_active == True)  # noqa: E712
             )
-            deliveries = result.all()
+            orgs = list(orgs_result.all())
 
-            for delivery in deliveries:
-                backoff_seconds = (5 ** delivery.attempt_count) * 60
-                elapsed = (datetime.now(UTC) - delivery.last_attempted_at.replace(tzinfo=UTC)).total_seconds()
-                if elapsed < backoff_seconds:
-                    continue
-
-                org = await db.get(Organization, delivery.org_id)
-                secret = ""
-                if org is not None:
-                    secret = ((org.settings or {}).get("webhooks", {})).get("secret", "")
-
-                new_status, http_status = await _webhook_deliver(
-                    delivery.url, delivery.payload, secret,
+            total_processed = 0
+            for org in orgs:
+                await set_session_org_id(db, org.id)
+                result = await db.scalars(
+                    select(WebhookDelivery)
+                    .where(
+                        WebhookDelivery.org_id == org.id,
+                        WebhookDelivery.status == "failed",
+                        WebhookDelivery.attempt_count < 3,
+                        WebhookDelivery.last_attempted_at < cutoff,
+                    )
+                    .limit(50)
                 )
+                deliveries = result.all()
+                total_processed += len(deliveries)
 
-                if new_status == "delivered":
-                    delivery.status = "delivered"
-                    delivery.http_status = http_status
-                else:
-                    delivery.attempt_count += 1
-                    delivery.last_attempted_at = datetime.now(UTC)
-                    if delivery.attempt_count >= 3:
-                        delivery.status = "exhausted"
+                for delivery in deliveries:
+                    backoff_seconds = (5 ** delivery.attempt_count) * 60
+                    elapsed = (datetime.now(UTC) - delivery.last_attempted_at.replace(tzinfo=UTC)).total_seconds()
+                    if elapsed < backoff_seconds:
+                        continue
+
+                    org_obj = await db.get(Organization, delivery.org_id)
+                    secret = ""
+                    if org_obj is not None:
+                        secret = ((org_obj.settings or {}).get("webhooks", {})).get("secret", "")
+
+                    new_status, http_status = await _webhook_deliver(
+                        delivery.url, delivery.payload, secret,
+                    )
+
+                    if new_status == "delivered":
+                        delivery.status = "delivered"
+                        delivery.http_status = http_status
+                    else:
+                        delivery.attempt_count += 1
+                        delivery.last_attempted_at = datetime.now(UTC)
+                        if delivery.attempt_count >= 3:
+                            delivery.status = "exhausted"
 
             await db.commit()
-        logger.info("retry_failed_webhooks complete — processed %d deliveries", len(deliveries))
+        logger.info("retry_failed_webhooks complete — processed %d deliveries", total_processed)
     except Exception:
         logger.exception("retry_failed_webhooks job failed")
 
@@ -206,6 +223,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         "interval",
         minutes=5,
         id="retry_failed_webhooks",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        run_hourly_metered_sync,
+        "interval",
+        hours=1,
+        id="hourly_metered_stripe_sync",
         max_instances=1,
         coalesce=True,
     )
@@ -268,6 +293,8 @@ app.include_router(api_keys_router)
 app.include_router(users_router)
 app.include_router(organizations_router)
 app.include_router(provider_keys_router)
+app.include_router(experiments_router)
+app.include_router(teams_router)
 app.include_router(proxy_router)
 app.include_router(analytics_router)
 app.include_router(invites_router)

@@ -6,16 +6,13 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+
 from fastapi.responses import JSONResponse
 
 from app.dependencies import get_current_user_from_api_key, get_db, get_redis, get_request_id
 from app.main import app
 from app.routes import proxy as proxy_routes
-
-
-class FakeDB:
-	async def commit(self):
-		return None
+from tests.conftest import FakeDB
 
 
 @pytest.fixture(autouse=True)
@@ -287,7 +284,7 @@ async def test_llm_service_rate_limit_contract(monkeypatch, fake_redis):
 
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
-		db=SimpleNamespace(),
+		db=FakeDB(),
 		redis=fake_redis,
 		user=user,
 		api_key=api_key,
@@ -348,7 +345,7 @@ async def test_llm_service_preserves_rl_headers_on_provider_key_error(monkeypatc
 	with pytest.raises(HTTPException) as exc_info:
 		await llm_service_module.llm_service.chat_completion(
 			request=request,
-			db=SimpleNamespace(),
+			db=FakeDB(),
 			redis=fake_redis,
 			user=user,
 			api_key=api_key,

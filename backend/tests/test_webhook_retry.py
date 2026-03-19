@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -63,6 +62,9 @@ class FakeDB:
         self._deliveries = deliveries or []
         self._org = org
         self.committed = False
+
+    async def execute(self, *args, **kwargs):  # noqa: ARG002
+        return None
 
     async def scalars(self, query):  # noqa: ARG002
         return FakeScalarResult(self._deliveries)

@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -9,9 +10,9 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import AsyncSessionLocal, set_session_org_id
 from app.models.api_key import ApiKey
 from app.models.user import User
-from app.database import AsyncSessionLocal
 from app.services.auth_service import validate_api_key, verify_access_token
 from app.utils.logging import request_id_ctx
 
@@ -41,11 +42,18 @@ async def get_current_user_from_jwt(
     payload = await verify_access_token(token, redis=redis)
 
     sub = payload.get("sub")
-    org_id = payload.get("org_id")
-    if not sub or not org_id:
+    org_id_raw = payload.get("org_id")
+    if not sub or not org_id_raw:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    user = await db.scalar(select(User).where(User.id == sub, User.org_id == org_id))
+    try:
+        org_uuid = UUID(str(org_id_raw))
+        sub_uuid = UUID(str(sub))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    await set_session_org_id(db, org_uuid)
+    user = await db.scalar(select(User).where(User.id == sub_uuid, User.org_id == org_uuid))
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     return user

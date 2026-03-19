@@ -224,24 +224,44 @@ async def create_api_key(
 
 
 async def validate_api_key(db: AsyncSession, redis: Redis, api_key: str) -> ApiKey:
-	"""Validate API key and return hydrated model with user+org relationships."""
+	"""Validate API key and return hydrated model with user+org relationships.
+
+	Uses SECURITY DEFINER get_api_key_by_hash to bypass RLS for initial lookup,
+	then sets org_id on session for subsequent RLS-scoped queries.
+	"""
+	from sqlalchemy import text
+
+	from app.database import set_session_org_id
+
 	key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
-	query = (
-		select(ApiKey)
-		.where(ApiKey.key_hash == key_hash)
-		.options(selectinload(ApiKey.user), selectinload(ApiKey.organization))
+	row = await db.execute(
+		text("SELECT * FROM get_api_key_by_hash(:key_hash)"),
+		{"key_hash": key_hash},
 	)
-	model = await db.scalar(query)
+	row_data = row.mappings().first()
+	if row_data is None:
+		raise INVALID_CREDENTIALS_ERROR
+
+	if not verify_api_key(api_key, row_data["key_hash"]):
+		raise INVALID_CREDENTIALS_ERROR
+
+	if not row_data["is_active"]:
+		raise INVALID_CREDENTIALS_ERROR
+
+	if row_data["expires_at"] is not None and row_data["expires_at"] < _utc_now().replace(tzinfo=None):
+		raise INVALID_CREDENTIALS_ERROR
+
+	org_id_val = row_data["org_id"]
+	if isinstance(org_id_val, str):
+		org_id_val = uuid.UUID(org_id_val)
+	await set_session_org_id(db, org_id_val)
+
+	model = await db.scalar(
+		select(ApiKey)
+		.where(ApiKey.id == row_data["id"])
+		.options(selectinload(ApiKey.user), selectinload(ApiKey.organization)),
+	)
 	if model is None:
-		raise INVALID_CREDENTIALS_ERROR
-
-	if not verify_api_key(api_key, model.key_hash):
-		raise INVALID_CREDENTIALS_ERROR
-
-	if not model.is_active:
-		raise INVALID_CREDENTIALS_ERROR
-
-	if model.expires_at is not None and model.expires_at < _utc_now().replace(tzinfo=None):
 		raise INVALID_CREDENTIALS_ERROR
 
 	if model.user is None or not model.user.is_active:

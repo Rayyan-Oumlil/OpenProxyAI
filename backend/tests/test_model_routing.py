@@ -1,6 +1,5 @@
 """Tests for model-pattern-based provider key routing."""
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 
 
 def _make_key(model_patterns=None, weight=1, is_active=True):

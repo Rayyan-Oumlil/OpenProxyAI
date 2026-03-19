@@ -10,7 +10,7 @@ from ._base_client import (
     _should_retry,
     _backoff,
 )
-from ._streaming import SyncStream, _extract_gateway_meta
+from ._streaming import SyncStream
 from ._exceptions import OpenProxyError
 from .resources.chat import SyncChatResource
 from .resources.embeddings import SyncEmbeddingsResource

@@ -12,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from redis.asyncio import Redis
 
+from sqlalchemy import select
+
 from app.dependencies import CurrentUser, get_db, get_redis
+from app.models.team import Team, team_members
 from app.schemas.analytics import AnalyticsResponse, CacheAnalyticsResponse, PolicyAnalyticsResponse
 from app.schemas.logs import Page, RequestLogDetail, RequestLogItem
 from app.schemas.reconcile import ReconcileReport, ReconcileRequest
@@ -35,16 +38,46 @@ def _sanitize_csv_row(row: dict) -> dict:
 	return safe
 
 
+async def _validate_team_access(
+	db: AsyncSession,
+	team_id: uuid.UUID,
+	org_id: uuid.UUID,
+	user_id: uuid.UUID,
+	role: str,
+) -> None:
+	"""Validate team exists, belongs to org, and user has access (admin or member)."""
+	team = await db.scalar(
+		select(Team).where(Team.id == team_id, Team.org_id == org_id)
+	)
+	if team is None:
+		raise HTTPException(status_code=404, detail="Team not found")
+	if role != "admin":
+		member = await db.execute(
+			select(team_members).where(
+				team_members.c.team_id == team_id,
+				team_members.c.user_id == user_id,
+			)
+		)
+		if member.first() is None:
+			raise HTTPException(status_code=403, detail="Access denied to this team")
+
+
 @router.get("/overview", response_model=AnalyticsResponse)
 async def get_analytics_overview(
 	current_user: CurrentUser,
 	period_days: int = Query(default=30, ge=1, le=90),
+	team_id: uuid.UUID | None = Query(default=None),
 	db: AsyncSession = Depends(get_db),
 ) -> AnalyticsResponse:
+	if team_id is not None:
+		await _validate_team_access(
+			db, team_id, current_user.org_id, current_user.id, current_user.role
+		)
 	return await analytics_service.get_overview(
 		db=db,
 		org_id=current_user.org_id,
 		period_days=period_days,
+		team_id=team_id,
 	)
 
 
@@ -74,8 +107,13 @@ async def get_request_logs(
 	include_archived: bool = Query(default=False),
 	label_key: str | None = Query(default=None, min_length=1, max_length=64),
 	label_value: str | None = Query(default=None, min_length=1, max_length=64),
+	team_id: uuid.UUID | None = Query(default=None),
 	db: AsyncSession = Depends(get_db),
 ) -> Page[RequestLogItem]:
+	if team_id is not None:
+		await _validate_team_access(
+			db, team_id, current_user.org_id, current_user.id, current_user.role
+		)
 	return await analytics_service.get_request_logs(
 		db=db,
 		org_id=current_user.org_id,
@@ -88,6 +126,7 @@ async def get_request_logs(
 		include_archived=include_archived,
 		label_key=label_key,
 		label_value=label_value,
+		team_id=team_id,
 	)
 
 

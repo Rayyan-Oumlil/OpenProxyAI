@@ -1,10 +1,51 @@
 # OpenProxyAI — Roadmap
 
-> Forward-looking only. For shipped features, see [features.md](./features.md).
->
-> Prioritized by enterprise RFP frequency and revenue impact, informed by competitive analysis of Portkey, Helicone, Kong, Cloudflare, LiteLLM, Envoy, AWS Bedrock, Azure API Management, Bifrost, Martian, Braintrust, and LangSmith.
+> **Shipped inventory:** [features.md](./features.md). **Below:** reference analysis (how we chose priorities), then go-live blockers, then P1–P3 backlog and operational polish.
 >
 > Last updated: 2026-03-19
+>
+> **Reality check:** Several things competitors bundle (semantic cache, compliance templates, experiments, Tier-1 data residency, metered Stripe billing) are already shipped — see [features.md](./features.md). The build sections here are **only** what is still worth doing or hardening.
+
+---
+
+## Reference analysis
+
+Architecture and feature patterns from competitor projects studied during planning. This section **drives RFP-weighted prioritization** in P1–P3 below.
+
+### Competitor stack summary
+
+| Project | Stack | Notable patterns |
+|---|---|---|
+| **LiteLLM** | Python, FastAPI, DualCache (mem+Redis), Prisma | Proxy hooks (CustomLogger), DBSpendUpdateWriter (batch spend 60s), router strategies (lowest_latency, simple_shuffle), many proxy endpoints (/v1/messages, /v1/images, /v1/batches, etc.), Redis/GCS/S3/Qdrant semantic cache |
+| **Portkey Gateway** | TypeScript, Hono, Workers/Node | tryTargetsRecursively fallback, HookSpan/HooksManager (before/after, Guardrail vs Mutator), plugin registry (aporia, patronus, etc.), config from headers, circuit breaker |
+| **Bifrost** | Go, 11 µs overhead | Semantic cache, MCP gateway, adaptive load balancing, Vault, plugins (governance, logging, semanticcache), NPX zero-config, Web UI |
+| **Helicone** | NextJS, Worker, Express, Supabase, ClickHouse | Sessions (agent trace grouping), Scores API for evals, Playground, prompt versioning, real-time webhooks, Datasets + RAGAS |
+| **Envoy AI Gateway** | Go, Kubernetes Gateway API | AIGatewayRoute CRD, routing by x-ai-eg-model header, LLMRequestCosts in metadata, external processor (WASM-capable) |
+
+### Competitive landscape (March 2026)
+
+**Market bifurcation:**
+
+1. **Performance / developer-focused** (Helicone, LiteLLM, Envoy) — speed, open-source, DX  
+2. **Enterprise / compliance-focused** (Portkey, Kong, Azure) — governance, audit trails, regulatory  
+3. **Niche specialists** (Braintrust, LangSmith, Martian) — observability + evals, semantic routing  
+
+**Key threat:** Cloud providers (Azure, AWS) bundling LLM gateway features for free. **Mitigation:** stay multi-cloud and provider-agnostic.
+
+**OpenProxyAI positioning:** *Compliance-first, cost-optimized AI gateway* — between Portkey’s feature breadth and Helicone’s performance minimalism. Differentiate on **vertical compliance templates** (healthcare / finance / gov) that most competitors do weakly.
+
+### Top deal closers by RFP frequency
+
+Statuses reflect [features.md](./features.md) (shipped vs partial vs not started), not old placeholder roadmap labels.
+
+| Feature | % of enterprise RFPs | OpenProxyAI status | ACV impact |
+|---|---|---|---|
+| Data residency / on-prem | 65% | **Tier 1 shipped** (org `data_region` + provider `region` routing). **Tier 2** = self-hosted / air-gap (**P1** below) | $100K+ blocker |
+| Semantic caching | 58% | **Shipped** (L1/L2/L3 + `x-openproxy-cache`, dashboard metrics) | $50K+ cost justification |
+| Prompt versioning & A/B testing | 42% | **Partial:** prompt templates + versioning in admin/playground **shipped**; **model A/B experiments** **shipped**; **not yet:** `prompt_id` + `variables` on `POST /v1/chat/completions` (**P2** below) | $20K+ feature request |
+| Vertical compliance templates | 35% | **Shipped** (HIPAA / PCI-DSS / FedRAMP apply + templates API) | $75K+ for healthcare |
+| Canary deployments | 28% | **Largely shipped** via **experiments** (weighted variants, metrics). **P2** follow-up: quality scoring / LLM-as-judge | $15K+ feature request |
+| MCP / tool governance | 12% | **P3** below | Emerging |
 
 ---
 
@@ -21,60 +62,32 @@ Everything below is post-launch, prioritized by competitive gap and revenue impa
 
 ## P1 — Revenue accelerators (directly close deals)
 
-### Data residency — Tier 2 (self-hosted)
-Tier 1 (config-based routing) is shipped. Tier 2 remains:
+### Data residency — Tier 2 (self-hosted / air-gap)
+Tier 1 (org `data_region` + provider key `region` filtering) is shipped; a **Helm chart** for cloud deploy also exists — see [features.md](./features.md). Tier 2 is **not** “chart vs no chart”; it is **customer-controlled** infra:
 
 **Scope:**
-- Publish hardened Helm chart for on-premise deployment
+- Hardening + documented path for **customer-cluster** install (no managed dependency assumptions)
 - Air-gapped mode: license key validation, no outbound telemetry
-- Ops documentation for healthcare and government customers
+- Ops / security documentation for healthcare and government evals
 
 **Deal impact:** Self-hosted unlocks $1M+ ARR from regulated sectors.
 
-### Usage-based billing metering
-**Why:** Enterprise customers expect pay-per-token pricing or hybrid models. Stripe supports metered billing natively.
+### Team follow-ups (teams entity is shipped)
+**Why:** [Teams](./features.md) (CRUD, members, budgets, admin UI) are live. Larger accounts still want **keys and analytics** tied to teams.
 
 **Scope:**
-- Periodic job (hourly) syncs aggregated token usage to Stripe usage records
-- New plan tier option: "metered" with per-token pricing
-- Dashboard shows usage vs included quota with overage projection
-- Invoice line items show token breakdown by model
-
-**Files:** Extend `billing_service.py`, new `metering_service.py`, Stripe usage record API.
-
-### Multi-tenant RLS audit
-**Why:** Every enterprise sales conversation asks "how do you isolate our data?" Application-level `org_id` filtering exists, but PostgreSQL RLS is defense-in-depth and produces audit evidence for SOC 2 CC6.3.
-
-**Scope:**
-- Enable RLS on `request_logs`, `api_keys`, `llm_provider_keys`, `webhook_deliveries`
-- `SET LOCAL app.current_org_id = ?` per transaction
-- Verification script proving cross-org access is impossible
-- PDF/CSV evidence report for auditors
-
-**Files:** Alembic migration, `backend/app/database.py` session hook, verification test suite.
-
-### Team/project scoping
-**Why:** Larger customers need to group users and attribute costs to departments. `x-openproxy-labels` handles chargebacks today but lacks first-class entities for budgets and key isolation.
-
-**Scope:**
-- New `teams` table: org_id, name, budget_monthly_usd
-- Users belong to one or more teams; API keys scoped to a team
-- Team-level rate limits and budget caps
-- Dashboard filter by team; cost breakdown in analytics
+- Optional `team_id` on gateway API keys; validate user membership when issuing
+- Dashboard / analytics filters and cost breakdown by team
+- Optional team-level rate limits and stricter budget caps (beyond org budget)
 
 ---
 
 ## P2 — Competitive differentiators (win bake-offs)
 
-### Model A/B testing & canary deployments
-**RFP signal:** 28% of RFPs. Portkey and Kong offer it. No mainstream gateway does it natively with quality tracking.
+### Experiment quality scoring (optional)
+**RFP signal:** A/B testing is [shipped](./features.md); differentiation moves to **quality**, not presence of the feature.
 
-**Scope:**
-- New `experiments` table: name, model variants with traffic weight
-- Gateway routes requests by experiment weights
-- Per-variant metrics: latency, cost, token usage, policy violation rate
-- Admin console page to create/stop experiments and view results
-- Optional: quality scoring via LLM-as-judge
+**Scope:** LLM-as-judge or external eval hooks on experiment results; compare variants on rubric scores, not just latency/cost/tokens.
 
 ### Adaptive load balancing
 **Why:** Bifrost and Portkey recompute provider weights dynamically (every 5s) based on latency and error rates. Static weights mean a degraded provider keeps getting traffic.
@@ -93,14 +106,12 @@ Tier 1 (config-based routing) is shipped. Tier 2 remains:
 - When open, skip key in fallback chain until cooldown expires
 - Complements adaptive load balancing
 
-### Prompt management & versioning
-**Why:** Portkey Studio and Braintrust Loop offer prompt registries. Teams need version-controlled prompts with rollback, not just a playground.
+### Prompt management — proxy integration (templates exist)
+**Why:** [Prompt templates](./features.md) (CRUD, versioning, playground) are **already shipped**. The gap vs Portkey/Braintrust is **production traffic**: callers still send raw `messages`; there is no `prompt_id` on the OpenAI-compatible proxy.
 
 **Scope:**
-- `prompt_templates` table: name, version, system message, user template, variables schema
-- API: `POST /v1/chat/completions` accepts `prompt_id` + `variables` instead of raw messages
-- Version history with diff view in admin console
-- Promote/rollback controls
+- `POST /v1/chat/completions` (and optionally embeddings): accept `prompt_id` + `variables`, resolve template server-side, then same policy/audit pipeline
+- Optional: promote/rollback UX and diff view beyond current version list API
 
 ### Session/trace grouping
 **Source:** Helicone Sessions — group related LLM calls for agent trace visibility.
@@ -110,11 +121,13 @@ Tier 1 (config-based routing) is shipped. Tier 2 remains:
 - Store in `request_logs`; dashboard filter by session
 - View multi-step agent traces as a single unit
 
-### Per-request config overrides
+### Per-request config overrides (finish header surface)
 **Source:** Portkey `x-portkey-*` headers — routing, retries, and overrides from HTTP headers.
 
-**Scope:**
-- `x-openproxy-retries`, `x-openproxy-fallback-model`, `x-openproxy-cache` headers
+**Already shipped:** `x-openproxy-cache`, `x-openproxy-labels`, `x-openproxy-team-id` (see [features.md](./features.md)).
+
+**Scope (remaining):**
+- `x-openproxy-retries`, `x-openproxy-fallback-model` (and any other high-value overrides you want to document)
 - Per-request overrides without changing org config
 
 ---

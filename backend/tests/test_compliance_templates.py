@@ -1,11 +1,9 @@
 """Compliance templates API tests — apply-template and list templates."""
 
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-import pytest
 
 from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app

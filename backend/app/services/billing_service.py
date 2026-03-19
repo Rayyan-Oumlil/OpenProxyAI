@@ -28,6 +28,23 @@ def _event_get(obj: Any, *path: str, default: Any = None) -> Any:
     return default if cur is None else cur
 
 
+def _stripe_price_field_to_id(price: Any) -> str | None:
+    """Normalize Stripe `price` on invoice lines / subscription items (str id, dict, or object)."""
+    if price is None:
+        return None
+    if isinstance(price, str):
+        return price
+    if isinstance(price, dict):
+        pid = price.get("id")
+        return str(pid) if pid else None
+    pid = getattr(price, "id", None)
+    return str(pid) if pid else None
+
+
+def _subscription_item_price_id(item: Any) -> str | None:
+    return _stripe_price_field_to_id(_event_get(item, "price"))
+
+
 class BillingService:
     @staticmethod
     def _require_stripe_enabled() -> None:
@@ -45,6 +62,14 @@ class BillingService:
             return settings.STRIPE_STARTER_PRICE_ID
         if plan_key == "growth":
             return settings.STRIPE_GROWTH_PRICE_ID
+        if plan_key == "metered":
+            metered = getattr(settings, "STRIPE_METERED_PRICE_ID", "") or ""
+            if not metered:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Metered billing is not configured (missing STRIPE_METERED_PRICE_ID)",
+                )
+            return metered
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported plan: {plan}",
@@ -54,11 +79,54 @@ class BillingService:
     def _plan_for_price_id(price_id: str | None) -> str | None:
         if not price_id:
             return None
+        metered_pid = getattr(settings, "STRIPE_METERED_PRICE_ID", "") or ""
+        if metered_pid and price_id == metered_pid:
+            return "metered"
         if price_id == settings.STRIPE_STARTER_PRICE_ID and price_id:
             return "starter"
         if price_id == settings.STRIPE_GROWTH_PRICE_ID and price_id:
             return "growth"
+        base_pid = getattr(settings, "STRIPE_METERED_BASE_PRICE_ID", "") or ""
+        if base_pid and price_id == base_pid:
+            return "metered"
         return None
+
+    @staticmethod
+    def _plan_from_subscription_items(items: list[Any]) -> str | None:
+        """Pick plan from subscription items; metered price wins if present alongside a base price."""
+        if not isinstance(items, list) or not items:
+            return None
+        metered_pid = getattr(settings, "STRIPE_METERED_PRICE_ID", "") or ""
+        for it in items:
+            pid = _subscription_item_price_id(it)
+            if metered_pid and pid == metered_pid:
+                return "metered"
+        for it in items:
+            pid = _subscription_item_price_id(it)
+            mapped = BillingService._plan_for_price_id(pid)
+            if mapped:
+                return mapped
+        return None
+
+    @staticmethod
+    def _merge_metered_subscription_item_cache(org: Organization, subscription_obj: Any) -> None:
+        """Store metered Stripe subscription item id in org.settings (immutable merge)."""
+        metered_pid = getattr(settings, "STRIPE_METERED_PRICE_ID", "") or ""
+        if not metered_pid:
+            return
+        items = _event_get(subscription_obj, "items", "data", default=[]) or []
+        si_id: str | None = None
+        if isinstance(items, list):
+            for it in items:
+                if _subscription_item_price_id(it) == metered_pid:
+                    raw = _event_get(it, "id")
+                    if raw:
+                        si_id = str(raw)
+                    break
+        if not si_id:
+            return
+        prev = org.settings if isinstance(org.settings, dict) else {}
+        org.settings = {**prev, "stripe_metered_subscription_item_id": si_id}
 
     @staticmethod
     async def _log_plan_change(
@@ -124,18 +192,35 @@ class BillingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Enterprise plan requires manual setup",
             )
-        price_id = self._price_id_for_plan(plan_key)
-        if not price_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Missing Stripe price ID for {plan_key}",
-            )
 
         customer_id = await self.get_or_create_customer(org, db)
+
+        if plan_key == "metered":
+            line_items: list[dict[str, Any]] = []
+            base_pid = getattr(settings, "STRIPE_METERED_BASE_PRICE_ID", "") or ""
+            metered_pid = getattr(settings, "STRIPE_METERED_PRICE_ID", "") or ""
+            if base_pid:
+                line_items.append({"price": base_pid, "quantity": 1})
+            if metered_pid:
+                line_items.append({"price": metered_pid})
+            if not line_items:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Metered checkout requires STRIPE_METERED_PRICE_ID and/or STRIPE_METERED_BASE_PRICE_ID",
+                )
+        else:
+            price_id = self._price_id_for_plan(plan_key)
+            if not price_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing Stripe price ID for {plan_key}",
+                )
+            line_items = [{"price": price_id, "quantity": 1}]
+
         session = stripe.checkout.Session.create(
             mode="subscription",
             customer=customer_id,
-            line_items=[{"price": price_id, "quantity": 1}],
+            line_items=line_items,
             success_url=settings.STRIPE_SUCCESS_URL,
             cancel_url=settings.STRIPE_CANCEL_URL,
             client_reference_id=str(org.id),
@@ -242,18 +327,29 @@ class BillingService:
                     org.stripe_customer_id = _event_get(event_obj, "customer") or org.stripe_customer_id
                     org.stripe_subscription_id = _event_get(event_obj, "subscription") or org.stripe_subscription_id
                     org.stripe_subscription_status = "active"
+                    # Set plan immediately from checkout metadata so the org is not left on "free"
+                    # while waiting for the invoice.paid event (which may be delayed or lost).
+                    target_plan = _event_get(event_obj, "metadata", "target_plan")
+                    if target_plan and target_plan != "enterprise":
+                        org.plan = target_plan
 
         elif event_type == "invoice.paid":
             customer_id = _event_get(event_obj, "customer")
             org = await self._find_org_by_customer(customer_id, db)
             if org is not None:
                 before_plan = org.plan
-                price_id = _event_get(event_obj, "lines", "data", default=[])
+                lines = _event_get(event_obj, "lines", "data", default=[])
                 mapped_plan = None
-                if isinstance(price_id, list) and price_id:
-                    mapped_plan = self._plan_for_price_id(
-                        _event_get(price_id[0], "price", "id")
-                    )
+                if isinstance(lines, list) and lines:
+                    line_items: list[Any] = []
+                    for line in lines:
+                        pid = _stripe_price_field_to_id(_event_get(line, "price"))
+                        line_items.append({"price": {"id": pid}})
+                    mapped_plan = self._plan_from_subscription_items(line_items)
+                    if mapped_plan is None and lines:
+                        mapped_plan = self._plan_for_price_id(
+                            _stripe_price_field_to_id(_event_get(lines[0], "price"))
+                        )
                 if mapped_plan:
                     org.plan = mapped_plan
                     await self._log_plan_change(
@@ -279,9 +375,7 @@ class BillingService:
                 items = _event_get(event_obj, "items", "data", default=[])
                 mapped_plan = None
                 if isinstance(items, list) and items:
-                    mapped_plan = self._plan_for_price_id(
-                        _event_get(items[0], "price", "id")
-                    )
+                    mapped_plan = self._plan_from_subscription_items(items)
                 if mapped_plan:
                     org.plan = mapped_plan
                     await self._log_plan_change(
@@ -291,6 +385,7 @@ class BillingService:
                         action="billing.plan_changed",
                         event_id=event_id,
                     )
+                self._merge_metered_subscription_item_cache(org, event_obj)
 
         elif event_type == "customer.subscription.deleted":
             org = await self._find_org_by_customer(_event_get(event_obj, "customer"), db)

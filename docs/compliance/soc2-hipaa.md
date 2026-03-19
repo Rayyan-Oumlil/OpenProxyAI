@@ -8,7 +8,7 @@
 | CC6.1 — Unique user identification | `users` table, bcrypt passwords, JWT tokens with per-user claim |
 | CC6.2 — Authentication credentials | bcrypt + pepper via SECRET_KEY; access tokens 24h TTL |
 | CC6.3 — Role-based access control | `role` field: admin / developer / viewer; `require_admin` dependency |
-| CC6.6 — Logical access restrictions | API keys scoped to org; RLS on request_logs (no UPDATE/DELETE) |
+| CC6.6 — Logical access restrictions | API keys scoped to org; RLS on request_logs, api_keys, llm_provider_keys, webhook_deliveries, semantic_cache_entries, prompt_templates; `SET LOCAL app.current_org_id` per request; `verify_rls.py` generates CSV evidence |
 | CC6.7 — Encryption of data in transit | TLS enforced via HSTS header; internal traffic via cluster network |
 | CC6.8 — Encryption of data at rest | Provider keys: AES-GCM via crypto_service; SSO client_secret: AES-GCM |
 

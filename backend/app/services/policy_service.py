@@ -7,10 +7,8 @@ import logging
 import re
 import re as _re
 import uuid
-
-logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Optional
 
 from redis.asyncio import Redis
@@ -20,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.services import presidio_service
+
+logger = logging.getLogger(__name__)
 
 # ── Redis key helpers ────────────────────────────────────────────────────────
 
@@ -332,6 +332,13 @@ class PolicyService:
 		if not allowlist:
 			return False
 		return model not in allowlist
+
+	def is_model_on_allowlist(self, model: str, config: PolicyConfig) -> bool:
+		"""True if there is no allowlist (empty = no model restriction) or model is listed.
+
+		Matches :meth:`_model_is_blocked` / runtime chat policy checks (exact string match).
+		"""
+		return not self._model_is_blocked(model, config)
 
 	def _keyword_hit(self, text: str, config: PolicyConfig) -> str | None:
 		blocked_keywords = [kw.strip() for kw in config.blocked_keywords if kw.strip()]

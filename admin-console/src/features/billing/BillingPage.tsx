@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
-import type { OrganizationResponse } from "../../api/types";
+import type { AnalyticsResponse, OrganizationResponse } from "../../api/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
@@ -15,7 +15,7 @@ type PlanCard = {
   price: string;
   description: string;
   cta: string;
-  targetPlan?: "starter" | "growth";
+  targetPlan?: "starter" | "growth" | "metered";
 };
 
 const PLAN_CARDS: PlanCard[] = [
@@ -40,6 +40,13 @@ const PLAN_CARDS: PlanCard[] = [
     targetPlan: "growth",
   },
   {
+    name: "Metered",
+    price: "Base + usage",
+    description: "Usage-based token billing via Stripe metered pricing with an included monthly allowance.",
+    cta: "Upgrade to Metered",
+    targetPlan: "metered",
+  },
+  {
     name: "Enterprise",
     price: "Contact sales",
     description: "Custom contracts, security reviews, and dedicated support.",
@@ -59,8 +66,15 @@ export function BillingPage() {
     enabled: Boolean(token),
   });
 
+  const analyticsQuery = useQuery({
+    queryKey: ["analytics", "overview", "billing", token],
+    queryFn: () =>
+      apiClient.get<AnalyticsResponse>("/api/v1/analytics/overview?period_days=30", token!),
+    enabled: Boolean(token) && orgQuery.data?.plan?.toLowerCase() === "metered",
+  });
+
   const checkoutMutation = useMutation({
-    mutationFn: (plan: "starter" | "growth") => apiClient.createCheckoutSession(plan, token!),
+    mutationFn: (plan: "starter" | "growth" | "metered") => apiClient.createCheckoutSession(plan, token!),
     onSuccess: (data) => {
       window.location.href = data.checkout_url;
     },
@@ -172,6 +186,75 @@ export function BillingPage() {
         </div>
       </section>
 
+      {currentPlan === "metered" &&
+        typeof orgQuery.data.included_tokens_monthly === "number" &&
+        orgQuery.data.included_tokens_monthly > 0 && (
+          <section className="surface-panel" style={{ marginTop: "1rem" }}>
+            <h2 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.5rem" }}>
+              Usage vs included allowance
+            </h2>
+            <p style={{ color: "var(--muted)", fontSize: "0.88rem", marginBottom: "0.75rem" }}>
+              Compared to your monthly included tokens (from{" "}
+              <code style={{ fontSize: "0.85em" }}>GET /api/v1/analytics/overview</code> last 30 days).
+            </p>
+            {analyticsQuery.isLoading ? (
+              <p style={{ color: "var(--muted)" }}>Loading usage…</p>
+            ) : analyticsQuery.isError ? (
+              <p style={{ color: "var(--danger, #c00)" }}>Could not load analytics overview.</p>
+            ) : (
+              (() => {
+                const included = orgQuery.data.included_tokens_monthly!;
+                const used = analyticsQuery.data?.overview.total_tokens ?? 0;
+                const pct = Math.min(100, Math.round((used / included) * 1000) / 10);
+                const basis = analyticsQuery.data?.overview.forecast_basis_days ?? 0;
+                const projectedMonthTokens =
+                  basis > 0 ? Math.round((used / basis) * 30) : null;
+                const overageTokens =
+                  projectedMonthTokens !== null ? Math.max(0, projectedMonthTokens - included) : null;
+                return (
+                  <div style={{ display: "grid", gap: "0.65rem" }}>
+                    <div>
+                      <span style={{ color: "var(--muted)" }}>Tokens (30d window)</span>
+                      <div style={{ fontWeight: 700 }}>
+                        {used.toLocaleString()} / {included.toLocaleString()} included ({pct}%)
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        height: 8,
+                        borderRadius: 4,
+                        background: "var(--line, #ddd)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          height: "100%",
+                          background: pct > 90 ? "var(--danger, #c62828)" : "var(--accent, #2563eb)",
+                        }}
+                      />
+                    </div>
+                    {projectedMonthTokens !== null && (
+                      <p style={{ color: "var(--muted)", fontSize: "0.88rem" }}>
+                        Projected month-end tokens (linear):{" "}
+                        <strong>{projectedMonthTokens.toLocaleString()}</strong>
+                        {overageTokens !== null && overageTokens > 0 && (
+                          <>
+                            {" "}
+                            — estimated overage vs included:{" "}
+                            <strong>{overageTokens.toLocaleString()}</strong> tokens
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()
+            )}
+          </section>
+        )}
+
       <section
         style={{
           display: "grid",
@@ -180,7 +263,9 @@ export function BillingPage() {
         }}
       >
         {PLAN_CARDS.map((plan) => {
-          const isCurrent = currentPlan === plan.name.toLowerCase();
+          const isCurrent = plan.targetPlan
+            ? currentPlan === plan.targetPlan
+            : currentPlan === plan.name.toLowerCase();
           const canUpgrade = canManage && plan.targetPlan && !isCurrent;
           return (
             <article key={plan.name} className="surface-panel" style={{ display: "grid", gap: "0.6rem" }}>

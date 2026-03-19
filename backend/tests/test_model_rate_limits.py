@@ -1,6 +1,6 @@
 """Tests for per-model rate limiting."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 
 def _make_policy_config(model_rate_limits=None):

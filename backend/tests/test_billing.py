@@ -95,6 +95,8 @@ def _set_stripe_config(monkeypatch):
     monkeypatch.setattr(billing_module.settings, "STRIPE_WEBHOOK_SECRET", "whsec_123")
     monkeypatch.setattr(billing_module.settings, "STRIPE_STARTER_PRICE_ID", "price_starter")
     monkeypatch.setattr(billing_module.settings, "STRIPE_GROWTH_PRICE_ID", "price_growth")
+    monkeypatch.setattr(billing_module.settings, "STRIPE_METERED_PRICE_ID", "price_metered")
+    monkeypatch.setattr(billing_module.settings, "STRIPE_METERED_BASE_PRICE_ID", "")
     monkeypatch.setattr(billing_module.settings, "STRIPE_SUCCESS_URL", "http://localhost:5173/billing?success=1")
     monkeypatch.setattr(billing_module.settings, "STRIPE_CANCEL_URL", "http://localhost:5173/billing?canceled=1")
 
@@ -125,6 +127,82 @@ def test_checkout_returns_url(client, monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["checkout_url"] == "https://checkout.stripe.test/session_123"
+
+
+def test_checkout_metered_session_line_items(client, monkeypatch):
+    _set_stripe_config(monkeypatch)
+    monkeypatch.setattr(billing_module.settings, "STRIPE_METERED_BASE_PRICE_ID", "price_metered_base")
+    captured: dict = {}
+
+    def capture_session_create(**kwargs):
+        captured.update(kwargs)
+        return {"url": "https://checkout.stripe.test/metered"}
+
+    org = _make_org()
+    user = _make_user(org.id, role="admin")
+    db = FakeDB(get_result=org, scalar_results=[org])
+    _override_auth(user)
+    _override_db(db)
+
+    monkeypatch.setattr(
+        billing_module.stripe.Customer,
+        "create",
+        lambda **kwargs: {"id": "cus_123"},
+    )
+    monkeypatch.setattr(
+        billing_module.stripe.checkout.Session,
+        "create",
+        capture_session_create,
+    )
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        json={"plan": "metered"},
+        headers={"Authorization": "Bearer test"},
+    )
+    assert response.status_code == 200
+    items = captured.get("line_items") or []
+    assert len(items) == 2
+    assert items[0] == {"price": "price_metered_base", "quantity": 1}
+    assert items[1] == {"price": "price_metered"}
+
+
+def test_webhook_subscription_updated_metered_plan_and_settings_cache(client, monkeypatch):
+    _set_stripe_config(monkeypatch)
+    org = _make_org(plan="free", customer_id="cus_123", subscription_id="sub_1")
+    org.settings = {}
+    db = FakeDB(scalar_results=[org])
+    _override_db(db)
+    monkeypatch.setattr(
+        billing_module.stripe.Webhook,
+        "construct_event",
+        lambda **kwargs: {
+            "id": "evt_metered",
+            "type": "customer.subscription.updated",
+            "data": {
+                "object": {
+                    "customer": "cus_123",
+                    "id": "sub_1",
+                    "status": "active",
+                    "items": {
+                        "data": [
+                            {"id": "si_base", "price": {"id": "price_metered_base"}},
+                            {"id": "si_m1", "price": {"id": "price_metered"}},
+                        ]
+                    },
+                }
+            },
+        },
+    )
+    monkeypatch.setattr(billing_module.settings, "STRIPE_METERED_BASE_PRICE_ID", "price_metered_base")
+    response = client.post(
+        "/api/v1/billing/webhook",
+        headers={"Stripe-Signature": "ok"},
+        content=b"{}",
+    )
+    assert response.status_code == 200
+    assert org.plan == "metered"
+    assert org.settings.get("stripe_metered_subscription_item_id") == "si_m1"
 
 
 def test_checkout_requires_admin(client):
@@ -276,6 +354,35 @@ def test_webhook_invoice_paid_syncs_plan(client, monkeypatch):
     assert response.status_code == 200
     assert org.plan == "growth"
     assert org.stripe_subscription_status == "active"
+
+
+def test_webhook_invoice_paid_line_price_as_string_id(client, monkeypatch):
+    """Stripe often expands invoice line price to a string price id."""
+    _set_stripe_config(monkeypatch)
+    org = _make_org(plan="free", customer_id="cus_123", sub_status="past_due")
+    db = FakeDB(scalar_results=[org])
+    _override_db(db)
+    monkeypatch.setattr(
+        billing_module.stripe.Webhook,
+        "construct_event",
+        lambda **kwargs: {
+            "id": "evt_inv_str",
+            "type": "invoice.paid",
+            "data": {
+                "object": {
+                    "customer": "cus_123",
+                    "lines": {"data": [{"price": "price_starter"}]},
+                }
+            },
+        },
+    )
+    response = client.post(
+        "/api/v1/billing/webhook",
+        headers={"Stripe-Signature": "ok"},
+        content=b"{}",
+    )
+    assert response.status_code == 200
+    assert org.plan == "starter"
 
 
 def test_webhook_payment_failed_sets_past_due(client, monkeypatch):

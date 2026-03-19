@@ -141,6 +141,24 @@ class FakeRedis:
 		return self._Pipeline(self)
 
 
+class FakeDB:
+	"""Minimal AsyncSession substitute for LLM service tests (execute, scalar, commit)."""
+
+	async def execute(self, *args, **kwargs):
+		return None
+
+	async def scalar(self, *args, **kwargs):
+		return None
+
+	async def commit(self):
+		return None
+
+
+@pytest.fixture
+def fake_db() -> FakeDB:
+	return FakeDB()
+
+
 @pytest.fixture
 def fake_redis() -> FakeRedis:
 	return FakeRedis()

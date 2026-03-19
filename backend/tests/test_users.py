@@ -1,7 +1,6 @@
 """User management route tests — list, get, update, RBAC, edge cases."""
 
 from datetime import UTC, datetime
-from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
 

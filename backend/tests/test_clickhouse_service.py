@@ -1,7 +1,6 @@
 """Tests for clickhouse_service — dual-write analytics."""
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-import asyncio
+from unittest.mock import MagicMock, patch
 
 
 def test_is_enabled_returns_false_when_url_not_set():

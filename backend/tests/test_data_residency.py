@@ -6,9 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from app.dependencies import get_current_user_from_api_key, get_current_user_from_jwt, get_db, get_redis, get_request_id
+from app.dependencies import get_current_user_from_jwt, get_db
 from app.main import app
-from app.routes import proxy as proxy_routes
 from app.services.crypto_service import decrypt, encrypt
 from app.services.llm_service import LLMService
 

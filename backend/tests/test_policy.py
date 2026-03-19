@@ -69,9 +69,16 @@ async def test_llm_service_blocks_before_rate_limit_for_policy_violation(monkeyp
 	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", fake_check_limits)
 	monkeypatch.setattr(llm_service_module, "log_request", fake_log_request)
 
+	async def _noop_set_session(_db, _org_id):
+		pass
+
+	from tests.conftest import FakeDB
+
+	monkeypatch.setattr("app.database.set_session_org_id", _noop_set_session)
+
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
-		db=SimpleNamespace(),
+		db=FakeDB(),
 		redis=fake_redis,
 		user=user,
 		api_key=api_key,

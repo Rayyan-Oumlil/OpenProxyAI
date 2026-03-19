@@ -1,6 +1,6 @@
 # OpenProxyAI Documentation
 
-OpenProxyAI is an enterprise LLM proxy that sits between your organization and LLM providers (OpenAI, Anthropic, Azure, Mistral, etc.). It provides unified API key management, policy enforcement (PII redaction, keyword blocking, model allowlists), cost control (per-user budgets, departmental chargebacks), semantic caching (3-tier: in-memory + Redis + pgvector), data residency routing, compliance templates (HIPAA, PCI-DSS, FedRAMP), a prompt playground with model comparison, and a complete audit trail for SOC 2, HIPAA, and GDPR compliance.
+OpenProxyAI is an enterprise LLM proxy between your organization and LLM providers (OpenAI, Anthropic, Azure, Mistral, etc.). It includes unified **gateway API keys** and **JWT admin auth**, policy enforcement (PII, keywords, model allowlists), cost and rate limits, **semantic caching** (in-memory + Redis + pgvector), **data residency** routing, **compliance templates** (HIPAA, PCI-DSS, FedRAMP), **teams** (org structure and optional budgets), **model A/B experiments**, **Stripe billing** (including optional metered usage), a **prompt playground** with templates and model compare, and audit logging for SOC 2 / HIPAA / GDPR-style programs.
 
 ---
 
@@ -30,6 +30,8 @@ OpenProxyAI is an enterprise LLM proxy that sits between your organization and L
 | [Policy Configuration](./guides/policy-configuration.md) | Enforcement modes, PII detection, prompt injection, model allowlists |
 | [Model Routing](./guides/model-routing.md) | Provider keys, weighted routing, fnmatch model patterns |
 | [Cost Management](./guides/cost-management.md) | Per-user budgets, anomaly detection, budget alert webhooks |
+| [Stripe & billing](./guides/stripe-setup.md) | Products, webhooks, env vars, optional metered (usage) billing |
+| [Experiments & teams](./guides/experiments-and-teams.md) | Model A/B tests, team APIs, optional `x-openproxy-team-id` on the proxy |
 | [Enterprise Deployment](./guides/enterprise-deployment.md) | Intercept employee AI traffic via PAC file, DNS, firewall, or reverse proxy |
 | [Voice Integration](./guides/voice-integration.md) | PTT hardware, STT engines, mobile apps, and wearables |
 
@@ -40,6 +42,7 @@ OpenProxyAI is an enterprise LLM proxy that sits between your organization and L
 | Document | Purpose |
 |----------|---------|
 | [System Overview](./architecture/overview.md) | Request pipeline, async logging, sidecar vs core distinction |
+| [Repository layout](./architecture/repo-layout.md) | Monorepo map: `backend/`, `admin-console/`, SDKs, Helm |
 | [Architecture Decisions](./architecture/decisions.md) | Why key decisions were made — derived from LiteLLM, Portkey, Helicone, Bifrost |
 | [Deployment](./architecture/deployment.md) | Docker Compose and Kubernetes Helm production guide |
 | [Database Schema](./architecture/database-schema.md) | All tables, columns, constraints, and migration chain |
@@ -52,6 +55,14 @@ OpenProxyAI is an enterprise LLM proxy that sits between your organization and L
 |----------|---------|
 | [Security Architecture](./compliance/security.md) | Encryption, key rotation, audit log immutability, security headers |
 | [SOC 2 & HIPAA Controls](./compliance/soc2-hipaa.md) | Control mapping for CC6, CC7, CC8, CC9, and HIPAA §164.312 |
+
+### Security review notes (internal / audit trail)
+
+These are **not** runbooks — they record what was reviewed, findings, and remediation status for specific features or migrations.
+
+| Document | Topic |
+|----------|--------|
+| [RLS rollout review](./security/RLS_SECURITY_AUDIT.md) | PostgreSQL RLS policies, `verify_rls`, background jobs |
 
 ---
 
@@ -67,5 +78,5 @@ OpenProxyAI is an enterprise LLM proxy that sits between your organization and L
 
 | Document | Purpose |
 |----------|---------|
-| [Roadmap](./roadmap.md) | Forward-looking only — prioritized P0–P3 work informed by competitive landscape |
-| [Reference Analysis](./reference-analysis.md) | Competitor architecture notes and RFP signal data that informed the roadmap |
+| [Roadmap](./roadmap.md) | Go-live blockers, P1–P3 backlog, operational polish — **includes** competitor reference analysis and RFP signal table |
+| [Reference analysis](./reference-analysis.md) | Shortcut link → roadmap “Reference analysis” section (same content) |

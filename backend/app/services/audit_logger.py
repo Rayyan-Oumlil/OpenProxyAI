@@ -91,11 +91,14 @@ async def log_request(
 	error_message: str | None = None,
 	request_metadata: dict | None = None,
 	labels: dict[str, str] | None = None,
+	team_id: uuid.UUID | None = None,
 ) -> None:
 	total_tokens = prompt_tokens + completion_tokens
 	metadata = {**(request_metadata or {})}
 	if labels:
 		metadata = {**metadata, "labels": labels}
+	if team_id is not None:
+		metadata = {**metadata, "team_id": str(team_id)}
 	async with AsyncSessionLocal() as db:
 		row = RequestLog(
 			request_id=request_id,
@@ -124,6 +127,12 @@ async def log_request(
 	await redis.expire(org_spend_key, 48 * 3600)
 	await redis.incrbyfloat(user_spend_key, float(cost_usd))
 	await redis.expire(user_spend_key, 48 * 3600)
+
+	if team_id is not None:
+		month_key = datetime.now(UTC).strftime("%Y-%m")
+		team_usd_key = f"rl:usd:team:{team_id}:{month_key}"
+		await redis.incrbyfloat(team_usd_key, float(cost_usd))
+		await redis.expire(team_usd_key, 60 * 24 * 3600)  # 60 days
 
 	await cost_tracker_service.alert_at_threshold(
 		redis=redis,

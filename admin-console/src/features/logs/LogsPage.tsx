@@ -4,7 +4,7 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
-import type { Page, PolicyAnalyticsResponse, RequestLogItem } from "../../api/types";
+import type { Page, PolicyAnalyticsResponse, RequestLogItem, TeamResponse } from "../../api/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
@@ -20,7 +20,8 @@ function buildLogsPath(
   policyAction: string,
   policyReason: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  teamId: string
 ): string {
   const params = new URLSearchParams({ page: String(page), page_size: "20" });
   if (status !== "all") params.set("status", status);
@@ -29,6 +30,7 @@ function buildLogsPath(
   if (r) params.set("policy_reason", r);
   if (startDate) params.set("start_date", startDate);
   if (endDate) params.set("end_date", endDate);
+  if (teamId) params.set("team_id", teamId);
   return `/api/v1/analytics/logs?${params.toString()}`;
 }
 
@@ -67,24 +69,31 @@ async function downloadCsv(
 }
 
 export function LogsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [policyActionFilter, setPolicyActionFilter] = useState("all");
   const [policyReasonFilter, setPolicyReasonFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [teamFilter, setTeamFilter] = useState("");
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  const teamsQuery = useQuery({
+    queryKey: ["teams", token],
+    queryFn: () => apiClient.get<TeamResponse[]>("/api/v1/teams", token!),
+    enabled: Boolean(token) && user?.role === "admin",
+  });
 
   const logsQuery = useQuery({
     queryKey: [
       "analytics", "logs", token, page,
-      statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate,
+      statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter,
     ],
     queryFn: () =>
       apiClient.get<Page<RequestLogItem>>(
-        buildLogsPath(page, statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate),
+        buildLogsPath(page, statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter),
         token!
       ),
     enabled: Boolean(token),
@@ -181,6 +190,19 @@ export function LogsPage() {
           To
           <input type="date" value={endDate} onChange={(e) => { resetPage(); setEndDate(e.target.value); }} />
         </label>
+        {user?.role === "admin" && teamsQuery.data && teamsQuery.data.length > 0 && (
+          <label className="inline-control">
+            Team
+            <select value={teamFilter} onChange={(e) => { resetPage(); setTeamFilter(e.target.value); }}>
+              <option value="">All</option>
+              {teamsQuery.data.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <section className="surface-panel">

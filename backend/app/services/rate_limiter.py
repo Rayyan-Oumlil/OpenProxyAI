@@ -32,8 +32,9 @@ class RateLimiterService:
 		tokens_remaining: int,
 		budget_remaining: Decimal,
 		reset_epoch: int,
+		retry_after: int | None = None,
 	) -> dict[str, str]:
-		return {
+		out = {
 			"X-RateLimit-Requests-Limit": str(max_rpm),
 			"X-RateLimit-Requests-Remaining": str(max(requests_remaining, 0)),
 			"X-RateLimit-Tokens-Limit": str(max_tpm),
@@ -42,6 +43,9 @@ class RateLimiterService:
 			"X-RateLimit-Budget-Remaining-USD": f"{max(budget_remaining, Decimal('0')):.6f}",
 			"X-RateLimit-Reset": str(reset_epoch),
 		}
+		if retry_after is not None:
+			out = {**out, "Retry-After": str(retry_after)}
+		return out
 
 	async def check_limits(
 		self,
@@ -53,6 +57,8 @@ class RateLimiterService:
 		max_tpm: int,
 		max_daily_budget_usd: Decimal,
 		user_daily_budget_usd: Decimal | None = None,
+		team_id: str | None = None,
+		team_budget_monthly_usd: Decimal | None = None,
 		model: str | None = None,
 		policy_config: object | None = None,
 	) -> tuple[bool, dict[str, str], str | None, str | None, int | None]:
@@ -98,8 +104,8 @@ class RateLimiterService:
 				tokens_remaining=max_tpm - current_tpm,
 				budget_remaining=org_budget_remaining,
 				reset_epoch=minute_reset_epoch,
+				retry_after=retry_after,
 			)
-			headers["Retry-After"] = str(retry_after)
 			return (
 				False,
 				headers,
@@ -118,8 +124,8 @@ class RateLimiterService:
 				tokens_remaining=0,
 				budget_remaining=org_budget_remaining,
 				reset_epoch=minute_reset_epoch,
+				retry_after=retry_after,
 			)
-			headers["Retry-After"] = str(retry_after)
 			return (
 				False,
 				headers,
@@ -139,8 +145,8 @@ class RateLimiterService:
 				tokens_remaining=max_tpm - current_tpm,
 				budget_remaining=Decimal("0"),
 				reset_epoch=budget_reset_epoch,
+				retry_after=retry_after,
 			)
-			headers["Retry-After"] = str(retry_after)
 			return (
 				False,
 				headers,
@@ -160,8 +166,8 @@ class RateLimiterService:
 				tokens_remaining=max_tpm - current_tpm,
 				budget_remaining=org_budget_remaining,
 				reset_epoch=budget_reset_epoch,
+				retry_after=retry_after,
 			)
-			headers["Retry-After"] = str(retry_after)
 			return (
 				False,
 				headers,
@@ -169,6 +175,38 @@ class RateLimiterService:
 				f"Daily user budget reached. Resets in {retry_after} seconds.",
 				retry_after,
 			)
+
+		# Team monthly budget — independent of org budget (both must pass)
+		if team_id is not None and team_budget_monthly_usd is not None:
+			month_key = now.strftime("%Y-%m")
+			team_usd_key = f"rl:usd:team:{team_id}:{month_key}"
+			team_spend_raw = await redis.get(team_usd_key)
+			team_spend = Decimal(str(team_spend_raw or "0"))
+			if team_spend >= team_budget_monthly_usd:
+				from calendar import monthrange
+				_, last_day = monthrange(now.year, now.month)
+				next_month_start = (now.replace(day=last_day) + timedelta(days=1)).replace(
+					hour=0, minute=0, second=0, microsecond=0
+				)
+				budget_reset_epoch = int(next_month_start.timestamp())
+				retry_after = self._seconds_until(budget_reset_epoch)
+				headers = self._headers(
+					max_rpm=max_rpm,
+					max_tpm=max_tpm,
+					max_daily_budget_usd=max_daily_budget_usd,
+					requests_remaining=max_rpm - current_req_count,
+					tokens_remaining=max_tpm - current_tpm,
+					budget_remaining=org_budget_remaining,
+					reset_epoch=minute_reset_epoch,
+					retry_after=retry_after,
+				)
+				return (
+					False,
+					headers,
+					"team_budget_monthly_usd",
+					"Team monthly budget reached. Resets at start of next month.",
+					retry_after,
+				)
 
 		# Per-model rate limits
 		if model and policy_config is not None:
@@ -199,8 +237,8 @@ class RateLimiterService:
 							tokens_remaining=max_tpm - current_tpm,
 							budget_remaining=org_budget_remaining,
 							reset_epoch=minute_reset_epoch,
+							retry_after=retry_after,
 						)
-						headers["Retry-After"] = str(retry_after)
 						return (
 							False,
 							headers,
@@ -223,8 +261,8 @@ class RateLimiterService:
 							tokens_remaining=max_tpm - current_tpm,
 							budget_remaining=org_budget_remaining,
 							reset_epoch=minute_reset_epoch,
+							retry_after=retry_after,
 						)
-						headers["Retry-After"] = str(retry_after)
 						return (
 							False,
 							headers,

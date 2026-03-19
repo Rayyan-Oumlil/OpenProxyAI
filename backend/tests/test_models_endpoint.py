@@ -3,7 +3,6 @@
 from types import SimpleNamespace
 from uuid import uuid4
 
-import pytest
 
 from app.dependencies import get_current_user_from_api_key, get_db, get_redis
 from app.main import app

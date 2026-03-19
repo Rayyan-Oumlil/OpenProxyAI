@@ -94,9 +94,16 @@ function PolicyStrip({ data }: { data: PolicyAnalyticsResponse }) {
 }
 
 export function DashboardPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [period, setPeriod] = useState(30);
+  const [teamFilter, setTeamFilter] = useState("");
   const [isExportingCompliance, setIsExportingCompliance] = useState(false);
+
+  const teamsQuery = useQuery({
+    queryKey: ["teams", token],
+    queryFn: () => apiClient.get<import("../../api/types").TeamResponse[]>("/api/v1/teams", token!),
+    enabled: Boolean(token) && user?.role === "admin",
+  });
 
   const downloadComplianceReport = async () => {
     if (!token || isExportingCompliance) return;
@@ -122,9 +129,12 @@ export function DashboardPage() {
   };
 
   const overviewQuery = useQuery({
-    queryKey: ["analytics", "overview", period, token],
-    queryFn: () =>
-      apiClient.get<AnalyticsResponse>(`/api/v1/analytics/overview?period_days=${period}`, token!),
+    queryKey: ["analytics", "overview", period, teamFilter, token],
+    queryFn: () => {
+      const params = new URLSearchParams({ period_days: String(period) });
+      if (teamFilter) params.set("team_id", teamFilter);
+      return apiClient.get<AnalyticsResponse>(`/api/v1/analytics/overview?${params.toString()}`, token!);
+    },
     enabled: Boolean(token),
   });
 
@@ -189,6 +199,25 @@ export function DashboardPage() {
               {opt.label}
             </button>
           ))}
+          {user?.role === "admin" && teamsQuery.data && teamsQuery.data.length > 0 && (
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-lg text-sm"
+              style={{
+                border: "1px solid var(--line)",
+                background: "transparent",
+                color: "var(--text)",
+              }}
+            >
+              <option value="">All teams</option>
+              {teamsQuery.data.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </header>
 

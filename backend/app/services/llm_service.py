@@ -19,12 +19,15 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from litellm import acompletion, aembedding
 from redis.asyncio import Redis
 from sqlalchemy import or_, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.api_key import ApiKey
+from app.models.experiment import Experiment
 from app.models.llm_provider_key import LLMProviderKey
 from app.models.organization import Organization
+from app.models.team import Team, team_members
 from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.services import cache_service
@@ -70,6 +73,24 @@ def _to_jsonable(value: Any) -> Any:
 	if isinstance(value, (dict, list, str, int, float, bool)) or value is None:
 		return value
 	return json.loads(json.dumps(value, default=str))
+
+
+def _parse_team_id(request: Request) -> uuid.UUID | None:
+	"""Parse and validate the x-openproxy-team-id header.
+
+	Returns None when the header is absent.
+	Raises HTTP 400 on invalid UUID format.
+	"""
+	raw = request.headers.get("x-openproxy-team-id")
+	if not raw or not raw.strip():
+		return None
+	try:
+		return uuid.UUID(raw.strip())
+	except (ValueError, TypeError):
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="x-openproxy-team-id must be a valid UUID",
+		)
 
 
 def _parse_labels(request: Request) -> dict[str, str] | None:
@@ -148,6 +169,19 @@ class _RequestContext:
 	policy_config: Any = None
 	candidate_keys: list[str] = field(default_factory=list)
 	kwargs: dict[str, Any] = field(default_factory=dict)
+	team_id: uuid.UUID | None = None
+	team_budget_monthly_usd: Decimal | None = None
+	experiment_info: dict | None = None
+
+
+def _build_request_metadata(ctx: _RequestContext, extra: dict | None = None) -> dict:
+	"""Build request_metadata for logging, merging policy_metadata and experiment_info."""
+	metadata = {**(ctx.policy_metadata or {})}
+	if ctx.experiment_info:
+		metadata = {**metadata, "experiment": ctx.experiment_info}
+	if extra:
+		metadata = {**metadata, **extra}
+	return metadata
 
 
 class LLMService:
@@ -216,6 +250,45 @@ class LLMService:
 			},
 		)
 
+	async def _resolve_experiment(
+		self,
+		db: AsyncSession,
+		org_id: uuid.UUID,
+		requested_model: str,
+	) -> tuple[str, dict | None]:
+		"""Resolve A/B experiment: if active experiment exists for requested_model, pick variant by weight.
+
+		Returns (resolved_model, experiment_info) where experiment_info is
+		{"experiment_id": str, "variant_model": str, "original_model": str} or None.
+		"""
+		from app.database import set_session_org_id
+
+		await set_session_org_id(db, org_id)
+		experiment = await db.scalar(
+			select(Experiment)
+			.where(
+				Experiment.org_id == org_id,
+				Experiment.target_model == requested_model,
+				Experiment.is_active.is_(True),
+			)
+			.options(selectinload(Experiment.variants))
+			.limit(1)
+		)
+		if experiment is None or not experiment.variants:
+			return requested_model, None
+
+		weights = [v.traffic_weight for v in experiment.variants]
+		if sum(weights) <= 0:
+			return requested_model, None
+
+		variant = random.choices(experiment.variants, weights=weights, k=1)[0]
+		experiment_info = {
+			"experiment_id": str(experiment.id),
+			"variant_model": variant.model,
+			"original_model": requested_model,
+		}
+		return variant.model, experiment_info
+
 	@staticmethod
 	def _schedule_log(
 		background_tasks: BackgroundTasks,
@@ -234,6 +307,7 @@ class LLMService:
 		error_message: str | None = None,
 		request_metadata: dict | None = None,
 		labels: dict[str, str] | None = None,
+		team_id: uuid.UUID | None = None,
 	) -> None:
 		background_tasks.add_task(
 			log_request,
@@ -253,6 +327,7 @@ class LLMService:
 			error_message=error_message,
 			request_metadata=request_metadata,
 			labels=labels,
+			team_id=team_id,
 		)
 
 	@staticmethod
@@ -287,9 +362,43 @@ class LLMService:
 		(policy block or rate limit), otherwise None.
 		"""
 		ctx.provider, ctx.model_name = _split_model(ctx.request.model)
+		resolved_model, experiment_info = await self._resolve_experiment(
+			db, ctx.user.org_id, ctx.request.model
+		)
+		if experiment_info:
+			ctx.request = ctx.request.model_copy(update={"model": resolved_model})
+			ctx.provider, ctx.model_name = _split_model(resolved_model)
+			ctx.experiment_info = experiment_info
+
 		ctx.policy_config = await policy_store.load(ctx.user.org_id, db, ctx.redis)
 		decision = await policy_service.evaluate_chat_request(ctx.request, ctx.policy_config)
 		ctx.policy_metadata = decision.as_metadata()
+
+		# Resolve team context from x-openproxy-team-id (optional)
+		if ctx.team_id is not None:
+			team = await db.scalar(
+				select(Team).where(
+					Team.id == ctx.team_id,
+					Team.org_id == ctx.user.org_id,
+				)
+			)
+			if team is None:
+				raise HTTPException(
+					status_code=status.HTTP_404_NOT_FOUND,
+					detail="Team not found",
+				)
+			member_row = await db.execute(
+				select(team_members).where(
+					team_members.c.team_id == ctx.team_id,
+					team_members.c.user_id == ctx.user.id,
+				)
+			)
+			if member_row.first() is None:
+				raise HTTPException(
+					status_code=status.HTTP_403_FORBIDDEN,
+					detail="User is not a member of this team",
+				)
+			ctx.team_budget_monthly_usd = team.budget_monthly_usd
 
 		if not decision.allowed:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
@@ -308,8 +417,9 @@ class LLMService:
 				ttft_ms=None,
 				status_code=403,
 				error_message=f"policy_blocked:{decision.reason_code}",
-				request_metadata=ctx.policy_metadata,
+				request_metadata=_build_request_metadata(ctx),
 				labels=ctx.labels,
+				team_id=ctx.team_id,
 			)
 			return self._policy_block_response(decision)
 
@@ -323,6 +433,8 @@ class LLMService:
 				max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
 				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
 				user_daily_budget_usd=getattr(ctx.user, "budget_daily_usd", None),
+				team_id=str(ctx.team_id) if ctx.team_id else None,
+				team_budget_monthly_usd=ctx.team_budget_monthly_usd,
 				model=ctx.request.model,
 				policy_config=ctx.policy_config,
 			)
@@ -344,8 +456,9 @@ class LLMService:
 				ttft_ms=None,
 				status_code=429,
 				error_message=f"rate_limited:{limit_type}",
-				request_metadata=ctx.policy_metadata,
+				request_metadata=_build_request_metadata(ctx),
 				labels=ctx.labels,
+				team_id=ctx.team_id,
 			)
 			return JSONResponse(
 				status_code=429,
@@ -449,8 +562,8 @@ class LLMService:
 				)
 		except HTTPException:
 			raise
-		except Exception:
-			pass
+		except Exception as exc:
+			logger.warning("Budget pre-flight failed (continuing): %s", exc)
 
 		ctx.kwargs["stream"] = True
 
@@ -530,7 +643,8 @@ class LLMService:
 			self._schedule_log(
 				ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
 				ctx.request.model, ctx.provider, prompt_tokens, completion_tokens, cost,
-				latency_ms, 200, ttft_ms=ttft_ms, request_metadata=ctx.policy_metadata, labels=ctx.labels,
+				latency_ms, 200, ttft_ms=ttft_ms, request_metadata=_build_request_metadata(ctx), labels=ctx.labels,
+				team_id=ctx.team_id,
 			)
 
 		return StreamingResponse(
@@ -576,11 +690,12 @@ class LLMService:
 				cached_completion = int(cached_usage.get("completion_tokens", 0))
 				cached_cost = cost_tracker_service.calculate_cost_usd(cached_body)
 				cached_latency = int((time.perf_counter() - ctx.start) * 1000)
-				request_metadata = {**(ctx.policy_metadata or {}), "cache": cache_tier}
+				request_metadata = _build_request_metadata(ctx, {"cache": cache_tier})
 				self._schedule_log(
 					ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
 					ctx.request.model, ctx.provider, cached_prompt, cached_completion, cached_cost,
 					cached_latency, 200, request_metadata=request_metadata, labels=ctx.labels,
+					team_id=ctx.team_id,
 				)
 				return JSONResponse(
 					content=cached_body,
@@ -592,11 +707,11 @@ class LLMService:
 						"X-OpenProxyAI-Latency-Ms": str(cached_latency),
 						"X-OpenProxyAI-Cache": cache_tier,
 						"X-OpenProxyAI-Gateway-Error": "false",
-						**ctx.rl_headers,
-					},
-				)
-		except Exception:
-			pass
+					**ctx.rl_headers,
+				},
+			)
+		except Exception as exc:
+			logger.warning("Cache check failed (continuing): %s", exc)
 
 		async def _call(key: str) -> Any:
 			call_kwargs = {**ctx.kwargs, "api_key": key}
@@ -648,11 +763,12 @@ class LLMService:
 				)
 			)
 
-		request_metadata = {**(ctx.policy_metadata or {}), "cache": "miss"}
+		request_metadata = _build_request_metadata(ctx, {"cache": "miss"})
 		self._schedule_log(
 			ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
 			ctx.request.model, ctx.provider, prompt_tokens, completion_tokens, cost,
 			latency_ms, 200, request_metadata=request_metadata, labels=ctx.labels,
+			team_id=ctx.team_id,
 		)
 
 		return JSONResponse(
@@ -684,6 +800,7 @@ class LLMService:
 		background_tasks: BackgroundTasks,
 		http_request: Request | None = None,
 	):
+		team_id = _parse_team_id(http_request) if http_request is not None else None
 		ctx = _RequestContext(
 			request=request,
 			user=user,
@@ -694,6 +811,7 @@ class LLMService:
 			labels=_parse_labels(http_request) if http_request is not None else None,
 			start=time.perf_counter(),
 			http_request=http_request,
+			team_id=team_id,
 		)
 		try:
 			early = await self._build_litellm_kwargs(ctx, db)
@@ -711,7 +829,7 @@ class LLMService:
 				org_id=user.org_id,
 				user_id=user.id,
 				api_key_id=api_key.id,
-				model=request.model,
+				model=ctx.request.model,
 				provider=ctx.provider,
 				prompt_tokens=0,
 				completion_tokens=0,
@@ -720,8 +838,9 @@ class LLMService:
 				ttft_ms=None,
 				status_code=exc.status_code,
 				error_message=str(exc.detail),
-				request_metadata=ctx.policy_metadata,
+				request_metadata=_build_request_metadata(ctx),
 				labels=ctx.labels,
+				team_id=ctx.team_id,
 			)
 			if ctx.rl_headers:
 				raise HTTPException(
@@ -734,9 +853,10 @@ class LLMService:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 			self._schedule_log(
 				background_tasks, redis, request_id, user, api_key,
-				request.model, ctx.provider, 0, 0, Decimal("0"),
+				ctx.request.model, ctx.provider, 0, 0, Decimal("0"),
 				latency_ms, 504, error_message=str(exc),
-				request_metadata=ctx.policy_metadata, labels=ctx.labels,
+				request_metadata=_build_request_metadata(ctx), labels=ctx.labels,
+				team_id=ctx.team_id,
 			)
 			raise HTTPException(
 				status_code=504,
@@ -745,12 +865,13 @@ class LLMService:
 			) from exc
 		except Exception as exc:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
-			logger.error("Provider error for request %s model=%s: %s", request_id, request.model, exc)
+			logger.error("Provider error for request %s model=%s: %s", request_id, ctx.request.model, exc)
 			self._schedule_log(
 				background_tasks, redis, request_id, user, api_key,
-				request.model, ctx.provider, 0, 0, Decimal("0"),
+				ctx.request.model, ctx.provider, 0, 0, Decimal("0"),
 				latency_ms, 502, error_message=str(exc),
-				request_metadata=ctx.policy_metadata, labels=ctx.labels,
+				request_metadata=_build_request_metadata(ctx), labels=ctx.labels,
+				team_id=ctx.team_id,
 			)
 			raise HTTPException(
 				status_code=502,
@@ -774,6 +895,30 @@ class LLMService:
 		http_request: Request | None = None,
 	) -> JSONResponse:
 		labels = _parse_labels(http_request) if http_request is not None else None
+		team_id = _parse_team_id(http_request) if http_request is not None else None
+		team_budget_monthly_usd: Decimal | None = None
+		if team_id is not None:
+			team = await db.scalar(
+				select(Team).where(
+					Team.id == team_id,
+					Team.org_id == user.org_id,
+				)
+			)
+			if team is None:
+				raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+			member_row = await db.execute(
+				select(team_members).where(
+					team_members.c.team_id == team_id,
+					team_members.c.user_id == user.id,
+				)
+			)
+			if member_row.first() is None:
+				raise HTTPException(
+					status_code=status.HTTP_403_FORBIDDEN,
+					detail="User is not a member of this team",
+				)
+			team_budget_monthly_usd = team.budget_monthly_usd
+
 		start = time.perf_counter()
 		provider = "unknown"
 		rl_headers: dict[str, str] = {}
@@ -792,6 +937,7 @@ class LLMService:
 					latency_ms=latency_ms, ttft_ms=None, status_code=403,
 					error_message=f"policy_blocked:{decision.reason_code}",
 					request_metadata=policy_metadata, labels=labels,
+					team_id=team_id,
 				)
 				return self._policy_block_response(decision)
 			size = len(request.input) if isinstance(request.input, list) else len(request.input)
@@ -801,6 +947,8 @@ class LLMService:
 				max_rpm=settings.DEFAULT_RATE_LIMIT_RPM, max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
 				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
 				user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
+				team_id=str(team_id) if team_id else None,
+				team_budget_monthly_usd=team_budget_monthly_usd,
 				model=request.model, policy_config=policy_config,
 			)
 			if not ok:
@@ -812,6 +960,7 @@ class LLMService:
 					latency_ms=latency_ms, ttft_ms=None, status_code=429,
 					error_message=f"rate_limited:{limit_type}",
 					request_metadata=policy_metadata, labels=labels,
+					team_id=team_id,
 				)
 				return JSONResponse(
 					status_code=429,
@@ -849,6 +998,7 @@ class LLMService:
 				background_tasks, redis, request_id, user, api_key,
 				request.model, provider, prompt_tokens, 0, cost,
 				latency_ms, 200, request_metadata=policy_metadata, labels=labels,
+				team_id=team_id,
 			)
 
 			return JSONResponse(
@@ -871,6 +1021,7 @@ class LLMService:
 				prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
 				latency_ms=latency_ms, ttft_ms=None, status_code=exc.status_code,
 				error_message=str(exc.detail), request_metadata=policy_metadata, labels=labels,
+				team_id=team_id,
 			)
 			if rl_headers:
 				raise HTTPException(
@@ -885,6 +1036,7 @@ class LLMService:
 				request.model, provider, 0, 0, Decimal("0"),
 				latency_ms, 504, error_message=str(exc),
 				request_metadata=policy_metadata, labels=labels,
+				team_id=team_id,
 			)
 			raise HTTPException(
 				status_code=504,
@@ -899,6 +1051,7 @@ class LLMService:
 				request.model, provider, 0, 0, Decimal("0"),
 				latency_ms, 502, error_message=str(exc),
 				request_metadata=policy_metadata, labels=labels,
+				team_id=team_id,
 			)
 			raise HTTPException(
 				status_code=502,

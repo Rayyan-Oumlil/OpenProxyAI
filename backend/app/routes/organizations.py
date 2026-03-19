@@ -28,7 +28,7 @@ from app.services.admin_audit_service import (
     serialize_webhook_config,
 )
 from app.services.compliance_templates import get_template, list_templates
-from app.services.plan_service import assert_plan_allows
+from app.services.plan_service import assert_plan_allows, included_tokens_monthly_for_org
 from app.services.policy_service import PolicyConfig, _POLICY_CACHE_KEY, policy_store
 from app.services.webhook_service import _deliver
 
@@ -43,14 +43,27 @@ async def get_current_organization(
 	model = await db.scalar(select(Organization).where(Organization.id == current_user.org_id))
 	if model is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
-	resp = OrganizationResponse.model_validate(model)
-	resp.settings = _sanitize_settings_for_response(resp.settings)
-	return resp
+	return _organization_to_response(model)
+
+
+def _organization_to_response(model: Organization) -> OrganizationResponse:
+	base = OrganizationResponse.model_validate(model)
+	safe_settings = _sanitize_settings_for_response(dict(base.settings))
+	quota = included_tokens_monthly_for_org(model)
+	return base.model_copy(update={"settings": safe_settings, "included_tokens_monthly": quota})
+
+
+# Keys only Stripe webhooks / billing may write; clients must not set via PATCH.
+_SERVER_MANAGED_SETTINGS_KEYS = frozenset({"stripe_metered_subscription_item_id"})
 
 
 def _sanitize_settings_for_response(settings: dict) -> dict:
-	"""Strip secrets from the settings dict before sending to the client."""
-	safe = dict(settings)
+	"""Strip secrets and server-managed billing cache from the settings dict."""
+	safe = {
+		k: v
+		for k, v in settings.items()
+		if k not in _SERVER_MANAGED_SETTINGS_KEYS
+	}
 	webhooks = safe.get("webhooks")
 	if isinstance(webhooks, dict):
 		safe["webhooks"] = {k: v for k, v in webhooks.items() if k != "secret"}
@@ -97,7 +110,7 @@ async def update_current_organization(
 	for field_name, field_value in updates.items():
 		setattr(model, field_name, field_value)
 
-	_RESERVED_SETTINGS_KEYS = {"webhooks", "policy"}
+	_RESERVED_SETTINGS_KEYS = {"webhooks", "policy", *_SERVER_MANAGED_SETTINGS_KEYS}
 
 	if settings_patch is not None:
 		for reserved_key in _RESERVED_SETTINGS_KEYS:
@@ -127,7 +140,7 @@ async def update_current_organization(
 
 	await db.commit()
 	await db.refresh(model)
-	return OrganizationResponse.model_validate(model)
+	return _organization_to_response(model)
 
 
 @router.get("/current/policy", response_model=PolicyConfigResponse)

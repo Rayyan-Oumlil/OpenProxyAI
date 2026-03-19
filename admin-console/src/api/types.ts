@@ -155,6 +155,8 @@ export type OrganizationResponse = {
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
   stripe_subscription_status?: string | null;
+  /** Set for usage-metered plans — monthly included token allowance. */
+  included_tokens_monthly?: number | null;
 };
 
 export type OrganizationUpdateRequest = {
@@ -292,6 +294,29 @@ export type PlaygroundCompareResponse = {
   results: PlaygroundCompareResult[];
 };
 
+export type TeamResponse = {
+  id: string;
+  org_id: string;
+  name: string;
+  budget_monthly_usd: string | null;
+  created_at: string;
+  member_count: number;
+};
+
+export type TeamDetailResponse = TeamResponse & {
+  members: Array<{ id: string; email: string; name: string | null }>;
+};
+
+export type CreateTeamRequest = {
+  name: string;
+  budget_monthly_usd?: number | null;
+};
+
+export type UpdateTeamRequest = {
+  name?: string | null;
+  budget_monthly_usd?: number | null;
+};
+
 export type AdminAuditLogEntry = {
   id: string;
   actor_email: string;
@@ -302,4 +327,47 @@ export type AdminAuditLogEntry = {
   after: Record<string, unknown> | null;
   ip_address: string | null;
   created_at: string;
+};
+
+export type ExperimentVariantResponse = {
+  id: string;
+  experiment_id: string;
+  model: string;
+  traffic_weight: number;
+};
+
+export type ExperimentResponse = {
+  id: string;
+  org_id: string;
+  name: string;
+  target_model: string;
+  is_active: boolean;
+  variants: ExperimentVariantResponse[];
+  created_at: string;
+};
+
+export type CreateExperimentRequest = {
+  name: string;
+  target_model: string;
+  variants: Array<{ model: string; traffic_weight: number }>;
+};
+
+export type UpdateExperimentRequest = {
+  name?: string;
+  is_active?: boolean;
+  variants?: Array<{ model: string; traffic_weight: number }>;
+};
+
+export type VariantMetrics = {
+  model: string;
+  request_count: number;
+  avg_latency_ms: number | null;
+  total_cost_usd: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  policy_violations: number;
+};
+
+export type ExperimentResultsResponse = {
+  variants: VariantMetrics[];
 };

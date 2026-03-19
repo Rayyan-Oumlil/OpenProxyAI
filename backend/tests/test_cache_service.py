@@ -2,7 +2,7 @@
 import asyncio
 import json
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from app.config import settings
 
@@ -111,10 +111,9 @@ def test_different_requests_produce_different_cache_keys():
 @pytest.mark.asyncio
 async def test_llm_service_calls_cache_set_after_successful_response(mock_redis):
     """After a successful non-streaming LLM response, cache_service.set is scheduled."""
-    from app.services import cache_service, llm_service as llm_mod
+    from app.services import cache_service
 
     set_called = asyncio.Event()
-    original_set = cache_service.set
 
     async def mock_set(redis, model, messages, temperature, response, ttl=None, **kwargs):
         set_called.set()

@@ -1,6 +1,7 @@
 """Async SQLAlchemy engine and session factory for PostgreSQL."""
 
 from collections.abc import AsyncGenerator
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -24,6 +25,21 @@ AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
 )
+
+
+async def set_session_org_id(session: AsyncSession, org_id: UUID | None) -> None:
+    """Set app.current_org_id for RLS. Transaction-scoped via set_config(..., true)."""
+    if org_id is None:
+        # Use set_config(..., true) so the reset is transaction-scoped, matching the set path.
+        # RESET is session-scoped and would leak state to the next request on a pooled connection.
+        await session.execute(text("SELECT set_config('app.current_org_id', '', true)"))
+    else:
+        if not isinstance(org_id, UUID):
+            raise TypeError("org_id must be UUID or None")
+        await session.execute(
+            text("SELECT set_config('app.current_org_id', :org_id, true)"),
+            {"org_id": str(org_id)},
+        )
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

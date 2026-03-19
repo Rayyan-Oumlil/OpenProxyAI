@@ -202,6 +202,24 @@ def test_update_org_settings_merge(client, monkeypatch):
 	assert org.settings["new_key"] == "new_value"
 
 
+def test_update_org_rejects_server_managed_stripe_metered_cache(client, monkeypatch):
+	org_id = uuid4()
+	org = _make_org(org_id, settings={})
+	user = _make_user(org_id, role="admin")
+
+	_noop_audit(monkeypatch)
+	_override_auth(user)
+	_override_db(FakeDB(scalar_result=org))
+
+	response = client.patch(
+		"/api/v1/organizations/current",
+		json={"settings": {"stripe_metered_subscription_item_id": "si_evil"}},
+		headers={"Authorization": "Bearer test"},
+	)
+	assert response.status_code == 400
+	assert "stripe_metered_subscription_item_id" in response.json()["detail"]
+
+
 def test_update_org_forbidden_non_admin(client):
 	org_id = uuid4()
 	user = _make_user(org_id, role="developer")
@@ -696,7 +714,6 @@ def test_retry_delivery_success(client, monkeypatch):
 
 
 def test_retry_delivery_already_delivered(client, monkeypatch):
-	from app.routes import organizations as org_module
 
 	org_id = uuid4()
 	user = _make_user(org_id, role="admin")

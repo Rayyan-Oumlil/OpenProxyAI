@@ -1,6 +1,6 @@
 # OpenProxyAI — Feature Reference
 
-> Complete inventory of shipped capabilities. 506 tests, 51 test files.
+> Complete inventory of shipped capabilities. ~539 passing backend tests (544 collected), 80 test files.
 
 ---
 
@@ -22,6 +22,17 @@
 | Budget pre-flight | Estimated cost check before streaming begins — rejects with 402 if remaining budget is too low |
 | Response headers | Every response includes `X-OpenProxyAI-Request-Id`, `-Cost-USD`, `-Latency-Ms`, `-TTFT-Ms`, `-Cache`, `-Provider`, `-Model`, `-Gateway-Error`, `-Policy-Action`, and `X-RateLimit-*` headers |
 | Request labels | `x-openproxy-labels` header for departmental chargebacks, stored in log metadata |
+| Model A/B experiments | `experiments` + weighted variants on a `target_model`; gateway resolves a variant per request, tags `request_metadata.experiment`, enforces **resolved** model against policy `allowed_models`; results API aggregates per-variant metrics from `request_logs`; PostgreSQL RLS on `experiments` / `experiment_variants`; create/update reject `target_model` / variant models not on the org allowlist when the allowlist is non-empty |
+
+---
+
+## Teams (org structure)
+
+| Feature | Details |
+|---|---|
+| Teams API | `GET/POST/PATCH/DELETE /api/v1/teams`, member add/remove — **admin-only** mutations |
+| Members & budgets | Many-to-many users↔teams; optional `budget_monthly_usd` per team |
+| Org isolation | All team operations scoped to the caller's organization |
 
 ---
 
@@ -104,8 +115,9 @@
 | Atomic idempotency | `INSERT ... ON CONFLICT DO NOTHING` on `stripe_events` table |
 | Plan feature gating | `assert_plan_allows()` enforces user/key limits per tier |
 | Plan tiers | Free (3 users), Starter ($2,500/mo, 50 users), Growth ($7,500/mo, 200 users), Enterprise (manual) |
+| Metered usage (Stripe) | Optional metered price + subscription item; hourly job reports token usage to Stripe usage records; plan includes `metered` feature and `included_tokens_monthly`; admin billing shows usage vs included quota (see `docs/guides/stripe-setup.md`) |
 | Plan override guard | PATCH org with plan returns 409 when Stripe-managed |
-| Billing UI | Plan comparison cards, upgrade flow, post-checkout polling, portal redirect |
+| Billing UI | Plan comparison cards, upgrade flow, post-checkout polling, portal redirect, metered usage summary when configured |
 
 ---
 
@@ -159,6 +171,8 @@
 | Audit Log | Paginated admin action log with before/after JSON diff |
 | Prompt Playground | Side-by-side model comparison, prompt template management, variable substitution |
 | Organization Settings | Name, budget, data region selector, read-only plan display |
+| Teams | List/create/edit/delete teams, member management, team budgets |
+| Experiments | Create model A/B tests, variants & weights, start/stop, results view |
 | Users & Roles | Invite, deactivate, role management |
 | Onboarding | 3-step wizard for first-run key creation |
 

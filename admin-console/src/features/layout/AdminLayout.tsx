@@ -18,6 +18,7 @@ import {
   LogOut,
   CreditCard,
   FlaskConical,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
@@ -47,6 +48,7 @@ const NAV: NavEntry[] = [
     items: [
       { label: "API Keys", to: "/api-keys", icon: Key },
       { label: "Provider Keys", to: "/provider-keys", icon: Plug2 },
+      { label: "Experiments", to: "/experiments", icon: BarChart3 },
       { label: "Policy Config", to: "/policy", icon: Sliders },
       { label: "Billing", to: "/billing", icon: CreditCard },
     ],
@@ -56,6 +58,7 @@ const NAV: NavEntry[] = [
     label: "Team",
     icon: Users,
     items: [
+      { label: "Teams", to: "/teams", icon: Users },
       { label: "Users & Roles", to: "/users-roles", icon: Users },
       { label: "Organization", to: "/organization-settings", icon: Building2 },
     ],

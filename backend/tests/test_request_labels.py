@@ -8,6 +8,8 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException, Request
 
+from tests.conftest import FakeDB
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -136,7 +138,7 @@ def test_parse_labels_json_array_raises_400():
 async def test_labels_forwarded_to_log_request_on_policy_block(monkeypatch, fake_redis):
 	"""When a request is policy-blocked, labels are forwarded to log_request."""
 	from app.services import llm_service as llm_service_module
-	from app.services.policy_service import PolicyConfig, PolicyDecision, policy_store
+	from app.services.policy_service import PolicyDecision
 
 	captured: list[dict] = []
 
@@ -168,7 +170,7 @@ async def test_labels_forwarded_to_log_request_on_policy_block(monkeypatch, fake
 
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
-		db=SimpleNamespace(),
+		db=FakeDB(),
 		redis=fake_redis,
 		user=user,
 		api_key=api_key,
@@ -216,7 +218,7 @@ async def test_labels_absent_no_error_on_policy_block(monkeypatch, fake_redis):
 
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
-		db=SimpleNamespace(),
+		db=FakeDB(),
 		redis=fake_redis,
 		user=user,
 		api_key=api_key,
@@ -240,8 +242,6 @@ def test_audit_logger_labels_merged_sync():
 	We test the merge logic directly without I/O by inspecting the RequestLog
 	constructor arguments captured via a mock session.
 	"""
-	from app.models.request_log import RequestLog
-	from app.services.audit_logger import log_request
 
 	# Build a RequestLog directly to check merge logic in audit_logger
 	# The merge happens before the ORM row is constructed:

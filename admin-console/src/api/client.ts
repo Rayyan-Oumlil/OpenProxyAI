@@ -64,7 +64,7 @@ export const apiClient = {
     request<T>(path, { method: "PATCH", body, token }),
   del: <T>(path: string, token?: string) => request<T>(path, { method: "DELETE", token }),
   getBlob: (path: string, token?: string) => requestBlob(path, { method: "GET", token }),
-  createCheckoutSession: (plan: "starter" | "growth", token?: string) =>
+  createCheckoutSession: (plan: "starter" | "growth" | "metered", token?: string) =>
     request<{ checkout_url: string }>("/api/v1/billing/checkout", {
       method: "POST",
       body: { plan },
@@ -95,4 +95,20 @@ export const apiClient = {
     request<void>(`/api/v1/prompt-templates/${id}`, { method: "DELETE", token }),
   compareModels: (data: PlaygroundCompareRequest, token?: string) =>
     request<PlaygroundCompareResponse>("/api/v1/playground/compare", { method: "POST", body: data, token }),
+  getExperiments: (token?: string) =>
+    request<import("./types").ExperimentResponse[]>("/api/v1/experiments", { method: "GET", token }),
+  createExperiment: (data: import("./types").CreateExperimentRequest, token?: string) =>
+    request<import("./types").ExperimentResponse>("/api/v1/experiments", { method: "POST", body: data, token }),
+  getExperiment: (id: string, token?: string) =>
+    request<import("./types").ExperimentResponse>(`/api/v1/experiments/${id}`, { method: "GET", token }),
+  updateExperiment: (id: string, data: import("./types").UpdateExperimentRequest, token?: string) =>
+    request<import("./types").ExperimentResponse>(`/api/v1/experiments/${id}`, { method: "PATCH", body: data, token }),
+  deleteExperiment: (id: string, token?: string) =>
+    request<void>(`/api/v1/experiments/${id}`, { method: "DELETE", token }),
+  startExperiment: (id: string, token?: string) =>
+    request<import("./types").ExperimentResponse>(`/api/v1/experiments/${id}/start`, { method: "POST", token }),
+  stopExperiment: (id: string, token?: string) =>
+    request<import("./types").ExperimentResponse>(`/api/v1/experiments/${id}/stop`, { method: "POST", token }),
+  getExperimentResults: (id: string, token?: string) =>
+    request<import("./types").ExperimentResultsResponse>(`/api/v1/experiments/${id}/results`, { method: "GET", token }),
 };

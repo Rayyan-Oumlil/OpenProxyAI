@@ -1,7 +1,6 @@
 """Audit log immutability tests — archived_at column, archival cron, and endpoint filtering."""
 
-from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -84,8 +83,8 @@ async def test_archive_old_logs_marks_expired_logs(monkeypatch):
 
     await archive_old_logs()
 
-    # Should have executed 2 statements: SELECT orgs + UPDATE logs
-    assert len(executed_statements) == 2
+    # Should have executed 3: SELECT orgs + set_config (RLS) + UPDATE logs
+    assert len(executed_statements) == 3
     assert committed["called"] is True
 
 
@@ -130,8 +129,8 @@ async def test_archive_old_logs_does_not_touch_recent_logs(monkeypatch):
     # The UPDATE statement is issued but it filters by created_at < cutoff,
     # meaning only logs older than 365 days would be affected.
     # We verify the function completed without error and issued the expected
-    # number of statements (SELECT orgs + UPDATE for the org).
-    assert len(update_clauses) == 2
+    # number of statements (SELECT orgs + set_config RLS + UPDATE for the org).
+    assert len(update_clauses) == 3
 
 
 @pytest.mark.asyncio

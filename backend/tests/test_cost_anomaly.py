@@ -31,7 +31,6 @@ async def test_no_alert_below_threshold():
 async def test_alert_fires_when_above_threshold():
     """Webhook fires when today's spend > 3x baseline average."""
     from app.services.cost_tracker import CostTrackerService
-    from app.config import settings
 
     redis = AsyncMock()
     redis.get = AsyncMock(side_effect=lambda k: b"30.00" if "rl:usd" in k else None)
