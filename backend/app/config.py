@@ -113,31 +113,14 @@ class Settings(BaseSettings):
     METERED_INCLUDED_TOKENS_MONTHLY: int = 1_000_000
 
     # ── CORS ─────────────────────────────────────────────────────────
-    CORS_ORIGINS: list[str] = [
-        "http://127.0.0.1:5175",
-        "http://localhost:5175",
-        "http://127.0.0.1:5174",
-        "http://localhost:5174",
-        "http://127.0.0.1:5173",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-    ]
-
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            import json
-
-            try:
-                parsed = json.loads(v)
-                if isinstance(parsed, list):
-                    return parsed
-            except (json.JSONDecodeError, TypeError):
-                pass
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+    # Stored as str so pydantic-settings v2 doesn't try to JSON-decode it
+    # before validators run. Parsing happens in middleware/cors.py.
+    CORS_ORIGINS: str = (
+        "http://127.0.0.1:5175,http://localhost:5175,"
+        "http://127.0.0.1:5174,http://localhost:5174,"
+        "http://127.0.0.1:5173,http://localhost:5173,"
+        "http://127.0.0.1:3000,http://localhost:3000"
+    )
 
     @field_validator("PROMPT_INJECTION_SCORE_THRESHOLD", mode="before")
     @classmethod

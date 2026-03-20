@@ -1,7 +1,7 @@
 """add model_patterns to llm_provider_keys
 
 Revision ID: b1c2d3e4f5a6
-Revises: a2b3c4d5e6f7
+Revises: a3b4c5d6e7f8
 Create Date: 2026-03-16
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = 'b1c2d3e4f5a6'
-down_revision = 'a2b3c4d5e6f7'
+down_revision = 'a3b4c5d6e7f8'
 branch_labels = None
 depends_on = None
 
