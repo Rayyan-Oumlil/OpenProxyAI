@@ -6,6 +6,10 @@ references/
 .env.local
 .env.*.local
 
+# GCP service account keys — NEVER commit
+*-key.json
+*.credentials.json
+
 # Python
 __pycache__/
 *.py[cod]

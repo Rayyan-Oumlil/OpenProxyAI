@@ -1,7 +1,7 @@
 """add admin audit logs table
 
 Revision ID: d4e5f6a7b8c9
-Revises: c3d4e5f6a7b8
+Revises: e6f7a8b9c0d1
 Create Date: 2026-03-17
 """
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg
 
 revision = "d4e5f6a7b8c9"
-down_revision = "c3d4e5f6a7b8"
+down_revision = "e6f7a8b9c0d1"
 branch_labels = None
 depends_on = None
 
