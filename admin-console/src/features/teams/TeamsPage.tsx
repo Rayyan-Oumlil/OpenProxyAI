@@ -8,7 +8,6 @@ import type {
   TeamResponse,
   TeamDetailResponse,
   CreateTeamRequest,
-  UpdateTeamRequest,
   UserResponse,
 } from "../../api/types";
 import { LoadingState } from "../../components/LoadingState";
@@ -248,17 +247,6 @@ export function TeamsPage() {
       setShowAdd(false);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create team"),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateTeamRequest }) =>
-      apiClient.patch<TeamResponse>(`/api/v1/teams/${id}`, payload, token!),
-    onSuccess: () => {
-      toast.success("Team updated.");
-      qc.invalidateQueries({ queryKey: ["teams"] });
-      if (manageTeamId) qc.invalidateQueries({ queryKey: ["team", manageTeamId] });
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update team"),
   });
 
   const deleteMutation = useMutation({
