@@ -161,7 +161,7 @@ export function DashboardPage() {
   if (!overviewQuery.data)
     return <EmptyState title="No metrics yet" detail="Send traffic through your gateway first." />;
 
-  const { overview, by_model, daily_trend } = overviewQuery.data;
+  const { overview, by_model, by_team, daily_trend } = overviewQuery.data;
 
   return (
     <section className="page-wrap">
@@ -256,12 +256,12 @@ export function DashboardPage() {
         <MetricCard label="Policy Flagged" value={formatNumber(overview.policy_flagged_requests)} icon={ShieldAlert} accent="amber" />
         <MetricCard
           label="Cache Hit Rate"
-          value={(overview as { cache_hit_rate?: number }).cache_hit_rate != null
-            ? `${Math.round(((overview as { cache_hit_rate?: number }).cache_hit_rate ?? 0) * 100)}%`
+          value={overview.cache_hit_rate != null
+            ? `${Math.round((overview.cache_hit_rate ?? 0) * 100)}%`
             : "—"}
           icon={Zap}
           accent="violet"
-          subtext={(overview as { cache_hit_rate?: number }).cache_hit_rate == null ? "Enable caching to track hits" : undefined}
+          subtext={overview.cache_hit_rate == null ? "Enable caching to track hits" : undefined}
         />
       </section>
 
@@ -272,6 +272,30 @@ export function DashboardPage() {
         </div>
         <DailyTrendChart data={daily_trend ?? []} />
       </section>
+
+      {user?.role === "admin" && by_team && by_team.length > 0 && (
+        <section className="surface-panel">
+          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>Cost by Team</h2>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left" }}>Team</th>
+                <th style={{ textAlign: "right" }}>Requests</th>
+                <th style={{ textAlign: "right" }}>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {by_team.map((t) => (
+                <tr key={t.team_id}>
+                  <td style={{ fontWeight: 500 }}>{t.name}</td>
+                  <td style={{ textAlign: "right", color: "var(--muted)" }}>{formatNumber(t.requests)}</td>
+                  <td style={{ textAlign: "right", fontWeight: 500 }}>{formatCost(t.cost_usd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <section className="surface-panel">

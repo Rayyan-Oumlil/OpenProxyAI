@@ -443,6 +443,6 @@ Retry logic is built into the `APIClient` and applied automatically. Configure v
 
 ## Next Steps
 
-- **API Reference** — See [api-reference.md](../api-reference.md) for complete endpoint documentation
-- **Quickstart** — See [quickstart.md](../quickstart.md) for 5-minute setup
+- **API Reference** — See [api-reference.md](../reference/api-reference.md) for complete endpoint documentation
+- **Quickstart** — See [quickstart.md](../getting-started/quickstart.md) for 5-minute setup
 - **Authentication** — See [guides/authentication.md](./authentication.md) for API key management

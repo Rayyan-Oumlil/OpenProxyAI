@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import CurrentUser, get_db
+from app.config import settings
+from app.dependencies import CurrentUser, get_db, get_redis, get_real_ip
 from app.models.organization import Organization
 from app.services.billing_service import billing_service
 
@@ -58,11 +62,29 @@ async def create_portal(
     return PortalResponse(portal_url=portal_url)
 
 
+async def _check_webhook_rate_limit(redis: Redis, ip: str) -> None:
+    """H02: Rate limit Stripe webhook by IP to prevent resource exhaustion."""
+    rpm = settings.STRIPE_WEBHOOK_RATE_LIMIT_RPM
+    minute_bucket = int(time.time()) // 60
+    key = f"stripe_webhook_rl:{ip}:{minute_bucket}"
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, 120)  # 2 min TTL
+    if count > rpm:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Webhook rate limit exceeded",
+        )
+
+
 @router.post("/webhook")
 async def stripe_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ) -> dict[str, bool]:
+    ip = get_real_ip(request)
+    await _check_webhook_rate_limit(redis, ip)
     payload = await request.body()
     signature = request.headers.get("Stripe-Signature", "")
     await billing_service.handle_webhook(payload=payload, sig_header=signature, db=db)

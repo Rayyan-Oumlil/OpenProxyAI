@@ -2,18 +2,40 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import json
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, status
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import CurrentUser, get_db, get_redis
+from app.config import settings
+from app.dependencies import CurrentUser, get_db, get_redis, get_real_ip
 from app.models.organization import Organization
 from app.schemas.sso import SSOConnectionCreateRequest, SSOConnectionResponse
 from app.services import sso_service
 from app.services.plan_service import assert_plan_allows
 
 router = APIRouter(tags=["SSO"])
+
+
+def _get_frontend_base_url() -> str:
+    """Frontend base URL for SSO redirect; fallback to first CORS origin."""
+    if settings.FRONTEND_BASE_URL:
+        return settings.FRONTEND_BASE_URL.rstrip("/")
+    try:
+        parsed = json.loads(settings.CORS_ORIGINS)
+        if isinstance(parsed, list) and parsed:
+            return str(parsed[0]).rstrip("/")
+    except (json.JSONDecodeError, TypeError):
+        pass
+    first = next(
+        (o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip()),
+        "http://localhost:5173",
+    )
+    return first
 
 
 def _require_admin(current_user: CurrentUser) -> CurrentUser:
@@ -108,9 +130,7 @@ async def sso_callback(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> RedirectResponse:
-    """Handle OIDC callback — exchange code for tokens, JIT-provision user."""
-    from app.config import settings
-
+    """Handle OIDC callback — exchange code for tokens, JIT-provision user (C03: one-time code)."""
     access_token, refresh_token = await sso_service.handle_sso_callback(
         db=db,
         redis=redis,
@@ -119,7 +139,52 @@ async def sso_callback(
         redirect_uri=redirect_uri,
         base_url=settings.APP_NAME,
     )
-    console_url = (
-        f"/#/sso-callback?access_token={access_token}&refresh_token={refresh_token}"
+    one_time_code = await sso_service.create_sso_code(
+        redis=redis,
+        access_token=access_token,
+        refresh_token=refresh_token,
     )
+    frontend = _get_frontend_base_url()
+    console_url = f"{frontend}/sso-callback?code={one_time_code}"
     return RedirectResponse(url=console_url, status_code=302)
+
+
+class SSOExchangeRequest(BaseModel):
+    code: str
+
+
+class SSOExchangeResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+
+
+async def _check_sso_exchange_rate_limit(redis: Redis, ip: str) -> None:
+    """Rate limit SSO exchange-code to prevent brute-force."""
+    rpm = settings.SSO_EXCHANGE_RATE_LIMIT_RPM
+    minute_bucket = int(time.time()) // 60
+    key = f"sso_exchange_rl:{ip}:{minute_bucket}"
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, 120)
+    if count > rpm:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many SSO exchange attempts",
+        )
+
+
+@router.post("/api/v1/auth/sso/exchange-code", response_model=SSOExchangeResponse)
+async def sso_exchange_code(
+    request: Request,
+    payload: SSOExchangeRequest,
+    redis: Redis = Depends(get_redis),
+) -> SSOExchangeResponse:
+    """Exchange one-time SSO code for tokens (C03)."""
+    await _check_sso_exchange_rate_limit(redis, get_real_ip(request))
+    access_token, refresh_token = await sso_service.exchange_sso_code(
+        redis=redis, code=payload.code
+    )
+    return SSOExchangeResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )

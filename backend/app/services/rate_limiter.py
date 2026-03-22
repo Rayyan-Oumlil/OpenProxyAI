@@ -72,6 +72,19 @@ class RateLimiterService:
 		org_usd_key = f"rl:usd:{org_id}:{day_key}"
 		user_usd_key = f"rl:usd:user:{user_id}:{day_key}"
 
+		# Team-level limits from policy (when request has team_id)
+		per_team = (
+			getattr(policy_config, "per_team_limits", None) or {} if policy_config else {}
+		)
+		team_rpm_limit = per_team.get("rpm") if isinstance(per_team.get("rpm"), int) else None
+		team_tpm_limit = per_team.get("tpm") if isinstance(per_team.get("tpm"), int) else None
+		team_limits_active = (
+			team_id is not None
+			and (team_rpm_limit is not None or team_tpm_limit is not None)
+		)
+		team_rpm_key = f"rl:req:team:{team_id}:{minute_bucket}" if team_id else None
+		team_tpm_key = f"rl:tok:team:{team_id}:{minute_bucket}" if team_id else None
+
 		# Fixed-window RPM counter: INCR then EXPIRE on first request in window.
 		# Read TPM and budget counters in the same pipeline.
 		pipe = redis.pipeline(transaction=True)
@@ -80,7 +93,20 @@ class RateLimiterService:
 		pipe.get(tpm_key)
 		pipe.get(org_usd_key)
 		pipe.get(user_usd_key)
-		current_req_count, _, current_tpm_raw, org_spend_raw, user_spend_raw = await pipe.execute()
+		if team_limits_active:
+			pipe.get(team_rpm_key)
+			pipe.get(team_tpm_key)
+		pipe_results = await pipe.execute()
+		current_req_count = pipe_results[0]
+		current_tpm_raw = pipe_results[2]
+		org_spend_raw = pipe_results[3]
+		user_spend_raw = pipe_results[4]
+		if team_limits_active:
+			team_req_raw = pipe_results[5]
+			team_tpm_raw = pipe_results[6]
+		else:
+			team_req_raw = None
+			team_tpm_raw = None
 
 		# Set TTL only on the first request in this window.
 		if current_req_count == 1:
@@ -175,6 +201,49 @@ class RateLimiterService:
 				f"Daily user budget reached. Resets in {retry_after} seconds.",
 				retry_after,
 			)
+
+		# Team RPM/TPM — when per_team_limits set and request has team_id
+		if team_limits_active:
+			team_req_count = int(team_req_raw or 0)
+			team_tpm = int(team_tpm_raw or 0)
+			if team_rpm_limit is not None and team_req_count >= team_rpm_limit:
+				retry_after = self._seconds_until(minute_reset_epoch)
+				headers = self._headers(
+					max_rpm=max_rpm,
+					max_tpm=max_tpm,
+					max_daily_budget_usd=max_daily_budget_usd,
+					requests_remaining=max_rpm - current_req_count,
+					tokens_remaining=max_tpm - current_tpm,
+					budget_remaining=org_budget_remaining,
+					reset_epoch=minute_reset_epoch,
+					retry_after=retry_after,
+				)
+				return (
+					False,
+					headers,
+					"team_requests_per_minute",
+					f"Team limit: {team_rpm_limit} requests/minute. Resets in {retry_after} seconds.",
+					retry_after,
+				)
+			if team_tpm_limit is not None and team_tpm + est_tokens > team_tpm_limit:
+				retry_after = self._seconds_until(minute_reset_epoch)
+				headers = self._headers(
+					max_rpm=max_rpm,
+					max_tpm=max_tpm,
+					max_daily_budget_usd=max_daily_budget_usd,
+					requests_remaining=max_rpm - current_req_count,
+					tokens_remaining=max_tpm - current_tpm,
+					budget_remaining=org_budget_remaining,
+					reset_epoch=minute_reset_epoch,
+					retry_after=retry_after,
+				)
+				return (
+					False,
+					headers,
+					"team_tokens_per_minute",
+					f"Team limit: {team_tpm_limit} tokens/minute. Resets in {retry_after} seconds.",
+					retry_after,
+				)
 
 		# Team monthly budget — independent of org budget (both must pass)
 		if team_id is not None and team_budget_monthly_usd is not None:
@@ -275,6 +344,11 @@ class RateLimiterService:
 		consume = redis.pipeline(transaction=True)
 		consume.incrby(tpm_key, est_tokens)
 		consume.expire(tpm_key, 120)
+		if team_limits_active:
+			consume.incr(team_rpm_key)
+			consume.expire(team_rpm_key, 120)
+			consume.incrby(team_tpm_key, est_tokens)
+			consume.expire(team_tpm_key, 120)
 		if model and policy_config is not None:
 			model_rate_limits = getattr(policy_config, "model_rate_limits", {}) or {}
 			if model_rate_limits.get(model):

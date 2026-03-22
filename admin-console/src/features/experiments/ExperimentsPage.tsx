@@ -227,13 +227,14 @@ function ResultsPanel({ experimentId, token }: { experimentId: string; token: st
                   <th>Requests</th>
                   <th>Avg latency (ms)</th>
                   <th>Cost (USD)</th>
+                  <th>Quality</th>
                   <th>Policy violations</th>
                 </tr>
               </thead>
               <tbody>
                 {resultsQuery.data.variants.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ color: "var(--muted)" }}>
+                    <td colSpan={6} style={{ color: "var(--muted)" }}>
                       No traffic yet
                     </td>
                   </tr>
@@ -246,6 +247,15 @@ function ResultsPanel({ experimentId, token }: { experimentId: string; token: st
                       <td>{v.request_count}</td>
                       <td>{v.avg_latency_ms != null ? v.avg_latency_ms.toFixed(0) : "—"}</td>
                       <td>{Number(v.total_cost_usd).toFixed(4)}</td>
+                      <td>
+                        {v.scores && v.scores.length > 0 ? (
+                          <span title={v.scores.map((s) => `${s.name}: ${s.avg.toFixed(2)} (n=${s.count})`).join(", ")}>
+                            {v.scores.map((s) => `${s.name}: ${s.avg.toFixed(2)}`).join(", ")}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--muted)" }}>—</span>
+                        )}
+                      </td>
                       <td>{v.policy_violations}</td>
                     </tr>
                   ))

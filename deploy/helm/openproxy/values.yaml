@@ -45,6 +45,9 @@ env:
   LANGFUSE_SECRET_KEY: ""
   LANGFUSE_PUBLIC_KEY: ""
   LANGFUSE_HOST: "https://cloud.langfuse.com"
+  # Air-gap mode: AIRGAP_MODE=true disables Langfuse, ClickHouse, spend reports, Stripe metered sync.
+  # LICENSE_KEY (min 16 chars) required when AIRGAP_MODE=true — set via existingSecret.
+  # AIRGAP_MODE: "false"
   # CORS origins (comma-separated or JSON array string)
   CORS_ORIGINS: ""
 

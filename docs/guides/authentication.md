@@ -217,7 +217,8 @@ curl -X PATCH https://api.openproxy.ai/api/v1/organizations/current \
 
 ### Auth-Code Flow
 
-1. **Redirect user to:** `https://api.openproxy.ai/auth/oidc/authorize?client_id=...&redirect_uri=...&state=...`
+1. **Redirect user to:** `GET /api/v1/auth/sso/initiate?connection_id={uuid}&redirect_uri={callback_url}`
+   - `redirect_uri` must equal `{APP_BASE_URL}/api/v1/auth/sso/callback` (validated server-side)
 2. **User authenticates** at the configured identity provider
 3. **Provider redirects back** with an authorization code
 4. **Backend exchanges code** for an ID token (using client secret)

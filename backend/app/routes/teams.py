@@ -38,6 +38,7 @@ def _to_response(team: Team, member_count: int = 0) -> TeamResponse:
 async def list_teams(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    membership: str | None = None,
 ) -> list[TeamResponse]:
     if current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
@@ -53,6 +54,9 @@ async def list_teams(
         .where(Team.org_id == current_user.org_id)
         .order_by(Team.created_at.desc())
     )
+    if membership == "me":
+        my_teams = select(team_members.c.team_id).where(team_members.c.user_id == current_user.id)
+        stmt = stmt.where(Team.id.in_(my_teams))
     rows = (await db.execute(stmt)).all()
     return [_to_response(team, member_count=int(cnt) if cnt is not None else 0) for team, cnt in rows]
 

@@ -25,6 +25,8 @@ def _get_client() -> Any:
     if _initialized:
         return _client
     _initialized = True
+    if settings.AIRGAP_MODE:
+        return None
     if not settings.LANGFUSE_SECRET_KEY or not settings.LANGFUSE_PUBLIC_KEY:
         return None
     try:

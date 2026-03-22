@@ -16,11 +16,15 @@ Budgets are daily or monthly spending caps, enforced per request. When a budget 
 | Organization | Monthly | All users in org | `Organization.budget_monthly_usd` |
 | User | Daily | Individual user | `User.budget_daily_usd` |
 | User | Monthly | Individual user | `User.budget_monthly_usd` |
+| Team | Monthly | Requests with team context | `Team.budget_monthly_usd` |
+| Team | RPM/TPM | Requests with team context | Policy `per_team_limits` |
 
 Currently implemented:
 
 - **Organization daily budget:** Tracks `rl:usd:{org_id}:{YYYY-MM-DD}` in Redis
 - **User daily budget:** Tracks `rl:usd:user:{user_id}:{YYYY-MM-DD}` in Redis
+- **Team monthly budget:** Tracks `rl:usd:team:{team_id}:{YYYY-MM}` in Redis when request has `team_id`
+- **Team RPM/TPM:** When policy has `per_team_limits: {rpm, tpm}`, requests with team context are rate-limited per team
 - **Organization monthly budget:** Configured but enforced by plan limits
 
 ## Setting Organization Budget
@@ -61,6 +65,34 @@ curl -X PATCH https://api.openproxy.ai/api/v1/users/{user_id} \
 
 When both org and user budgets exist, the tighter limit applies.
 
+## Team-Level Limits
+
+When requests include team context (via API key `team_id` or `x-openproxy-team-id` header), you can enforce team-specific RPM/TPM and monthly budget.
+
+### Team Monthly Budget
+
+Set `Team.budget_monthly_usd` when creating or updating a team. Requests with that team context are capped at the team's monthly budget in addition to org and user limits.
+
+### Team RPM/TPM (per_team_limits)
+
+Configure policy `per_team_limits` to apply requests-per-minute and tokens-per-minute limits to all team-attributed traffic:
+
+```bash
+curl -X PATCH https://api.openproxy.ai/api/v1/organizations/current/policy \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "per_team_limits": {"rpm": 60, "tpm": 50000}
+  }'
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rpm` | integer | Max requests per minute per team |
+| `tpm` | integer | Max tokens per minute per team |
+
+When `per_team_limits` is set, requests with team context are rate-limited at the team level. Org and user limits still apply. Exceeding team RPM or TPM returns HTTP 429 with `limit_type: team_requests_per_minute` or `team_tokens_per_minute`.
+
 ## Cost Tracking
 
 Each request is assigned a cost based on:
@@ -79,6 +111,9 @@ Spending is tracked in Redis for fast lookups:
 ```
 rl:usd:{org_id}:{YYYY-MM-DD}  → total USD spent today (org)
 rl:usd:user:{user_id}:{YYYY-MM-DD}  → total USD spent today (user)
+rl:usd:team:{team_id}:{YYYY-MM}  → total USD spent this month (team)
+rl:req:team:{team_id}:{minute_bucket}  → team requests per minute
+rl:tok:team:{team_id}:{minute_bucket}  → team tokens per minute
 ```
 
 These keys expire daily at midnight UTC.

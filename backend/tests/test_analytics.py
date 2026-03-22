@@ -53,6 +53,7 @@ def test_analytics_overview_route_success(client, monkeypatch):
 			by_user=[
 				CostByUser(user_id=user.id, email=user.email, requests=10, tokens=100, cost_usd=1.25)
 			],
+			by_team=[],
 			daily_trend=[
 				DailyUsageTrend(date="2026-03-12", requests=10, tokens=100, cost_usd=1.25, avg_latency_ms=120.0)
 			],
@@ -70,6 +71,8 @@ def test_analytics_overview_route_success(client, monkeypatch):
 	assert data["overview"]["total_requests"] == 10
 	assert data["overview"]["policy_blocked_requests"] == 1
 	assert data["by_model"][0]["provider"] == "openai"
+	assert "by_team" in data
+	assert isinstance(data["by_team"], list)
 
 
 def test_analytics_cache_route_success(client, monkeypatch, fake_redis):
@@ -137,6 +140,7 @@ def test_analytics_overview_includes_budget_forecast_fields(client, monkeypatch)
 				forecast_basis_days=5,
 			),
 			by_model=[],
+			by_team=[],
 			by_user=[],
 			daily_trend=[],
 			generated_at=datetime.now(UTC),
@@ -206,6 +210,90 @@ def test_analytics_logs_route_success(client, monkeypatch):
 	data = response.json()
 	assert data["total"] == 1
 	assert data["items"][0]["status"] == "success"
+
+
+def test_analytics_logs_session_id_filter(client, monkeypatch):
+	"""session_id query param is passed through to analytics service."""
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_db():
+		yield FakeDB()
+
+	session_captured = None
+
+	async def fake_get_request_logs(**kwargs):  # noqa: ANN003
+		nonlocal session_captured
+		session_captured = kwargs.get("session_id")
+		return Page[RequestLogItem](
+			items=[],
+			total=0,
+			page=1,
+			page_size=10,
+			total_pages=0,
+		)
+
+	monkeypatch.setattr(analytics_service_module.analytics_service, "get_request_logs", fake_get_request_logs)
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_db] = fake_get_db
+
+	response = client.get(
+		"/api/v1/analytics/logs?session_id=my-session-123",
+		headers={"Authorization": "Bearer test"},
+	)
+	assert response.status_code == 200
+	assert session_captured == "my-session-123"
+
+
+def test_analytics_overview_session_id_filter(client, monkeypatch):
+	"""session_id query param is passed through to overview."""
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, email="admin@test.com", is_active=True, role="admin")
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_db():
+		yield FakeDB()
+
+	session_captured = None
+
+	async def fake_get_overview(**kwargs):  # noqa: ANN003
+		nonlocal session_captured
+		session_captured = kwargs.get("session_id")
+		return AnalyticsResponse(
+			overview=UsageOverview(
+				period_days=30,
+				total_requests=0,
+				successful_requests=0,
+				failed_requests=0,
+				policy_blocked_requests=0,
+				policy_flagged_requests=0,
+				total_tokens=0,
+				total_cost_usd=Decimal("0"),
+				avg_latency_ms=0.0,
+				avg_ttft_ms=0.0,
+			),
+			by_model=[],
+			by_user=[],
+			by_team=[],
+			daily_trend=[],
+			generated_at=datetime.now(UTC),
+		)
+
+	monkeypatch.setattr(analytics_service_module.analytics_service, "get_overview", fake_get_overview)
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_db] = fake_get_db
+
+	response = client.get(
+		"/api/v1/analytics/overview?session_id=trace-xyz",
+		headers={"Authorization": "Bearer test"},
+	)
+	assert response.status_code == 200
+	assert session_captured == "trace-xyz"
 
 
 def test_analytics_overview_requires_auth(client):
@@ -975,6 +1063,7 @@ def test_overview_response_includes_latency_percentiles(client, monkeypatch):
 			),
 			by_model=[],
 			by_user=[],
+			by_team=[],
 			daily_trend=[],
 			generated_at=datetime.now(UTC),
 		)
@@ -1022,6 +1111,7 @@ def test_overview_response_latency_percentiles_null_when_no_data(client, monkeyp
 			),
 			by_model=[],
 			by_user=[],
+			by_team=[],
 			daily_trend=[],
 			generated_at=datetime.now(UTC),
 		)
@@ -1037,6 +1127,38 @@ def test_overview_response_latency_percentiles_null_when_no_data(client, monkeyp
 	assert data["overview"]["p50_latency_ms"] is None
 	assert data["overview"]["p95_latency_ms"] is None
 	assert data["overview"]["p99_latency_ms"] is None
+
+
+@pytest.mark.asyncio
+async def test_cost_by_team_aggregates_team_attributed_requests():
+	"""_cost_by_team returns cost per team from request_logs with team_id in metadata."""
+	team_id = uuid4()
+	org_id = uuid4()
+	rows_data = [
+		{"team_id": team_id, "name": "Engineering", "requests": 15, "tokens": 2000, "cost_usd": Decimal("2.50")},
+	]
+
+	class TeamCostFakeDB:
+		async def execute(self, stmt, params):
+			class Mappings:
+				def all(self):
+					return rows_data
+
+			class Result:
+				def mappings(self):
+					return Mappings()
+
+			return Result()
+
+	svc = AnalyticsService()
+	result = await svc._cost_by_team(db=TeamCostFakeDB(), org_id=org_id, since=date(2026, 1, 1))
+
+	assert len(result) == 1
+	assert result[0].team_id == team_id
+	assert result[0].name == "Engineering"
+	assert result[0].requests == 15
+	assert result[0].tokens == 2000
+	assert result[0].cost_usd == 2.5
 
 
 def test_usage_overview_schema_accepts_nullable_percentiles():

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -28,6 +28,17 @@ class LLMProviderKey(UUIDPrimaryKeyMixin, Base):
     region: Mapped[str] = mapped_column(String(10), server_default="us", nullable=False)
     model_patterns = mapped_column(JSON, nullable=True, default=list)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+
+    # Health check (provider health check job)
+    last_health_check_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    health_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="unknown"
+    )
+    consecutive_failures: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
 
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="provider_keys")

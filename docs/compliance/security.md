@@ -438,5 +438,5 @@ In the event of a data breach:
 ## Next Steps
 
 - **Deployment** — See [deployment.md](../architecture/deployment.md) for infrastructure setup
-- **Policy Configuration** — See [policy-configuration.md](./policy-configuration.md) for guardrails
-- **API Reference** — See [api-reference.md](../api-reference.md) for security-related endpoints
+- **Policy Configuration** — See [policy-configuration.md](../guides/policy-configuration.md) for guardrails
+- **API Reference** — See [api-reference.md](../reference/api-reference.md) for security-related endpoints

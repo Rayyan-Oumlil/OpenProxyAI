@@ -24,7 +24,7 @@ How **model A/B experiments** and **teams** fit together with the gateway and ad
 
 **Gateway header (optional):** `x-openproxy-team-id: <uuid>` on `POST /v1/chat/completions` (and embeddings) to attach team context for logging/metadata. The team must exist in the org and the **API key’s user** must be a member (see backend validation).
 
-**Not yet in product:** Scoping **gateway API keys** to a single team (see [roadmap](../roadmap.md) team follow-ups).
+**Team-scoped API keys:** Gateway API keys can optionally be tied to a team. When creating a key in the admin console, admins can select a team; the creating user must be a member. Keys with `team_id` propagate team context to all requests (logging, rate limits, analytics). See [cost-management.md](./cost-management.md) for team budgets and `per_team_limits`.
 
 ---
 
@@ -43,8 +43,17 @@ How **model A/B experiments** and **teams** fit together with the gateway and ad
 3. **Policy** (model allowlist) is evaluated on the **resolved** variant — variants not on the allowlist are blocked like any other model.
 4. Request metadata records experiment id / variant for analytics and the **results** endpoint.
 
+Chat completions can use either `messages` (standard) or `prompt_id` + `variables` (saved Playground templates); see [API reference — chat completions](../reference/api-reference.md#post-v1chatcompletions).
+
 **Create/update validation:** If the org policy has a non-empty **`allowed_models`** list, `target_model` and every variant `model` must appear on that list (400 if not), so misconfiguration is caught early.
 
-**Results:** `GET /api/v1/experiments/{id}/results` aggregates from `request_logs` (per variant: requests, latency, cost, tokens, policy violations).
+**Results:** `GET /api/v1/experiments/{id}/results` aggregates from `request_logs` (per variant: requests, latency, cost, tokens, policy violations) and includes **quality scores** when submitted via the Request Scores API or the eval hook.
 
-See also: [API reference — Experiments](../reference/api-reference.md#experiments-ab-testing-api).
+**Eval hook (LLM-as-judge / external callback):** When an experiment variant completes a request, the gateway can optionally call an eval hook to compute quality scores. Configure via env:
+
+- **`EVAL_HOOK_URL`** — HTTP POST URL. Gateway sends `{prompt, response, request_id}`; hook returns `{scores: [{name, value}]}` or `{score: n}`.
+- **`EVAL_LLM_MODEL`** — e.g. `openai/gpt-4o`. Uses LLM-as-judge: prompt+response are sent to the model with a rating instruction; reply is parsed as a 1–5 score (stored as `quality`).
+
+Both run as fire-and-forget background tasks. **Fail-open:** if the hook or LLM fails, the request succeeds and no score is stored. Scores are persisted via the Request Scores API and appear in experiment results.
+
+See also: [API reference — Experiments](../reference/api-reference.md#experiments-ab-testing-api), [Request Scores API](../reference/api-reference.md#request-scores-api).

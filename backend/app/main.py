@@ -29,6 +29,7 @@ from app.routes.organizations import router as organizations_router
 from app.routes.playground import router as playground_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.experiments import router as experiments_router
+from app.routes.requests import router as requests_router
 from app.routes.teams import router as teams_router
 from app.routes.proxy import router as proxy_router
 from app.routes.sso import router as sso_router
@@ -36,6 +37,11 @@ from app.routes.metrics import router as metrics_router
 from app.routes.users import router as users_router
 from app.models.organization import Organization
 from app.services.metering_service import run_hourly_metered_sync
+from app.services.provider_health_service import run_provider_health_check
+from app.services.spend_batch_service import run_flush_request_logs_batch
+from app.services.key_rotation_scheduler import run_key_rotation
+from app.services.adaptive_sampling_service import run_adaptive_sampling_job
+from app.services.spend_report_service import run_monthly_spend_reports, run_weekly_spend_reports
 from app.services.webhook_service import _deliver as _webhook_deliver
 from app.utils.logging import get_logger, setup_logging
 
@@ -51,6 +57,7 @@ TAGS_METADATA = [
     {"name": "Organizations", "description": "Organization settings"},
     {"name": "Provider Keys", "description": "LLM provider key management"},
     {"name": "Experiments", "description": "Model A/B testing with traffic splitting"},
+    {"name": "Requests", "description": "Request scores for experiment quality evaluation"},
     {"name": "Teams", "description": "Team/project scoping for cost attribution"},
     {"name": "Analytics", "description": "Usage analytics and cost tracking"},
     {"name": "Invites", "description": "Team member invite management"},
@@ -76,7 +83,6 @@ async def refresh_materialized_view() -> None:
 async def archive_old_logs() -> None:
     """Mark request_logs older than the org's audit retention period as archived."""
     from sqlalchemy import update as sa_update
-    import datetime
 
     from app.config import PLAN_FEATURES
     from app.models.organization import Organization
@@ -93,7 +99,7 @@ async def archive_old_logs() -> None:
                 await set_session_org_id(session, org.id)
                 plan = (org.plan or "free").lower()
                 retention_days = PLAN_FEATURES.get(plan, PLAN_FEATURES["free"])["audit_retention_days"]
-                cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=retention_days)
+                cutoff = datetime.now(UTC) - timedelta(days=retention_days)
 
                 await session.execute(
                     sa_update(RequestLog)
@@ -102,7 +108,7 @@ async def archive_old_logs() -> None:
                         RequestLog.created_at < cutoff,
                         RequestLog.archived_at.is_(None),
                     )
-                    .values(archived_at=datetime.datetime.utcnow())
+                    .values(archived_at=datetime.now(UTC))
                 )
             await session.commit()
         logger.info("archive_old_logs complete")
@@ -146,10 +152,9 @@ async def retry_failed_webhooks() -> None:
                     if elapsed < backoff_seconds:
                         continue
 
-                    org_obj = await db.get(Organization, delivery.org_id)
-                    secret = ""
-                    if org_obj is not None:
-                        secret = ((org_obj.settings or {}).get("webhooks", {})).get("secret", "")
+                    # delivery.org_id == org.id (we filtered by org); use org directly
+                    org_settings = getattr(org, "settings", None) or {}
+                    secret = (org_settings.get("webhooks") or {}).get("secret", "") or ""
 
                     new_status, http_status = await _webhook_deliver(
                         delivery.url, delivery.payload, secret,
@@ -181,8 +186,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "SECRET_KEY must be changed from its default value in non-development environments. "
             "Set the SECRET_KEY environment variable to a strong random string."
         )
+    if len(settings.SECRET_KEY) < 32:
+        raise RuntimeError(
+            "SECRET_KEY must be at least 32 characters. "
+            "Generate with: openssl rand -hex 32"
+        )
     if settings.STRIPE_SECRET_KEY and not settings.STRIPE_WEBHOOK_SECRET:
         logger.error("STRIPE_WEBHOOK_SECRET is required when STRIPE_SECRET_KEY is set")
+
+    if settings.AIRGAP_MODE:
+        logger.info("AIRGAP_MODE enabled — Langfuse, ClickHouse, spend reports, and Stripe metered sync disabled")
 
     logger.info(
         "Starting %s env=%s debug=%s",
@@ -226,14 +239,72 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         max_instances=1,
         coalesce=True,
     )
-    scheduler.add_job(
-        run_hourly_metered_sync,
-        "interval",
-        hours=1,
-        id="hourly_metered_stripe_sync",
-        max_instances=1,
-        coalesce=True,
-    )
+    if not settings.AIRGAP_MODE:
+        scheduler.add_job(
+            run_hourly_metered_sync,
+            "interval",
+            hours=1,
+            id="hourly_metered_stripe_sync",
+            max_instances=1,
+            coalesce=True,
+        )
+    if settings.BATCH_SPEND_ENABLED:
+        scheduler.add_job(
+            run_flush_request_logs_batch,
+            "interval",
+            seconds=settings.BATCH_SPEND_FLUSH_INTERVAL_SECONDS,
+            id="flush_request_logs_batch",
+            max_instances=1,
+            coalesce=True,
+        )
+    if settings.PROVIDER_HEALTH_CHECK_ENABLED:
+        scheduler.add_job(
+            run_provider_health_check,
+            "interval",
+            minutes=5,
+            id="provider_health_check",
+            max_instances=1,
+            coalesce=True,
+        )
+    if not settings.AIRGAP_MODE:
+        scheduler.add_job(
+            run_weekly_spend_reports,
+            "cron",
+            day_of_week="mon",
+            hour=9,
+            minute=0,
+            id="weekly_spend_reports",
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            run_monthly_spend_reports,
+            "cron",
+            day=1,
+            hour=9,
+            minute=0,
+            id="monthly_spend_reports",
+            max_instances=1,
+            coalesce=True,
+        )
+    if settings.KEY_ROTATION_SCHEDULER_ENABLED:
+        scheduler.add_job(
+            run_key_rotation,
+            "interval",
+            days=settings.KEY_ROTATION_INTERVAL_DAYS,
+            id="key_rotation",
+            max_instances=1,
+            coalesce=True,
+        )
+    if settings.ADAPTIVE_LB_ENABLED:
+        scheduler.add_job(
+            run_adaptive_sampling_job,
+            "interval",
+            minutes=settings.ADAPTIVE_LB_SAMPLE_MINUTES,
+            id="adaptive_lb_sampling",
+            max_instances=1,
+            coalesce=True,
+        )
     scheduler.start()
     app.state.scheduler = scheduler
 
@@ -294,6 +365,7 @@ app.include_router(users_router)
 app.include_router(organizations_router)
 app.include_router(provider_keys_router)
 app.include_router(experiments_router)
+app.include_router(requests_router)
 app.include_router(teams_router)
 app.include_router(proxy_router)
 app.include_router(analytics_router)

@@ -2,6 +2,8 @@
 
 OpenProxyAI supports two deployment modes: Docker Compose for development and small-scale deployments, and Kubernetes with Helm for production.
 
+For **customer-controlled infrastructure** (your PostgreSQL, your Redis, no managed Cloud SQL/Memorystore), see [Customer-Cluster Install](../guides/customer-cluster-install.md).
+
 ## Docker Compose (Development)
 
 ### Quick Start

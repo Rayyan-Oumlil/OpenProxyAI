@@ -92,7 +92,11 @@ async def get_request_id() -> str:
 
 
 def get_real_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    """Client IP; uses X-Forwarded-For only when TRUSTED_PROXY=true (H03)."""
+    from app.config import settings
+
+    if settings.TRUSTED_PROXY:
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
     return request.client.host if request.client else "unknown"

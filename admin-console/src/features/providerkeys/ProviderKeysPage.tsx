@@ -271,6 +271,14 @@ export function ProviderKeysPage() {
                 <th>Region</th>
                 <th>Key Prefix</th>
                 <th>Weight</th>
+                {(keys.some((k) => k.effective_weight != null) || keys.some((k) => k.latency_p99_ms != null)) && (
+                  <>
+                    <th title="Adaptive LB: p99 latency (ms)">P99 (ms)</th>
+                    <th title="Adaptive LB: error rate">Error %</th>
+                    <th title="Adaptive LB: effective weight used in selection">Eff. Weight</th>
+                  </>
+                )}
+                <th>Circuit</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -295,6 +303,28 @@ export function ProviderKeysPage() {
                     <code>{k.key_prefix}…</code>
                   </td>
                   <td>{k.weight}</td>
+                  {(keys.some((x) => x.effective_weight != null) || keys.some((x) => x.latency_p99_ms != null)) && (
+                    <>
+                      <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
+                        {k.latency_p99_ms != null ? Math.round(k.latency_p99_ms) : "—"}
+                      </td>
+                      <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
+                        {k.error_rate != null ? `${(k.error_rate * 100).toFixed(1)}%` : "—"}
+                      </td>
+                      <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
+                        {k.effective_weight != null ? k.effective_weight : "—"}
+                      </td>
+                    </>
+                  )}
+                  <td>
+                    {k.circuit_open_until != null && k.circuit_open_until > Date.now() / 1000 ? (
+                      <Badge variant="warning" title={`Open until ${new Date(k.circuit_open_until * 1000).toLocaleString()}`}>
+                        Open
+                      </Badge>
+                    ) : (
+                      <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}>Closed</span>
+                    )}
+                  </td>
                   <td>
                     <Badge variant={k.is_active ? "success" : "muted"}>
                       {k.is_active ? "Active" : "Inactive"}

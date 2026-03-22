@@ -67,6 +67,7 @@ async def get_analytics_overview(
 	current_user: CurrentUser,
 	period_days: int = Query(default=30, ge=1, le=90),
 	team_id: uuid.UUID | None = Query(default=None),
+	session_id: str | None = Query(default=None, max_length=64),
 	db: AsyncSession = Depends(get_db),
 ) -> AnalyticsResponse:
 	if team_id is not None:
@@ -78,6 +79,7 @@ async def get_analytics_overview(
 		org_id=current_user.org_id,
 		period_days=period_days,
 		team_id=team_id,
+		session_id=session_id,
 	)
 
 
@@ -108,6 +110,9 @@ async def get_request_logs(
 	label_key: str | None = Query(default=None, min_length=1, max_length=64),
 	label_value: str | None = Query(default=None, min_length=1, max_length=64),
 	team_id: uuid.UUID | None = Query(default=None),
+	session_id: str | None = Query(default=None, max_length=64),
+	start_date: date | None = Query(default=None),
+	end_date: date | None = Query(default=None),
 	db: AsyncSession = Depends(get_db),
 ) -> Page[RequestLogItem]:
 	if team_id is not None:
@@ -127,6 +132,9 @@ async def get_request_logs(
 		label_key=label_key,
 		label_value=label_value,
 		team_id=team_id,
+		session_id=session_id,
+		start_date=start_date,
+		end_date=end_date,
 	)
 
 

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 
-import { apiClient } from "../../api/client";
+import { apiClient, API_BASE_URL } from "../../api/client";
 import type { Page, PolicyAnalyticsResponse, RequestLogItem, TeamResponse } from "../../api/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
@@ -12,8 +12,6 @@ import { LogDetailDrawer } from "./LogDetailDrawer";
 import { useAuth } from "../../state/AuthContext";
 import { formatCost, formatLatency } from "../../lib/utils";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
-
 function buildLogsPath(
   page: number,
   status: string,
@@ -21,7 +19,8 @@ function buildLogsPath(
   policyReason: string,
   startDate: string,
   endDate: string,
-  teamId: string
+  teamId: string,
+  sessionId: string
 ): string {
   const params = new URLSearchParams({ page: String(page), page_size: "20" });
   if (status !== "all") params.set("status", status);
@@ -31,6 +30,8 @@ function buildLogsPath(
   if (startDate) params.set("start_date", startDate);
   if (endDate) params.set("end_date", endDate);
   if (teamId) params.set("team_id", teamId);
+  const s = sessionId.trim();
+  if (s) params.set("session_id", s);
   return `/api/v1/analytics/logs?${params.toString()}`;
 }
 
@@ -77,6 +78,7 @@ export function LogsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
+  const [sessionFilter, setSessionFilter] = useState("");
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -89,11 +91,11 @@ export function LogsPage() {
   const logsQuery = useQuery({
     queryKey: [
       "analytics", "logs", token, page,
-      statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter,
+      statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter, sessionFilter,
     ],
     queryFn: () =>
       apiClient.get<Page<RequestLogItem>>(
-        buildLogsPath(page, statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter),
+        buildLogsPath(page, statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter, sessionFilter),
         token!
       ),
     enabled: Boolean(token),
@@ -148,7 +150,7 @@ export function LogsPage() {
           style={{ border: "1px solid var(--line)", background: "transparent", color: "var(--text)" }}
         >
           <Download size={14} />
-          {isExporting ? "Exporting…" : "Export CSV"}
+          {isExporting ? "Exporting…" : "Export Policy Events CSV"}
         </button>
       </header>
 
@@ -180,6 +182,15 @@ export function LogsPage() {
             value={policyReasonFilter}
             placeholder="e.g. blocked_keyword"
             onChange={(e) => { resetPage(); setPolicyReasonFilter(e.target.value); }}
+          />
+        </label>
+        <label className="inline-control">
+          Session ID
+          <input
+            type="text"
+            value={sessionFilter}
+            placeholder="Filter by session"
+            onChange={(e) => { resetPage(); setSessionFilter(e.target.value); }}
           />
         </label>
         <label className="inline-control">

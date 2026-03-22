@@ -40,6 +40,14 @@ class CostByUser(BaseModel):
 	cost_usd: float
 
 
+class CostByTeam(BaseModel):
+	team_id: uuid.UUID
+	name: str
+	requests: int
+	tokens: int
+	cost_usd: float
+
+
 class DailyUsageTrend(BaseModel):
 	date: str
 	requests: int
@@ -52,6 +60,7 @@ class AnalyticsResponse(BaseModel):
 	overview: UsageOverview
 	by_model: list[CostByModel]
 	by_user: list[CostByUser]
+	by_team: list[CostByTeam]
 	daily_trend: list[DailyUsageTrend]
 	generated_at: datetime
 

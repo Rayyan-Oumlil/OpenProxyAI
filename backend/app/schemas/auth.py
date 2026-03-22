@@ -29,6 +29,7 @@ class APIKeyCreateRequest(BaseModel):
 	name: str = Field(min_length=1, max_length=100)
 	permissions: list[str] = Field(default_factory=lambda: ["proxy:llm"])
 	expires_at: datetime | None = None
+	team_id: uuid.UUID | None = None
 
 	@field_validator("permissions")
 	@classmethod
@@ -46,6 +47,7 @@ class APIKeyResponse(BaseModel):
 	is_active: bool
 	expires_at: datetime | None
 	created_at: datetime
+	team_id: uuid.UUID | None = None
 
 
 class APIKeyCreatedResponse(APIKeyResponse):

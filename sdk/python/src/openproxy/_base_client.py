@@ -24,7 +24,15 @@ def _raise_for_status(response: httpx.Response) -> None:
         body = {"detail": response.text}
 
     error = body.get("error", "")
-    detail = body.get("detail", str(response.status_code))
+    detail_raw = body.get("detail", str(response.status_code))
+    if isinstance(detail_raw, dict):
+        detail = str(
+            detail_raw.get("detail")
+            or detail_raw.get("message")
+            or detail_raw
+        )
+    else:
+        detail = str(detail_raw)
 
     if response.status_code == 401:
         raise AuthError(detail, status_code=401, response=body)
