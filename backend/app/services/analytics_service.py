@@ -18,6 +18,7 @@ from app.schemas.analytics import (
 	AnalyticsResponse,
 	CacheAnalyticsResponse,
 	CostByModel,
+	CostByTeam,
 	CostByUser,
 	DailyUsageTrend,
 	PolicyActionStat,
@@ -41,16 +42,19 @@ class AnalyticsService:
 		org_id: UUID,
 		period_days: int = 30,
 		team_id: UUID | None = None,
+		session_id: str | None = None,
 	) -> AnalyticsResponse:
 		since = datetime.now(UTC).date() - timedelta(days=period_days - 1)
-		overview = await self._overview_stats(db, org_id, since, period_days, team_id=team_id)
-		by_model = await self._cost_by_model(db, org_id, since, team_id=team_id)
-		by_user = await self._cost_by_user(db, org_id, since, team_id=team_id)
-		daily_trend = await self._daily_trend(db, org_id, since, team_id=team_id)
+		overview = await self._overview_stats(db, org_id, since, period_days, team_id=team_id, session_id=session_id)
+		by_model = await self._cost_by_model(db, org_id, since, team_id=team_id, session_id=session_id)
+		by_user = await self._cost_by_user(db, org_id, since, team_id=team_id, session_id=session_id)
+		by_team = await self._cost_by_team(db, org_id, since)
+		daily_trend = await self._daily_trend(db, org_id, since, team_id=team_id, session_id=session_id)
 		return AnalyticsResponse(
 			overview=overview,
 			by_model=by_model,
 			by_user=by_user,
+			by_team=by_team,
 			daily_trend=daily_trend,
 			generated_at=datetime.now(UTC),
 		)
@@ -61,6 +65,12 @@ class AnalyticsService:
 			return "", {}
 		return " AND request_metadata->>'team_id' = :team_id", {"team_id": str(team_id)}
 
+	def _session_filter_sql(self, session_id: str | None) -> tuple[str, dict]:
+		"""Return SQL fragment and params for session_id filter on request_logs."""
+		if not session_id or not session_id.strip():
+			return "", {}
+		return " AND request_metadata->>'session_id' = :session_id", {"session_id": session_id.strip()}
+
 	async def _overview_stats(
 		self,
 		db: AsyncSession,
@@ -68,12 +78,15 @@ class AnalyticsService:
 		since: date,
 		period_days: int,
 		team_id: UUID | None = None,
+		session_id: str | None = None,
 	) -> UsageOverview:
 		team_sql, team_params = self._team_filter_sql(team_id)
+		session_sql, session_params = self._session_filter_sql(session_id)
+		extra_sql = team_sql + session_sql
 		base_params = {"org_id": str(org_id), "since": since}
-		params = {**base_params, **team_params}
+		params = {**base_params, **team_params, **session_params}
 
-		if team_id is None:
+		if not extra_sql:
 			mv_row = (
 				await db.execute(
 					text(
@@ -105,7 +118,7 @@ class AnalyticsService:
 						WHERE org_id = :org_id
 						  AND created_at::date >= :since
 						  AND archived_at IS NULL
-						  {team_sql}
+						  {extra_sql}
 						"""
 					),
 					params,
@@ -142,7 +155,7 @@ class AnalyticsService:
 					WHERE org_id = :org_id
 					  AND created_at::date >= :since
 					  AND archived_at IS NULL
-					  {team_sql}
+					  {extra_sql}
 					"""
 				),
 				params,
@@ -162,7 +175,7 @@ class AnalyticsService:
 					  AND created_at::date >= :since
 					  AND archived_at IS NULL
 					  AND latency_ms IS NOT NULL
-					  {team_sql}
+					  {extra_sql}
 					"""
 				),
 				params,
@@ -173,8 +186,8 @@ class AnalyticsService:
 		month_start = today.replace(day=1)
 		days_elapsed = today.day
 		days_in_month = monthrange(today.year, today.month)[1]
-		month_params = {**base_params, "month_start": month_start, "today": today, **team_params}
-		if team_id is None:
+		month_params = {**base_params, "month_start": month_start, "today": today, **team_params, **session_params}
+		if not extra_sql:
 			month_cost_row = (
 				await db.execute(
 					text(
@@ -200,7 +213,7 @@ class AnalyticsService:
 						  AND created_at::date >= :month_start
 						  AND created_at::date <= :today
 						  AND archived_at IS NULL
-						  {team_sql}
+						  {extra_sql}
 						"""
 					),
 					month_params,
@@ -309,10 +322,13 @@ class AnalyticsService:
 		org_id: UUID,
 		since: date,
 		team_id: UUID | None = None,
+		session_id: str | None = None,
 	) -> list[CostByModel]:
 		team_sql, team_params = self._team_filter_sql(team_id)
-		params = {"org_id": str(org_id), "since": since, **team_params}
-		if team_id is None:
+		session_sql, session_params = self._session_filter_sql(session_id)
+		extra_sql = team_sql + session_sql
+		params = {"org_id": str(org_id), "since": since, **team_params, **session_params}
+		if not extra_sql:
 			rows = (
 				await db.execute(
 					text(
@@ -349,7 +365,7 @@ class AnalyticsService:
 						WHERE org_id = :org_id
 						  AND created_at::date >= :since
 						  AND archived_at IS NULL
-						  {team_sql}
+						  {extra_sql}
 						GROUP BY model, provider
 						ORDER BY cost_usd DESC
 						LIMIT 20
@@ -375,10 +391,13 @@ class AnalyticsService:
 		org_id: UUID,
 		since: date,
 		team_id: UUID | None = None,
+		session_id: str | None = None,
 	) -> list[CostByUser]:
 		team_sql, team_params = self._team_filter_sql(team_id)
-		params = {"org_id": str(org_id), "since": since, **team_params}
-		if team_id is None:
+		session_sql, session_params = self._session_filter_sql(session_id)
+		extra_sql = team_sql + session_sql
+		params = {"org_id": str(org_id), "since": since, **team_params, **session_params}
+		if not extra_sql:
 			rows = (
 				await db.execute(
 					text(
@@ -418,7 +437,7 @@ class AnalyticsService:
 						WHERE r.org_id = :org_id
 						  AND r.created_at::date >= :since
 						  AND r.archived_at IS NULL
-						  {team_sql}
+						  {extra_sql}
 						GROUP BY r.user_id, u.email
 						ORDER BY cost_usd DESC
 						LIMIT 50
@@ -430,6 +449,51 @@ class AnalyticsService:
 		return [
 			CostByUser(
 				user_id=row["user_id"],
+				email=str(row["email"] or ""),
+				requests=int(row["requests"] or 0),
+				tokens=int(row["tokens"] or 0),
+				cost_usd=float(Decimal(str(row["cost_usd"] or 0))),
+			)
+			for row in rows
+		]
+
+	async def _cost_by_team(
+		self,
+		db: AsyncSession,
+		org_id: UUID,
+		since: date,
+	) -> list[CostByTeam]:
+		"""Aggregate cost per team from request_logs where request_metadata has team_id."""
+		params = {"org_id": str(org_id), "since": since}
+		rows = (
+			await db.execute(
+				text(
+					"""
+					SELECT
+						t.id AS team_id,
+						t.name,
+						COALESCE(COUNT(r.id), 0) AS requests,
+						COALESCE(SUM(r.total_tokens), 0) AS tokens,
+						COALESCE(SUM(r.cost_usd), 0) AS cost_usd
+					FROM request_logs r
+					JOIN teams t ON t.id = (r.request_metadata->>'team_id')::uuid
+						AND t.org_id = r.org_id
+					WHERE r.org_id = :org_id
+						AND r.created_at::date >= :since
+						AND r.archived_at IS NULL
+						AND r.request_metadata->>'team_id' IS NOT NULL
+					GROUP BY t.id, t.name
+					ORDER BY cost_usd DESC
+					LIMIT 50
+					"""
+				),
+				params,
+			)
+		).mappings().all()
+		return [
+			CostByTeam(
+				team_id=row["team_id"],
+				name=str(row["name"] or ""),
 				requests=int(row["requests"] or 0),
 				tokens=int(row["tokens"] or 0),
 				cost_usd=float(Decimal(str(row["cost_usd"] or 0))),
@@ -443,10 +507,13 @@ class AnalyticsService:
 		org_id: UUID,
 		since: date,
 		team_id: UUID | None = None,
+		session_id: str | None = None,
 	) -> list[DailyUsageTrend]:
 		team_sql, team_params = self._team_filter_sql(team_id)
-		params = {"org_id": str(org_id), "since": since, **team_params}
-		if team_id is None:
+		session_sql, session_params = self._session_filter_sql(session_id)
+		extra_sql = team_sql + session_sql
+		params = {"org_id": str(org_id), "since": since, **team_params, **session_params}
+		if not extra_sql:
 			rows = (
 				await db.execute(
 					text(
@@ -482,7 +549,7 @@ class AnalyticsService:
 						WHERE org_id = :org_id
 						  AND created_at::date >= :since
 						  AND archived_at IS NULL
-						  {team_sql}
+						  {extra_sql}
 						GROUP BY created_at::date
 						ORDER BY created_at::date ASC
 						"""
@@ -515,6 +582,9 @@ class AnalyticsService:
 		label_key: str | None = None,
 		label_value: str | None = None,
 		team_id: UUID | None = None,
+		session_id: str | None = None,
+		start_date: date | None = None,
+		end_date: date | None = None,
 	) -> Page[RequestLogItem]:
 		"""Return a paginated, filtered list of request logs for the given org.
 
@@ -528,6 +598,8 @@ class AnalyticsService:
 			conditions.append(RequestLog.archived_at.is_(None))
 		if team_id is not None:
 			conditions.append(RequestLog.request_metadata["team_id"].as_string() == str(team_id))
+		if session_id and session_id.strip():
+			conditions.append(RequestLog.request_metadata["session_id"].as_string() == session_id.strip())
 		if model:
 			conditions.append(RequestLog.model == model)
 		if status == "success":
@@ -548,6 +620,10 @@ class AnalyticsService:
 			conditions.append(
 				RequestLog.request_metadata["labels"][label_key].as_string() == label_value
 			)
+		if start_date is not None:
+			conditions.append(func.date(RequestLog.created_at) >= start_date)
+		if end_date is not None:
+			conditions.append(func.date(RequestLog.created_at) <= end_date)
 
 		where = and_(*conditions)
 

@@ -1,6 +1,22 @@
 import type { PlaygroundCompareRequest, PlaygroundCompareResponse, PromptTemplate } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+async function parseApiError(response: Response): Promise<never> {
+  const errorData = (await response.json().catch(() => null)) as
+    | { detail?: string | Record<string, unknown>; error?: string }
+    | null;
+  const rawDetail = errorData?.detail;
+  const message =
+    (typeof rawDetail === "string"
+      ? rawDetail
+      : rawDetail && typeof rawDetail === "object" && "detail" in rawDetail
+        ? String((rawDetail as { detail?: string }).detail ?? "")
+        : null) ??
+    errorData?.error ??
+    `Request failed with status ${response.status}`;
+  throw new Error(message || `Request failed with status ${response.status}`);
+}
 
 type RequestOptions = {
   token?: string;
@@ -19,12 +35,7 @@ async function request<T>(path: string, options: RequestOptions): Promise<T> {
   });
 
   if (!response.ok) {
-    const errorData = (await response.json().catch(() => null)) as
-      | { detail?: string; error?: string }
-      | null;
-    const message =
-      errorData?.detail ?? errorData?.error ?? `Request failed with status ${response.status}`;
-    throw new Error(message);
+    await parseApiError(response);
   }
 
   if (response.status === 204) {
@@ -43,12 +54,7 @@ async function requestBlob(path: string, options: RequestOptions): Promise<Blob>
   });
 
   if (!response.ok) {
-    const errorData = (await response.json().catch(() => null)) as
-      | { detail?: string; error?: string }
-      | null;
-    const message =
-      errorData?.detail ?? errorData?.error ?? `Request failed with status ${response.status}`;
-    throw new Error(message);
+    await parseApiError(response);
   }
 
   return response.blob();
@@ -111,4 +117,9 @@ export const apiClient = {
     request<import("./types").ExperimentResponse>(`/api/v1/experiments/${id}/stop`, { method: "POST", token }),
   getExperimentResults: (id: string, token?: string) =>
     request<import("./types").ExperimentResultsResponse>(`/api/v1/experiments/${id}/results`, { method: "GET", token }),
+  exchangeSsoCode: (code: string) =>
+    request<import("./types").TokenResponse>("/api/v1/auth/sso/exchange-code", {
+      method: "POST",
+      body: { code },
+    }),
 };

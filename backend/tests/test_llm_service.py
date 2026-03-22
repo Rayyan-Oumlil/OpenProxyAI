@@ -7,7 +7,14 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
 
-from app.services.llm_service import _is_retryable, _parse_labels, _split_model, _to_jsonable
+from app.services.llm_service import (
+	_is_retryable,
+	_parse_labels,
+	_parse_retries_header,
+	_parse_session_id_header,
+	_split_model,
+	_to_jsonable,
+)
 
 
 # ── _split_model ────────────────────────────────────────────────────────
@@ -149,6 +156,72 @@ class TestParseLabels:
             _make_request({"x-openproxy-labels": json.dumps(labels)})
         )
         assert len(result) == 10
+
+
+# ── _parse_retries_header ──────────────────────────────────────────────
+
+
+class TestParseRetriesHeader:
+    def test_none_when_request_is_none(self):
+        assert _parse_retries_header(None) is None
+
+    def test_none_when_header_absent(self):
+        assert _parse_retries_header(_make_request()) is None
+
+    def test_none_when_header_empty(self):
+        assert _parse_retries_header(_make_request({"x-openproxy-retries": ""})) is None
+
+    @pytest.mark.parametrize("val", [0, 1, 2, 3, 4, 5])
+    def test_valid_range_returns_int(self, val):
+        assert _parse_retries_header(_make_request({"x-openproxy-retries": str(val)})) == val
+
+    def test_whitespace_stripped(self):
+        assert _parse_retries_header(_make_request({"x-openproxy-retries": "  3  "})) == 3
+
+    def test_out_of_range_returns_none(self):
+        assert _parse_retries_header(_make_request({"x-openproxy-retries": "-1"})) is None
+        assert _parse_retries_header(_make_request({"x-openproxy-retries": "6"})) is None
+
+    def test_invalid_returns_none(self):
+        assert _parse_retries_header(_make_request({"x-openproxy-retries": "abc"})) is None
+        assert _parse_retries_header(_make_request({"x-openproxy-retries": "1.5"})) is None
+
+
+# ── _parse_session_id_header ───────────────────────────────────────────
+
+
+class TestParseSessionIdHeader:
+    def test_none_when_request_is_none(self):
+        assert _parse_session_id_header(None) is None
+
+    def test_none_when_header_absent(self):
+        assert _parse_session_id_header(_make_request()) is None
+
+    def test_none_when_header_empty(self):
+        assert _parse_session_id_header(_make_request({"x-openproxy-session-id": ""})) is None
+
+    def test_valid_uuid_returns_string(self):
+        sid = "550e8400-e29b-41d4-a716-446655440000"
+        assert _parse_session_id_header(_make_request({"x-openproxy-session-id": sid})) == sid
+
+    def test_opaque_string_returns_string(self):
+        s = "agent-trace-abc123"
+        assert _parse_session_id_header(_make_request({"x-openproxy-session-id": s})) == s
+
+    def test_whitespace_stripped(self):
+        s = "  session-xyz  "
+        assert _parse_session_id_header(_make_request({"x-openproxy-session-id": s})) == "session-xyz"
+
+    def test_too_long_returns_none(self):
+        s = "a" * 65
+        assert _parse_session_id_header(_make_request({"x-openproxy-session-id": s})) is None
+
+    def test_exactly_64_chars_ok(self):
+        s = "a" * 64
+        assert _parse_session_id_header(_make_request({"x-openproxy-session-id": s})) == s
+
+    def test_newline_in_string_returns_none(self):
+        assert _parse_session_id_header(_make_request({"x-openproxy-session-id": "sess\n123"})) is None
 
 
 # ── _is_retryable ──────────────────────────────────────────────────────

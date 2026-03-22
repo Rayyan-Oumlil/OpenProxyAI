@@ -140,3 +140,41 @@ async def test_check_limits_user_budget_exceeded(fake_redis):
 	assert detail is not None
 	assert retry_after is not None and retry_after > 0
 	assert "Retry-After" in headers
+
+
+@pytest.mark.asyncio
+async def test_check_limits_team_rpm_exceeded(fake_redis):
+	"""When per_team_limits.rpm is set and team_id present, team RPM is enforced."""
+	policy_config = type("PolicyConfig", (), {"per_team_limits": {"rpm": 1, "tpm": 100000}})()
+
+	first = await rate_limiter_service.check_limits(
+		redis=fake_redis,
+		org_id="org-team",
+		user_id="user-team",
+		request_tokens_estimate=10,
+		max_rpm=60,
+		max_tpm=100000,
+		max_daily_budget_usd=Decimal("50"),
+		team_id="team-123",
+		policy_config=policy_config,
+	)
+	assert first[0] is True
+
+	ok, headers, limit_type, detail, retry_after = await rate_limiter_service.check_limits(
+		redis=fake_redis,
+		org_id="org-team",
+		user_id="user-team",
+		request_tokens_estimate=10,
+		max_rpm=60,
+		max_tpm=100000,
+		max_daily_budget_usd=Decimal("50"),
+		team_id="team-123",
+		policy_config=policy_config,
+	)
+
+	assert ok is False
+	assert limit_type == "team_requests_per_minute"
+	assert detail is not None
+	assert "Team limit" in detail
+	assert retry_after is not None and retry_after > 0
+	assert "Retry-After" in headers

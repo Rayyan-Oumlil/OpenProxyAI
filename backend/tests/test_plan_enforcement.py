@@ -306,13 +306,14 @@ class TestInviteAcceptPlanEnforcement:
     def test_free_org_4th_invite_returns_402(self, monkeypatch):
         """Free org accepting 4th invite raises HTTP 402 plan_limit_exceeded."""
         import asyncio
-        from datetime import datetime, timedelta
+        from datetime import UTC, datetime, timedelta
 
         org_id = uuid4()
         org = _org("free")
         org.id = org_id
 
-        now = datetime.utcnow()
+        # Naive UTC to match invite_service's now (DB timestamp columns)
+        now = datetime.now(UTC).replace(tzinfo=None)
         invite = SimpleNamespace(
             id=uuid4(),
             org_id=org_id,
@@ -347,13 +348,14 @@ class TestInviteAcceptPlanEnforcement:
     def test_enterprise_org_unlimited_users_no_402(self, monkeypatch):
         """Enterprise org (max_users=-1) can add unlimited users without 402."""
         import asyncio
-        from datetime import datetime, timedelta
+        from datetime import UTC, datetime, timedelta
 
         org_id = uuid4()
         org = _org("enterprise")
         org.id = org_id
 
-        now = datetime.utcnow()
+        # Naive UTC to match invite_service's now (DB timestamp columns)
+        now = datetime.now(UTC).replace(tzinfo=None)
         invite = SimpleNamespace(
             id=uuid4(),
             org_id=org_id,

@@ -22,7 +22,7 @@ API keys are created in the admin console and are stored as SHA-256 hashes on th
 
 Send a message to an LLM and receive a response. Fully compatible with OpenAI's API.
 
-**Request**
+**Request (messages)**
 
 ```json
 {
@@ -40,18 +40,39 @@ Send a message to an LLM and receive a response. Fully compatible with OpenAI's 
 }
 ```
 
+**Request (prompt_id) — alternative to messages**
+
+Use a saved prompt template from the Playground instead of raw messages. The template is resolved server-side; `prompt_id` and `messages` are mutually exclusive.
+
+```json
+{
+  "model": "openai/gpt-4o-mini",
+  "prompt_id": "550e8400-e29b-41d4-a716-446655440000",
+  "variables": {
+    "company": "Acme Corp",
+    "message": "How do I reset my password?"
+  }
+}
+```
+
+Template variables use `{{name}}` placeholders; missing keys become empty strings. The template's `system_message` (if present) and `user_template` are substituted and built into messages before policy/model selection.
+
 **Query Parameters**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `model` | string | yes | Provider-prefixed model ID: `openai/gpt-4o-mini`, `anthropic/claude-opus`, `azure/gpt-4`, `mistral/mistral-large`, etc. |
-| `messages` | array | yes | Array of message objects with `role` (system/user/assistant) and `content` (string) |
+| `messages` | array | yes* | Array of message objects with `role` (system/user/assistant) and `content` (string) |
+| `prompt_id` | UUID | yes* | ID of a saved prompt template (from Playground). Mutually exclusive with `messages`. |
+| `variables` | object | no | Key/value pairs for template substitution when `prompt_id` is used. All values must be strings. |
 | `temperature` | float | no | Randomness (0.0–2.0), default 0.7 |
 | `max_tokens` | integer | no | Maximum tokens in the response |
 | `stream` | boolean | no | Enable server-sent events streaming, default false |
 | `top_p` | float | no | Nucleus sampling (0.0–1.0), default 1.0 |
 | `frequency_penalty` | float | no | Penalty for repeated tokens (−2.0 to 2.0), default 0.0 |
 | `presence_penalty` | float | no | Penalty for new tokens (−2.0 to 2.0), default 0.0 |
+
+\* Provide either `messages` or `prompt_id`, not both. Invalid combinations return HTTP 400.
 
 **Response (non-streaming)**
 
@@ -180,6 +201,9 @@ Send these on `POST /v1/chat/completions` and `POST /v1/embeddings` (gateway **A
 | `x-openproxy-cache` | `skip`, `no-store`, `no-cache` | Override cache behavior when caching is enabled (`skip` = bypass read/write; `no-store` = don’t write; `no-cache` = bypass read, still write). |
 | `x-openproxy-labels` | JSON object, string keys/values (≤64 chars each, max 10 keys) | Departmental or chargeback labels; stored on request logs / metadata. |
 | `x-openproxy-team-id` | UUID | Optional team context; team must exist in the org and the API key’s user must be a member. |
+| `x-openproxy-retries` | 0–5 | Per-request override for max provider fallback attempts (0 = no retry, 1–5 = max attempts). |
+| `x-openproxy-fallback-model` | `provider/model` (e.g. `openai/gpt-4o-mini`) | When all provider keys fail for the primary model, retry with this alternate model. Must be allowed by org policy. |
+| `x-openproxy-session-id` | UUID or opaque string (≤64 chars) | Session/trace ID for grouping related LLM calls; stored in request metadata and filterable in analytics. |
 
 ---
 
@@ -394,6 +418,41 @@ Prefix: `/api/v1/experiments`. **JWT required.**
 When the org policy **`allowed_models`** list is non-empty, create/update reject models not on the allowlist (HTTP 400).
 
 Traffic routing happens on **`POST /v1/chat/completions`** when the request `model` matches an active experiment’s `target_model`. See [Experiments & teams guide](../guides/experiments-and-teams.md).
+
+**Results with quality scores:** `GET /api/v1/experiments/{id}/results` returns per-variant metrics (latency, cost, tokens, policy violations) and **scores** (avg, count per score name) when scores have been submitted via the Request Scores API.
+
+---
+
+## Request Scores API
+
+Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request for experiment evaluation (LLM-as-judge, external evals).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/requests/{request_id}/scores` | Submit quality scores for a request |
+
+**Submit scores request**
+
+```json
+{
+  "scores": [
+    {"name": "coherence", "value": 4.5},
+    {"name": "relevance", "value": 3.8}
+  ]
+}
+```
+
+- `request_id`: Gateway request UUID from `X-OpenProxyAI-Request-Id` response header
+- Request must exist in `request_logs` and belong to the caller's org (404 if not found)
+- For experiment requests, `experiment_id` and `variant_id` are derived from `request_metadata` and stored with the score
+- Scores are upserted by `(request_id, score_name)` — re-POSTing the same name updates the value
+- `GET /api/v1/experiments/{id}/results` includes `scores` per variant when present
+
+**Response (200 OK)**
+
+```json
+{"submitted": 2}
+```
 
 ---
 

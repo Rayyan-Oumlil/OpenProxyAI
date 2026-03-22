@@ -106,7 +106,8 @@ async def test_eu_org_gets_eu_or_global_keys_only(monkeypatch):
 	svc = LLMService()
 	keys = await svc._select_provider_keys(db, org_id, "openai", model=None)
 	assert len(keys) >= 1
-	assert decrypt(eu_key.api_key_encrypted) in keys or decrypt(global_key.api_key_encrypted) in keys
+	key_strings = [k[1] for k in keys]
+	assert decrypt(eu_key.api_key_encrypted) in key_strings or decrypt(global_key.api_key_encrypted) in key_strings
 
 
 @pytest.mark.asyncio
@@ -121,7 +122,7 @@ async def test_us_org_gets_us_or_global_keys_only(monkeypatch):
 	svc = LLMService()
 	keys = await svc._select_provider_keys(db, org_id, "openai", model=None)
 	assert len(keys) == 1
-	assert decrypt(us_key.api_key_encrypted) == keys[0]
+	assert decrypt(us_key.api_key_encrypted) == keys[0][1]
 
 
 @pytest.mark.asyncio
@@ -136,7 +137,7 @@ async def test_global_keys_always_included(monkeypatch):
 	svc = LLMService()
 	keys = await svc._select_provider_keys(db, org_id, "openai", model=None)
 	assert len(keys) == 1
-	assert keys[0] == decrypt(global_key.api_key_encrypted)
+	assert keys[0][1] == decrypt(global_key.api_key_encrypted)
 
 
 @pytest.mark.asyncio

@@ -5,14 +5,26 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.dependencies import get_current_user_from_api_key, get_db, get_redis, get_request_id
 from app.main import app
 from app.routes import proxy as proxy_routes
+from app.services.policy_service import PolicyDecision
 from tests.conftest import FakeDB
+
+
+def _make_request(headers: dict) -> Request:
+	"""Build a minimal Starlette Request from headers."""
+	scope = {
+		"type": "http",
+		"method": "POST",
+		"path": "/v1/chat/completions",
+		"headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+		"query_string": b"",
+	}
+	return Request(scope)
 
 
 @pytest.fixture(autouse=True)
@@ -276,7 +288,7 @@ async def test_llm_service_rate_limit_contract(monkeypatch, fake_redis):
 		return None
 
 	async def fake_provider_key(*args, **kwargs):  # noqa: ANN002, ANN003
-		return ["dummy"]
+		return [(None, "dummy")]
 
 	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", fake_check_limits)
 	monkeypatch.setattr(llm_service_module, "log_request", fake_log_request)
@@ -358,4 +370,193 @@ async def test_llm_service_preserves_rl_headers_on_provider_key_error(monkeypatc
 	assert exc.headers is not None
 	assert exc.headers["X-RateLimit-Requests-Limit"] == "60"
 	assert exc.headers["X-RateLimit-Reset"] == "123456"
+
+
+# ---------------------------------------------------------------------------
+# B2: team_id propagation — API key takes precedence over x-openproxy-team-id
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_team_id_from_api_key_propagates_to_log(monkeypatch, fake_redis):
+	"""When api_key has team_id and policy blocks, log_request receives team_id from key."""
+	from app.services import llm_service as llm_module
+
+	team_id = uuid4()
+	captured: list[dict] = []
+	user = SimpleNamespace(id=uuid4(), org_id=uuid4(), budget_daily_usd=Decimal("50"))
+	fake_team = SimpleNamespace(id=team_id, org_id=user.org_id, budget_monthly_usd=Decimal("100"))
+
+	class TeamFakeDB(FakeDB):
+		"""Returns None for experiment query, fake_team for team query."""
+
+		def __init__(self, team):
+			self._scalar_results = [None, team]
+			self._scalar_idx = 0
+
+		async def scalar(self, *args, **kwargs):
+			if self._scalar_idx < len(self._scalar_results):
+				val = self._scalar_results[self._scalar_idx]
+				self._scalar_idx += 1
+				return val
+			return None
+
+		async def execute(self, *args, **kwargs):
+			class RowResult:
+				def first(self):
+					return (1,)
+
+			return RowResult()
+
+	async def fake_log(**kwargs):
+		captured.append(kwargs)
+
+	async def fake_evaluate(req, cfg):
+		return PolicyDecision(allowed=False, action="block", reason_code="test", detail="blocked")
+
+	monkeypatch.setattr(llm_module, "log_request", fake_log)
+	monkeypatch.setattr(llm_module.policy_service, "evaluate_chat_request", fake_evaluate)
+
+	api_key = SimpleNamespace(id=uuid4(), org_id=user.org_id, user=user, team_id=team_id)
+
+	response = await llm_module.llm_service.chat_completion(
+		request=llm_module.ChatCompletionRequest(
+			model="openai/gpt-4o-mini",
+			messages=[{"role": "user", "content": "hi"}],
+		),
+		db=TeamFakeDB(fake_team),
+		redis=fake_redis,
+		user=user,
+		api_key=api_key,
+		request_id=uuid4(),
+		background_tasks=SimpleNamespace(add_task=lambda *a, **kw: None),
+		http_request=None,
+	)
+
+	assert response.status_code == 403
+	assert len(captured) == 1
+	assert captured[0].get("team_id") == team_id
+
+
+@pytest.mark.asyncio
+async def test_team_id_from_header_when_key_has_none(monkeypatch, fake_redis):
+	"""When api_key has no team_id, x-openproxy-team-id header is used."""
+	from app.services import llm_service as llm_module
+
+	team_id = uuid4()
+	captured: list[dict] = []
+	user = SimpleNamespace(id=uuid4(), org_id=uuid4(), budget_daily_usd=Decimal("50"))
+	fake_team = SimpleNamespace(id=team_id, org_id=user.org_id, budget_monthly_usd=Decimal("100"))
+
+	class TeamFakeDB(FakeDB):
+		def __init__(self, team):
+			self._scalar_results = [None, team]
+			self._scalar_idx = 0
+
+		async def scalar(self, *args, **kwargs):
+			if self._scalar_idx < len(self._scalar_results):
+				val = self._scalar_results[self._scalar_idx]
+				self._scalar_idx += 1
+				return val
+			return None
+
+		async def execute(self, *args, **kwargs):
+			class RowResult:
+				def first(self):
+					return (1,)
+
+			return RowResult()
+
+	async def fake_log(**kwargs):
+		captured.append(kwargs)
+
+	async def fake_evaluate(req, cfg):
+		return PolicyDecision(allowed=False, action="block", reason_code="test", detail="blocked")
+
+	monkeypatch.setattr(llm_module, "log_request", fake_log)
+	monkeypatch.setattr(llm_module.policy_service, "evaluate_chat_request", fake_evaluate)
+
+	api_key = SimpleNamespace(id=uuid4(), org_id=user.org_id, user=user)  # no team_id
+
+	http_request = _make_request({"x-openproxy-team-id": str(team_id)})
+
+	response = await llm_module.llm_service.chat_completion(
+		request=llm_module.ChatCompletionRequest(
+			model="openai/gpt-4o-mini",
+			messages=[{"role": "user", "content": "hi"}],
+		),
+		db=TeamFakeDB(fake_team),
+		redis=fake_redis,
+		user=user,
+		api_key=api_key,
+		request_id=uuid4(),
+		background_tasks=SimpleNamespace(add_task=lambda *a, **kw: None),
+		http_request=http_request,
+	)
+
+	assert response.status_code == 403
+	assert len(captured) == 1
+	assert captured[0].get("team_id") == team_id
+
+
+@pytest.mark.asyncio
+async def test_team_id_from_api_key_takes_precedence_over_header(monkeypatch, fake_redis):
+	"""When both api_key.team_id and header are set, api_key wins."""
+	from app.services import llm_service as llm_module
+
+	key_team_id = uuid4()
+	header_team_id = uuid4()
+	captured: list[dict] = []
+	user = SimpleNamespace(id=uuid4(), org_id=uuid4(), budget_daily_usd=Decimal("50"))
+	fake_team = SimpleNamespace(id=key_team_id, org_id=user.org_id, budget_monthly_usd=Decimal("100"))
+
+	class TeamFakeDB(FakeDB):
+		def __init__(self, team):
+			self._scalar_results = [None, team]
+			self._scalar_idx = 0
+
+		async def scalar(self, *args, **kwargs):
+			if self._scalar_idx < len(self._scalar_results):
+				val = self._scalar_results[self._scalar_idx]
+				self._scalar_idx += 1
+				return val
+			return None
+
+		async def execute(self, *args, **kwargs):
+			class RowResult:
+				def first(self):
+					return (1,)
+
+			return RowResult()
+
+	async def fake_log(**kwargs):
+		captured.append(kwargs)
+
+	async def fake_evaluate(req, cfg):
+		return PolicyDecision(allowed=False, action="block", reason_code="test", detail="blocked")
+
+	monkeypatch.setattr(llm_module, "log_request", fake_log)
+	monkeypatch.setattr(llm_module.policy_service, "evaluate_chat_request", fake_evaluate)
+
+	api_key = SimpleNamespace(id=uuid4(), org_id=user.org_id, user=user, team_id=key_team_id)
+
+	http_request = _make_request({"x-openproxy-team-id": str(header_team_id)})
+
+	response = await llm_module.llm_service.chat_completion(
+		request=llm_module.ChatCompletionRequest(
+			model="openai/gpt-4o-mini",
+			messages=[{"role": "user", "content": "hi"}],
+		),
+		db=TeamFakeDB(fake_team),
+		redis=fake_redis,
+		user=user,
+		api_key=api_key,
+		request_id=uuid4(),
+		background_tasks=SimpleNamespace(add_task=lambda *a, **kw: None),
+		http_request=http_request,
+	)
+
+	assert response.status_code == 403
+	assert len(captured) == 1
+	assert captured[0].get("team_id") == key_team_id
 

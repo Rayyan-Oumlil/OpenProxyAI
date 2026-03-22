@@ -7,6 +7,7 @@ import { LogsPage } from "./features/logs/LogsPage";
 import { ApiKeysPage } from "./features/keys/ApiKeysPage";
 import { LoginPage } from "./features/auth/LoginPage";
 import { SignupPage } from "./features/auth/SignupPage";
+import { SSOCallbackPage } from "./features/auth/SSOCallbackPage";
 import { OrganizationSettingsPage } from "./features/settings/OrganizationSettingsPage";
 import { UsersRolesPage } from "./features/users/UsersRolesPage";
 import { TeamsPage } from "./features/teams/TeamsPage";
@@ -24,14 +25,7 @@ export function App() {
 
   if (isRestoring) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "var(--bg)",
-        }}
-      >
+      <div className="page-loading">
         <div className="loader" />
       </div>
     );
@@ -53,6 +47,7 @@ export function App() {
       {!token ? (
         <Routes>
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/sso-callback" element={<SSOCallbackPage />} />
           <Route path="*" element={<LoginPage />} />
         </Routes>
       ) : (

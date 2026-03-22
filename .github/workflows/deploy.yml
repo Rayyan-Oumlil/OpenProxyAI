@@ -62,7 +62,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
           REDIS_URL: redis://localhost:6379/0
-          SECRET_KEY: test-secret-key-for-ci-only
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
           APP_ENV: test
         run: python -m pytest tests/ -q --tb=short -m "not integration"
 
@@ -163,6 +163,16 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Apply Artifact Registry cleanup policy
+        run: |
+          gcloud artifacts repositories set-cleanup-policies openproxyai \
+            --project="$(echo ${{ secrets.GCP_AR_IMAGE }} | cut -d'/' -f2)" \
+            --location="${{ env.REGION }}" \
+            --policy=deploy/gcp/artifact-registry-cleanup-policy.json \
+            --no-dry-run \
+            --quiet
+        continue-on-error: true  # Requires artifactregistry.repoAdmin on GCP_*; run deploy/gcp/setup.sh if missing
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy "${{ secrets.GCP_CLOUD_RUN_SERVICE }}" \
@@ -200,6 +210,9 @@ jobs:
             --set-env-vars="LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}" \
             --set-env-vars="LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}" \
             --set-env-vars="PROMETHEUS_ENABLED=true" \
+            --set-env-vars="APP_BASE_URL=${{ secrets.APP_BASE_URL }}" \
+            --set-env-vars="FRONTEND_BASE_URL=${{ secrets.FRONTEND_BASE_URL }}" \
+            --set-env-vars="STRIPE_METERED_BASE_PRICE_ID=${{ secrets.STRIPE_METERED_BASE_PRICE_ID }}" \
             --quiet
 
       - name: Get Cloud Run URL

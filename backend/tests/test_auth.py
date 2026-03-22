@@ -1,6 +1,6 @@
 """Auth endpoint tests — register, login, API key CRUD."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -209,7 +209,7 @@ def test_api_key_create_list_revoke(client, monkeypatch):
 		permissions=["proxy:llm"],
 		is_active=True,
 		expires_at=None,
-		created_at=datetime.utcnow(),
+		created_at=datetime.now(UTC),
 		org_id=user.org_id,
 	)
 

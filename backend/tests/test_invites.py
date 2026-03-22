@@ -1,6 +1,6 @@
 """Invite endpoint tests — create, list, revoke, accept-invite flows."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -95,7 +95,8 @@ def _invite(
     expires_at=None,
     role="developer",
 ):
-    now = datetime.utcnow()
+    # Use naive UTC to match DB timestamp columns and invite_service comparisons
+    now = datetime.now(UTC).replace(tzinfo=None)
     return SimpleNamespace(
         id=uuid4(),
         org_id=org_id,
@@ -117,7 +118,7 @@ def _user_from_invite(invite):
         name="New User",
         role=invite.role,
         is_active=True,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(UTC).replace(tzinfo=None),
         budget_daily_usd=None,
         budget_monthly_usd=None,
     )
@@ -444,8 +445,10 @@ def test_double_accept_same_invite_raises_409(monkeypatch):
     import asyncio
     from fastapi import HTTPException
 
-    past = datetime.utcnow() - timedelta(hours=1)
-    future = datetime.utcnow() + timedelta(days=6)
+    # Naive UTC to match invite_service's now (DB timestamp columns)
+    now_naive = datetime.now(UTC).replace(tzinfo=None)
+    past = now_naive - timedelta(hours=1)
+    future = now_naive + timedelta(days=6)
     already_accepted = SimpleNamespace(
         id=uuid4(),
         org_id=uuid4(),
@@ -486,7 +489,7 @@ def test_accept_invite_service_raises_410_for_expired(monkeypatch):
     import asyncio
     from fastapi import HTTPException
 
-    past_expiry = datetime.utcnow() - timedelta(days=1)
+    past_expiry = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
     expired_invite = SimpleNamespace(
         id=uuid4(),
         org_id=uuid4(),

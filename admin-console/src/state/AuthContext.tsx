@@ -30,7 +30,8 @@ type AuthState = {
 type AuthContextValue = AuthState & {
   login: (payload: LoginRequest) => Promise<void>;
   signup: (payload: RegisterRequest) => Promise<void>;
-  logout: () => void;
+  logout: () => void | Promise<void>;
+  applySsoCode: (code: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -203,6 +204,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const applySsoCode = useCallback(async (code: string) => {
+    setIsAuthenticating(true);
+    setError(null);
+    try {
+      const tokens = await apiClient.exchangeSsoCode(code);
+      localStorage.setItem(ACCESS_KEY, tokens.access_token);
+      if (tokens.refresh_token) {
+        localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
+      }
+      const me = await apiClient.get<UserMeResponse>("/api/v1/auth/me", tokens.access_token);
+      setToken(tokens.access_token);
+      setUser(me);
+      scheduleRefreshRef.current?.(tokens.access_token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "SSO sign-in failed.");
+      setToken(null);
+      setUser(null);
+      throw err;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     clearScheduledRefresh();
     const t = token;
@@ -221,8 +245,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token, clearScheduledRefresh]);
 
   const value = useMemo(
-    () => ({ token, user, isAuthenticating, isRestoring, error, login, signup, logout }),
-    [error, isAuthenticating, isRestoring, login, signup, logout, token, user],
+    () => ({ token, user, isAuthenticating, isRestoring, error, login, signup, logout, applySsoCode }),
+    [error, isAuthenticating, isRestoring, login, signup, logout, applySsoCode, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

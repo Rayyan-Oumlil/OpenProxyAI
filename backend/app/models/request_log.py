@@ -35,6 +35,10 @@ class RequestLog(UUIDPrimaryKeyMixin, Base):
     api_key_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("api_keys.id")
     )
+    provider_key_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("llm_provider_keys.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     model: Mapped[str] = mapped_column(String(100), nullable=False)
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     prompt_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")

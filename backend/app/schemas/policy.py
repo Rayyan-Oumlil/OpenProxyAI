@@ -17,6 +17,7 @@ class PolicyConfigRequest(BaseModel):
 	pii_detection_enabled: bool | None = None
 	pii_entities: list[str] | None = None
 	model_rate_limits: Optional[dict] = None
+	per_team_limits: Optional[dict] = None  # {"rpm": 60, "tpm": 50000} for requests with team_id
 	prompt_injection_detection_enabled: bool | None = None
 	response_guardrails_enabled: bool | None = None
 	response_pii_redact: bool | None = None
@@ -29,6 +30,7 @@ class PolicyConfigResponse(BaseModel):
 	pii_detection_enabled: bool
 	pii_entities: list[str]
 	model_rate_limits: dict
+	per_team_limits: dict = {}
 	updated_at: datetime | None
 	prompt_injection_detection_enabled: bool
 	response_guardrails_enabled: bool

@@ -143,6 +143,62 @@ class TestBasicLog:
         _mock_db.commit.assert_awaited_once()
 
 
+# ── team_id ──────────────────────────────────────────────────────────────
+
+
+class TestTeamId:
+    @pytest.mark.asyncio
+    async def test_team_id_merged_into_metadata(self, fake_redis, ids, _mock_db):
+        """When team_id is passed, it is stored in request_metadata."""
+        team_id = uuid.uuid4()
+        await log_request(
+            redis=fake_redis,
+            request_id=ids["request_id"],
+            org_id=ids["org_id"],
+            user_id=ids["user_id"],
+            api_key_id=ids["api_key_id"],
+            model="openai/gpt-4",
+            provider="openai",
+            prompt_tokens=10,
+            completion_tokens=5,
+            cost_usd=Decimal("0.001000"),
+            latency_ms=100,
+            ttft_ms=None,
+            status_code=200,
+            team_id=team_id,
+        )
+        row = _mock_db.add.call_args[0][0]
+        assert row.request_metadata["team_id"] == str(team_id)
+
+
+# ── provider_key_id ─────────────────────────────────────────────────────
+
+
+class TestProviderKeyId:
+    @pytest.mark.asyncio
+    async def test_provider_key_id_stored_when_passed(self, fake_redis, ids, _mock_db):
+        """When provider_key_id is passed, it is stored on the RequestLog row."""
+        provider_key_id = uuid.uuid4()
+        await log_request(
+            redis=fake_redis,
+            request_id=ids["request_id"],
+            org_id=ids["org_id"],
+            user_id=ids["user_id"],
+            api_key_id=ids["api_key_id"],
+            provider_key_id=provider_key_id,
+            model="openai/gpt-4",
+            provider="openai",
+            prompt_tokens=10,
+            completion_tokens=5,
+            cost_usd=Decimal("0.001000"),
+            latency_ms=100,
+            ttft_ms=None,
+            status_code=200,
+        )
+        row = _mock_db.add.call_args[0][0]
+        assert row.provider_key_id == provider_key_id
+
+
 # ── labels ──────────────────────────────────────────────────────────────
 
 

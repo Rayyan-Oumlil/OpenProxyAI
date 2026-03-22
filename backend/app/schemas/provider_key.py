@@ -39,3 +39,9 @@ class ProviderKeyResponse(BaseModel):
 	is_active: bool
 	region: str
 	created_at: datetime
+	# Circuit breaker state (when CIRCUIT_BREAKER_ENABLED): Unix timestamp when circuit closes, or None if closed
+	circuit_open_until: float | None = None
+	# Adaptive LB metrics (when ADAPTIVE_LB_ENABLED): sampled from request_logs
+	latency_p99_ms: float | None = None
+	error_rate: float | None = None
+	effective_weight: int | None = None

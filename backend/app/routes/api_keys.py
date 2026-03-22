@@ -10,6 +10,7 @@ from app.config import settings
 from app.dependencies import CurrentUser, get_db
 from app.models.api_key import ApiKey
 from app.models.organization import Organization
+from app.models.team import Team, team_members
 from app.schemas.auth import APIKeyCreateRequest, APIKeyCreatedResponse, APIKeyResponse
 from app.services.auth_service import create_api_key
 from app.services.plan_service import check_api_key_limit
@@ -39,6 +40,33 @@ async def create_api_key_route(
 	org = await db.get(Organization, current_user.org_id)
 	if org is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+
+	# If team_id provided, validate user is a member of that team
+	if payload.team_id is not None:
+		team = await db.scalar(
+			select(Team).where(
+				Team.id == payload.team_id,
+				Team.org_id == current_user.org_id,
+			)
+		)
+		if team is None:
+			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+		is_member = (
+			await db.scalar(
+				select(1)
+				.select_from(team_members)
+				.where(
+					team_members.c.team_id == payload.team_id,
+					team_members.c.user_id == current_user.id,
+				)
+			)
+		) is not None
+		if not is_member:
+			raise HTTPException(
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail="You must be a member of the team to create a key for it",
+			)
+
 	result = await db.execute(
 		select(func.count()).where(
 			ApiKey.org_id == current_user.org_id,
@@ -56,6 +84,7 @@ async def create_api_key_route(
 		permissions=payload.permissions,
 		expires_at=payload.expires_at,
 		env=settings.APP_ENV if settings.APP_ENV in {"dev", "prod"} else "dev",
+		team_id=payload.team_id,
 	)
 	return APIKeyCreatedResponse(
 		**APIKeyResponse.model_validate(model).model_dump(),

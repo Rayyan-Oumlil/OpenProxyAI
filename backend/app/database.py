@@ -1,6 +1,5 @@
 """Async SQLAlchemy engine and session factory for PostgreSQL."""
 
-from collections.abc import AsyncGenerator
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import (
@@ -40,12 +39,6 @@ async def set_session_org_id(session: AsyncSession, org_id: UUID | None) -> None
             text("SELECT set_config('app.current_org_id', :org_id, true)"),
             {"org_id": str(org_id)},
         )
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency that yields an async DB session and closes it after use."""
-    async with AsyncSessionLocal() as session:
-        yield session
 
 
 async def ping_db() -> bool:

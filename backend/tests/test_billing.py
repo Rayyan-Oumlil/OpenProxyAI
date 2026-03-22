@@ -5,8 +5,11 @@ from __future__ import annotations
 from types import SimpleNamespace
 from uuid import uuid4
 
-from app.dependencies import get_current_user_from_jwt, get_db
+from starlette.requests import Request
+
+from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
+from tests.conftest import FakeRedis
 from app.services import billing_service as billing_module
 
 
@@ -90,6 +93,22 @@ def _override_db(db_instance):
     app.dependency_overrides[get_db] = dep
 
 
+def _override_redis():
+    """Override get_redis for webhook tests (rate limiting requires Redis)."""
+    fake = FakeRedis()
+
+    async def dep(r: Request):  # type hint ensures Request is injected, not confused with query param
+        return fake
+
+    app.dependency_overrides[get_redis] = dep
+
+
+def _setup_webhook_test(monkeypatch):
+    """Common setup for webhook tests: Stripe config + Redis override for rate limiting."""
+    _set_stripe_config(monkeypatch)
+    _override_redis()
+
+
 def _set_stripe_config(monkeypatch):
     monkeypatch.setattr(billing_module.settings, "STRIPE_SECRET_KEY", "sk_test_123")
     monkeypatch.setattr(billing_module.settings, "STRIPE_WEBHOOK_SECRET", "whsec_123")
@@ -168,7 +187,7 @@ def test_checkout_metered_session_line_items(client, monkeypatch):
 
 
 def test_webhook_subscription_updated_metered_plan_and_settings_cache(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(plan="free", customer_id="cus_123", subscription_id="sub_1")
     org.settings = {}
     db = FakeDB(scalar_results=[org])
@@ -278,7 +297,7 @@ def test_portal_400_if_no_customer(client, monkeypatch):
 
 
 def test_webhook_invalid_signature_returns_400(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     _override_db(FakeDB())
     monkeypatch.setattr(
         billing_module.stripe.Webhook,
@@ -294,7 +313,7 @@ def test_webhook_invalid_signature_returns_400(client, monkeypatch):
 
 
 def test_webhook_idempotency(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(customer_id="cus_123")
     db = FakeDB(
         scalar_results=[org, org],
@@ -328,7 +347,7 @@ def test_webhook_idempotency(client, monkeypatch):
 
 
 def test_webhook_invoice_paid_syncs_plan(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(plan="free", customer_id="cus_123", sub_status="past_due")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
@@ -358,7 +377,7 @@ def test_webhook_invoice_paid_syncs_plan(client, monkeypatch):
 
 def test_webhook_invoice_paid_line_price_as_string_id(client, monkeypatch):
     """Stripe often expands invoice line price to a string price id."""
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(plan="free", customer_id="cus_123", sub_status="past_due")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
@@ -386,7 +405,7 @@ def test_webhook_invoice_paid_line_price_as_string_id(client, monkeypatch):
 
 
 def test_webhook_payment_failed_sets_past_due(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(plan="starter", customer_id="cus_123", sub_status="active")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
@@ -409,7 +428,7 @@ def test_webhook_payment_failed_sets_past_due(client, monkeypatch):
 
 
 def test_webhook_subscription_deleted_downgrades_to_free(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(
         plan="growth",
         customer_id="cus_123",
@@ -439,7 +458,7 @@ def test_webhook_subscription_deleted_downgrades_to_free(client, monkeypatch):
 
 
 def test_webhook_unknown_price_id_does_not_change_plan(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(plan="starter", customer_id="cus_123")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
@@ -467,7 +486,7 @@ def test_webhook_unknown_price_id_does_not_change_plan(client, monkeypatch):
 
 
 def test_webhook_subscription_updated_syncs_plan(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     org = _make_org(
         plan="starter",
         customer_id="cus_123",
@@ -503,7 +522,7 @@ def test_webhook_subscription_updated_syncs_plan(client, monkeypatch):
 
 
 def test_webhook_checkout_unpaid_does_not_upgrade(client, monkeypatch):
-    _set_stripe_config(monkeypatch)
+    _setup_webhook_test(monkeypatch)
     db = FakeDB()
     _override_db(db)
     monkeypatch.setattr(

@@ -92,7 +92,7 @@ async def test_resolve_experiment_routes_to_variant(monkeypatch):
 		pass
 	monkeypatch.setattr(database_module, "set_session_org_id", _noop_set_org)
 
-	variant = SimpleNamespace(model="anthropic/claude-3-5-sonnet", traffic_weight=100)
+	variant = SimpleNamespace(id=uuid4(), model="anthropic/claude-3-5-sonnet", traffic_weight=100)
 	exp = SimpleNamespace(id=uuid4(), variants=[variant])
 	fake_db = MagicMock()
 	fake_db.scalar = AsyncMock(return_value=exp)
@@ -122,7 +122,7 @@ async def test_policy_blocks_variant_not_allowed(fake_redis, monkeypatch):
 	_patch_llm_common(monkeypatch, policy_allowed_models=["openai/gpt-4o"])
 
 	async def _keys(*a, **kw):
-		return ["sk-fake"]
+		return [(None, "sk-fake")]
 	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _keys)
 
 	async def _acompletion(**kw):

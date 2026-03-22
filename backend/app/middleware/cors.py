@@ -21,10 +21,22 @@ def _parse_origins(raw: str) -> list[str]:
 
 def add_cors_middleware(app: FastAPI) -> None:
     """Register CORSMiddleware with origins from settings."""
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=_parse_origins(settings.CORS_ORIGINS),
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    origins = _parse_origins(settings.CORS_ORIGINS)
+    if "*" in origins:
+        # Wildcard CORS requires allow_credentials=False (CORS spec).
+        # For credentialed requests (cookies/auth), set explicit origins instead.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    else:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )

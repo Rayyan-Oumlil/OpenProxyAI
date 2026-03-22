@@ -5,15 +5,17 @@ import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
 import type { ApiKeyCreatedResponse, ApiKeyResponse } from "../../api/types";
+import type { TeamResponse } from "../../api/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { useAuth } from "../../state/AuthContext";
 
 export function ApiKeysPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const queryClient = useQueryClient();
   const [newKeyName, setNewKeyName] = useState("sdk-default");
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [latestCreatedKey, setLatestCreatedKey] = useState<ApiKeyCreatedResponse | null>(null);
 
   const keysQuery = useQuery({
@@ -22,11 +24,28 @@ export function ApiKeysPage() {
     enabled: Boolean(token),
   });
 
+  const teamsMineQuery = useQuery({
+    queryKey: ["teams", "mine", token],
+    queryFn: () =>
+      apiClient.get<TeamResponse[]>("/api/v1/teams?membership=me", token!),
+    enabled: Boolean(token) && user?.role === "admin",
+  });
+  const teamsAllQuery = useQuery({
+    queryKey: ["teams", token],
+    queryFn: () => apiClient.get<TeamResponse[]>("/api/v1/teams", token!),
+    enabled: Boolean(token) && user?.role === "admin",
+  });
+
   const createMutation = useMutation({
-    mutationFn: (name: string) =>
+    mutationFn: ({ name, teamId }: { name: string; teamId: string | null }) =>
       apiClient.post<ApiKeyCreatedResponse>(
         "/api/v1/api-keys",
-        { name, permissions: ["proxy:llm"], expires_at: null },
+        {
+          name,
+          permissions: ["proxy:llm"],
+          expires_at: null,
+          team_id: teamId || null,
+        },
         token ?? undefined
       ),
     onSuccess: (created) => {
@@ -52,7 +71,10 @@ export function ApiKeysPage() {
 
   const onCreateKey = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await createMutation.mutateAsync(newKeyName);
+    await createMutation.mutateAsync({
+      name: newKeyName,
+      teamId: selectedTeamId || null,
+    });
     setNewKeyName("");
   };
 
@@ -70,6 +92,9 @@ export function ApiKeysPage() {
   }
 
   const keys = keysQuery.data ?? [];
+  const teamById = new Map(
+    (teamsAllQuery.data ?? []).map((t) => [t.id, t.name])
+  );
 
   return (
     <section className="page-wrap">
@@ -89,6 +114,24 @@ export function ApiKeysPage() {
             onChange={(event) => setNewKeyName(event.target.value)}
             required
           />
+          {teamsMineQuery.data && teamsMineQuery.data.length > 0 && (
+            <>
+              <label htmlFor="key-team">Team (optional)</label>
+              <select
+                id="key-team"
+                value={selectedTeamId}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+                style={{ border: "1px solid var(--line)", padding: "0.5rem" }}
+              >
+                <option value="">No team</option>
+                {teamsMineQuery.data.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <button type="submit" disabled={createMutation.isPending}>
             {createMutation.isPending ? "Creating..." : "Create Key"}
           </button>
@@ -110,6 +153,7 @@ export function ApiKeysPage() {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Team</th>
                 <th>Prefix</th>
                 <th>Status</th>
                 <th>Created</th>
@@ -120,6 +164,7 @@ export function ApiKeysPage() {
               {keys.map((key) => (
                 <tr key={key.id}>
                   <td>{key.name ?? "Unnamed"}</td>
+                  <td>{key.team_id ? teamById.get(key.team_id) ?? key.team_id : "—"}</td>
                   <td>{key.key_prefix}</td>
                   <td>{key.is_active ? "active" : "revoked"}</td>
                   <td>{new Date(key.created_at).toLocaleString()}</td>

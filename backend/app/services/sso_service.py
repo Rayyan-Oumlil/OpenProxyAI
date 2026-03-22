@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import secrets
 from typing import Any
 from urllib.parse import urlencode
 
 import httpx
+import jwt
+from jwt import PyJWKClient
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.sso_connection import SSOConnection
 from app.models.user import User
 from app.services.auth_service import create_access_token, create_refresh_token
@@ -21,6 +23,7 @@ from app.services.crypto_service import decrypt, encrypt
 
 
 _STATE_TTL = 600  # 10 minutes
+_SSO_CODE_TTL = 90  # 90 seconds for one-time code exchange
 
 
 async def create_sso_connection(
@@ -85,6 +88,22 @@ async def _fetch_oidc_config(issuer_url: str) -> dict[str, Any]:
         return response.json()
 
 
+def _get_allowed_redirect_uri() -> str:
+    """Return the single allowed redirect_uri for OIDC callback (C02)."""
+    base = settings.APP_BASE_URL.rstrip("/")
+    return f"{base}/api/v1/auth/sso/callback"
+
+
+def _validate_redirect_uri(redirect_uri: str) -> None:
+    """Validate redirect_uri against allowlist; raise if invalid (C02)."""
+    allowed = _get_allowed_redirect_uri()
+    if not redirect_uri or redirect_uri.strip() != allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid redirect_uri — must match configured APP_BASE_URL callback",
+        )
+
+
 async def initiate_sso(
     db: AsyncSession,
     redis: Redis,
@@ -92,6 +111,7 @@ async def initiate_sso(
     redirect_uri: str,
 ) -> str:
     """Return the IdP authorization URL and store state in Redis."""
+    _validate_redirect_uri(redirect_uri)
     result = await db.execute(
         select(SSOConnection).where(
             SSOConnection.id == connection_id,
@@ -153,6 +173,8 @@ async def handle_sso_callback(
 
     connection_id = state_data["connection_id"]
     expected_nonce = state_data["nonce"]
+    # Use redirect_uri from state (validated at initiate) — OIDC requires exact match
+    token_redirect_uri = state_data["redirect_uri"]
 
     result = await db.execute(
         select(SSOConnection).where(SSOConnection.id == connection_id)
@@ -174,7 +196,7 @@ async def handle_sso_callback(
             data={
                 "grant_type": "authorization_code",
                 "code": code,
-                "redirect_uri": redirect_uri,
+                "redirect_uri": token_redirect_uri,
                 "client_id": conn.client_id,
                 "client_secret": client_secret,
             },
@@ -194,7 +216,18 @@ async def handle_sso_callback(
             detail="No id_token in IdP response",
         )
 
-    claims = _decode_id_token_payload(id_token)
+    jwks_uri = oidc_config.get("jwks_uri")
+    if not jwks_uri:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="IdP discovery missing jwks_uri",
+        )
+    claims = _verify_and_decode_id_token(
+        id_token=id_token,
+        jwks_uri=jwks_uri,
+        client_id=conn.client_id,
+        issuer=oidc_config.get("issuer", conn.issuer_url.rstrip("/")),
+    )
 
     if claims.get("nonce") != expected_nonce:
         raise HTTPException(
@@ -217,17 +250,61 @@ async def handle_sso_callback(
     return access_token, refresh_token
 
 
-def _decode_id_token_payload(id_token: str) -> dict[str, Any]:
-    """Decode JWT payload without signature verification (trust TLS + nonce)."""
-    parts = id_token.split(".")
-    if len(parts) != 3:
+async def create_sso_code(
+    redis: Redis,
+    access_token: str,
+    refresh_token: str,
+) -> str:
+    """Store tokens in Redis under a one-time code; return the code (C03)."""
+    code = secrets.token_urlsafe(32)
+    payload = json.dumps({"access_token": access_token, "refresh_token": refresh_token})
+    await redis.setex(f"sso_code:{code}", _SSO_CODE_TTL, payload)
+    return code
+
+
+async def exchange_sso_code(redis: Redis, code: str) -> tuple[str, str]:
+    """Exchange one-time code for tokens; delete code from Redis. Raises if invalid."""
+    key = f"sso_code:{code}"
+    raw = await redis.get(key)
+    if not raw:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Malformed id_token",
+            detail="Invalid or expired SSO code",
         )
-    padding = 4 - len(parts[1]) % 4
-    payload_bytes = base64.urlsafe_b64decode(parts[1] + "=" * padding)
-    return json.loads(payload_bytes)
+    await redis.delete(key)
+    data = json.loads(raw)
+    return data["access_token"], data["refresh_token"]
+
+
+def _verify_and_decode_id_token(
+    id_token: str,
+    jwks_uri: str,
+    client_id: str,
+    issuer: str,
+) -> dict[str, Any]:
+    """Verify id_token signature via JWKS and decode payload (C01)."""
+    try:
+        jwks_client = PyJWKClient(jwks_uri)
+        signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+        payload = jwt.decode(
+            id_token,
+            signing_key.key,
+            algorithms=["RS256", "ES256", "PS256"],
+            audience=client_id,
+            issuer=issuer,
+            options={"verify_nonce": False},  # we verify nonce ourselves
+        )
+        return payload
+    except jwt.PyJWKClientError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"IdP JWKS error: {e!s}",
+        ) from e
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid id_token: {e!s}",
+        ) from e
 
 
 async def _find_or_provision_user(
