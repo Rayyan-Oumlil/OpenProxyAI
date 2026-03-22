@@ -206,6 +206,8 @@ async def create_api_key(
 	team_id: uuid.UUID | None = None,
 ) -> tuple[ApiKey, str]:
 	"""Create key model and return one-time display full key."""
+	from sqlalchemy import text
+
 	full_key, key_hash, key_prefix = generate_api_key(env=env)
 
 	model = ApiKey(
@@ -220,6 +222,11 @@ async def create_api_key(
 		team_id=team_id,
 	)
 	db.add(model)
+	await db.flush()  # get model.id for lookup insert
+	await db.execute(
+		text("INSERT INTO api_key_lookup (key_hash, org_id, api_key_id) VALUES (:key_hash, :org_id, :api_key_id)"),
+		{"key_hash": key_hash, "org_id": str(org_id), "api_key_id": str(model.id)},
+	)
 	await db.commit()
 	await db.refresh(model)
 	return model, full_key
@@ -228,8 +235,8 @@ async def create_api_key(
 async def validate_api_key(db: AsyncSession, redis: Redis, api_key: str) -> ApiKey:
 	"""Validate API key and return hydrated model with user+org relationships.
 
-	Uses SECURITY DEFINER get_api_key_by_hash to bypass RLS for initial lookup,
-	then sets org_id on session for subsequent RLS-scoped queries.
+	Uses api_key_lookup (no RLS) for key_hash -> org_id, then loads ApiKey from
+	api_keys with RLS enforced. No RLS bypass.
 	"""
 	from sqlalchemy import text
 
@@ -237,20 +244,11 @@ async def validate_api_key(db: AsyncSession, redis: Redis, api_key: str) -> ApiK
 
 	key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 	row = await db.execute(
-		text("SELECT * FROM get_api_key_by_hash(:key_hash)"),
+		text("SELECT org_id, api_key_id FROM api_key_lookup WHERE key_hash = :key_hash"),
 		{"key_hash": key_hash},
 	)
 	row_data = row.mappings().first()
 	if row_data is None:
-		raise INVALID_CREDENTIALS_ERROR
-
-	if not verify_api_key(api_key, row_data["key_hash"]):
-		raise INVALID_CREDENTIALS_ERROR
-
-	if not row_data["is_active"]:
-		raise INVALID_CREDENTIALS_ERROR
-
-	if row_data["expires_at"] is not None and row_data["expires_at"] < _utc_now().replace(tzinfo=None):
 		raise INVALID_CREDENTIALS_ERROR
 
 	org_id_val = row_data["org_id"]
@@ -260,10 +258,19 @@ async def validate_api_key(db: AsyncSession, redis: Redis, api_key: str) -> ApiK
 
 	model = await db.scalar(
 		select(ApiKey)
-		.where(ApiKey.id == row_data["id"])
+		.where(ApiKey.id == row_data["api_key_id"])
 		.options(selectinload(ApiKey.user), selectinload(ApiKey.organization)),
 	)
 	if model is None:
+		raise INVALID_CREDENTIALS_ERROR
+
+	if not verify_api_key(api_key, model.key_hash):
+		raise INVALID_CREDENTIALS_ERROR
+
+	if not model.is_active:
+		raise INVALID_CREDENTIALS_ERROR
+
+	if model.expires_at is not None and model.expires_at < _utc_now().replace(tzinfo=None):
 		raise INVALID_CREDENTIALS_ERROR
 
 	if model.user is None or not model.user.is_active:
