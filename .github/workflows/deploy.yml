@@ -62,7 +62,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
           REDIS_URL: redis://localhost:6379/0
-          SECRET_KEY: test-secret-key-for-ci-only
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
           APP_ENV: test
         run: python -m pytest tests/ -q --tb=short -m "not integration"
 
