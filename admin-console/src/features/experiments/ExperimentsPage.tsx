@@ -113,53 +113,54 @@ function ExperimentModal({
             />
           </label>
           <div>
-            <div className="flex items-center justify-between" style={{ marginBottom: "0.5rem" }}>
-              <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Variants</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Variants</span>
               <button
                 type="button"
                 onClick={addVariant}
-                className="flex items-center gap-1"
-                style={{ fontSize: "0.8rem", color: "var(--accent-sky)" }}
+                className="flex items-center gap-1 text-accent-sky text-xs"
               >
-                <Plus size={12} />
+                <Plus size={12} aria-hidden />
                 Add variant
               </button>
             </div>
             <div className="flex flex-col gap-2">
               {variants.map((v, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2"
-                  style={{
-                    padding: "0.5rem",
-                    border: "1px solid var(--line)",
-                    borderRadius: "8px",
-                    background: "var(--surface)",
-                  }}
-                >
+                <div key={idx} className="flex items-center gap-2 variant-row">
+                  <label className="sr-only" htmlFor={`variant-model-${idx}`}>
+                    Variant {idx + 1} model
+                  </label>
                   <input
+                    id={`variant-model-${idx}`}
                     type="text"
                     value={v.model}
                     onChange={(e) => updateVariant(idx, "model", e.target.value)}
                     placeholder="e.g. anthropic/claude-3-5-sonnet"
-                    style={{ flex: 1, padding: "0.35rem 0.5rem" }}
+                    className="variant-input"
+                    aria-label={`Variant ${idx + 1} model`}
                   />
+                  <label className="sr-only" htmlFor={`variant-weight-${idx}`}>
+                    Variant {idx + 1} traffic weight
+                  </label>
                   <input
+                    id={`variant-weight-${idx}`}
                     type="number"
                     value={v.traffic_weight}
                     onChange={(e) => updateVariant(idx, "traffic_weight", e.target.value)}
                     min={1}
                     max={100}
-                    style={{ width: 70, padding: "0.35rem 0.5rem" }}
+                    className="variant-weight-input"
+                    aria-label={`Variant ${idx + 1} traffic weight`}
                   />
-                  <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>weight</span>
+                  <span className="text-muted-xs">weight</span>
                   {variants.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeVariant(idx)}
-                      style={{ border: "none", background: "transparent", padding: "2px", cursor: "pointer" }}
+                      className="btn-icon-only"
+                      aria-label={`Remove variant ${idx + 1}`}
                     >
-                      <X size={14} style={{ color: "var(--accent-rose)" }} />
+                      <X size={14} className="text-accent-rose" aria-hidden />
                     </button>
                   )}
                 </div>
@@ -167,14 +168,10 @@ function ExperimentModal({
             </div>
           </div>
           <DialogFooter>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ background: "transparent", color: "var(--muted)", border: "1px solid var(--line)" }}
-            >
+            <button type="button" onClick={onClose} className="btn-outline">
               Cancel
             </button>
-            <button type="submit" disabled={isSaving} style={{ background: "var(--accent-sky)" }}>
+            <button type="submit" disabled={isSaving} className="bg-accent-sky">
               {isSaving ? "Saving…" : initial ? "Update" : "Create"}
             </button>
           </DialogFooter>
@@ -197,43 +194,36 @@ function ResultsPanel({ experimentId, token }: { experimentId: string; token: st
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1"
-        style={{ fontSize: "0.8rem", color: "var(--accent-sky)", border: "none", background: "transparent", cursor: "pointer" }}
+        className="flex items-center gap-1 text-accent-sky text-xs border-none bg-transparent cursor-pointer"
+        aria-label={open ? "Hide results" : "View results"}
       >
-        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        {open ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
         View results
       </button>
       {open && (
-        <div
-          style={{
-            marginTop: "0.75rem",
-            padding: "1rem",
-            border: "1px solid var(--line)",
-            borderRadius: "8px",
-            background: "var(--surface)",
-          }}
-        >
-          {resultsQuery.isLoading && <p style={{ color: "var(--muted)" }}>Loading results…</p>}
+        <div className="results-panel">
+          {resultsQuery.isLoading && <p className="text-muted">Loading results…</p>}
           {resultsQuery.isError && (
-            <p style={{ color: "var(--accent-rose)" }}>
+            <p className="text-accent-rose">
               {resultsQuery.error instanceof Error ? resultsQuery.error.message : "Failed to load"}
             </p>
           )}
           {resultsQuery.data && (
-            <table className="data-table" style={{ fontSize: "0.85rem" }}>
+            <table className="data-table text-sm">
               <thead>
                 <tr>
                   <th>Model</th>
                   <th>Requests</th>
                   <th>Avg latency (ms)</th>
                   <th>Cost (USD)</th>
+                  <th>Quality</th>
                   <th>Policy violations</th>
                 </tr>
               </thead>
               <tbody>
                 {resultsQuery.data.variants.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ color: "var(--muted)" }}>
+                    <td colSpan={6} className="text-muted">
                       No traffic yet
                     </td>
                   </tr>
@@ -246,6 +236,15 @@ function ResultsPanel({ experimentId, token }: { experimentId: string; token: st
                       <td>{v.request_count}</td>
                       <td>{v.avg_latency_ms != null ? v.avg_latency_ms.toFixed(0) : "—"}</td>
                       <td>{Number(v.total_cost_usd).toFixed(4)}</td>
+                      <td>
+                        {v.scores && v.scores.length > 0 ? (
+                          <span title={v.scores.map((s) => `${s.name}: ${s.avg.toFixed(2)} (n=${s.count})`).join(", ")}>
+                            {v.scores.map((s) => `${s.name}: ${s.avg.toFixed(2)}`).join(", ")}
+                          </span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
                       <td>{v.policy_violations}</td>
                     </tr>
                   ))
@@ -346,10 +345,10 @@ export function ExperimentsPage() {
         <button
           type="button"
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5"
-          style={{ background: "var(--accent-sky)" }}
+          className="flex items-center gap-1.5 bg-accent-sky"
+          aria-label="Create new experiment"
         >
-          <Plus size={15} />
+          <Plus size={15} aria-hidden />
           New Experiment
         </button>
       </header>
@@ -377,7 +376,7 @@ export function ExperimentsPage() {
                 <tr key={e.id}>
                   <td>
                     <div className="flex items-center gap-1.5">
-                      <BarChart3 size={13} style={{ color: "var(--muted)" }} />
+                      <BarChart3 size={13} className="text-muted" aria-hidden />
                       {e.name}
                     </div>
                   </td>
@@ -385,7 +384,7 @@ export function ExperimentsPage() {
                     <code>{e.target_model}</code>
                   </td>
                   <td>
-                    <span style={{ fontSize: "0.85rem" }}>
+                    <span className="text-sm">
                       {e.variants.map((v) => `${v.model} (${v.traffic_weight})`).join(", ")}
                     </span>
                   </td>
@@ -394,7 +393,7 @@ export function ExperimentsPage() {
                       {e.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </td>
-                  <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
+                  <td className="text-muted text-sm">
                     {new Date(e.created_at).toLocaleDateString()}
                   </td>
                   <td>
@@ -403,37 +402,37 @@ export function ExperimentsPage() {
                         {e.is_active ? (
                           <button
                             type="button"
-                            title="Stop"
                             onClick={() => stopMutation.mutate(e.id)}
-                            style={{ border: "none", background: "transparent", padding: "2px", cursor: "pointer" }}
+                            className="btn-icon-only"
+                            aria-label={`Stop experiment ${e.name}`}
                           >
-                            <Square size={14} style={{ color: "var(--accent-amber)" }} />
+                            <Square size={14} className="text-accent-amber" aria-hidden />
                           </button>
                         ) : (
                           <button
                             type="button"
-                            title="Start"
                             onClick={() => startMutation.mutate(e.id)}
-                            style={{ border: "none", background: "transparent", padding: "2px", cursor: "pointer" }}
+                            className="btn-icon-only"
+                            aria-label={`Start experiment ${e.name}`}
                           >
-                            <Play size={14} style={{ color: "var(--accent-teal)" }} />
+                            <Play size={14} className="text-accent-teal" aria-hidden />
                           </button>
                         )}
                         <button
                           type="button"
-                          title="Edit"
                           onClick={() => setEditing(e)}
-                          style={{ fontSize: "0.75rem", color: "var(--accent-sky)" }}
+                          className="text-accent-sky text-xs"
+                          aria-label={`Edit experiment ${e.name}`}
                         >
                           Edit
                         </button>
                         <button
                           type="button"
-                          title="Delete"
                           onClick={() => handleDelete(e.id)}
-                          style={{ border: "none", background: "transparent", padding: "2px", cursor: "pointer" }}
+                          className="btn-icon-only"
+                          aria-label={`Delete experiment ${e.name}`}
                         >
-                          <Trash2 size={14} style={{ color: "var(--accent-rose)" }} />
+                          <Trash2 size={14} className="text-accent-rose" aria-hidden />
                         </button>
                       </div>
                       {token && <ResultsPanel experimentId={e.id} token={token} />}

@@ -291,7 +291,7 @@ def test_provider_key_rotate_creates_audit_row(client):
     app.dependency_overrides[get_db] = fake_db_dep
 
     with patch(
-        "app.routes.provider_keys.log_admin_action", new_callable=AsyncMock
+        "app.services.provider_key_service.log_admin_action", new_callable=AsyncMock
     ) as mock_log:
         response = client.post(
             f"/api/v1/provider-keys/{key.id}/rotate",

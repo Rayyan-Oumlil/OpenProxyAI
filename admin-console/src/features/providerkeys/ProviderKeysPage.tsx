@@ -138,14 +138,10 @@ function AddKeyModal({
             </select>
           </label>
           <DialogFooter>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ background: "transparent", color: "var(--muted)", border: "1px solid var(--line)" }}
-            >
+            <button type="button" onClick={onClose} className="btn-outline">
               Cancel
             </button>
-            <button type="submit" disabled={isSaving} style={{ background: "var(--accent-sky)" }}>
+            <button type="submit" disabled={isSaving} className="bg-accent-sky">
               {isSaving ? "Saving…" : "Add Key"}
             </button>
           </DialogFooter>
@@ -230,10 +226,10 @@ export function ProviderKeysPage() {
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5"
-          style={{ background: "var(--accent-sky)" }}
+          className="flex items-center gap-1.5 bg-accent-sky"
+          aria-label="Add provider key"
         >
-          <Plus size={15} />
+          <Plus size={15} aria-hidden />
           Add Provider Key
         </button>
       </header>
@@ -245,15 +241,16 @@ export function ProviderKeysPage() {
         />
       ) : (
         <section className="surface-panel">
-          <div className="flex items-center gap-2" style={{ marginBottom: "0.75rem" }}>
-            <label htmlFor="region-filter" style={{ fontSize: "0.875rem", color: "var(--muted)" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <label htmlFor="region-filter" className="text-muted-sm font-medium">
               Filter by region:
             </label>
             <select
               id="region-filter"
               value={regionFilter}
               onChange={(e) => setRegionFilter(e.target.value)}
-              style={{ padding: "0.25rem 0.5rem", borderRadius: "4px", border: "1px solid var(--line)" }}
+              className="select-filter"
+              aria-label="Filter provider keys by region"
             >
               <option value="all">All</option>
               {REGIONS.map((r) => (
@@ -271,6 +268,14 @@ export function ProviderKeysPage() {
                 <th>Region</th>
                 <th>Key Prefix</th>
                 <th>Weight</th>
+                {(keys.some((k) => k.effective_weight != null) || keys.some((k) => k.latency_p99_ms != null)) && (
+                  <>
+                    <th title="Adaptive LB: p99 latency (ms)">P99 (ms)</th>
+                    <th title="Adaptive LB: error rate">Error %</th>
+                    <th title="Adaptive LB: effective weight used in selection">Eff. Weight</th>
+                  </>
+                )}
+                <th>Circuit</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -281,13 +286,13 @@ export function ProviderKeysPage() {
                 <tr key={k.id}>
                   <td>
                     <div className="flex items-center gap-1.5">
-                      <Plug2 size={13} style={{ color: "var(--muted)" }} />
+                      <Plug2 size={13} className="text-muted" aria-hidden />
                       {k.provider}
                     </div>
                   </td>
                   <td>{k.key_alias ?? k.alias ?? "—"}</td>
                   <td>
-                    <Badge variant="muted" style={{ fontSize: "0.75rem" }}>
+                    <Badge variant="muted" className="text-xs">
                       {REGIONS.find((r) => r.value === k.region)?.label ?? k.region ?? "US"}
                     </Badge>
                   </td>
@@ -295,35 +300,57 @@ export function ProviderKeysPage() {
                     <code>{k.key_prefix}…</code>
                   </td>
                   <td>{k.weight}</td>
+                  {(keys.some((x) => x.effective_weight != null) || keys.some((x) => x.latency_p99_ms != null)) && (
+                    <>
+                      <td className="text-muted text-sm">
+                        {k.latency_p99_ms != null ? Math.round(k.latency_p99_ms) : "—"}
+                      </td>
+                      <td className="text-muted text-sm">
+                        {k.error_rate != null ? `${(k.error_rate * 100).toFixed(1)}%` : "—"}
+                      </td>
+                      <td className="text-muted text-sm">
+                        {k.effective_weight != null ? k.effective_weight : "—"}
+                      </td>
+                    </>
+                  )}
+                  <td>
+                    {k.circuit_open_until != null && k.circuit_open_until > Date.now() / 1000 ? (
+                      <Badge variant="warning" title={`Open until ${new Date(k.circuit_open_until * 1000).toLocaleString()}`}>
+                        Open
+                      </Badge>
+                    ) : (
+                      <span className="text-muted text-xs">Closed</span>
+                    )}
+                  </td>
                   <td>
                     <Badge variant={k.is_active ? "success" : "muted"}>
                       {k.is_active ? "Active" : "Inactive"}
                     </Badge>
                   </td>
-                  <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
+                  <td className="text-muted text-sm">
                     {new Date(k.created_at).toLocaleDateString()}
                   </td>
                   <td>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        title={k.is_active ? "Deactivate" : "Activate"}
                         onClick={() => toggleMutation.mutate({ id: k.id, is_active: !k.is_active })}
-                        style={{ border: "none", background: "transparent", padding: "2px", cursor: "pointer" }}
+                        className="btn-icon-only"
+                        aria-label={k.is_active ? `Deactivate ${k.key_alias ?? k.provider}` : `Activate ${k.key_alias ?? k.provider}`}
                       >
                         {k.is_active ? (
-                          <ToggleRight size={18} style={{ color: "var(--accent-teal)" }} />
+                          <ToggleRight size={18} className="text-accent-teal" aria-hidden />
                         ) : (
-                          <ToggleLeft size={18} style={{ color: "var(--muted)" }} />
+                          <ToggleLeft size={18} className="text-muted" aria-hidden />
                         )}
                       </button>
                       <button
                         type="button"
-                        title="Delete"
                         onClick={() => handleDelete(k.id)}
-                        style={{ border: "none", background: "transparent", padding: "2px", cursor: "pointer" }}
+                        className="btn-icon-only"
+                        aria-label={`Delete ${k.key_alias ?? k.provider}`}
                       >
-                        <Trash2 size={14} style={{ color: "var(--accent-rose)" }} />
+                        <Trash2 size={14} className="text-accent-rose" aria-hidden />
                       </button>
                     </div>
                   </td>

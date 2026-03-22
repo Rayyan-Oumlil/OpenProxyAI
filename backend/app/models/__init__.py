@@ -13,6 +13,7 @@ from app.models.stripe_event import StripeEvent
 from app.models.semantic_cache import SemanticCacheEntry
 from app.models.team import Team
 from app.models.experiment import Experiment, ExperimentVariant
+from app.models.request_score import RequestScore
 
 __all__ = [
     "Base",
@@ -29,4 +30,5 @@ __all__ = [
     "Team",
     "Experiment",
     "ExperimentVariant",
+    "RequestScore",
 ]

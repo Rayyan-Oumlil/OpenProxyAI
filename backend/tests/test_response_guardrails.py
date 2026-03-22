@@ -119,7 +119,7 @@ async def test_response_blocked_keyword_enforcement_mode(monkeypatch, fake_redis
 		)
 
 	async def _fake_provider_key(*args, **kwargs):
-		return ["sk-fake"]
+		return [(None, "sk-fake")]
 
 	async def _fake_acompletion(**kwargs):
 		return fake_llm_response
@@ -186,7 +186,7 @@ async def test_response_pii_redacted_when_response_pii_redact_true(monkeypatch, 
 		return (True, {"X-RateLimit-Requests-Remaining": "59"}, None, None, None)
 
 	async def _fake_provider_key(*args, **kwargs):
-		return ["sk-fake"]
+		return [(None, "sk-fake")]
 
 	async def _fake_acompletion(**kwargs):
 		return fake_llm_response
@@ -260,7 +260,7 @@ async def test_response_blocked_keyword_log_only_mode_passes_through(monkeypatch
 		return (True, {"X-RateLimit-Requests-Remaining": "59"}, None, None, None)
 
 	async def _fake_provider_key(*args, **kwargs):
-		return ["sk-fake"]
+		return [(None, "sk-fake")]
 
 	async def _fake_acompletion(**kwargs):
 		return fake_llm_response

@@ -30,14 +30,6 @@ const PERIOD_OPTIONS = [
   { label: "90 days", value: 90 },
 ];
 
-const ACCENT_COLORS: Record<string, string> = {
-  amber: "var(--accent-amber)",
-  teal: "var(--accent-teal)",
-  rose: "var(--accent-rose)",
-  sky: "var(--accent-sky)",
-  violet: "#7c3aed",
-};
-
 function MetricCard({
   label,
   value,
@@ -52,13 +44,13 @@ function MetricCard({
   subtext?: string;
 }) {
   return (
-    <div className="metric-card" style={{ boxShadow: `inset 0 3px 0 ${ACCENT_COLORS[accent]}` }}>
+    <div className={cn("metric-card", `metric-card--${accent}`)}>
       <div className="flex items-center justify-between">
-        <span style={{ color: "var(--muted)", fontSize: "0.88rem" }}>{label}</span>
-        <Icon size={16} style={{ color: ACCENT_COLORS[accent] }} />
+        <span className="text-muted-sm">{label}</span>
+        <Icon size={16} className={cn("metric-icon", `metric-icon--${accent}`)} aria-hidden />
       </div>
-      <strong style={{ fontSize: "1.25rem" }}>{value}</strong>
-      {subtext && <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>{subtext}</span>}
+      <strong>{value}</strong>
+      {subtext && <span className="text-muted-xs">{subtext}</span>}
     </div>
   );
 }
@@ -67,26 +59,14 @@ function PolicyStrip({ data }: { data: PolicyAnalyticsResponse }) {
   const getCount = (action: string) =>
     data.by_action.find((a) => a.action === action)?.count ?? 0;
   return (
-    <div className="flex flex-wrap gap-2 text-sm">
-      <span
-        className="flex items-center gap-1.5 rounded-full px-3 py-1"
-        style={{ background: "rgba(15,138,123,0.12)", color: "#0d5f55" }}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+    <div className="flex flex-wrap gap-2 text-sm policy-strip">
+      <span className="chip-allow">
         Allow: {getCount("allow").toLocaleString()}
       </span>
-      <span
-        className="flex items-center gap-1.5 rounded-full px-3 py-1"
-        style={{ background: "rgba(217,122,15,0.12)", color: "#7a4500" }}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      <span className="chip-log">
         Log Only: {getCount("log_only").toLocaleString()}
       </span>
-      <span
-        className="flex items-center gap-1.5 rounded-full px-3 py-1"
-        style={{ background: "rgba(204,79,79,0.12)", color: "#8a3131" }}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      <span className="chip-block">
         Block: {getCount("block").toLocaleString()}
       </span>
     </div>
@@ -161,7 +141,7 @@ export function DashboardPage() {
   if (!overviewQuery.data)
     return <EmptyState title="No metrics yet" detail="Send traffic through your gateway first." />;
 
-  const { overview, by_model, daily_trend } = overviewQuery.data;
+  const { overview, by_model, by_team, daily_trend } = overviewQuery.data;
 
   return (
     <section className="page-wrap">
@@ -175,13 +155,10 @@ export function DashboardPage() {
             type="button"
             onClick={downloadComplianceReport}
             disabled={isExportingCompliance || !token}
-            className="px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1.5"
-            style={{
-              border: "1px solid var(--line)",
-              color: "var(--muted)",
-            }}
+            className="btn-outline px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+            aria-label={isExportingCompliance ? "Exporting compliance report" : "Export compliance report as CSV"}
           >
-            <Download size={14} />
+            <Download size={14} aria-hidden />
             {isExportingCompliance ? "Exporting..." : "Export Compliance CSV"}
           </button>
           {PERIOD_OPTIONS.map((opt) => (
@@ -189,12 +166,11 @@ export function DashboardPage() {
               key={opt.value}
               type="button"
               onClick={() => setPeriod(opt.value)}
-              className={cn("px-3 py-1.5 rounded-lg text-sm transition-colors")}
-              style={{
-                background: period === opt.value ? "var(--accent-sky)" : "transparent",
-                color: period === opt.value ? "#fff" : "var(--muted)",
-                border: `1px solid ${period === opt.value ? "var(--accent-sky)" : "var(--line)"}`,
-              }}
+              className={cn(
+                "btn-period",
+                period === opt.value ? "btn-period-active" : "btn-period-inactive"
+              )}
+              aria-label={`Show last ${opt.label}`}
             >
               {opt.label}
             </button>
@@ -203,12 +179,8 @@ export function DashboardPage() {
             <select
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-lg text-sm"
-              style={{
-                border: "1px solid var(--line)",
-                background: "transparent",
-                color: "var(--text)",
-              }}
+              className="select-filter"
+              aria-label="Filter by team"
             >
               <option value="">All teams</option>
               {teamsQuery.data.map((t) => (
@@ -222,9 +194,9 @@ export function DashboardPage() {
       </header>
 
       {policyQuery.data && (
-        <div className="surface-panel" style={{ padding: "0.75rem 1rem" }}>
+        <div className="surface-panel panel-pad-sm">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-medium" style={{ color: "var(--muted)" }}>
+            <span className="text-sm font-medium text-muted-sm">
               Policy decisions:
             </span>
             <PolicyStrip data={policyQuery.data} />
@@ -256,74 +228,98 @@ export function DashboardPage() {
         <MetricCard label="Policy Flagged" value={formatNumber(overview.policy_flagged_requests)} icon={ShieldAlert} accent="amber" />
         <MetricCard
           label="Cache Hit Rate"
-          value={(overview as { cache_hit_rate?: number }).cache_hit_rate != null
-            ? `${Math.round(((overview as { cache_hit_rate?: number }).cache_hit_rate ?? 0) * 100)}%`
+          value={overview.cache_hit_rate != null
+            ? `${Math.round((overview.cache_hit_rate ?? 0) * 100)}%`
             : "—"}
           icon={Zap}
           accent="violet"
-          subtext={(overview as { cache_hit_rate?: number }).cache_hit_rate == null ? "Enable caching to track hits" : undefined}
+          subtext={overview.cache_hit_rate == null ? "Enable caching to track hits" : undefined}
         />
       </section>
 
       <section className="surface-panel">
         <div className="flex items-center justify-between mb-3">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Daily Trend</h2>
-          <span className="text-xs" style={{ color: "var(--muted)" }}>Requests + Cost</span>
+          <h2 className="section-title">Daily Trend</h2>
+          <span className="text-muted-xs">Requests + Cost</span>
         </div>
         <DailyTrendChart data={daily_trend ?? []} />
       </section>
 
-      <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      {user?.role === "admin" && by_team && by_team.length > 0 && (
         <section className="surface-panel">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>Top Models by Cost</h2>
+          <h2 className="section-title-mb">Cost by Team</h2>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th className="text-right">Requests</th>
+                <th className="text-right">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {by_team.map((t) => (
+                <tr key={t.team_id}>
+                  <td className="font-medium">{t.name}</td>
+                  <td className="text-right text-muted">{formatNumber(t.requests)}</td>
+                  <td className="text-right font-medium">{formatCost(t.cost_usd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      <div className="grid-two-col gap-4">
+        <section className="surface-panel">
+          <h2 className="section-title-mb">Top Models by Cost</h2>
           <TopModelsChart data={by_model ?? []} />
         </section>
 
         <section className="surface-panel">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.75rem" }}>Performance</h2>
+          <h2 className="section-title-mb">Performance</h2>
           <table className="data-table">
             <tbody>
               <tr>
-                <td style={{ color: "var(--muted)" }}>Avg Latency</td>
-                <td style={{ fontWeight: 500 }}>{formatLatency(overview.avg_latency_ms)}</td>
+                <td className="text-muted">Avg Latency</td>
+                <td className="font-medium">{formatLatency(overview.avg_latency_ms)}</td>
               </tr>
               <tr>
-                <td style={{ color: "var(--muted)" }}>p50 Latency</td>
-                <td style={{ fontWeight: 500 }}>
+                <td className="text-muted">p50 Latency</td>
+                <td className="font-medium">
                   {overview.p50_latency_ms != null ? formatLatency(overview.p50_latency_ms) : "—"}
                 </td>
               </tr>
               <tr>
-                <td style={{ color: "var(--muted)" }}>p95 Latency</td>
-                <td style={{ fontWeight: 500 }}>
+                <td className="text-muted">p95 Latency</td>
+                <td className="font-medium">
                   {overview.p95_latency_ms != null ? formatLatency(overview.p95_latency_ms) : "—"}
                 </td>
               </tr>
               <tr>
-                <td style={{ color: "var(--muted)" }}>p99 Latency</td>
-                <td style={{ fontWeight: 500 }}>
+                <td className="text-muted">p99 Latency</td>
+                <td className="font-medium">
                   {overview.p99_latency_ms != null ? formatLatency(overview.p99_latency_ms) : "—"}
                 </td>
               </tr>
               <tr>
-                <td style={{ color: "var(--muted)" }}>Avg TTFT</td>
-                <td style={{ fontWeight: 500 }}>{formatLatency(overview.avg_ttft_ms)}</td>
+                <td className="text-muted">Avg TTFT</td>
+                <td className="font-medium">{formatLatency(overview.avg_ttft_ms)}</td>
               </tr>
               <tr>
-                <td style={{ color: "var(--muted)" }}>Total Tokens</td>
-                <td style={{ fontWeight: 500 }}>{formatNumber(overview.total_tokens)}</td>
+                <td className="text-muted">Total Tokens</td>
+                <td className="font-medium">{formatNumber(overview.total_tokens)}</td>
               </tr>
               <tr>
-                <td style={{ color: "var(--muted)" }}>Cost / Request</td>
-                <td style={{ fontWeight: 500 }}>
+                <td className="text-muted">Cost / Request</td>
+                <td className="font-medium">
                   {overview.total_requests > 0
                     ? formatCost(overview.total_cost_usd / overview.total_requests)
                     : "—"}
                 </td>
               </tr>
               <tr>
-                <td style={{ color: "var(--muted)" }}>Success Rate</td>
-                <td style={{ fontWeight: 500 }}>
+                <td className="text-muted">Success Rate</td>
+                <td className="font-medium">
                   {overview.total_requests > 0
                     ? `${((overview.successful_requests / overview.total_requests) * 100).toFixed(1)}%`
                     : "—"}

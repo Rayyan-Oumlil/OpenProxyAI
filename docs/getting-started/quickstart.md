@@ -194,7 +194,8 @@ Response (HTTP 403):
 
 ## Next Steps
 
-- **Full API Reference** — See [api-reference.md](./api-reference.md) for complete endpoint documentation
-- **Webhook Events** — Set up webhooks for cost alerts and policy violations: [webhook-events.md](./webhook-events.md)
-- **Backend Architecture** — Understand how the proxy works: [backend-overview.md](./backend-overview.md)
+- **Base URL Migration** — Already using OpenAI or Anthropic SDKs? Swap `base_url` only: [base-url-migration.md](../guides/base-url-migration.md)
+- **Full API Reference** — See [api-reference.md](../reference/api-reference.md) for complete endpoint documentation
+- **Webhook Events** — Set up webhooks for cost alerts and policy violations: [webhook-events.md](../reference/webhook-events.md)
+- **Architecture Overview** — Understand how the proxy works: [overview.md](../architecture/overview.md)
 - **Admin Console** — Create provider keys, manage users, and view analytics

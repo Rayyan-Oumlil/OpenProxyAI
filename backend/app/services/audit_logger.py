@@ -10,6 +10,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models.request_log import RequestLog
 from app.services.cost_tracker import cost_tracker_service
+from app.services.spend_batch_service import push_to_batch_queue, _serialize_log_entry
 
 
 async def _fire_policy_webhook(
@@ -92,6 +93,7 @@ async def log_request(
 	request_metadata: dict | None = None,
 	labels: dict[str, str] | None = None,
 	team_id: uuid.UUID | None = None,
+	provider_key_id: uuid.UUID | None = None,
 ) -> None:
 	total_tokens = prompt_tokens + completion_tokens
 	metadata = {**(request_metadata or {})}
@@ -99,12 +101,14 @@ async def log_request(
 		metadata = {**metadata, "labels": labels}
 	if team_id is not None:
 		metadata = {**metadata, "team_id": str(team_id)}
-	async with AsyncSessionLocal() as db:
-		row = RequestLog(
+
+	if settings.BATCH_SPEND_ENABLED:
+		serialized = _serialize_log_entry(
 			request_id=request_id,
 			org_id=org_id,
 			user_id=user_id,
 			api_key_id=api_key_id,
+			provider_key_id=provider_key_id,
 			model=model,
 			provider=provider,
 			prompt_tokens=prompt_tokens,
@@ -117,8 +121,29 @@ async def log_request(
 			error_message=error_message,
 			request_metadata=metadata,
 		)
-		db.add(row)
-		await db.commit()
+		await push_to_batch_queue(redis, serialized)
+	else:
+		async with AsyncSessionLocal() as db:
+			row = RequestLog(
+				request_id=request_id,
+				org_id=org_id,
+				user_id=user_id,
+				api_key_id=api_key_id,
+				provider_key_id=provider_key_id,
+				model=model,
+				provider=provider,
+				prompt_tokens=prompt_tokens,
+				completion_tokens=completion_tokens,
+				total_tokens=total_tokens,
+				cost_usd=cost_usd,
+				latency_ms=latency_ms,
+				ttft_ms=ttft_ms,
+				status_code=status_code,
+				error_message=error_message,
+				request_metadata=metadata,
+			)
+			db.add(row)
+			await db.commit()
 
 	today = datetime.now(UTC).strftime("%Y-%m-%d")
 	org_spend_key = f"rl:usd:{org_id}:{today}"

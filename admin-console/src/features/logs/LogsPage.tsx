@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 
-import { apiClient } from "../../api/client";
+import { apiClient, API_BASE_URL } from "../../api/client";
 import type { Page, PolicyAnalyticsResponse, RequestLogItem, TeamResponse } from "../../api/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
@@ -12,8 +12,6 @@ import { LogDetailDrawer } from "./LogDetailDrawer";
 import { useAuth } from "../../state/AuthContext";
 import { formatCost, formatLatency } from "../../lib/utils";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
-
 function buildLogsPath(
   page: number,
   status: string,
@@ -21,7 +19,8 @@ function buildLogsPath(
   policyReason: string,
   startDate: string,
   endDate: string,
-  teamId: string
+  teamId: string,
+  sessionId: string
 ): string {
   const params = new URLSearchParams({ page: String(page), page_size: "20" });
   if (status !== "all") params.set("status", status);
@@ -31,6 +30,8 @@ function buildLogsPath(
   if (startDate) params.set("start_date", startDate);
   if (endDate) params.set("end_date", endDate);
   if (teamId) params.set("team_id", teamId);
+  const s = sessionId.trim();
+  if (s) params.set("session_id", s);
   return `/api/v1/analytics/logs?${params.toString()}`;
 }
 
@@ -77,6 +78,7 @@ export function LogsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
+  const [sessionFilter, setSessionFilter] = useState("");
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -89,11 +91,11 @@ export function LogsPage() {
   const logsQuery = useQuery({
     queryKey: [
       "analytics", "logs", token, page,
-      statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter,
+      statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter, sessionFilter,
     ],
     queryFn: () =>
       apiClient.get<Page<RequestLogItem>>(
-        buildLogsPath(page, statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter),
+        buildLogsPath(page, statusFilter, policyActionFilter, policyReasonFilter, startDate, endDate, teamFilter, sessionFilter),
         token!
       ),
     enabled: Boolean(token),
@@ -144,18 +146,15 @@ export function LogsPage() {
           type="button"
           onClick={handleExport}
           disabled={isExporting}
-          className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors"
-          style={{ border: "1px solid var(--line)", background: "transparent", color: "var(--text)" }}
+          className="btn-outline flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors"
+          aria-label={isExporting ? "Exporting policy events" : "Export policy events as CSV"}
         >
-          <Download size={14} />
-          {isExporting ? "Exporting…" : "Export CSV"}
+          <Download size={14} aria-hidden />
+          {isExporting ? "Exporting…" : "Export Policy Events CSV"}
         </button>
       </header>
 
-      <div
-        className="surface-panel grid gap-3"
-        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
-      >
+      <div className="surface-panel filters-grid">
         <label className="inline-control">
           Status
           <select value={statusFilter} onChange={(e) => { resetPage(); setStatusFilter(e.target.value); }}>
@@ -180,6 +179,15 @@ export function LogsPage() {
             value={policyReasonFilter}
             placeholder="e.g. blocked_keyword"
             onChange={(e) => { resetPage(); setPolicyReasonFilter(e.target.value); }}
+          />
+        </label>
+        <label className="inline-control">
+          Session ID
+          <input
+            type="text"
+            value={sessionFilter}
+            placeholder="Filter by session"
+            onChange={(e) => { resetPage(); setSessionFilter(e.target.value); }}
           />
         </label>
         <label className="inline-control">
@@ -236,13 +244,12 @@ export function LogsPage() {
               <tr
                 key={row.id}
                 onClick={() => setSelectedLogId(row.id)}
-                style={{ cursor: "pointer" }}
-                className="hover:bg-[rgba(44,109,191,0.04)] transition-colors"
+                className="table-row-clickable hover:bg-[rgba(44,109,191,0.04)] transition-colors"
               >
-                <td style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
+                <td className="text-muted text-sm">
                   {new Date(row.created_at).toLocaleString()}
                 </td>
-                <td style={{ fontSize: "0.88rem" }}>{row.model}</td>
+                <td className="text-sm">{row.model}</td>
                 <td>
                   <span className={row.status === "success" ? "chip chip-success" : "chip chip-error"}>
                     {row.status}
@@ -255,7 +262,7 @@ export function LogsPage() {
                       <small>{row.policy_reason ?? "-"}</small>
                     </div>
                   ) : (
-                    <span style={{ color: "var(--muted)" }}>—</span>
+                    <span className="text-muted">—</span>
                   )}
                 </td>
                 <td>{row.total_tokens.toLocaleString()}</td>
@@ -267,17 +274,23 @@ export function LogsPage() {
         </table>
 
         <footer className="table-footer">
-          <p style={{ color: "var(--muted)", fontSize: "0.88rem" }}>
+          <p className="text-muted-sm">
             Page {data.page} of {data.total_pages} &nbsp;·&nbsp; {data.total.toLocaleString()} total
           </p>
           <div className="pager-actions">
-            <button type="button" onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={data.page <= 1}>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              disabled={data.page <= 1}
+              aria-label="Previous page"
+            >
               Previous
             </button>
             <button
               type="button"
               onClick={() => setPage((p) => (p < data.total_pages ? p + 1 : p))}
               disabled={data.page >= data.total_pages}
+              aria-label="Next page"
             >
               Next
             </button>

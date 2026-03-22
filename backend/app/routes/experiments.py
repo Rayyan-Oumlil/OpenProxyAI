@@ -12,12 +12,14 @@ from sqlalchemy.orm import selectinload
 from app.database import set_session_org_id
 from app.dependencies import CurrentUser, get_db, get_redis
 from app.models.experiment import Experiment, ExperimentVariant
+from app.models.request_score import RequestScore
 from app.schemas.experiment import (
 	ExperimentCreate,
 	ExperimentResponse,
 	ExperimentResultsResponse,
 	ExperimentUpdate,
 	ExperimentVariantResponse,
+	ScoreAggregate,
 	VariantMetrics,
 )
 from app.services.admin_audit_service import get_ip, log_admin_action
@@ -377,10 +379,12 @@ async def get_experiment_results(
 ) -> ExperimentResultsResponse:
 	await set_session_org_id(db, current_user.org_id)
 	experiment = await db.scalar(
-		select(Experiment).where(
+		select(Experiment)
+		.where(
 			Experiment.id == experiment_id,
 			Experiment.org_id == current_user.org_id,
 		)
+		.options(selectinload(Experiment.variants))
 	)
 	if experiment is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Experiment not found")
@@ -406,16 +410,43 @@ async def get_experiment_results(
 	)
 	rows = result.mappings().all()
 
-	variants = [
-		VariantMetrics(
-			model=row["model"],
-			request_count=row["request_count"],
-			avg_latency_ms=row["avg_latency_ms"],
-			total_cost_usd=Decimal(str(row["total_cost_usd"])),
-			total_prompt_tokens=row["total_prompt_tokens"],
-			total_completion_tokens=row["total_completion_tokens"],
-			policy_violations=row["policy_violations"],
+	# Aggregate scores per variant from request_scores
+	score_stmt = text("""
+		SELECT variant_id, score_name,
+			AVG(value)::float AS avg_val, COUNT(*)::int AS cnt
+		FROM request_scores
+		WHERE experiment_id = :experiment_id AND variant_id IS NOT NULL
+		GROUP BY variant_id, score_name
+	""")
+	score_result = await db.execute(
+		score_stmt, {"experiment_id": str(experiment_id)}
+	)
+	score_rows = score_result.mappings().all()
+	variant_scores: dict[str, list[dict]] = {}
+	for sr in score_rows:
+		vid = str(sr["variant_id"])
+		variant_scores.setdefault(vid, []).append(
+			{"name": sr["score_name"], "avg": float(sr["avg_val"]), "count": sr["cnt"]}
 		)
-		for row in rows
-	]
+
+	model_to_variant_id = {v.model: str(v.id) for v in experiment.variants}
+	variants = []
+	for row in rows:
+		vid = model_to_variant_id.get(row["model"])
+		scores = [
+			ScoreAggregate(name=s["name"], avg=s["avg"], count=s["count"])
+			for s in variant_scores.get(vid, [])
+		]
+		variants.append(
+			VariantMetrics(
+				model=row["model"],
+				request_count=row["request_count"],
+				avg_latency_ms=row["avg_latency_ms"],
+				total_cost_usd=Decimal(str(row["total_cost_usd"])),
+				total_prompt_tokens=row["total_prompt_tokens"],
+				total_completion_tokens=row["total_completion_tokens"],
+				policy_violations=row["policy_violations"],
+				scores=scores,
+			)
+		)
 	return ExperimentResultsResponse(variants=variants)

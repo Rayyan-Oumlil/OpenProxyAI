@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,6 +47,32 @@ class Settings(BaseSettings):
     # ── Provider Fallback ─────────────────────────────────────────────
     MAX_PROVIDER_FALLBACK_ATTEMPTS: int = 3
 
+    # ── Router Strategy ───────────────────────────────────────────────
+    # simple_shuffle (default) | round_robin | lowest_latency
+    ROUTER_STRATEGY: str = "simple_shuffle"
+
+    # ── Provider Health Check ─────────────────────────────────────────
+    PROVIDER_HEALTH_CHECK_ENABLED: bool = False
+    PROVIDER_HEALTH_FAILURE_THRESHOLD: int = 3
+
+    # ── Circuit Breaker ────────────────────────────────────────────────
+    CIRCUIT_BREAKER_ENABLED: bool = False
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = 5
+    CIRCUIT_BREAKER_COOLDOWN_SECONDS: int = 60
+
+    # ── Key Rotation Scheduler ─────────────────────────────────────────
+    KEY_ROTATION_SCHEDULER_ENABLED: bool = False
+    KEY_ROTATION_INTERVAL_DAYS: int = 30
+
+    # ── Experiment Eval Hook (LLM-as-judge / external callback) ─────────
+    EVAL_HOOK_URL: str = ""  # POST prompt+response, expect {"scores": [...]} or {"score": n}
+    EVAL_LLM_MODEL: str = ""  # e.g. openai/gpt-4o for LLM-as-judge; uses litellm env keys
+
+    # ── Adaptive Load Balancing ─────────────────────────────────────────
+    ADAPTIVE_LB_ENABLED: bool = False
+    ADAPTIVE_LB_SAMPLE_MINUTES: int = 10
+    ADAPTIVE_LB_WEIGHT_FLOOR: float = 0.1  # min effective weight multiplier (B2)
+
     # ── Prompt Injection ML Detection ─────────────────────────────────
     PROMPT_INJECTION_SCORE_THRESHOLD: float = 0.85
     PROMPT_INJECTION_TIMEOUT_SECONDS: float = 2.0
@@ -59,7 +85,7 @@ class Settings(BaseSettings):
     POLICY_PII_DETECTION_ENABLED: bool = True
 
     # ── Presidio NLP PII detection ───────────────────────────────────────
-    PRESIDIO_ENTITIES: list = [
+    PRESIDIO_ENTITIES: list[str] = [
         "EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD",
         "US_SSN", "US_PASSPORT", "PERSON", "IP_ADDRESS",
         "IBAN_CODE", "MEDICAL_LICENSE",
@@ -86,6 +112,12 @@ class Settings(BaseSettings):
     # ── Prometheus ───────────────────────────────────────────────────
     PROMETHEUS_ENABLED: bool = True
 
+    # ── Air-gap mode (Data Residency Tier 2) ─────────────────────────
+    # When True: no outbound telemetry (Langfuse, ClickHouse, spend reports, Stripe metered sync).
+    # LICENSE_KEY required when AIRGAP_MODE=true — startup fails without valid key.
+    AIRGAP_MODE: bool = False
+    LICENSE_KEY: str = ""
+
     # ── ClickHouse analytics dual-write ──────────────────────────────
     CLICKHOUSE_URL: str = ""                    # e.g. "clickhouse://localhost:8123"
     CLICKHOUSE_DATABASE: str = "openproxy"
@@ -108,9 +140,37 @@ class Settings(BaseSettings):
     STRIPE_SUCCESS_URL: str = "http://localhost:5173/billing?success=1"
     STRIPE_CANCEL_URL: str = "http://localhost:5173/billing?canceled=1"
 
+    # Stripe webhook rate limit (requests per minute per IP; Stripe retries, so keep generous)
+    STRIPE_WEBHOOK_RATE_LIMIT_RPM: int = 120
+
     # Metered billing sidecar (hourly Stripe usage record sync)
     METERED_SYNC_ENABLED: bool = True
     METERED_INCLUDED_TOKENS_MONTHLY: int = 1_000_000
+
+    # ── Batched spend writes (Redis queue → Postgres) ─────────────────
+    BATCH_SPEND_ENABLED: bool = False
+    BATCH_SPEND_FLUSH_INTERVAL_SECONDS: int = 60
+    BATCH_SPEND_MAX_SIZE: int = 500
+
+    # ── Spend reports (Slack / email digest) ───────────────────────────
+    SENDGRID_API_KEY: str = ""
+    EMAIL_FROM: str = "noreply@openproxyai.com"
+
+    # ── Security ──────────────────────────────────────────────────────
+    # When True, trust X-Forwarded-For for client IP (use only behind a trusted proxy).
+    # See docs/compliance/self-hosted-security.md and deployment guides.
+    TRUSTED_PROXY: bool = False
+
+    # SSO exchange-code rate limit (requests per minute per IP; prevents brute-force)
+    SSO_EXCHANGE_RATE_LIMIT_RPM: int = 30
+
+    # ── SSO ──────────────────────────────────────────────────────────
+    # Public base URL of the API (e.g. https://api.example.com). Used to validate
+    # redirect_uri in OIDC flows — only {APP_BASE_URL}/api/v1/auth/sso/callback is allowed.
+    APP_BASE_URL: str = "http://localhost:8000"
+    # Frontend base URL for SSO redirect after auth (e.g. https://app.example.com).
+    # Used when redirecting with one-time code; defaults to CORS_ORIGINS first origin.
+    FRONTEND_BASE_URL: str = ""
 
     # ── CORS ─────────────────────────────────────────────────────────
     # Stored as str so pydantic-settings v2 doesn't try to JSON-decode it
@@ -142,6 +202,18 @@ class Settings(BaseSettings):
                 f"PROMPT_INJECTION_TIMEOUT_SECONDS must be positive, got {value}."
             )
         return value
+
+    @model_validator(mode="after")
+    def validate_airgap_license(self) -> "Settings":
+        """When AIRGAP_MODE=true, LICENSE_KEY must be set and valid (min 16 chars)."""
+        if self.AIRGAP_MODE:
+            key = (self.LICENSE_KEY or "").strip()
+            if not key or len(key) < 16:
+                raise ValueError(
+                    "AIRGAP_MODE=true requires a valid LICENSE_KEY (min 16 characters). "
+                    "Set LICENSE_KEY environment variable."
+                )
+        return self
 
     @field_validator("POLICY_ALLOWED_MODELS", "POLICY_BLOCKED_KEYWORDS", mode="before")
     @classmethod

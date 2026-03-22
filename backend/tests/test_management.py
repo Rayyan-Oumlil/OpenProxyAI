@@ -1,6 +1,6 @@
 """Management endpoint tests — users and organization settings guardrails."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -61,7 +61,7 @@ def _managed_user(*, org_id, role="developer", is_active=True):
         budget_daily_usd=None,
         budget_monthly_usd=None,
         is_active=is_active,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
     )
 
 
@@ -75,7 +75,7 @@ def _organization(*, org_id):
         budget_monthly_usd=None,
         is_active=True,
         data_region="us",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
     )
 
 

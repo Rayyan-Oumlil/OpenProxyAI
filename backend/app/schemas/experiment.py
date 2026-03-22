@@ -47,6 +47,12 @@ class ExperimentResponse(BaseModel):
 	created_at: datetime
 
 
+class ScoreAggregate(BaseModel):
+	name: str
+	avg: float
+	count: int
+
+
 class VariantMetrics(BaseModel):
 	model: str
 	request_count: int
@@ -55,6 +61,7 @@ class VariantMetrics(BaseModel):
 	total_prompt_tokens: int
 	total_completion_tokens: int
 	policy_violations: int
+	scores: list[ScoreAggregate] = Field(default_factory=list)
 
 
 class ExperimentResultsResponse(BaseModel):

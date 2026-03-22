@@ -19,6 +19,8 @@ def _get_client():
         return _client
     _initialized = True
     from app.config import settings
+    if settings.AIRGAP_MODE:
+        return None
     if not settings.CLICKHOUSE_URL:
         logger.debug("CLICKHOUSE_URL not set — ClickHouse dual-write disabled")
         return None

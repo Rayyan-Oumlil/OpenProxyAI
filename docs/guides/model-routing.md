@@ -98,6 +98,14 @@ curl -X GET https://api.openproxy.ai/api/v1/provider-keys \
 ]
 ```
 
+## Circuit Breaker (Provider Key Health)
+
+When `CIRCUIT_BREAKER_ENABLED=true`, the gateway tracks consecutive 429/5xx failures per provider key. After `CIRCUIT_BREAKER_FAILURE_THRESHOLD` failures, the key is **open** and skipped from selection for `CIRCUIT_BREAKER_COOLDOWN_SECONDS`. On success, the failure count resets.
+
+**API response:** `GET /api/v1/provider-keys` includes `circuit_open_until` (Unix timestamp when the circuit closes) when the circuit is open. If null or in the past, the key is **closed**.
+
+**Dashboard:** The Provider Keys page shows a **Circuit** column: **Open** (amber badge with tooltip: time until close) or **Closed**. This helps ops understand why traffic shifted away from a key.
+
 ## Weighted Load Balancing
 
 When multiple provider keys exist for the same provider, requests are distributed using weighted random selection.
@@ -120,6 +128,41 @@ When multiple provider keys exist for the same provider, requests are distribute
 ```
 
 Distribution: Key 1 gets ~62% of requests, Key 2 gets ~38% of requests.
+
+### Adaptive Load Balancing
+
+When `ADAPTIVE_LB_ENABLED=true`, the gateway samples latency and error rate per provider key from `request_logs` (last N minutes, configurable via `ADAPTIVE_LB_SAMPLE_MINUTES`). Effective weights are adjusted: keys with higher p99 latency or error rate receive lower effective weight, down to a floor (`ADAPTIVE_LB_WEIGHT_FLOOR`, default 0.1).
+
+- **Sampling job:** Runs every `ADAPTIVE_LB_SAMPLE_MINUTES`; aggregates latency percentiles and error rate (429, 5xx) per `provider_key_id`
+- **Storage:** Redis keys `adaptive:{key_id}:latency_p99` and `adaptive:{key_id}:error_rate` with TTL
+- **Selection:** During key selection, `base_weight * health_factor` is used; health penalizes high latency and errors
+- **Requires:** `provider_key_id` in request logs (populated when using org-level provider keys)
+
+## Router Strategies
+
+The primary key selection strategy is configurable via `ROUTER_STRATEGY` or per-org `settings.router.strategy`:
+
+| Strategy | Description |
+|----------|-------------|
+| `simple_shuffle` | Weighted random selection (default) |
+| `round_robin` | Rotate through keys in order; uses Redis counter `rl:rr:{org_id}:{provider}` |
+| `lowest_latency` | Currently falls back to weighted random; full p95-based selection requires `provider_key_id` in request logs |
+
+**Environment variable:**
+
+```bash
+ROUTER_STRATEGY=round_robin
+```
+
+**Per-org override** (in organization `settings`):
+
+```json
+{
+  "router": {
+    "strategy": "round_robin"
+  }
+}
+```
 
 To adjust distribution, update the weight:
 

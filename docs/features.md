@@ -1,6 +1,6 @@
 # OpenProxyAI — Feature Reference
 
-> Complete inventory of shipped capabilities. ~539 passing backend tests (544 collected), 80 test files.
+> Complete inventory of shipped capabilities. ~612 passing backend tests, 80+ test files.
 
 ---
 
@@ -13,6 +13,11 @@
 | Multi-provider | 100+ LLM providers via LiteLLM (OpenAI, Anthropic, Azure, Mistral, Google, etc.) |
 | Provider fallback | Automatic retry on 429/5xx; never on 4xx client errors. Configurable chain depth |
 | Weighted key rotation | Per-provider keys with `weight` field for probabilistic selection |
+| Router strategies | `simple_shuffle`, `round_robin`, `lowest_latency` via `ROUTER_STRATEGY`; per-org override in `settings.router.strategy` |
+| Provider health check | APScheduler pings keys, marks unhealthy; routing skips unhealthy keys when `PROVIDER_HEALTH_CHECK_ENABLED` |
+| Circuit breaker | Per-key failure tracking; after N consecutive 429/5xx, key skipped until cooldown (`CIRCUIT_BREAKER_ENABLED`, `CIRCUIT_BREAKER_FAILURE_THRESHOLD`, `CIRCUIT_BREAKER_COOLDOWN_SECONDS`). Dashboard shows circuit state (Open/Closed) per key |
+| Adaptive load balancing | When `ADAPTIVE_LB_ENABLED`, samples latency/error per provider key from `request_logs`; adjusts effective weights for selection; Provider Keys dashboard shows P99, Error %, Eff. Weight. See [operational-features.md](./guides/operational-features.md#adaptive-load-balancing) |
+| Key rotation scheduler | Re-encrypt provider keys on interval (`KEY_ROTATION_SCHEDULER_ENABLED`, `KEY_ROTATION_INTERVAL_DAYS`) |
 | Model pattern matching | `fnmatch` patterns on provider keys (e.g. `gpt-4*`, `claude-*`) |
 | Streaming peek | First SSE chunk inspected — provider errors surface as proper HTTP codes, not buried in stream |
 | Response caching | SHA-256 exact-match Redis cache with configurable TTL (off by default) |
@@ -22,7 +27,9 @@
 | Budget pre-flight | Estimated cost check before streaming begins — rejects with 402 if remaining budget is too low |
 | Response headers | Every response includes `X-OpenProxyAI-Request-Id`, `-Cost-USD`, `-Latency-Ms`, `-TTFT-Ms`, `-Cache`, `-Provider`, `-Model`, `-Gateway-Error`, `-Policy-Action`, and `X-RateLimit-*` headers |
 | Request labels | `x-openproxy-labels` header for departmental chargebacks, stored in log metadata |
-| Model A/B experiments | `experiments` + weighted variants on a `target_model`; gateway resolves a variant per request, tags `request_metadata.experiment`, enforces **resolved** model against policy `allowed_models`; results API aggregates per-variant metrics from `request_logs`; PostgreSQL RLS on `experiments` / `experiment_variants`; create/update reject `target_model` / variant models not on the org allowlist when the allowlist is non-empty |
+| Per-request overrides | `x-openproxy-retries` (0–5 max fallback attempts), `x-openproxy-fallback-model` (alternate model when primary keys fail), `x-openproxy-session-id` (trace grouping) |
+| Prompt ID on proxy | Chat completions accept optional `prompt_id` + `variables` instead of `messages`; templates from Playground are resolved server-side with `{{var}}` substitution before policy/model selection |
+| Model A/B experiments | `experiments` + weighted variants on a `target_model`; gateway resolves a variant per request, tags `request_metadata.experiment` (incl. `variant_id`); enforces **resolved** model against policy `allowed_models`; results API aggregates per-variant metrics from `request_logs`; **Request Scores API** (`POST /api/v1/requests/{id}/scores`) for quality scores; **eval hook** (`EVAL_HOOK_URL` / `EVAL_LLM_MODEL`) auto-submits scores for experiment requests (fail-open); results include `scores` (avg, count) per variant; **Experiments dashboard** shows Quality column per variant; PostgreSQL RLS on `experiments` / `experiment_variants`; create/update reject `target_model` / variant models not on the org allowlist when the allowlist is non-empty |
 
 ---
 
@@ -33,6 +40,9 @@
 | Teams API | `GET/POST/PATCH/DELETE /api/v1/teams`, member add/remove — **admin-only** mutations |
 | Members & budgets | Many-to-many users↔teams; optional `budget_monthly_usd` per team |
 | Org isolation | All team operations scoped to the caller's organization |
+| Team-scoped API keys | Optional `team_id` on gateway API keys; creating user must be team member; key's team context propagates to requests |
+| Cost by team | Analytics `by_team` in overview; dashboard "Cost by team" table; team filter on usage |
+| Team rate limits | Policy `per_team_limits: {rpm, tpm}` — per-team RPM/TPM when request has team context |
 
 ---
 
@@ -41,7 +51,7 @@
 | Feature | Details |
 |---|---|
 | Model compare | Side-by-side testing against 2+ models with TTFT, total latency, token count, and cost per response |
-| Prompt templates | CRUD for named templates with system message, user template (`{{variables}}`), versioning, and soft-delete |
+| Prompt templates | CRUD for named templates with system message, user template (`{{variables}}`), versioning, and soft-delete; templates can be invoked on the proxy via `prompt_id` in chat completions |
 | Policy enforcement | Compare endpoint evaluates org policy (model allowlist, keywords, PII) before running comparisons |
 | Audit integration | All playground requests logged through the same audit pipeline as proxy requests |
 
@@ -80,9 +90,12 @@
 |---|---|
 | Org RPM/TPM limits | Fixed-window Redis counters for requests/min and tokens/min |
 | Org daily budget | Redis spend tracking, HTTP 402 on exceeded |
+| Batched spend writes | Optional Redis queue → Postgres flush every 60s (`BATCH_SPEND_ENABLED`) — reduces DB load under high traffic |
 | User daily budget | Per-user spend cap independent of org limit |
 | Per-model rate limits | Model-specific RPM/TPM caps via policy config |
+| Per-team rate limits | Policy `per_team_limits` — RPM/TPM per team when request has team context (API key or `x-openproxy-team-id`) |
 | Budget threshold alerts | Webhook fired at 80% spend (atomic dedup, once per day per org) |
+| Spend reports | Weekly (Mon) and monthly (1st) digest to Slack webhook or email; org settings `spend_report.webhook` / `spend_report.email` |
 | Cost anomaly detection | 7-day baseline comparison per org and per user, configurable multiplier |
 | Rate-limit headers | `X-RateLimit-Requests-Remaining`, `-Tokens-Remaining`, `-Budget-Remaining-USD`, `-Reset` |
 
@@ -127,7 +140,7 @@
 |---|---|
 | Dashboard overview | Cost, tokens, request volume, latency percentiles, projected month-end spend |
 | Daily usage trend | Aggregated from `mv_daily_spend` materialized view (refreshed every 5 min) |
-| Cost by model/user | Breakdown charts for cost attribution |
+| Cost by model/user/team | Breakdown charts for cost attribution; `by_team` in analytics overview; dashboard "Cost by team" table |
 | Latency percentiles | p50/p95/p99 via `percentile_cont()` |
 | TTFT tracking | Time-to-first-token on streaming requests |
 | Monthly projection | Projected month-end spend from daily average |
@@ -164,7 +177,7 @@
 | Login / Signup | Email+password auth with self-serve registration |
 | Dashboard | 8 metric cards, daily trend chart, top models chart, performance table, compliance export |
 | Log Viewer | Filterable request log table with detail drawer |
-| API Keys | Create, list, revoke gateway API keys |
+| API Keys | Create, list, revoke gateway API keys; optional team association (admin dropdown) |
 | Provider Keys | Add, toggle, delete upstream provider keys with region tagging |
 | Policy Config | Full policy editor: enforcement mode, model allowlist, keywords, PII, prompt injection, response guardrails, per-model rate limits, compliance template quick-apply |
 | Billing | Plan cards, Stripe checkout upgrade, portal redirect, subscription status |
@@ -202,12 +215,15 @@
 | CI/CD | GitHub Actions: test → build → push GHCR → helm upgrade on push to main |
 | cert-manager | LetsEncrypt ClusterIssuer for automatic TLS |
 | Kubernetes | Ingress, ConfigMap, ServiceAccount, bundled PostgreSQL + Redis subcharts |
+| Customer-cluster install | [customer-cluster-install.md](./guides/customer-cluster-install.md) — use your PostgreSQL/Redis, no managed deps |
+| Air-gap mode | `AIRGAP_MODE=true` + `LICENSE_KEY` — disables Langfuse, ClickHouse, spend reports, Stripe metered sync; LLM provider calls remain |
 
 ---
 
-## SDKs
+## SDKs & Integration
 
-| SDK | Details |
+| Item | Details |
 |---|---|
-| Python | `openproxy-ai` on PyPI — sync + async, streaming, typed errors |
-| TypeScript | `openproxy-ai` on npm — ESM + CJS, typed streaming |
+| Python SDK | `openproxy-ai` on PyPI — sync + async, streaming, typed errors |
+| TypeScript SDK | `openproxy-ai` on npm — ESM + CJS, typed streaming |
+| Base URL migration | Use OpenAI/Anthropic SDKs with only a `base_url` change — see [base-url-migration.md](./guides/base-url-migration.md) |

@@ -45,6 +45,16 @@ The `data_region` field on `organizations` (values: `us`, `eu`, `ap`) is intende
 operators to route traffic to region-specific deployments. Enforcement is at the
 infrastructure layer (ingress routing rules, separate clusters per region).
 
+## Deployment Options
+
+| Option | Description | Docs |
+|--------|-------------|------|
+| Managed | Cloud Run, EKS, etc. with OpenProxyAI-managed or cloud-managed PostgreSQL/Redis | [deployment.md](../architecture/deployment.md) |
+| Self-hosted (customer cluster) | Your PostgreSQL, your Redis, your Kubernetes; no managed deps | [customer-cluster-install.md](../guides/customer-cluster-install.md) |
+| Air-gap | Fully disconnected; `AIRGAP_MODE=true` + `LICENSE_KEY`; no outbound telemetry | [airgap-checklist.md](./airgap-checklist.md), [self-hosted-security.md](./self-hosted-security.md) |
+
+For healthcare (HIPAA) and government (FedRAMP) evals, see [self-hosted-security.md](./self-hosted-security.md) for encryption, RLS, key rotation, and network isolation.
+
 ## Audit Log Retention
 
 | Plan | Retention |

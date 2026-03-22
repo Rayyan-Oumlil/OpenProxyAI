@@ -50,11 +50,14 @@ async function parseError(response: Response): Promise<OpenProxyError> {
 
   if (status === 429) {
     const errorCode = body['error'] as string | undefined;
-    if (errorCode === 'budget_exceeded') {
+    const limitType = (body['limit_type'] as string) ?? 'unknown';
+    if (
+      errorCode === 'budget_exceeded' ||
+      limitType.includes('budget')
+    ) {
       const budget = (body['daily_budget_usd'] as number) ?? 0;
       return new BudgetExceededError(budget);
     }
-    const limitType = (body['limit_type'] as string) ?? 'unknown';
     const retryAfter = parseInt(response.headers.get('retry-after') ?? '60', 10);
     return new RateLimitError(limitType, retryAfter);
   }

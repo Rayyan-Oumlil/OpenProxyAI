@@ -132,8 +132,14 @@ class FakeRedis:
 	async def delete(self, *keys: str) -> int:
 		deleted = 0
 		for key in keys:
+			removed = False
 			if key in self._store:
 				del self._store[key]
+				removed = True
+			if key in self._counter:
+				del self._counter[key]
+				removed = True
+			if removed:
 				deleted += 1
 		return deleted
 

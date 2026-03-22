@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import re
 import re as _re
 import uuid
@@ -17,9 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
+from app.utils.logging import get_logger
 from app.services import presidio_service
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Redis key helpers ────────────────────────────────────────────────────────
 
@@ -39,7 +39,8 @@ class PolicyConfig:
 	blocked_keywords: list[str] = field(default_factory=list)
 	pii_detection_enabled: bool = True
 	pii_entities: list[str] = field(default_factory=list)
-	model_rate_limits: dict = field(default_factory=dict)  # e.g. {"openai/gpt-4o": {"rpm": 100, "tpm": 50000}}
+	model_rate_limits: dict[str, dict[str, int]] = field(default_factory=dict)  # e.g. {"openai/gpt-4o": {"rpm": 100, "tpm": 50000}}
+	per_team_limits: dict[str, int] = field(default_factory=dict)  # {"rpm": 60, "tpm": 50000} applied when request has team_id
 	updated_at: datetime | None = None
 	prompt_injection_detection_enabled: bool = False
 	response_guardrails_enabled: bool = False
@@ -65,6 +66,7 @@ class PolicyConfig:
 			pii_detection_enabled=bool(data.get("pii_detection_enabled", True)),
 			pii_entities=list(data.get("pii_entities") or []),
 			model_rate_limits=dict(data.get("model_rate_limits") or {}),
+			per_team_limits=dict(data.get("per_team_limits") or {}),
 			updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else None,
 			prompt_injection_detection_enabled=bool(data.get("prompt_injection_detection_enabled", False)),
 			response_guardrails_enabled=bool(data.get("response_guardrails_enabled", False)),
@@ -79,6 +81,7 @@ class PolicyConfig:
 			"pii_detection_enabled": self.pii_detection_enabled,
 			"pii_entities": self.pii_entities,
 			"model_rate_limits": self.model_rate_limits,
+			"per_team_limits": self.per_team_limits,
 			"updated_at": self.updated_at.isoformat() if self.updated_at else None,
 			"prompt_injection_detection_enabled": self.prompt_injection_detection_enabled,
 			"response_guardrails_enabled": self.response_guardrails_enabled,

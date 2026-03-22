@@ -116,11 +116,30 @@ def _make_request(stream: bool = False):
 	)
 
 
-async def _call(monkeypatch, fake_redis, candidate_keys, acompletion_fn, stream=False):
+def _make_request_with_header(header_name: str, header_value: str):
+	"""Minimal Request-like object with one header."""
+	class _FakeHeaders:
+		def get(self, name):
+			return header_value if name.lower() == header_name.lower() else None
+	return SimpleNamespace(headers=_FakeHeaders())
+
+
+async def _call(monkeypatch, fake_redis, candidate_keys, acompletion_fn, stream=False, http_request=None, select_keys_fn=None):
 	"""Helper: wire candidates + acompletion, call chat_completion, return response."""
 	_patch_common(monkeypatch)
 
 	async def _keys(*a, **kw):
+		if select_keys_fn:
+			out = select_keys_fn(*a, **kw)
+			import asyncio
+			raw = await out if asyncio.iscoroutine(out) else out
+			# Wrap in (key_id, key) tuples if plain strings
+			if raw and isinstance(raw[0], str):
+				return [(None, k) for k in raw]
+			return raw
+		# candidate_keys may be list of str or list of (id, key)
+		if candidate_keys and isinstance(candidate_keys[0], str):
+			return [(None, k) for k in candidate_keys]
 		return candidate_keys
 
 	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _keys)
@@ -143,6 +162,7 @@ async def _call(monkeypatch, fake_redis, candidate_keys, acompletion_fn, stream=
 		api_key=api_key,
 		request_id=uuid4(),
 		background_tasks=BackgroundTasks(),
+		http_request=http_request,
 	)
 
 
@@ -195,6 +215,7 @@ async def test_select_provider_keys_single_key():
 	from unittest.mock import AsyncMock, MagicMock
 
 	key = MagicMock()
+	key.id = uuid4()
 	key.weight = 1
 	key.is_active = True
 	key.model_patterns = None
@@ -205,7 +226,9 @@ async def test_select_provider_keys_single_key():
 	fake_db.scalars = AsyncMock(return_value=iter([key]))
 
 	result = await LLMService()._select_provider_keys(fake_db, uuid4(), "openai")
-	assert result == ["sk-only-key-123456"]
+	assert len(result) == 1
+	assert result[0][0] == key.id
+	assert result[0][1] == "sk-only-key-123456"
 
 
 @pytest.mark.asyncio
@@ -231,18 +254,21 @@ async def test_select_provider_keys_multiple_ordered():
 	import random
 
 	key_low = MagicMock()
+	key_low.id = uuid4()
 	key_low.weight = 1
 	key_low.is_active = True
 	key_low.model_patterns = None
 	key_low.api_key_encrypted = encrypt("sk-low-weight-key123")
 
 	key_mid = MagicMock()
+	key_mid.id = uuid4()
 	key_mid.weight = 5
 	key_mid.is_active = True
 	key_mid.model_patterns = None
 	key_mid.api_key_encrypted = encrypt("sk-mid-weight-key123")
 
 	key_high = MagicMock()
+	key_high.id = uuid4()
 	key_high.weight = 10
 	key_high.is_active = True
 	key_high.model_patterns = None
@@ -256,7 +282,8 @@ async def test_select_provider_keys_multiple_ordered():
 	result = await LLMService()._select_provider_keys(fake_db, uuid4(), "openai")
 
 	assert len(result) == 3
-	assert set(result) == {"sk-low-weight-key123", "sk-mid-weight-key123", "sk-high-weight-key1"}
+	key_strings = [r[1] for r in result]
+	assert set(key_strings) == {"sk-low-weight-key123", "sk-mid-weight-key123", "sk-high-weight-key1"}
 	# Fallbacks (index 1+) must be in descending weight order
 	remaining = result[1:]
 	remaining_weights = {
@@ -265,7 +292,7 @@ async def test_select_provider_keys_multiple_ordered():
 		"sk-high-weight-key1": 10,
 	}
 	if len(remaining) == 2:
-		assert remaining_weights[remaining[0]] >= remaining_weights[remaining[1]]
+		assert remaining_weights[remaining[0][1]] >= remaining_weights[remaining[1][1]]
 
 
 # ── Fallback integration tests ────────────────────────────────────────────────
@@ -400,3 +427,36 @@ async def test_streaming_fallback_on_429(monkeypatch, fake_redis):
 	assert len(calls) == 2
 	assert calls[0] == "sk-key-1"
 	assert calls[1] == "sk-key-2"
+
+
+@pytest.mark.asyncio
+async def test_fallback_model_header_on_all_keys_fail(monkeypatch, fake_redis):
+	"""x-openproxy-fallback-model: when primary keys all fail with 429, retry with alternate model."""
+	ok_resp = _make_litellm_response("Fallback model response")
+	calls = []  # (model, api_key)
+
+	async def acompletion(**kw):
+		model = kw.get("model", "")
+		calls.append((model, kw.get("api_key")))
+		if model == "openai/gpt-4o":
+			raise _error(429)
+		# openai/gpt-4o-mini succeeds
+		return ok_resp
+
+	def select_keys(db, org_id, provider, model=None, redis=None, max_attempts=None):
+		if model == "gpt-4o-mini":
+			return ["sk-fallback-key"]
+		return ["sk-primary-1", "sk-primary-2"]
+
+	http_req = _make_request_with_header("x-openproxy-fallback-model", "openai/gpt-4o-mini")
+	response = await _call(
+		monkeypatch, fake_redis, ["sk-primary-1", "sk-primary-2"],
+		acompletion, http_request=http_req, select_keys_fn=select_keys,
+	)
+	assert response.status_code == 200
+	# Primary model tried both keys (2 calls), then fallback model tried 1 key (1 call)
+	assert len(calls) == 3
+	assert calls[0][0] == "openai/gpt-4o"
+	assert calls[1][0] == "openai/gpt-4o"
+	assert calls[2][0] == "openai/gpt-4o-mini"
+	assert calls[2][1] == "sk-fallback-key"

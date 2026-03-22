@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.api_key import ApiKey
     from app.models.organization import Organization
     from app.models.user import User
 
@@ -39,6 +40,7 @@ class Team(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         secondary=team_members,
         back_populates="teams",
     )
+    api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="team")
 
     def __repr__(self) -> str:
         return f"<Team {self.name!r}>"

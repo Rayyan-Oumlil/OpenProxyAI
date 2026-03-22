@@ -53,6 +53,19 @@ gcloud artifacts repositories create "$AR_REPO" \
   --description="OpenProxyAI Docker images" \
   --quiet 2>/dev/null || echo "  (already exists, skipping)"
 
+echo "▶ Setting Artifact Registry cleanup policy (keep last 2 images)..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if gcloud artifacts repositories set-cleanup-policies "$AR_REPO" \
+  --project="$PROJECT_ID" \
+  --location="$REGION" \
+  --policy="${SCRIPT_DIR}/artifact-registry-cleanup-policy.json" \
+  --no-dry-run \
+  --quiet; then
+  echo "  ✓ Cleanup policy applied"
+else
+  echo "  ⚠ Run manually: gcloud artifacts repositories set-cleanup-policies $AR_REPO --project=$PROJECT_ID --location=$REGION --policy=${SCRIPT_DIR}/artifact-registry-cleanup-policy.json --no-dry-run"
+fi
+
 # ── Cloud SQL — PostgreSQL 15 ─────────────────────────────────────────────────
 echo "▶ Creating Cloud SQL instance (this takes ~5 minutes)..."
 gcloud sql instances create "$DB_INSTANCE" \
@@ -103,6 +116,8 @@ echo "▶ Creating VPC connector..."
 gcloud compute networks vpc-access connectors create openproxyai-connector \
   --region="$REGION" \
   --range=10.8.0.0/28 \
+  --min-instances=1 \
+  --max-instances=3 \
   --quiet 2>/dev/null || echo "  (already exists, skipping)"
 
 # ── Service Account for Cloud Run ────────────────────────────────────────────

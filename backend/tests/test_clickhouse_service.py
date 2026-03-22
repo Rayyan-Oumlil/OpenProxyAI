@@ -36,7 +36,7 @@ def test_is_enabled_returns_false_when_package_missing():
 async def test_write_log_calls_client_insert():
     """write_log() calls client.insert with the correct table and data."""
     import app.services.clickhouse_service as cs
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     mock_client = MagicMock()
     mock_client.insert = MagicMock(return_value=None)
@@ -61,7 +61,7 @@ async def test_write_log_calls_client_insert():
             "ttft_ms": 100,
             "status_code": 200,
             "policy_action": "allow",
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(UTC),
         })
 
     mock_client.insert.assert_called_once()

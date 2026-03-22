@@ -42,6 +42,7 @@ export type UsageOverview = {
   p99_latency_ms?: number | null;
   projected_month_end_cost_usd?: number | null;
   forecast_basis_days?: number | null;
+  cache_hit_rate?: number | null;
 };
 
 export type CostByModel = {
@@ -60,6 +61,14 @@ export type CostByUser = {
   cost_usd: number;
 };
 
+export type CostByTeam = {
+  team_id: string;
+  name: string;
+  requests: number;
+  tokens: number;
+  cost_usd: number;
+};
+
 export type DailyUsageTrend = {
   date: string;
   requests: number;
@@ -72,6 +81,7 @@ export type AnalyticsResponse = {
   overview: UsageOverview;
   by_model: CostByModel[];
   by_user: CostByUser[];
+  by_team: CostByTeam[];
   daily_trend: DailyUsageTrend[];
   generated_at: string;
 };
@@ -109,6 +119,7 @@ export type ApiKeyResponse = {
   is_active: boolean;
   expires_at: string | null;
   created_at: string;
+  team_id: string | null;
 };
 
 export type ApiKeyCreatedResponse = ApiKeyResponse & {
@@ -120,6 +131,7 @@ export type CreateApiKeyRequest = {
   name: string;
   permissions: string[];
   expires_at: string | null;
+  team_id?: string | null;
 };
 
 export type UserResponse = {
@@ -201,6 +213,14 @@ export type ProviderKeyResponse = {
   region: string;
   model_patterns: string[] | null;
   created_at: string;
+  /** Unix timestamp when circuit closes; null if closed (circuit breaker state) */
+  circuit_open_until?: number | null;
+  /** Adaptive LB: p99 latency (ms) from recent request_logs */
+  latency_p99_ms?: number | null;
+  /** Adaptive LB: error rate (0–1) from recent request_logs */
+  error_rate?: number | null;
+  /** Adaptive LB: effective weight used in key selection */
+  effective_weight?: number | null;
 };
 
 export type CreateProviderKeyRequest = {
@@ -358,6 +378,12 @@ export type UpdateExperimentRequest = {
   variants?: Array<{ model: string; traffic_weight: number }>;
 };
 
+export type ScoreAggregate = {
+  name: string;
+  avg: number;
+  count: number;
+};
+
 export type VariantMetrics = {
   model: string;
   request_count: number;
@@ -366,6 +392,7 @@ export type VariantMetrics = {
   total_prompt_tokens: number;
   total_completion_tokens: number;
   policy_violations: number;
+  scores?: ScoreAggregate[];
 };
 
 export type ExperimentResultsResponse = {

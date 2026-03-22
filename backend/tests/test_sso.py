@@ -368,14 +368,58 @@ def test_sso_initiate_redirects_to_idp(client, monkeypatch):
     app.dependency_overrides[get_db] = fake_get_db
     app.dependency_overrides[get_redis] = fake_get_redis
 
+    # redirect_uri is not validated when initiate_sso is mocked
     response = client.get(
         "/api/v1/auth/sso/initiate",
-        params={"connection_id": str(uuid4()), "redirect_uri": "https://app.test/callback"},
+        params={"connection_id": str(uuid4()), "redirect_uri": "https://app.test/api/v1/auth/sso/callback"},
         follow_redirects=False,
     )
 
     assert response.status_code == 302
     assert response.headers["location"] == auth_url
+
+
+def test_sso_initiate_rejects_invalid_redirect_uri(client, monkeypatch):
+    """C02: redirect_uri must match APP_BASE_URL callback."""
+    org_id = uuid4()
+    conn = _sso_connection(org_id)
+
+    async def fake_get_db():
+        yield FakeDB(execute_results=[FakeExecuteResult(scalar_one_or_none_value=conn)])
+
+    async def fake_get_redis():
+        return FakeRedis()
+
+    monkeypatch.setattr(
+        "app.services.sso_service.settings.APP_BASE_URL",
+        "https://api.example.com",
+    )
+
+    async def fake_fetch_oidc(u):
+        return {
+            "authorization_endpoint": "https://example.com/authorize",
+            "token_endpoint": "https://example.com/token",
+            "jwks_uri": "https://example.com/jwks",
+        }
+
+    monkeypatch.setattr(
+        "app.services.sso_service._fetch_oidc_config",
+        fake_fetch_oidc,
+    )
+    app.dependency_overrides[get_db] = fake_get_db
+    app.dependency_overrides[get_redis] = fake_get_redis
+
+    # Wrong redirect_uri (evildomain)
+    response = client.get(
+        "/api/v1/auth/sso/initiate",
+        params={
+            "connection_id": str(conn.id),
+            "redirect_uri": "https://evil.com/callback",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 400
+    assert "redirect_uri" in response.json().get("detail", "").lower()
 
 
 # ---------------------------------------------------------------------------
@@ -430,32 +474,26 @@ def test_handle_sso_callback_mismatched_nonce_returns_400(monkeypatch):
         ]
     )
 
-    # Build a fake id_token with a DIFFERENT nonce
-    header = base64.urlsafe_b64encode(
-        json.dumps({"alg": "RS256"}).encode()
-    ).decode().rstrip("=")
-    payload = base64.urlsafe_b64encode(
-        json.dumps({
-            "sub": "user123",
-            "email": "sso@test.com",
-            "nonce": "wrong-nonce-value",
-        }).encode()
-    ).decode().rstrip("=")
-    fake_id_token = f"{header}.{payload}.fakesignature"
+    fake_token_response = {
+        "access_token": "at",
+        "id_token": "header.payload.sig",
+    }
+
+    def fake_verify_id_token(id_token, jwks_uri, client_id, issuer):  # noqa: ARG001
+        return {"sub": "user123", "email": "sso@test.com", "nonce": "wrong-nonce-value"}
 
     fake_oidc_config = {
         "authorization_endpoint": "https://example.okta.com/authorize",
         "token_endpoint": "https://example.okta.com/token",
-    }
-    fake_token_response = {
-        "access_token": "at",
-        "id_token": fake_id_token,
+        "jwks_uri": "https://example.okta.com/jwks",
+        "issuer": "https://example.okta.com",
     }
 
     async def fake_fetch_oidc_config(issuer_url):  # noqa: ARG001
         return fake_oidc_config
 
     monkeypatch.setattr(sso_service, "_fetch_oidc_config", fake_fetch_oidc_config)
+    monkeypatch.setattr(sso_service, "_verify_and_decode_id_token", fake_verify_id_token)
     monkeypatch.setattr(sso_service, "decrypt", lambda ct: "decrypted-secret")
 
     class FakeHttpxResponse:

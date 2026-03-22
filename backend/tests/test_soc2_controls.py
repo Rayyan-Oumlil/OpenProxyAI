@@ -1,6 +1,6 @@
 """SOC 2 / HIPAA control smoke tests."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -65,7 +65,7 @@ def test_data_region_field_in_org_response(client):
         budget_monthly_usd=None,
         is_active=True,
         data_region="us",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
     )
 
     async def fake_user():

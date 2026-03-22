@@ -58,15 +58,25 @@ class FakeScalarResult:
 class FakeDB:
     """Minimal async DB session stub."""
 
-    def __init__(self, deliveries: list | None = None, org=None) -> None:
+    def __init__(
+        self,
+        deliveries: list | None = None,
+        org=None,
+        orgs: list | None = None,
+    ) -> None:
         self._deliveries = deliveries or []
         self._org = org
+        self._orgs = orgs  # When provided, first scalars() returns these (Organization query)
+        self._scalars_call_count = 0
         self.committed = False
 
     async def execute(self, *args, **kwargs):  # noqa: ARG002
         return None
 
     async def scalars(self, query):  # noqa: ARG002
+        self._scalars_call_count += 1
+        if self._orgs is not None and self._scalars_call_count == 1:
+            return FakeScalarResult(self._orgs)
         return FakeScalarResult(self._deliveries)
 
     async def get(self, model_class, pk):  # noqa: ARG002
@@ -265,7 +275,7 @@ async def test_retry_passes_org_webhook_secret():
     org_id = uuid4()
     delivery = _delivery(attempt_count=1, minutes_since_last_attempt=10, org_id=org_id)
     org = _org(org_id=org_id, settings={"webhooks": {"secret": "org-secret-123"}})
-    db = FakeDB(deliveries=[delivery], org=org)
+    db = FakeDB(deliveries=[delivery], org=org, orgs=[org])
 
     captured_secret = {}
 

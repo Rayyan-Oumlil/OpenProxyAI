@@ -1,5 +1,7 @@
 # Stripe Setup Guide
 
+> **Quick webhook setup:** [stripe-webhook-setup.md](./stripe-webhook-setup.md) — copy-paste checklist for production.
+
 ## 1. Create a Stripe account
 
 Go to [stripe.com](https://stripe.com) and create an account. Use **test mode** during development (the toggle at the top of the dashboard).
@@ -26,8 +28,9 @@ Dashboard → **Developers** → **Webhooks** → **Add endpoint**:
 
 **Endpoint URL:**
 ```
-https://your-domain.com/api/v1/billing/webhook
+https://openproxyai-backend-ikcideatha-nn.a.run.app/api/v1/billing/webhook
 ```
+(Or your custom domain if configured.)
 
 **Events to listen for:**
 - `checkout.session.completed`
@@ -64,18 +67,37 @@ stripe trigger invoice.payment_failed
 stripe trigger customer.subscription.deleted
 ```
 
-## 7. Test mode vs. production
+## 7. Production checklist
+
+Before going live, verify:
+
+1. **Webhook URL (production)** — Use your live backend URL:
+   ```
+   https://openproxyai-backend-ikcideatha-nn.a.run.app/api/v1/billing/webhook
+   ```
+   Or your custom domain if configured. Create a separate webhook endpoint for production in the Stripe dashboard and copy its signing secret.
+
+2. **Redirect URLs** — Set `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL` to your admin console billing page:
+   ```bash
+   STRIPE_SUCCESS_URL=https://admin-console-ecru.vercel.app/billing?success=1
+   STRIPE_CANCEL_URL=https://admin-console-ecru.vercel.app/billing?canceled=1
+   ```
+   Replace with your actual admin-console URL if different.
+
+3. **GitHub secrets** — For CI/CD deployments, add all Stripe env vars as GitHub secrets so they are passed to Cloud Run.
+
+## 8. Test mode vs. production
 
 - Use `sk_test_` keys during development — no real charges are made
 - Use `sk_live_` keys in production only
 - Never commit either key to git — use `.env` files only
 - The app validates that live keys are not used in development (APP_ENV check)
 
-## 8. Enterprise plans
+## 9. Enterprise plans
 
 Enterprise ($25,000+/mo) is handled manually — no Stripe price ID required. Set `org.plan = "enterprise"` directly via the admin API after confirming the contract.
 
-## 9. Usage-based metered plan (optional)
+## 10. Usage-based metered plan (optional)
 
 Create a **metered** price in Stripe (per-unit usage, aggregate usage = **sum**) for token billing. Optionally add a fixed recurring **base** price on the same subscription.
 

@@ -92,7 +92,11 @@ def serialize_org(org) -> dict:
 
 
 def get_ip(request) -> str | None:
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    """Client IP for audit logs. Uses X-Forwarded-For only when TRUSTED_PROXY=true (H03)."""
+    from app.config import settings
+
+    if settings.TRUSTED_PROXY:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
     return request.client.host if request.client else None

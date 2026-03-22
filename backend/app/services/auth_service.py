@@ -203,6 +203,7 @@ async def create_api_key(
 	permissions: list[str],
 	expires_at: datetime | None,
 	env: str = "dev",
+	team_id: uuid.UUID | None = None,
 ) -> tuple[ApiKey, str]:
 	"""Create key model and return one-time display full key."""
 	full_key, key_hash, key_prefix = generate_api_key(env=env)
@@ -216,6 +217,7 @@ async def create_api_key(
 		permissions=permissions,
 		expires_at=expires_at,
 		is_active=True,
+		team_id=team_id,
 	)
 	db.add(model)
 	await db.commit()
