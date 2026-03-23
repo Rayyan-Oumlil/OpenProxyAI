@@ -1,6 +1,9 @@
 # Reference repos — cloned for study, not part of this codebase
 references/
 
+# Cloud SQL local proxy binary
+scripts/.cache/
+
 # Environment files
 .env
 .env.local
