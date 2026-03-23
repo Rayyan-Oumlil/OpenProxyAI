@@ -70,10 +70,14 @@ TAGS_METADATA = [
 
 
 async def refresh_materialized_view() -> None:
-    """Refresh analytics materialized view without blocking API requests."""
+    """Refresh analytics materialized view without blocking API requests.
+
+    Uses SECURITY DEFINER function so the refresh runs as postgres and bypasses
+    RLS on request_logs (which would otherwise filter to 0 rows for openproxyai).
+    """
     try:
         async with AsyncSessionLocal() as session:
-            await session.execute(text("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_daily_spend"))
+            await session.execute(text("SELECT refresh_mv_daily_spend_definer()"))
             await session.commit()
         logger.info("mv_daily_spend refreshed")
     except Exception:
