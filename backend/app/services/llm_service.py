@@ -49,6 +49,12 @@ from app.utils.token_estimator import estimate_tokens
 
 logger = get_logger(__name__)
 
+
+def _provider_error_public_detail(exc: Exception) -> str:
+	"""Avoid leaking internals in production; full message when DEBUG."""
+	return str(exc) if settings.DEBUG else "Upstream provider error"
+
+
 _RETRYABLE_STATUS_CODES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
 
 # (key_id, decrypted_key) — key_id is None for env-provided keys
@@ -1167,7 +1173,7 @@ class LLMService:
 			)
 			raise HTTPException(
 				status_code=502,
-				detail={"error": "provider_error", "detail": "Upstream provider error"},
+				detail={"error": "provider_error", "detail": _provider_error_public_detail(exc)},
 				headers=ctx.rl_headers,
 			) from exc
 
@@ -1362,7 +1368,7 @@ class LLMService:
 			)
 			raise HTTPException(
 				status_code=502,
-				detail={"error": "provider_error", "detail": "Upstream provider error"},
+				detail={"error": "provider_error", "detail": _provider_error_public_detail(exc)},
 				headers=rl_headers,
 			) from exc
 

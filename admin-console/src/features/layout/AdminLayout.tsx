@@ -5,7 +5,6 @@ import {
   List,
   Shield,
   ShieldCheck,
-  ArrowLeftRight,
   Key,
   Plug2,
   Sliders,
@@ -36,8 +35,6 @@ const NAV: NavEntry[] = [
     label: "Monitor",
     icon: Shield,
     items: [
-      { label: "Policy Events", to: "/policy-events", icon: Shield },
-      { label: "Reconciliation", to: "/reconciliation", icon: ArrowLeftRight },
       { label: "Audit Log", to: "/audit", icon: ShieldCheck },
     ],
   },
@@ -261,7 +258,7 @@ export function AdminLayout() {
           ) : (
             <div className="profile-box">
               <p className="text-sm font-medium truncate">{user?.name ?? user?.email ?? "Unknown"}</p>
-              <small>{user?.role ?? "member"}</small>
+              <small>{user?.role ?? "—"}</small>
               <button
                 type="button"
                 onClick={logout}

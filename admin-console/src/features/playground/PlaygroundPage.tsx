@@ -375,7 +375,8 @@ function TemplatesTab({
     }
   }
 
-  const canManage = useAuth().user?.role === "admin" || useAuth().user?.role === "developer";
+  const { user } = useAuth();
+  const canManage = user?.role === "admin" || user?.role === "developer";
 
   if (templatesQuery.isLoading) return <LoadingState label="Loading templates..." />;
   if (templatesQuery.isError) {

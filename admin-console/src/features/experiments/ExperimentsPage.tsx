@@ -75,7 +75,7 @@ function ExperimentModal({
       return;
     }
     if (initial) {
-      onSave({ name: name.trim(), target_model: targetModel.trim(), variants: valid });
+      onSave({ name: name.trim(), variants: valid });
     } else {
       onSave({ name: name.trim(), target_model: targetModel.trim(), variants: valid });
     }
@@ -275,7 +275,7 @@ export function ExperimentsPage() {
       apiClient.createExperiment(data, token!),
     onSuccess: () => {
       toast.success("Experiment created.");
-      qc.invalidateQueries({ queryKey: ["experiments"] });
+      qc.invalidateQueries({ queryKey: ["experiments", token] });
       setShowCreate(false);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create"),
@@ -286,7 +286,7 @@ export function ExperimentsPage() {
       apiClient.updateExperiment(id, data, token!),
     onSuccess: () => {
       toast.success("Experiment updated.");
-      qc.invalidateQueries({ queryKey: ["experiments"] });
+      qc.invalidateQueries({ queryKey: ["experiments", token] });
       setEditing(null);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update"),
@@ -296,7 +296,7 @@ export function ExperimentsPage() {
     mutationFn: (id: string) => apiClient.startExperiment(id, token!),
     onSuccess: () => {
       toast.success("Experiment started.");
-      qc.invalidateQueries({ queryKey: ["experiments"] });
+      qc.invalidateQueries({ queryKey: ["experiments", token] });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to start"),
   });
@@ -305,7 +305,7 @@ export function ExperimentsPage() {
     mutationFn: (id: string) => apiClient.stopExperiment(id, token!),
     onSuccess: () => {
       toast.success("Experiment stopped.");
-      qc.invalidateQueries({ queryKey: ["experiments"] });
+      qc.invalidateQueries({ queryKey: ["experiments", token] });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to stop"),
   });
@@ -314,7 +314,7 @@ export function ExperimentsPage() {
     mutationFn: (id: string) => apiClient.deleteExperiment(id, token!),
     onSuccess: () => {
       toast.success("Experiment deleted.");
-      qc.invalidateQueries({ queryKey: ["experiments"] });
+      qc.invalidateQueries({ queryKey: ["experiments", token] });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete"),
   });

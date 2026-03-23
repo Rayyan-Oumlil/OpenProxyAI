@@ -102,7 +102,9 @@ async def create_experiment(
 	if current_user.role != "admin":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
 
-	# Validate against policy allowlist before touching tenant RLS session (fail fast for tests/clients).
+	# RLS on experiments/experiment_variants requires app.current_org_id before INSERT.
+	await set_session_org_id(db, current_user.org_id)
+	# Validate against policy allowlist (uses policy_store; must not 500 on bad org.settings.policy).
 	await _ensure_experiment_models_on_allowlist(
 		current_user.org_id,
 		db,
@@ -110,7 +112,6 @@ async def create_experiment(
 		payload.target_model,
 		[v.model for v in payload.variants],
 	)
-	await set_session_org_id(db, current_user.org_id)
 	experiment = Experiment(
 		org_id=current_user.org_id,
 		name=payload.name,
