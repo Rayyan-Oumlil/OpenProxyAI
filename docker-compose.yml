@@ -21,9 +21,11 @@ services:
               capabilities: [gpu]
 
   postgres:
-    image: postgres:16-alpine
-    # Port not exposed to the host — accessible only within the Docker network.
-    # To connect locally during development, use: docker exec -it <container> psql
+    # Includes pgvector — required by migrations (CREATE EXTENSION vector).
+    image: pgvector/pgvector:pg16
+    # Host port 5434 avoids clashing with a local Postgres on 5432.
+    ports:
+      - "127.0.0.1:5434:5432"
     environment:
       POSTGRES_DB: openproxyai
       POSTGRES_USER: openproxyai
@@ -38,7 +40,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Port not exposed to the host — accessible only within the Docker network.
+    # Expose for local uvicorn on the host (Docker `api` service uses `redis:6379` on the internal network).
+    ports:
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

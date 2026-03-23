@@ -14,7 +14,7 @@ import { useAuth } from "../../state/AuthContext";
 export function ApiKeysPage() {
   const { token, user } = useAuth();
   const queryClient = useQueryClient();
-  const [newKeyName, setNewKeyName] = useState("sdk-default");
+  const [newKeyName, setNewKeyName] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [latestCreatedKey, setLatestCreatedKey] = useState<ApiKeyCreatedResponse | null>(null);
 
@@ -24,13 +24,7 @@ export function ApiKeysPage() {
     enabled: Boolean(token),
   });
 
-  const teamsMineQuery = useQuery({
-    queryKey: ["teams", "mine", token],
-    queryFn: () =>
-      apiClient.get<TeamResponse[]>("/api/v1/teams?membership=me", token!),
-    enabled: Boolean(token) && user?.role === "admin",
-  });
-  const teamsAllQuery = useQuery({
+  const teamsQuery = useQuery({
     queryKey: ["teams", token],
     queryFn: () => apiClient.get<TeamResponse[]>("/api/v1/teams", token!),
     enabled: Boolean(token) && user?.role === "admin",
@@ -93,7 +87,7 @@ export function ApiKeysPage() {
 
   const keys = keysQuery.data ?? [];
   const teamById = new Map(
-    (teamsAllQuery.data ?? []).map((t) => [t.id, t.name])
+    (teamsQuery.data ?? []).map((t) => [t.id, t.name])
   );
 
   return (
@@ -112,9 +106,10 @@ export function ApiKeysPage() {
             type="text"
             value={newKeyName}
             onChange={(event) => setNewKeyName(event.target.value)}
+            placeholder="e.g. my-app-key"
             required
           />
-          {teamsMineQuery.data && teamsMineQuery.data.length > 0 && (
+          {teamsQuery.data && teamsQuery.data.length > 0 && (
             <>
               <label htmlFor="key-team">Team (optional)</label>
               <select
@@ -124,7 +119,7 @@ export function ApiKeysPage() {
                 style={{ border: "1px solid var(--line)", padding: "0.5rem" }}
               >
                 <option value="">No team</option>
-                {teamsMineQuery.data.map((t) => (
+                {teamsQuery.data.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>

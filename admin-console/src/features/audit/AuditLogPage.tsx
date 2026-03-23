@@ -119,7 +119,17 @@ export function AuditLogPage() {
   const [resourceTypeFilter, setResourceTypeFilter] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Guard: non-admins see an access denied message instead of the page
+  const query = useQuery({
+    queryKey: ["admin-audit-log", token, page, actionFilter, resourceTypeFilter],
+    queryFn: () =>
+      apiClient.get<Page<AdminAuditLogEntry>>(
+        buildAuditPath(page, actionFilter, resourceTypeFilter),
+        token!
+      ),
+    enabled: Boolean(token) && user?.role === "admin",
+  });
+
+  // Guard: non-admins redirect to dashboard
   if (user && user.role !== "admin") {
     return (
       <Navigate to="/" replace />
@@ -129,16 +139,6 @@ export function AuditLogPage() {
   function resetPage() {
     setPage(1);
   }
-
-  const query = useQuery({
-    queryKey: ["admin-audit-log", token, page, actionFilter, resourceTypeFilter],
-    queryFn: () =>
-      apiClient.get<Page<AdminAuditLogEntry>>(
-        buildAuditPath(page, actionFilter, resourceTypeFilter),
-        token!
-      ),
-    enabled: Boolean(token),
-  });
 
   if (query.isLoading) return <LoadingState label="Loading audit log..." />;
   if (query.isError)

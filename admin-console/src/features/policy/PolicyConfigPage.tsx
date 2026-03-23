@@ -82,7 +82,7 @@ function TagInput({
         border: "1px solid var(--line)",
         borderRadius: 12,
         padding: "0.5rem 0.6rem",
-        background: "#fff",
+        background: "var(--surface)",
         display: "flex",
         flexWrap: "wrap",
         gap: "0.35rem",
@@ -182,7 +182,7 @@ function TemplateCard({
       className="rounded-xl border p-4"
       style={{
         borderColor: "var(--line)",
-        background: isApplied ? "rgba(14,165,233,0.05)" : "#fff",
+        background: isApplied ? "rgba(14,165,233,0.05)" : "var(--surface)",
       }}
     >
       <div className="flex items-start gap-3">

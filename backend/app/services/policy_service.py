@@ -124,7 +124,16 @@ class PolicyStore:
 			if org is not None:
 				policy_data = (org.settings or {}).get("policy")
 				if policy_data and isinstance(policy_data, dict):
-					config = PolicyConfig.from_dict(policy_data)
+					try:
+						config = PolicyConfig.from_dict(policy_data)
+					except (ValueError, TypeError, KeyError) as exc:
+						# Bad JSON shape or invalid dates in org.settings.policy — don't 500 the app
+						logger.warning(
+							"Ignoring invalid org policy for %s: %s — using defaults",
+							org_id,
+							exc,
+						)
+						return PolicyConfig.from_settings()
 					await redis.setex(cache_key, _POLICY_CACHE_TTL, json.dumps(config.to_dict()))
 					return config
 		except Exception as exc:

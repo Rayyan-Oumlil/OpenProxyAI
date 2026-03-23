@@ -39,7 +39,7 @@ console.log(response.choices[0].message.content);`;
 
     case "curl":
       return `# cURL
-curl https://api.openproxyai.com/v1/chat/completions \\
+curl ${import.meta.env.VITE_API_BASE_URL ?? "https://api.openproxyai.com"}/v1/chat/completions \\
   -H "Authorization: Bearer ${key}" \\
   -H "Content-Type: application/json" \\
   -d '{"model":"openai/gpt-4o","messages":[{"role":"user","content":"Hello!"}]}'`;

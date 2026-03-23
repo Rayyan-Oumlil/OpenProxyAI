@@ -64,10 +64,12 @@ def serialize_webhook_config(cfg: dict) -> dict:
 
 
 def serialize_team(team) -> dict:
+    # JSONB-safe: only str / None (avoid Decimal/objects that some drivers reject)
+    bud = team.budget_monthly_usd
     return {
         "id": str(team.id),
-        "name": team.name,
-        "budget_monthly_usd": str(team.budget_monthly_usd) if team.budget_monthly_usd else None,
+        "name": team.name if team.name is not None else "",
+        "budget_monthly_usd": str(bud) if bud is not None else None,
     }
 
 

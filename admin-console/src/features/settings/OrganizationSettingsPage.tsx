@@ -179,14 +179,18 @@ export function OrganizationSettingsPage() {
             </p>
           ) : null}
 
-          <label htmlFor="org-settings-json">Settings JSON</label>
-          <textarea
-            id="org-settings-json"
-            className="settings-json"
-            value={settingsJson}
-            onChange={(event) => setSettingsJson(event.target.value)}
-            disabled={!canManageSettings || updateMutation.isPending}
-          />
+          {canManageSettings && (
+            <>
+              <label htmlFor="org-settings-json">Settings JSON</label>
+              <textarea
+                id="org-settings-json"
+                className="settings-json"
+                value={settingsJson}
+                onChange={(event) => setSettingsJson(event.target.value)}
+                disabled={updateMutation.isPending}
+              />
+            </>
+          )}
 
           {formError ? <p className="form-error">{formError}</p> : null}
 
