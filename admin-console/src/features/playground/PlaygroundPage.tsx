@@ -26,10 +26,10 @@ import { formatCost, formatLatency, cn } from "../../lib/utils";
 const COMMON_MODELS = [
   "openai/gpt-4o",
   "openai/gpt-4o-mini",
-  "openai/gpt-4-turbo",
+  "anthropic/claude-sonnet-4-6",
+  "anthropic/claude-haiku-4-5-20251001",
   "anthropic/claude-3-5-sonnet-20241022",
   "anthropic/claude-3-5-haiku-20241022",
-  "anthropic/claude-3-opus-20240229",
   "google/gemini-1.5-pro",
   "google/gemini-1.5-flash",
   "mistral/mistral-large-latest",
@@ -48,8 +48,7 @@ function CompareTab({
   onClearTemplate: () => void;
 }) {
   const [models, setModels] = useState<string[]>([
-    "openai/gpt-4o-mini",
-    "anthropic/claude-3-5-haiku-20241022",
+    "anthropic/claude-haiku-4-5-20251001",
   ]);
   const [systemMessage, setSystemMessage] = useState("");
   const [userMessage, setUserMessage] = useState("");
