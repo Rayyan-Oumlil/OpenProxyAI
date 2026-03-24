@@ -164,12 +164,14 @@ function TemplateCard({
   template,
   isApplied,
   isAdmin,
+  isEligible,
   onApply,
   isApplying,
 }: {
   template: PolicyTemplate;
   isApplied: boolean;
   isAdmin: boolean;
+  isEligible: boolean;
   onApply: () => void;
   isApplying: boolean;
 }) {
@@ -224,23 +226,32 @@ function TemplateCard({
             </ul>
           )}
           {isAdmin && (
-            <button
-              type="button"
-              onClick={onApply}
-              disabled={isApplying}
-              style={{
-                marginTop: 12,
-                padding: "0.4rem 0.8rem",
-                fontSize: "0.85rem",
-                borderRadius: 8,
-                background: "var(--accent-sky)",
-                color: "#fff",
-                border: "none",
-                cursor: isApplying ? "not-allowed" : "pointer",
-              }}
-            >
-              {isApplying ? "Applying…" : "Apply Template"}
-            </button>
+            isEligible ? (
+              <button
+                type="button"
+                onClick={onApply}
+                disabled={isApplying}
+                style={{
+                  marginTop: 12,
+                  padding: "0.4rem 0.8rem",
+                  fontSize: "0.85rem",
+                  borderRadius: 8,
+                  background: "var(--accent-sky)",
+                  color: "#fff",
+                  border: "none",
+                  cursor: isApplying ? "not-allowed" : "pointer",
+                }}
+              >
+                {isApplying ? "Applying…" : "Apply Template"}
+              </button>
+            ) : (
+              <span
+                className="inline-block mt-3 text-xs px-2 py-1 rounded-full"
+                style={{ background: "rgba(245,158,11,0.12)", color: "#92400e" }}
+              >
+                Requires Starter plan
+              </span>
+            )
           )}
         </div>
       </div>
@@ -459,6 +470,7 @@ export function PolicyConfigPage() {
                 template={tpl}
                 isApplied={currentTemplate === tpl.name}
                 isAdmin={isAdmin}
+                isEligible={orgQuery.data?.plan !== "free"}
                 onApply={() => setConfirmTemplate(tpl.name)}
                 isApplying={applyTemplateMutation.isPending && confirmTemplate === tpl.name}
               />
