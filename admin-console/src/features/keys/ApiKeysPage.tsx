@@ -23,18 +23,23 @@ const BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
   "https://openproxyai-backend-ikcideatha-nn.a.run.app";
 
-type Lang = "curl" | "python" | "typescript";
+type Lang = "powershell" | "python" | "typescript";
 
 const LANG_LABELS: { id: Lang; label: string }[] = [
-  { id: "curl", label: "cURL" },
+  { id: "powershell", label: "PowerShell" },
   { id: "python", label: "Python" },
   { id: "typescript", label: "TypeScript" },
 ];
 
 function buildSnippet(lang: Lang, key: string): string {
   switch (lang) {
-    case "curl":
-      return `$body = '{"model": "anthropic/claude-haiku-4-5-20251001", "messages": [{"role": "user", "content": "Hello!"}]}'\ncurl.exe ${BASE_URL}/v1/chat/completions -H "Authorization: Bearer ${key}" -H "Content-Type: application/json" -d $body`;
+    case "powershell":
+      return `Invoke-RestMethod \`
+  -Method POST \`
+  -Uri "${BASE_URL}/v1/chat/completions" \`
+  -Headers @{ Authorization = "Bearer ${key}" } \`
+  -ContentType "application/json" \`
+  -Body '{"model":"anthropic/claude-haiku-4-5-20251001","messages":[{"role":"user","content":"Hello"}]}'`;
     case "python":
       return `from openai import OpenAI
 
@@ -71,7 +76,7 @@ function KeyCreatedModal({
   created: ApiKeyCreatedResponse;
   onClose: () => void;
 }) {
-  const [lang, setLang] = useState<Lang>("curl");
+  const [lang, setLang] = useState<Lang>("powershell");
   const [keyCopied, setKeyCopied] = useState(false);
   const [snippetCopied, setSnippetCopied] = useState(false);
 
