@@ -67,6 +67,21 @@ async def create_api_key_route(
 				detail="You must be a member of the team to create a key for it",
 			)
 
+	# Reject duplicate active key names per user
+	if payload.name:
+		duplicate = await db.scalar(
+			select(ApiKey).where(
+				ApiKey.user_id == current_user.id,
+				ApiKey.name == payload.name,
+				ApiKey.is_active == True,  # noqa: E712
+			)
+		)
+		if duplicate is not None:
+			raise HTTPException(
+				status_code=status.HTTP_409_CONFLICT,
+				detail="An active API key with this name already exists.",
+			)
+
 	result = await db.execute(
 		select(func.count()).where(
 			ApiKey.org_id == current_user.org_id,
