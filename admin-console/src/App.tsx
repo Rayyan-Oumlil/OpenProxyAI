@@ -8,6 +8,7 @@ import { ApiKeysPage } from "./features/keys/ApiKeysPage";
 import { LoginPage } from "./features/auth/LoginPage";
 import { SignupPage } from "./features/auth/SignupPage";
 import { SSOCallbackPage } from "./features/auth/SSOCallbackPage";
+import { AcceptInvitePage } from "./features/auth/AcceptInvitePage";
 import { OrganizationSettingsPage } from "./features/settings/OrganizationSettingsPage";
 import { UsersRolesPage } from "./features/users/UsersRolesPage";
 import { TeamsPage } from "./features/teams/TeamsPage";
@@ -48,6 +49,7 @@ export function App() {
         <Routes>
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/sso-callback" element={<SSOCallbackPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="*" element={<LoginPage />} />
         </Routes>
       ) : (
