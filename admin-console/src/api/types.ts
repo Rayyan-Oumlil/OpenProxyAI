@@ -337,6 +337,26 @@ export type UpdateTeamRequest = {
   budget_monthly_usd?: number | null;
 };
 
+export type InviteResponse = {
+  id: string;
+  org_id: string;
+  email: string;
+  role: string;
+  invited_by: string | null;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+};
+
+export type InviteCreatedResponse = InviteResponse & {
+  invite_url: string;
+};
+
+export type InviteCreateRequest = {
+  email: string;
+  role: "admin" | "developer" | "viewer";
+};
+
 export type AdminAuditLogEntry = {
   id: string;
   actor_email: string;

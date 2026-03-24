@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Users } from "lucide-react";
+import { Plus, Trash2, Users, Copy, Check, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
@@ -9,6 +9,8 @@ import type {
   TeamDetailResponse,
   CreateTeamRequest,
   UserResponse,
+  InviteCreatedResponse,
+  InviteCreateRequest,
 } from "../../api/types";
 import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
@@ -111,11 +113,32 @@ function AddTeamModal({
   );
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Copy to clipboard"
+      style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--accent-sky)", padding: "2px 4px" }}
+    >
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+    </button>
+  );
+}
+
 function ManageMembersModal({
   team,
   open,
   onClose,
   users,
+  token,
   onAddMember,
   onRemoveMember,
 }: {
@@ -123,59 +146,59 @@ function ManageMembersModal({
   open: boolean;
   onClose: () => void;
   users: UserResponse[];
+  token: string;
   onAddMember: (teamId: string, userId: string) => void;
   onRemoveMember: (teamId: string, userId: string) => void;
 }) {
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"developer" | "admin" | "viewer">("developer");
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+
+  const inviteMutation = useMutation({
+    mutationFn: (req: InviteCreateRequest) =>
+      apiClient.post<InviteCreatedResponse>("/api/v1/invites", req, token),
+    onSuccess: (data) => {
+      setInviteUrl(data.invite_url);
+      setInviteEmail("");
+      toast.success(`Invite sent to ${data.email}`);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to send invite"),
+  });
+
   if (!team) return null;
   const memberIds = new Set((team.members ?? []).map((m) => m.id));
   const nonMembers = users.filter((u) => !memberIds.has(u.id));
 
+  function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    inviteMutation.mutate({ email: inviteEmail.trim(), role: inviteRole });
+  }
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); setInviteUrl(null); } }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manage Members — {team.name}</DialogTitle>
+          <DialogTitle>Members — {team.name}</DialogTitle>
         </DialogHeader>
+
         <div className="stack-form">
+          {/* Current members */}
           <div>
-            <p style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
               Current members ({team.members.length})
             </p>
             {team.members.length === 0 ? (
-              <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>No members yet.</p>
+              <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>No members yet — invite someone below.</p>
             ) : (
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {team.members.map((m) => (
-                  <li
-                    key={m.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "0.5rem 0",
-                      borderBottom: "1px solid var(--line)",
-                    }}
-                  >
-                    <span>
+                  <li key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.4rem 0", borderBottom: "1px solid var(--line)" }}>
+                    <span style={{ fontSize: "0.875rem" }}>
                       {m.email}
-                      {m.name ? ` (${m.name})` : ""}
+                      {m.name ? <span style={{ color: "var(--muted)", marginLeft: 4 }}>({m.name})</span> : null}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveMember(team.id, m.id)}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        color: "var(--accent-rose)",
-                        cursor: "pointer",
-                        fontSize: "0.8rem",
-                      }}
-                    >
+                    <button type="button" onClick={() => onRemoveMember(team.id, m.id)} style={{ border: "none", background: "transparent", color: "var(--accent-rose)", cursor: "pointer", fontSize: "0.8rem" }}>
                       Remove
                     </button>
                   </li>
@@ -183,31 +206,76 @@ function ManageMembersModal({
               </ul>
             )}
           </div>
+
+          {/* Add existing org user */}
           {nonMembers.length > 0 && (
             <div>
-              <p style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-                Add member
+              <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+                Add existing user
               </p>
               <select
-                aria-label="Add member"
+                aria-label="Add existing member"
                 style={{ padding: "0.5rem", width: "100%", borderRadius: "4px" }}
                 onChange={(e) => {
                   const userId = e.target.value;
-                  if (userId) {
-                    onAddMember(team.id, userId);
-                    e.target.value = "";
-                  }
+                  if (userId) { onAddMember(team.id, userId); e.target.value = ""; }
                 }}
               >
-                <option value="">Select user…</option>
+                <option value="">Select a team member…</option>
                 {nonMembers.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.email} {u.name ? `(${u.name})` : ""}
+                    {u.email}{u.name ? ` (${u.name})` : ""}
                   </option>
                 ))}
               </select>
             </div>
           )}
+
+          {/* Invite by email */}
+          <div style={{ borderTop: "1px solid var(--line)", paddingTop: "0.75rem" }}>
+            <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+              <Mail size={12} style={{ display: "inline", marginRight: 4 }} />
+              Invite someone new
+            </p>
+            <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.75rem" }}>
+              They'll receive an email with a link to create their account and join your org.
+            </p>
+            <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="colleague@company.com"
+                required
+                style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)" }}
+              />
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as "developer" | "admin" | "viewer")}
+                  style={{ padding: "0.5rem", borderRadius: "4px", border: "1px solid var(--line)", flex: 1 }}
+                >
+                  <option value="developer">Developer</option>
+                  <option value="viewer">Viewer</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button type="submit" disabled={inviteMutation.isPending} style={{ background: "var(--accent-sky)", whiteSpace: "nowrap" }}>
+                  {inviteMutation.isPending ? "Sending…" : "Send Invite"}
+                </button>
+              </div>
+            </form>
+
+            {/* Invite link to copy */}
+            {inviteUrl && (
+              <div style={{ marginTop: "0.75rem", background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 8, padding: "0.6rem 0.75rem" }}>
+                <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.3rem", fontWeight: 600 }}>Invite link — share this directly</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <code style={{ flex: 1, fontSize: "0.72rem", wordBreak: "break-all", color: "var(--accent-sky)" }}>{inviteUrl}</code>
+                  <CopyButton text={inviteUrl} />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -406,6 +474,7 @@ export function TeamsPage() {
         open={Boolean(manageTeamId)}
         onClose={() => setManageTeamId(null)}
         users={usersQuery.data ?? []}
+        token={token!}
         onAddMember={(teamId, userId) =>
           addMemberMutation.mutate({ teamId, userId })
         }
