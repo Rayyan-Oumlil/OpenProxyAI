@@ -144,7 +144,7 @@ def test_create_api_key_success(client, monkeypatch):
 	fake_org = SimpleNamespace(plan="pro", id=org_id)
 	created_key = _fake_api_key(org_id, user.id)
 
-	fake_db = FakeDB(get_result=fake_org, execute_result=0)
+	fake_db = FakeDB(get_result=fake_org, scalar_results=[None], execute_result=0)
 	_override_auth(user)
 	_override_db(fake_db)
 
@@ -184,7 +184,7 @@ def test_create_api_key_with_team_as_member_success(client, monkeypatch):
 	# get(Organization) -> org, scalar(Team) -> team, scalar(membership) -> 1, execute(count) -> 0
 	fake_db = FakeDB(
 		get_result=fake_org,
-		scalar_results=[fake_team, 1],
+		scalar_results=[fake_team, 1, None],
 		execute_result=0,
 	)
 	_override_auth(user)
@@ -271,7 +271,7 @@ def test_create_api_key_validation_empty_name(client):
 def test_create_api_key_plan_limit_exceeded(client, monkeypatch):
 	user, org_id = _make_user()
 	fake_org = SimpleNamespace(plan="free", id=org_id)
-	fake_db = FakeDB(get_result=fake_org, execute_result=5)
+	fake_db = FakeDB(get_result=fake_org, scalar_results=[None], execute_result=5)
 	_override_auth(user)
 	_override_db(fake_db)
 

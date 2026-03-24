@@ -31,14 +31,17 @@ class _FakeExecuteResult:
 
 
 class FakeDB:
-	def __init__(self, keys: list[SimpleNamespace] | None = None, org: SimpleNamespace | None = None):
+	def __init__(self, keys: list[SimpleNamespace] | None = None, org: SimpleNamespace | None = None, scalar_results: list | None = None):
 		self.keys = keys or []
 		self._org = org
+		self._scalar_results = list(scalar_results) if scalar_results is not None else None
 
 	async def scalars(self, query):  # noqa: ARG002
 		return FakeScalarResult(self.keys)
 
 	async def scalar(self, query):  # noqa: ARG002
+		if self._scalar_results is not None:
+			return self._scalar_results.pop(0) if self._scalar_results else None
 		if self.keys:
 			return self.keys[0]
 		return None
@@ -217,9 +220,14 @@ def test_api_key_create_list_revoke(client, monkeypatch):
 		return user
 
 	org = SimpleNamespace(id=user.org_id, plan="enterprise")
+	_call = [0]
 
 	async def fake_get_db():
-		yield FakeDB(keys=[model], org=org)
+		_call[0] += 1
+		# First call is CREATE: scalar must return None (no duplicate found)
+		# Subsequent calls (LIST, REVOKE) use normal FakeDB behavior
+		scalar_results = [None] if _call[0] == 1 else None
+		yield FakeDB(keys=[model], org=org, scalar_results=scalar_results)
 
 	async def fake_create_api_key(**kwargs):  # noqa: ANN003
 		return model, "opai_dev_abcd1234_deadbeefdeadbeefdeadbeefabcd"
