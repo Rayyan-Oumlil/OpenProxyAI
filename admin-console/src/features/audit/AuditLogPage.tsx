@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { Navigate } from "react-router-dom";
@@ -217,9 +217,8 @@ export function AuditLogPage() {
                 const isExpanded = expandedId === row.id;
                 const hasDetail = row.before !== null || row.after !== null || row.resource_id !== null;
                 return (
-                  <>
+                  <Fragment key={row.id}>
                     <tr
-                      key={row.id}
                       onClick={() => hasDetail && setExpandedId(isExpanded ? null : row.id)}
                       style={{ cursor: hasDetail ? "pointer" : "default" }}
                       className="hover:bg-[rgba(44,109,191,0.04)] transition-colors"
@@ -237,7 +236,7 @@ export function AuditLogPage() {
                       </td>
                     </tr>
                     {isExpanded && <DetailRow key={`${row.id}-detail`} entry={row} />}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>

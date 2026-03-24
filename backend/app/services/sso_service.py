@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import secrets
 from typing import Any
 from urllib.parse import urlencode
@@ -20,6 +21,8 @@ from app.models.sso_connection import SSOConnection
 from app.models.user import User
 from app.services.auth_service import create_access_token, create_refresh_token
 from app.services.crypto_service import decrypt, encrypt
+
+logger = logging.getLogger(__name__)
 
 
 _STATE_TTL = 600  # 10 minutes
@@ -203,9 +206,10 @@ async def handle_sso_callback(
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         if not token_response.is_success:
+            logger.warning("IdP token exchange failed (status=%s): %s", token_response.status_code, token_response.text[:500])
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"IdP token exchange failed: {token_response.text[:200]}",
+                detail="IdP token exchange failed",
             )
         token_data = token_response.json()
 
@@ -296,14 +300,16 @@ def _verify_and_decode_id_token(
         )
         return payload
     except jwt.PyJWKClientError as e:
+        logger.warning("IdP JWKS error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"IdP JWKS error: {e!s}",
+            detail="SSO authentication failed",
         ) from e
     except jwt.InvalidTokenError as e:
+        logger.warning("Invalid id_token: %s", e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid id_token: {e!s}",
+            detail="SSO authentication failed",
         ) from e
 
 

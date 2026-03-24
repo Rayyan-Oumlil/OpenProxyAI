@@ -2,6 +2,7 @@
 
 import logging
 import re
+from urllib.parse import urlparse
 from uuid import UUID
 
 import httpx
@@ -63,6 +64,10 @@ async def _call_http_hook(prompt_text: str, response_text: str, request_id: UUID
 	"""POST to EVAL_HOOK_URL; parse scores from JSON response. Fail-open."""
 	url = settings.EVAL_HOOK_URL.strip()
 	if not url:
+		return []
+	parsed = urlparse(url)
+	if parsed.scheme != "https":
+		logger.warning("EVAL_HOOK_URL must use https — skipping eval hook (got scheme %r)", parsed.scheme)
 		return []
 	try:
 		async with httpx.AsyncClient(timeout=30.0) as client:

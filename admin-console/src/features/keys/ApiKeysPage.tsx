@@ -34,12 +34,14 @@ const LANG_LABELS: { id: Lang; label: string }[] = [
 function buildSnippet(lang: Lang, key: string): string {
   switch (lang) {
     case "powershell":
-      return `Invoke-RestMethod \`
+      return `$base = "${BASE_URL}"
+$body = '{"model":"anthropic/claude-haiku-4-5-20251001","messages":[{"role":"user","content":"Hello"}]}'
+Invoke-RestMethod \`
+  -Uri "$base/v1/chat/completions" \`
   -Method POST \`
-  -Uri "${BASE_URL}/v1/chat/completions" \`
   -Headers @{ Authorization = "Bearer ${key}" } \`
   -ContentType "application/json" \`
-  -Body '{"model":"anthropic/claude-haiku-4-5-20251001","messages":[{"role":"user","content":"Hello"}]}'`;
+  -Body $body`;
     case "python":
       return `from openai import OpenAI
 
@@ -163,6 +165,8 @@ function KeyCreatedModal({
                 maxHeight: 220,
                 fontFamily: "JetBrains Mono, Fira Code, monospace",
                 whiteSpace: "pre",
+                wordBreak: "keep-all",
+                overflowWrap: "normal",
                 margin: 0,
               }}
             >
