@@ -19,9 +19,10 @@ import {
 } from "../../components/ui/dialog";
 import { useAuth } from "../../state/AuthContext";
 
-const BASE_URL =
+const BASE_URL = (
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  "https://openproxyai-backend-ikcideatha-nn.a.run.app";
+  "https://openproxyai-backend-ikcideatha-nn.a.run.app"
+).trim();
 
 type Lang = "powershell" | "python" | "typescript";
 
