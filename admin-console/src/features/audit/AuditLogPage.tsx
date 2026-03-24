@@ -5,6 +5,7 @@ import { Navigate } from "react-router-dom";
 
 import { apiClient } from "../../api/client";
 import type { AdminAuditLogEntry, Page } from "../../api/types";
+import { formatDateTime } from "../../lib/utils";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
@@ -224,7 +225,7 @@ export function AuditLogPage() {
                       className="hover:bg-[rgba(44,109,191,0.04)] transition-colors"
                     >
                       <td style={{ fontSize: "0.82rem", color: "var(--muted)", whiteSpace: "nowrap" }}>
-                        {new Date(row.created_at).toLocaleString()}
+                        {formatDateTime(row.created_at)}
                       </td>
                       <td style={{ fontSize: "0.85rem" }}>{row.actor_email}</td>
                       <td>

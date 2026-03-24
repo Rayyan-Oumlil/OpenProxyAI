@@ -23,8 +23,17 @@ export function formatLatency(ms: number): string {
   return `${Math.round(ms)}ms`;
 }
 
+/** Parse an ISO timestamp from the backend (which may lack timezone info) as UTC. */
+function parseUTC(iso: string): Date {
+  // Backend sends naive datetimes (no Z / +00:00). Without a timezone suffix,
+  // JS treats the string as local time, showing UTC values 4h late for UTC-4 users.
+  // Appending Z forces UTC interpretation so toLocaleString() converts correctly.
+  if (!iso.endsWith("Z") && !iso.includes("+")) return new Date(iso + "Z");
+  return new Date(iso);
+}
+
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+  return parseUTC(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -32,8 +41,12 @@ export function formatDate(iso: string): string {
 }
 
 export function formatDateShort(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
+  return parseUTC(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
+}
+
+export function formatDateTime(iso: string): string {
+  return parseUTC(iso).toLocaleString();
 }

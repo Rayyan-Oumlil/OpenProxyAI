@@ -7,7 +7,7 @@ import type { RequestLogDetail } from "../../api/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody } from "../../components/ui/sheet";
 import { Badge } from "../../components/ui/badge";
 import { useAuth } from "../../state/AuthContext";
-import { formatCost, formatLatency, formatDate } from "../../lib/utils";
+import { formatCost, formatLatency, formatDate, formatDateTime } from "../../lib/utils";
 
 interface LogDetailDrawerProps {
   logId: string | null;
@@ -119,7 +119,7 @@ export function LogDetailDrawer({ logId, onClose }: LogDetailDrawerProps) {
               )}
 
               {/* Core metrics */}
-              <DetailRow icon={Clock} label="Created" value={new Date(d.created_at).toLocaleString()} />
+              <DetailRow icon={Clock} label="Created" value={formatDateTime(d.created_at)} />
               <DetailRow icon={Zap} label="Latency" value={d.latency_ms != null ? formatLatency(d.latency_ms) : "—"} />
               <DetailRow icon={Zap} label="TTFT" value={d.ttft_ms != null ? formatLatency(d.ttft_ms) : "—"} />
               <DetailRow

@@ -13,6 +13,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
 import { Badge } from "../../components/ui/badge";
+import { formatDate } from "../../lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -445,7 +446,7 @@ function TemplatesTab({
                   </td>
                   <td>v{t.version}</td>
                   <td style={{ color: "var(--muted)" }}>
-                    {new Date(t.updated_at).toLocaleDateString()}
+                    {formatDate(t.updated_at)}
                   </td>
                   {canManage && (
                     <td>

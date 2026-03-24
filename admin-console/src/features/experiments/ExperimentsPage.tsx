@@ -13,6 +13,7 @@ import type {
 import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
+import { formatDate } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
 import {
   Dialog,
@@ -394,7 +395,7 @@ export function ExperimentsPage() {
                     </Badge>
                   </td>
                   <td className="text-muted text-sm">
-                    {new Date(e.created_at).toLocaleDateString()}
+                    {formatDate(e.created_at)}
                   </td>
                   <td>
                     <div className="flex flex-col gap-1">

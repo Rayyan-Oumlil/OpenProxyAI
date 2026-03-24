@@ -6,6 +6,7 @@ import { Copy, Check } from "lucide-react";
 
 import { apiClient } from "../../api/client";
 import type { ApiKeyCreatedResponse, ApiKeyResponse } from "../../api/types";
+import { formatDateTime } from "../../lib/utils";
 import type { TeamResponse } from "../../api/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
@@ -360,7 +361,7 @@ export function ApiKeysPage() {
                   <td>{key.team_id ? teamById.get(key.team_id) ?? key.team_id : "—"}</td>
                   <td>{key.key_prefix}</td>
                   <td>{key.is_active ? "active" : "revoked"}</td>
-                  <td>{new Date(key.created_at).toLocaleString()}</td>
+                  <td>{formatDateTime(key.created_at)}</td>
                   <td>
                     <button
                       type="button"
