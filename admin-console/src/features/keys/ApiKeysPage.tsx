@@ -34,13 +34,7 @@ const LANG_LABELS: { id: Lang; label: string }[] = [
 function buildSnippet(lang: Lang, key: string): string {
   switch (lang) {
     case "curl":
-      return `curl ${BASE_URL}/v1/chat/completions \\
-  -H "Authorization: Bearer ${key}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "anthropic/claude-haiku-4-5-20251001",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'`;
+      return `curl.exe ${BASE_URL}/v1/chat/completions -H "Authorization: Bearer ${key}" -H "Content-Type: application/json" -d '{"model": "anthropic/claude-haiku-4-5-20251001", "messages": [{"role": "user", "content": "Hello!"}]}'`;
     case "python":
       return `from openai import OpenAI
 
