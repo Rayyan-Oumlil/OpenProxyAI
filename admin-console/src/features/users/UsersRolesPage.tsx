@@ -7,6 +7,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { useAuth } from "../../state/AuthContext";
+import { formatDate } from "../../lib/utils";
 
 export function UsersRolesPage() {
   const { token, user } = useAuth();
@@ -104,7 +105,7 @@ export function UsersRolesPage() {
                     )}
                   </td>
                   <td>{row.is_active ? "active" : "inactive"}</td>
-                  <td>{new Date(row.created_at).toLocaleDateString()}</td>
+                  <td>{formatDate(row.created_at)}</td>
                   <td>
                     <button
                       type="button"

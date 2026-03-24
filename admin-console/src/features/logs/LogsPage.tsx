@@ -10,7 +10,7 @@ import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { LogDetailDrawer } from "./LogDetailDrawer";
 import { useAuth } from "../../state/AuthContext";
-import { formatCost, formatLatency } from "../../lib/utils";
+import { formatCost, formatLatency, formatDateTime } from "../../lib/utils";
 
 function buildLogsPath(
   page: number,
@@ -247,7 +247,7 @@ export function LogsPage() {
                 className="table-row-clickable hover:bg-[rgba(44,109,191,0.04)] transition-colors"
               >
                 <td className="text-muted text-sm">
-                  {new Date(row.created_at).toLocaleString()}
+                  {formatDateTime(row.created_at)}
                 </td>
                 <td className="text-sm">{row.model}</td>
                 <td>

@@ -13,6 +13,7 @@ import type {
 import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
+import { formatDate } from "../../lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -354,7 +355,7 @@ export function TeamsPage() {
                   </td>
                   <td>{t.member_count}</td>
                   <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
-                    {new Date(t.created_at).toLocaleDateString()}
+                    {formatDate(t.created_at)}
                   </td>
                   <td>
                     <div className="flex items-center gap-2">

@@ -13,6 +13,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
 import { Badge } from "../../components/ui/badge";
+import { formatDate } from "../../lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -328,7 +329,7 @@ export function ProviderKeysPage() {
                     </Badge>
                   </td>
                   <td className="text-muted text-sm">
-                    {new Date(k.created_at).toLocaleDateString()}
+                    {formatDate(k.created_at)}
                   </td>
                   <td>
                     <div className="flex items-center gap-2">
