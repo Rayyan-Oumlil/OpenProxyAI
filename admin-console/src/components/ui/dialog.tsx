@@ -83,7 +83,7 @@ const DialogDescription = React.forwardRef<
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex justify-end gap-2 mt-6", className)} {...props} />
+  <div className={cn("flex justify-end gap-2 mt-6 sticky bottom-0 bg-surface pt-3 -mx-6 px-6 pb-1 border-t border-border", className)} {...props} />
 );
 DialogFooter.displayName = "DialogFooter";
 
