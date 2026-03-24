@@ -204,6 +204,16 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
+    def validate_production_secret_key(self) -> "Settings":
+        """Reject the insecure default SECRET_KEY when running in production."""
+        if self.APP_ENV == "production" and self.SECRET_KEY == "dev-secret-key-change-in-production":
+            raise ValueError(
+                "SECRET_KEY must be changed in production. "
+                "Set a cryptographically random 32+ character string in the SECRET_KEY environment variable."
+            )
+        return self
+
+    @model_validator(mode="after")
     def validate_airgap_license(self) -> "Settings":
         """When AIRGAP_MODE=true, LICENSE_KEY must be set and valid (min 16 chars)."""
         if self.AIRGAP_MODE:

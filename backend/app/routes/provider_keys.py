@@ -74,6 +74,8 @@ async def list_provider_keys(
 	db: AsyncSession = Depends(get_db),
 	redis=Depends(get_redis),
 ) -> list[ProviderKeyResponse]:
+	if current_user.role != "admin":
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
 	rows = await db.scalars(
 		select(LLMProviderKey)
 		.where(LLMProviderKey.org_id == current_user.org_id)
