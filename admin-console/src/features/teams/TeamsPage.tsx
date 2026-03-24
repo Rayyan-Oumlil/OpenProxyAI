@@ -9,6 +9,7 @@ import type {
   TeamDetailResponse,
   CreateTeamRequest,
   UserResponse,
+  InviteResponse,
   InviteCreatedResponse,
   InviteCreateRequest,
 } from "../../api/types";
@@ -154,15 +155,31 @@ function ManageMembersModal({
   const [inviteRole, setInviteRole] = useState<"developer" | "admin" | "viewer">("developer");
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
 
+  const pendingInvitesQuery = useQuery({
+    queryKey: ["invites", token],
+    queryFn: () => apiClient.get<InviteResponse[]>("/api/v1/invites", token),
+    enabled: open && Boolean(token),
+  });
+
   const inviteMutation = useMutation({
     mutationFn: (req: InviteCreateRequest) =>
       apiClient.post<InviteCreatedResponse>("/api/v1/invites", req, token),
     onSuccess: (data) => {
       setInviteUrl(data.invite_url);
       setInviteEmail("");
+      void pendingInvitesQuery.refetch();
       toast.success(`Invite sent to ${data.email}`);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to send invite"),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (inviteId: string) => apiClient.del(`/api/v1/invites/${inviteId}`, token),
+    onSuccess: () => {
+      void pendingInvitesQuery.refetch();
+      toast.success("Invite revoked.");
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to revoke invite"),
   });
 
   if (!team) return null;
@@ -276,6 +293,33 @@ function ManageMembersModal({
               </div>
             )}
           </div>
+
+          {/* Pending invites */}
+          {(pendingInvitesQuery.data ?? []).length > 0 && (
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: "0.75rem" }}>
+              <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+                Pending invites
+              </p>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {(pendingInvitesQuery.data ?? []).map((inv) => (
+                  <li key={inv.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.4rem 0", borderBottom: "1px solid var(--line)" }}>
+                    <span style={{ fontSize: "0.875rem" }}>
+                      {inv.email}
+                      <span style={{ color: "var(--muted)", marginLeft: 6, fontSize: "0.78rem" }}>{inv.role} · expires {formatDate(inv.expires_at)}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => revokeMutation.mutate(inv.id)}
+                      disabled={revokeMutation.isPending}
+                      style={{ border: "none", background: "transparent", color: "var(--accent-rose)", cursor: "pointer", fontSize: "0.8rem" }}
+                    >
+                      Revoke
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

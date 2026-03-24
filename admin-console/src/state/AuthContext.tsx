@@ -27,9 +27,12 @@ type AuthState = {
   error: string | null;
 };
 
+type AcceptInvitePayload = { token: string; name: string; password: string };
+
 type AuthContextValue = AuthState & {
   login: (payload: LoginRequest) => Promise<void>;
   signup: (payload: RegisterRequest) => Promise<void>;
+  acceptInvite: (payload: AcceptInvitePayload) => Promise<void>;
   logout: () => void | Promise<void>;
   applySsoCode: (code: string) => Promise<void>;
 };
@@ -204,6 +207,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const acceptInvite = useCallback(async (payload: AcceptInvitePayload) => {
+    setIsAuthenticating(true);
+    setError(null);
+    try {
+      const tokens = await apiClient.post<TokenResponse>("/api/v1/auth/accept-invite", payload);
+      localStorage.setItem(ACCESS_KEY, tokens.access_token);
+      if (tokens.refresh_token) {
+        localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
+      }
+      const me = await apiClient.get<UserMeResponse>("/api/v1/auth/me", tokens.access_token);
+      setToken(tokens.access_token);
+      setUser(me);
+      scheduleRefreshRef.current?.(tokens.access_token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to accept invite.");
+      throw err;
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, []);
+
   const applySsoCode = useCallback(async (code: string) => {
     setIsAuthenticating(true);
     setError(null);
@@ -245,8 +269,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token, clearScheduledRefresh]);
 
   const value = useMemo(
-    () => ({ token, user, isAuthenticating, isRestoring, error, login, signup, logout, applySsoCode }),
-    [error, isAuthenticating, isRestoring, login, signup, logout, applySsoCode, token, user],
+    () => ({ token, user, isAuthenticating, isRestoring, error, login, signup, acceptInvite, logout, applySsoCode }),
+    [error, isAuthenticating, isRestoring, login, signup, acceptInvite, logout, applySsoCode, token, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
