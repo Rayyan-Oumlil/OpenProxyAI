@@ -77,12 +77,14 @@ export function UsersRolesPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((row) => (
+              {users.map((row) => {
+                const isSelf = row.id === user?.id;
+                return (
                 <tr key={row.id}>
                   <td>{row.email}</td>
                   <td>{row.name ?? "-"}</td>
                   <td>
-                    {canManageUsers ? (
+                    {canManageUsers && !isSelf ? (
                       <select
                         value={row.role}
                         onChange={(event) => {
@@ -98,7 +100,7 @@ export function UsersRolesPage() {
                         <option value="viewer">viewer</option>
                       </select>
                     ) : (
-                      row.role
+                      <span>{row.role}{isSelf && <span className="text-muted text-xs ml-1">(you)</span>}</span>
                     )}
                   </td>
                   <td>{row.is_active ? "active" : "inactive"}</td>
@@ -106,7 +108,7 @@ export function UsersRolesPage() {
                   <td>
                     <button
                       type="button"
-                      disabled={!canManageUsers || updateUserMutation.isPending}
+                      disabled={!canManageUsers || isSelf || updateUserMutation.isPending}
                       onClick={() => {
                         updateUserMutation.mutate({
                           userId: row.id,
@@ -118,7 +120,8 @@ export function UsersRolesPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
