@@ -339,7 +339,7 @@ class TestInviteAcceptPlanEnforcement:
             )
 
         with pytest.raises(HTTPException) as exc_info:
-            asyncio.get_event_loop().run_until_complete(run())
+            asyncio.run(run())
 
         assert exc_info.value.status_code == 402
         assert exc_info.value.detail["error"] == "plan_limit_exceeded"
