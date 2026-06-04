@@ -1,5 +1,3 @@
-/* App-specific styles */
-
 /* Smooth scrolling disabled for GSAP control */
 html {
   scroll-behavior: auto;
@@ -62,7 +60,7 @@ img {
   h1 {
     font-size: 2rem !important;
   }
-  
+
   h2 {
     font-size: 1.75rem !important;
   }
