@@ -442,7 +442,7 @@ def test_handle_sso_callback_invalid_state_returns_400():
         )
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
 
     assert exc_info.value.status_code == 400
     assert "invalid or expired" in exc_info.value.detail.lower()
@@ -529,7 +529,7 @@ def test_handle_sso_callback_mismatched_nonce_returns_400(monkeypatch):
         )
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
 
     assert exc_info.value.status_code == 400
     assert "nonce" in exc_info.value.detail.lower()

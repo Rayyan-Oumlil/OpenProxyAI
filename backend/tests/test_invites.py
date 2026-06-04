@@ -474,7 +474,7 @@ def test_double_accept_same_invite_raises_409(monkeypatch):
     monkeypatch.setattr(invite_service, "_hash_token", lambda t: "somehash")
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
 
     assert exc_info.value.status_code == 409
     assert "already accepted" in exc_info.value.detail.lower()
@@ -514,7 +514,7 @@ def test_accept_invite_service_raises_410_for_expired(monkeypatch):
     monkeypatch.setattr(invite_service, "_hash_token", lambda t: "expiredhash")
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
 
     assert exc_info.value.status_code == 410
     assert "expired" in exc_info.value.detail.lower()
@@ -540,7 +540,7 @@ def test_accept_invite_service_raises_404_for_missing_token(monkeypatch):
         )
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.get_event_loop().run_until_complete(run())
+        asyncio.run(run())
 
     assert exc_info.value.status_code == 404
 
