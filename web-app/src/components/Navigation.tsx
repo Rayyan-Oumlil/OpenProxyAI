@@ -1,82 +1,91 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 
-export default function Navigation() {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+const STATUS_CHIPS = [
+  { label: 'us-east-1 · healthy', dot: 'ok' },
+  { label: 'eu-west-1 · healthy', dot: 'ok' },
+  { label: 'ap-south-1 · degraded', dot: 'warn' },
+  { label: 'p95 812ms', dot: null },
+  { label: 'cache 41.3%', dot: null },
+];
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 100);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+const NAV_LINKS = ['proxy', 'policies', 'playground', 'console', 'docs', 'status'];
+
+function StatusDot({ kind }: { kind: 'ok' | 'warn' | null }) {
+  if (!kind) return null;
+  const color = kind === 'ok' ? 'var(--accent)' : 'var(--warn)';
+  return (
+    <span style={{
+      display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+      background: color, boxShadow: `0 0 0 3px color-mix(in srgb, ${color} 25%, transparent)`,
+      marginRight: 8, flexShrink: 0,
+    }} />
+  );
+}
+
+export default function Navigation() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-[#0B0C0F]/90 backdrop-blur-md border-b border-white/5'
-          : 'bg-transparent'
-      }`}
-    >
-      <div className="w-full px-6 lg:px-10">
-        <div className="flex items-center justify-between h-16 lg:h-20">
-          {/* Logo */}
-          <a href="#" className="flex items-center gap-2">
-            <span className="text-xl lg:text-2xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              openproxy<span className="text-[#B6FF2E]">AI</span>
-            </span>
-          </a>
-
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-8">
-            <a href="#product" className="text-sm text-[#A7AFBA] hover:text-[#F2F5F9] transition-colors">
-              Product
-            </a>
-            <a href="#docs" className="text-sm text-[#A7AFBA] hover:text-[#F2F5F9] transition-colors">
-              Docs
-            </a>
-            <a href="#pricing" className="text-sm text-[#A7AFBA] hover:text-[#F2F5F9] transition-colors">
-              Pricing
-            </a>
+    <header>
+      {/* Top rail */}
+      <div style={{ borderBottom: '1px solid var(--line)', background: 'var(--bg-2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--ink-3)' }}>
+        <div style={{ maxWidth: 1380, margin: '0 auto', padding: '8px 24px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 24, alignItems: 'center' }}>
+          <span><strong style={{ color: 'var(--ink)' }}>openproxy.ai</strong>{' · control plane'}</span>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' as const }}>
+            {STATUS_CHIPS.map((c, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <StatusDot kind={c.dot as 'ok' | 'warn' | null} />
+                {c.label}
+              </span>
+            ))}
           </div>
-
-          {/* Desktop CTAs */}
-          <div className="hidden lg:flex items-center gap-4">
-            <a href="#" className="text-sm text-[#A7AFBA] hover:text-[#F2F5F9] transition-colors">
-              Sign in
-            </a>
-            <a href="#" className="btn-primary text-sm py-2 px-4">
-              Get started
-            </a>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="lg:hidden p-2 text-[#F2F5F9]"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          <span>build 2.4.1 · {today}</span>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden bg-[#0B0C0F]/95 backdrop-blur-md border-t border-white/5">
-          <div className="px-6 py-6 space-y-4">
-            <a href="#product" className="block text-lg text-[#F2F5F9]">Product</a>
-            <a href="#docs" className="block text-lg text-[#F2F5F9]">Docs</a>
-            <a href="#pricing" className="block text-lg text-[#F2F5F9]">Pricing</a>
-            <div className="pt-4 border-t border-white/10 space-y-3">
-              <a href="#" className="block text-lg text-[#A7AFBA]">Sign in</a>
-              <a href="#" className="btn-primary w-full text-center">Get started</a>
+      {/* Nav bar */}
+      <nav style={{ borderBottom: '1px solid var(--line)', background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 1380, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
+          <a href="#" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'var(--ink)', fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em' }}>
+            <span style={{ width: 24, height: 24, borderRadius: 4, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg)', fontSize: 11, fontWeight: 700 }}>/</span>
+            OpenProxyAI
+          </a>
+
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, gap: 22, fontSize: 13, display: 'flex' }} className="hidden lg:flex">
+            {NAV_LINKS.map(l => (
+              <li key={l}>
+                <a href="#" style={{ color: 'var(--ink-2)', textDecoration: 'none', transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-2)')}>
+                  {l}
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <div style={{ display: 'flex', gap: 8 }} className="hidden lg:flex">
+            <a href="#" className="opa-btn">$ sign in</a>
+            <a href="#" className="opa-btn opa-btn-primary">$ book demo →</a>
+          </div>
+
+          <button className="lg:hidden" onClick={() => setMobileOpen(!mobileOpen)}
+            style={{ background: 'none', border: 'none', color: 'var(--ink)', cursor: 'pointer', padding: 4 }}>
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+
+        {mobileOpen && (
+          <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {NAV_LINKS.map(l => <a key={l} href="#" style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l}</a>)}
+            <div style={{ display: 'flex', gap: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+              <a href="#" className="opa-btn">$ sign in</a>
+              <a href="#" className="opa-btn opa-btn-primary">$ book demo →</a>
             </div>
           </div>
-        </div>
-      )}
-    </nav>
+        )}
+      </nav>
+    </header>
   );
 }
