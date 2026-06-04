@@ -1,76 +1,18 @@
-/* Smooth scrolling disabled for GSAP control */
-html {
-  scroll-behavior: auto;
-}
+/* Smooth scrolling disabled */
+html { scroll-behavior: auto; }
 
-/* Ensure sections stack properly */
-main {
-  position: relative;
-}
+button, a { user-select: none; }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0B0C0F;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-/* Selection color */
-::selection {
-  background: rgba(182, 255, 46, 0.3);
-  color: #F2F5F9;
-}
-
-/* Focus styles */
-*:focus-visible {
-  outline: 2px solid #B6FF2E;
-  outline-offset: 2px;
-}
-
-/* Prevent text selection on interactive elements */
-button, a {
-  user-select: none;
-}
-
-/* Code block styling */
 pre {
   white-space: pre-wrap;
-  word-wrap: break-word;
+  word-break: break-word;
+  margin: 0;
 }
 
-/* Ensure images don't overflow */
-img {
-  max-width: 100%;
-  height: auto;
-}
+img { max-width: 100%; height: auto; }
 
-/* Responsive typography adjustments */
-@media (max-width: 640px) {
-  h1 {
-    font-size: 2rem !important;
-  }
-
-  h2 {
-    font-size: 1.75rem !important;
-  }
-}
-
-/* Reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

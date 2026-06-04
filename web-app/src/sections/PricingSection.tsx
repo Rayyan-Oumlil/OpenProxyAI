@@ -1,211 +1,101 @@
-import { useRef, useLayoutEffect } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Check, ArrowRight, Sparkles } from 'lucide-react';
-
-gsap.registerPlugin(ScrollTrigger);
-
-const plans = [
+const PLANS = [
   {
-    name: 'Free Trial',
-    price: 'Free',
-    period: '/ 14 days',
-    description: 'Full platform access to evaluate — no credit card required',
-    features: [
-      '10K requests included',
-      'Up to 10 users',
-      'SSO, policies & audit logs',
-      'Email support',
-      'Guided onboarding',
-    ],
-    cta: 'Start free trial',
-    featured: false,
+    name: 'free_trial',
+    price: '$0', period: '/ 14d',
+    features: ['10K requests','10 users','all features','email support'],
+    cta: '$ start →', featured: false,
   },
   {
-    name: 'Starter',
-    price: '$2,500',
-    period: '/mo',
-    description: 'For security teams deploying AI in regulated environments',
-    features: [
-      '100K requests/mo',
-      'Up to 50 users',
-      'SSO (Google, Microsoft, Okta)',
-      'Audit logs — 90-day retention',
-      'Budget controls per user & dept',
-      'Email support (24h response)',
-    ],
-    cta: 'Book a demo',
-    featured: false,
+    name: 'starter',
+    price: '$2,500', period: '/ mo',
+    features: ['100K req/mo','50 users','SSO','90-day retention'],
+    cta: '$ demo', featured: false,
   },
   {
-    name: 'Growth',
-    price: '$7,500',
-    period: '/mo',
-    description: 'For mid-size organizations scaling governed AI across teams',
-    features: [
-      'Up to 200 users',
-      'Policy engine & DLP',
-      'SCIM provisioning',
-      'Audit logs — 1-year retention',
-      'Phone support',
-      'Compliance dashboard',
-    ],
-    cta: 'Book a demo',
-    featured: true,
+    name: 'growth',
+    price: '$7,500', period: '/ mo',
+    features: ['200 users','policy + DLP','SCIM','1yr retention'],
+    cta: '$ demo →', featured: true,
   },
   {
-    name: 'Enterprise',
-    price: 'Custom',
-    description: 'For large organizations with advanced compliance requirements',
-    features: [
-      'Unlimited users',
-      'On-premise & air-gapped deploy',
-      'Audit logs — up to 7 years',
-      '99.99% SLA',
-      'Dedicated CSM',
-      'Security reviews & BAA',
-    ],
-    cta: 'Contact sales',
-    featured: false,
+    name: 'enterprise',
+    price: 'custom', period: '',
+    features: ['unlimited','air-gapped / on-prem','7yr retention','99.99% SLA'],
+    cta: '$ contact', featured: false,
   },
 ];
 
 export default function PricingSection() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const section = sectionRef.current;
-    const header = headerRef.current;
-    const cards = cardsRef.current;
-
-    if (!section || !header || !cards) return;
-
-    const cardElements = cards.querySelectorAll('.pricing-card');
-
-    const ctx = gsap.context(() => {
-      // Header animation
-      gsap.fromTo(header,
-        { y: 18, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          scrollTrigger: {
-            trigger: header,
-            start: 'top 80%',
-            end: 'top 55%',
-            scrub: true,
-          }
-        }
-      );
-
-      // Cards animation
-      gsap.fromTo(cardElements,
-        { y: 32, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          stagger: 0.12,
-          duration: 0.6,
-          scrollTrigger: {
-            trigger: cards,
-            start: 'top 75%',
-            end: 'top 50%',
-            scrub: true,
-          }
-        }
-      );
-    }, section);
-
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <section ref={sectionRef} className="relative py-20 lg:py-28" id="pricing">
-      {/* Background Image */}
-      <div className="bg-image absolute inset-0">
-        <img
-          src="/images/rainy_street_neon.jpg"
-          alt="Rainy street"
-          className="w-full h-full object-cover"
-        />
-        <div className="bg-overlay" />
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 px-6 lg:px-[9vw]">
-        {/* Header */}
-        <div ref={headerRef} className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#F2F5F9] mb-4">
-            Start free. <span className="text-[#B6FF2E]">Scale predictably.</span>
+    <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }} id="pricing">
+      <div style={{ maxWidth: 1380, margin: '0 auto', padding: '0 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
+          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§05 · pricing</span>
+          <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
+            Flat fee. <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>No token surprises.</em> Start free.
           </h2>
-          <p className="text-base lg:text-lg text-[#A7AFBA] max-w-[50ch] mx-auto">
-            Start with a 14-day free trial. No credit card. Full platform access from day one.
-          </p>
+          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>14-day trial · no card</span>
         </div>
 
-        {/* Cards */}
-        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-[1400px] mx-auto">
-          {plans.map((plan, index) => (
-            <div
-              key={index}
-              className={`pricing-card glass-card p-6 relative transition-all duration-300 hover:-translate-y-1.5 ${
-                plan.featured 
-                  ? 'border-t-[3px] border-t-[#B6FF2E] lg:-mt-4 lg:mb-4' 
-                  : 'hover:border-white/[0.18]'
-              }`}
-            >
-              {/* Featured Badge */}
-              {plan.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#B6FF2E] text-[#0B0C0F] text-xs font-medium">
-                    <Sparkles className="w-3 h-3" />
-                    Most popular
-                  </span>
-                </div>
-              )}
-
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#F2F5F9] mb-2">
-                  {plan.name}
-                </h3>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-3xl lg:text-4xl font-bold text-[#F2F5F9]">
-                    {plan.price}
-                  </span>
-                  {plan.period && (
-                    <span className="text-sm text-[#A7AFBA]">{plan.period}</span>
-                  )}
-                </div>
-                <p className="text-sm text-[#A7AFBA]">{plan.description}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 32 }} className="price-grid">
+          {PLANS.map(p => (
+            <div key={p.name} style={{
+              padding: 20, border: `1px solid ${p.featured ? 'var(--accent)' : 'var(--line)'}`,
+              borderRadius: 10,
+              background: p.featured ? 'color-mix(in srgb, var(--accent) 5%, var(--panel))' : 'var(--panel)',
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', fontWeight: 400 }}>{p.name}</h3>
+                {p.featured && (
+                  <span style={{ background: 'var(--accent)', color: 'var(--bg)', padding: '1px 6px', borderRadius: 3, fontSize: 10 }}>popular</span>
+                )}
               </div>
-
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, fIndex) => (
-                  <li key={fIndex} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-[#B6FF2E] flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-[#A7AFBA]">{feature}</span>
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 28, letterSpacing: '-0.02em', fontWeight: 500, color: 'var(--ink)' }}>
+                {p.price}
+                {p.period && <small style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>{p.period}</small>}
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--ink-2)' }}>
+                {p.features.map(f => (
+                  <li key={f} style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ color: 'var(--accent)' }}>›</span>{f}
                   </li>
                 ))}
               </ul>
-
-              <a
-                href="#"
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-[14px] font-medium transition-all duration-200 ${
-                  plan.featured
-                    ? 'btn-primary'
-                    : 'btn-secondary'
-                }`}
-              >
-                {plan.cta}
-                <ArrowRight className="w-4 h-4" />
-              </a>
+              <a href="#" className={p.featured ? 'opa-btn opa-btn-primary' : 'opa-btn'} style={{ marginTop: 'auto' }}>{p.cta}</a>
             </div>
           ))}
         </div>
+
+        {/* Deploy CTA */}
+        <div style={{
+          padding: 36,
+          border: '1px solid var(--accent)',
+          background: 'radial-gradient(ellipse 60% 100% at 90% 50%, color-mix(in srgb, var(--accent) 15%, transparent) 0%, transparent 70%), var(--panel)',
+          borderRadius: 12,
+          display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center',
+        }} className="cta-grid">
+          <div>
+            <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,3vw,42px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
+              Stop shipping AI <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>blind.</em>
+            </h2>
+            <p style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 14, margin: '8px 0 0', maxWidth: '60ch' }}>
+              Deploy in your VPC. Keep your provider keys. Get the audit trail your legal team actually asked for — in under an hour.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <a href="#" className="opa-btn opa-btn-primary">$ start trial →</a>
+            <a href="#" className="opa-btn">$ talk sales</a>
+          </div>
+        </div>
       </div>
+
+      <style>{`
+        @media (max-width: 1000px) {
+          .price-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .cta-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </section>
   );
 }
