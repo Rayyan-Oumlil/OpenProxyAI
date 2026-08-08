@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
-import PipelineSection from '../sections/PipelineSection';
+import ArchitectureSection from '../sections/ArchitectureSection';
 import CachingSection from '../sections/CachingSection';
-import DeploySection from '../sections/DeploySection';
+import ObservabilitySection from '../sections/ObservabilitySection';
 
 export default function ProductPage() {
   useEffect(() => { document.title = 'Product · OpenProxyAI'; }, []);
@@ -12,11 +12,11 @@ export default function ProductPage() {
       <PageHeader
         eyebrow="Product"
         title={<>How the <span style={{ color: 'var(--accent)' }}>control plane</span> works.</>}
-        description="Every request from your org passes through the same pipeline — authenticated, rate-limited, policy-checked, cached, routed, and logged — before it ever reaches a provider."
+        description="Beyond the request pipeline on the homepage — this is the architecture, the cache, and how it plugs into the observability stack you already run."
       />
-      <PipelineSection />
+      <ArchitectureSection />
       <CachingSection />
-      <DeploySection />
+      <ObservabilitySection />
     </>
   );
 }
