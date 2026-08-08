@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { PAGE_MAX_WIDTH } from '../lib/layout';
 
 const STEPS = [
-  { n: '01 · AUTH',   t: 'verify key',         d: '0.2ms · jwt' },
-  { n: '02 · RATE',   t: 'limit check',        d: '0.1ms · 423/3000' },
-  { n: '03 · POLICY', t: 'redact · guard',     d: '0.8ms · 2 hits' },
-  { n: '04 · CACHE',  t: 'L1 · L2 · L3',       d: '0.4ms · miss' },
-  { n: '05 · ROUTE',  t: 'gpt-4o · key#3',     d: 'us-east · weighted' },
-  { n: '06 · LOG',    t: 'async · fire&forget', d: 'clickhouse + s3' },
+  { t: 'verify key',          d: '0.2ms · jwt' },
+  { t: 'limit check',         d: '0.1ms · 423/3000' },
+  { t: 'redact · guard',      d: '0.8ms · 2 hits' },
+  { t: 'L1 · L2 · L3',        d: '0.4ms · miss' },
+  { t: 'gpt-4o · key#3',      d: 'us-east · weighted' },
+  { t: 'async · fire&forget', d: 'clickhouse + s3' },
 ];
 
 const SEC: React.CSSProperties = {
@@ -28,7 +28,7 @@ export default function PipelineSection() {
     <section style={SEC}>
       <div style={WRAP}>
         {/* Section header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
+        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 44, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
           <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§01 · request pipeline</span>
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Every request, <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>seven checks,</em> under four milliseconds.
@@ -36,20 +36,21 @@ export default function PipelineSection() {
           <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>measured · p50 overhead</span>
         </div>
 
-        {/* Pipeline steps */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8, marginBottom: 28 }} className="pipe-grid">
+        {/* Flow diagram */}
+        <div className="flow-row" style={{ position: 'relative', display: 'flex', marginBottom: 44 }}>
+          <div style={{ position: 'absolute', left: 15, right: 15, top: 15, height: 1, background: 'var(--line-2)', zIndex: 0 }} />
           {STEPS.map((s, i) => (
-            <div key={i} className={hot === i ? 'pipe-hot' : ''} style={{
-              border: '1px solid var(--line)', borderRadius: 8, padding: 14,
-              background: 'var(--panel)', display: 'flex', flexDirection: 'column', gap: 8,
-              position: 'relative', transition: 'border-color .2s, background .2s, transform .2s',
-            }}>
-              {i < STEPS.length - 1 && (
-                <span style={{ position: 'absolute', right: -10, top: '50%', width: 10, height: 1, background: 'var(--line-2)' }} />
-              )}
-              <span className="pipe-n" style={{ fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.2em' }}>{s.n}</span>
-              <span style={{ color: 'var(--ink)', fontSize: 13 }}>{s.t}</span>
-              <span style={{ color: 'var(--ink-3)', fontSize: 11 }}>{s.d}</span>
+            <div key={i} style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: '50%',
+                border: `1px solid ${hot === i ? 'var(--accent)' : 'var(--line-2)'}`,
+                background: hot === i ? 'color-mix(in srgb, var(--accent) 18%, var(--panel))' : 'var(--panel)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, color: hot === i ? 'var(--accent)' : 'var(--ink-3)',
+                transition: 'border-color .2s, background .2s, color .2s',
+              }}>{i + 1}</div>
+              <span style={{ color: 'var(--ink)', fontSize: 12.5 }}>{s.t}</span>
+              <span style={{ color: 'var(--ink-3)', fontSize: 10.5 }}>{s.d}</span>
             </div>
           ))}
         </div>
@@ -100,7 +101,8 @@ export default function PipelineSection() {
       <style>{`
         @media (max-width: 1000px) {
           .sec-head { grid-template-columns: 1fr !important; }
-          .pipe-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .flow-row { flex-wrap: wrap !important; row-gap: 24px; }
+          .flow-row > div { flex: 0 0 33% !important; }
           .console-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>

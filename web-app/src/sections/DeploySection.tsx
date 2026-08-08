@@ -9,10 +9,19 @@ export default function DeploySection() {
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Your VPC. <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>Your keys.</em> Your data boundary.
           </h2>
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>docker · helm · terraform · air-gapped</span>
+          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>self-hosted targets</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} className="deploy-grid">
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+          {['docker', 'helm', 'terraform', 'air-gapped'].map(tgt => (
+            <span key={tgt} style={{
+              fontSize: 11, color: 'var(--accent)', border: '1px solid var(--line-2)', borderRadius: 5,
+              padding: '4px 10px', textTransform: 'uppercase', letterSpacing: '0.1em',
+            }}>{tgt}</span>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 10 }} className="deploy-grid">
           {/* Install shell */}
           <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid var(--line)', fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>

@@ -1,15 +1,18 @@
 import { PAGE_MAX_WIDTH } from '../lib/layout';
 
 const ROUTERS = [
-  { name: 'openai · gpt-4o',             sig: 'stable', rps: 46, lat: '168ms p50', pct: 92, keys: [1,1,1,1],   s: 'ok'   },
-  { name: 'anthropic · claude-3.5-sonnet',sig: 'stable', rps: 22, lat: '240ms p50', pct: 88, keys: [1,1,1,0],   s: 'ok'   },
-  { name: 'google · gemini-1.5-pro',      sig: 'stable', rps: 13, lat: '201ms p50', pct: 71, keys: [1,1,1],     s: 'ok'   },
-  { name: 'azure · gpt-4-turbo',          sig: 'stable', rps: 9,  lat: '195ms p50', pct: 64, keys: [1,1],       s: 'ok'   },
-  { name: 'mistral · large-2',            sig: 'stable', rps: 7,  lat: '312ms p50', pct: 52, keys: [1,1,1],     s: 'ok'   },
-  { name: 'cohere · command-r+',          sig: 'stable', rps: 5,  lat: '288ms p50', pct: 46, keys: [1,1],       s: 'ok'   },
-  { name: 'meta · llama-3-70b',           sig: 'warn',   rps: 4,  lat: '421ms p50', pct: 38, keys: [1,0,1],     s: 'warn' },
-  { name: 'groq · mixtral',               sig: 'stable', rps: 3,  lat: '88ms p50',  pct: 22, keys: [1,1],       s: 'ok'   },
+  { name: 'openai · gpt-4o',              rps: 46, lat: '168ms p50', s: 'ok'   },
+  { name: 'anthropic · claude-3.5-sonnet',rps: 22, lat: '240ms p50', s: 'ok'   },
+  { name: 'google · gemini-1.5-pro',      rps: 13, lat: '201ms p50', s: 'ok'   },
+  { name: 'azure · gpt-4-turbo',          rps: 9,  lat: '195ms p50', s: 'ok'   },
+  { name: 'mistral · large-2',            rps: 7,  lat: '312ms p50', s: 'ok'   },
+  { name: 'cohere · command-r+',          rps: 5,  lat: '288ms p50', s: 'ok'   },
+  { name: 'meta · llama-3-70b',           rps: 4,  lat: '421ms p50', s: 'warn' },
+  { name: 'groq · mixtral',               rps: 3,  lat: '88ms p50',  s: 'ok'   },
 ];
+
+const TOTAL_RPS = ROUTERS.reduce((sum, r) => sum + r.rps, 0);
+const MAX_RPS = Math.max(...ROUTERS.map(r => r.rps));
 
 export default function RouterSection() {
   return (
@@ -23,35 +26,45 @@ export default function RouterSection() {
           <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>live health</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }} className="router-grid">
-          {ROUTERS.map(r => (
-            <div key={r.name} className="opa-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--ink)', fontSize: 13 }}>
-                  {r.name}
-                  <span style={{ color: 'var(--ink-3)', fontSize: 11, marginLeft: 6 }}>· {r.sig}</span>
-                </span>
-              </div>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 20, letterSpacing: '-0.02em', fontWeight: 500, color: 'var(--ink)' }}>
-                {r.rps}<span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}> rps</span>
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{r.lat}</span>
-              <div style={{ height: 3, background: 'var(--line)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${r.pct}%`, background: r.s === 'warn' ? 'var(--warn)' : 'var(--accent)' }} />
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {r.keys.map((k, i) => (
-                  <span key={i} style={{ width: 8, height: 8, borderRadius: 2, background: k ? 'var(--accent)' : 'var(--line-2)', opacity: k ? 0.85 : 1 }} />
-                ))}
-              </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 40 }} className="router-layout">
+          {/* Big stat */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(52px,5.5vw,76px)', fontWeight: 500, letterSpacing: '-0.03em', color: 'var(--ink)', lineHeight: 1 }}>{TOTAL_RPS}</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>requests / sec</span>
+            <span style={{ fontSize: 12, color: 'var(--accent)', marginTop: 12 }}>8 providers · 0 downtime</span>
+          </div>
+
+          {/* Share bar + ranked list */}
+          <div>
+            <div style={{ display: 'flex', height: 26, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--line)' }}>
+              {ROUTERS.map(r => (
+                <div key={r.name} title={`${r.name} · ${Math.round((r.rps / TOTAL_RPS) * 100)}%`} style={{
+                  width: `${(r.rps / TOTAL_RPS) * 100}%`,
+                  background: r.s === 'warn' ? 'var(--warn)' : 'var(--accent)',
+                  opacity: 0.32 + (r.rps / MAX_RPS) * 0.68,
+                  borderRight: '1px solid var(--bg)',
+                }} />
+              ))}
             </div>
-          ))}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {ROUTERS.map((r, i) => (
+                <div key={r.name} style={{
+                  display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 16, alignItems: 'center',
+                  padding: '10px 0', borderTop: i === 0 ? 'none' : '1px solid var(--line)', fontSize: 12.5, marginTop: i === 0 ? 14 : 0,
+                }}>
+                  <span style={{ color: 'var(--ink)' }}>{r.name}</span>
+                  <span style={{ color: 'var(--ink-3)' }}>{r.lat}</span>
+                  <span style={{ color: r.s === 'warn' ? 'var(--warn)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums', minWidth: 56, textAlign: 'right' }}>{r.rps} rps</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       <style>{`
         @media (max-width: 1000px) {
-          .router-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .router-layout { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </section>
