@@ -53,6 +53,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Security & Compliance',
       items: [
+        'security/trust-center',
         'security/audit-logging',
         'security/row-level-security',
         'security/hipaa-template',
@@ -97,6 +98,7 @@ const sidebars: SidebarsConfig = {
         'admin-console/billing',
       ],
     },
+    'changelog',
   ],
 };
 
