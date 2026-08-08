@@ -26,6 +26,7 @@ const config: Config = {
     mermaid: true,
   },
   themes: ['@docusaurus/theme-mermaid'],
+  clientModules: [require.resolve('./src/clientModules/analytics.ts')],
 
   i18n: {
     defaultLocale: 'en',
