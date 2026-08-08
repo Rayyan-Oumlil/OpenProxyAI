@@ -3,7 +3,7 @@ import { PAGE_MAX_WIDTH } from '../lib/layout';
 const BUDGETS = [
   { team: 'eng-platform', pct: 78, s: 'ok',   amt: '$641 / $820' },
   { team: 'support-bot',  pct: 48, s: 'ok',   amt: '$284 / $600' },
-  { team: 'research',     pct: 84, s: 'warn',  amt: '$188 / $225' },
+  { team: 'research',     pct: 84, s: 'warn', amt: '$188 / $225' },
   { team: 'finance',      pct: 22, s: 'ok',   amt: '$102 / $450' },
   { team: 'ext-partner',  pct: 96, s: 'err',  amt: '$69 / $72'   },
   { team: 'marketing',    pct: 42, s: 'ok',   amt: '$38 / $90'   },
@@ -18,10 +18,26 @@ const POLICIES = [
   { name: 'jailbreak_lm', mode: 'log-only', desc: 'small classifier',         hits: 9,  s: 'warn' },
 ];
 
-function barColor(s: string) {
+function statColor(s: string) {
   if (s === 'err')  return 'var(--err)';
   if (s === 'warn') return 'var(--warn)';
   return 'var(--accent)';
+}
+
+function Gauge({ pct, color }: { pct: number; color: string }) {
+  const size = 68, stroke = 5, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size}>
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={c} strokeDashoffset={c - (pct / 100) * c} strokeLinecap="round"
+        />
+      </g>
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="13" fill="var(--ink)" fontFamily="var(--mono)">{pct}</text>
+    </svg>
+  );
 }
 
 export default function BudgetsPoliciesSection() {
@@ -36,19 +52,18 @@ export default function BudgetsPoliciesSection() {
           <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>enforced · log-only available</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 10 }} className="budget-grid">
-          {/* Daily budgets */}
-          <div className="opa-card">
-            <div className="opa-card-head"><span>daily budgets</span><span>reset 00:00 UTC</span></div>
-            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 32 }} className="budget-grid">
+          {/* Daily budgets — radial gauges */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18, fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+              <span>daily budgets</span><span>reset 00:00 UTC</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }} className="gauge-grid">
               {BUDGETS.map(b => (
-                <div key={b.team} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 130px', gap: 14, alignItems: 'center', fontSize: 12 }}>
-                  <span style={{ color: 'var(--ink-2)' }}>{b.team}</span>
-                  <div style={{ position: 'relative', height: 8, background: 'var(--line)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${b.pct}%`, background: barColor(b.s) }} />
-                    <span style={{ position: 'absolute', top: -2, bottom: -2, left: '90%', width: 1, background: 'var(--ink-2)' }} />
-                  </div>
-                  <span style={{ textAlign: 'right', color: 'var(--ink)' }}>{b.amt}</span>
+                <div key={b.team} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+                  <Gauge pct={b.pct} color={statColor(b.s)} />
+                  <span style={{ fontSize: 12, color: 'var(--ink)' }}>{b.team}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>{b.amt}</span>
                 </div>
               ))}
             </div>
@@ -78,6 +93,7 @@ export default function BudgetsPoliciesSection() {
       <style>{`
         @media (max-width: 1000px) {
           .budget-grid { grid-template-columns: 1fr !important; }
+          .gauge-grid { grid-template-columns: repeat(3,1fr) !important; }
         }
       `}</style>
     </section>

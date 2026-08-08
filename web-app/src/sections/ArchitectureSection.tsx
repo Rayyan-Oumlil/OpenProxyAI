@@ -18,7 +18,7 @@ export default function ArchitectureSection() {
           <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>self-hosted · your vpc</span>
         </div>
 
-        <div className="opa-card" style={{ padding: '28px 20px', marginBottom: 20, overflow: 'auto' }}>
+        <div className="opa-card" style={{ padding: '28px 20px', marginBottom: 8, overflow: 'auto' }}>
           <svg viewBox="0 0 860 260" style={{ width: '100%', height: 'auto', minWidth: 640 }} role="img" aria-label="Architecture diagram: your app connects to OpenProxyAI, which connects to Postgres and Redis and routes to provider APIs">
             {/* Your app */}
             <rect x="20" y="105" width="140" height="50" rx="8" fill="var(--panel-2)" stroke="var(--line-2)" />
@@ -68,12 +68,15 @@ export default function ArchitectureSection() {
           </svg>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 28 }} className="arch-grid">
-          {HOPS.map(h => (
-            <div key={h.n} className="opa-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 500, color: 'var(--accent)' }}>{h.n}</span>
-              <span style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 500 }}>{h.title}</span>
-              <p style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.6, margin: 0 }}>{h.desc}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 28 }}>
+          {HOPS.map((h, i) => (
+            <div key={h.n} style={{
+              display: 'grid', gridTemplateColumns: '28px 150px 1fr', gap: 16,
+              padding: '13px 0', borderTop: i === 0 ? 'none' : '1px solid var(--line)', alignItems: 'baseline',
+            }} className="hop-row">
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)' }}>{h.n}</span>
+              <span style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 500 }}>{h.title}</span>
+              <span style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.6 }}>{h.desc}</span>
             </div>
           ))}
         </div>
@@ -86,7 +89,7 @@ export default function ArchitectureSection() {
       <style>{`
         @media (max-width: 1000px) {
           .sec-head { grid-template-columns: 1fr !important; }
-          .arch-grid { grid-template-columns: 1fr !important; }
+          .hop-row { grid-template-columns: 1fr !important; gap: 4px !important; }
         }
       `}</style>
     </section>
