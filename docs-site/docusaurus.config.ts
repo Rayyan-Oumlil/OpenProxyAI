@@ -13,7 +13,7 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://docs-site-ten-nu.vercel.app',
+  url: 'https://docs.openproxyai.com',
   baseUrl: '/',
 
   organizationName: 'openproxyai',
