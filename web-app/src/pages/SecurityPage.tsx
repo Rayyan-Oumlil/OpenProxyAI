@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import ComplianceSection from '../sections/ComplianceSection';
-import BudgetsPoliciesSection from '../sections/BudgetsPoliciesSection';
+import AuditTrailSection from '../sections/AuditTrailSection';
+import AccessControlSection from '../sections/AccessControlSection';
 
 export default function SecurityPage() {
   useEffect(() => { document.title = 'Security · OpenProxyAI'; }, []);
@@ -11,10 +12,11 @@ export default function SecurityPage() {
       <PageHeader
         eyebrow="Security"
         title={<>Know exactly what your team asked AI, <span style={{ color: 'var(--accent)' }}>every time.</span></>}
-        description="Every request is logged, every policy is enforced before the call leaves your network, and every org's data is isolated at the database level. This is what's actually running — not a marketing claim."
+        description="Compliance templates, what an actual audit log entry looks like, and how access is controlled — beyond the guardrail summary on the homepage."
       />
       <ComplianceSection />
-      <BudgetsPoliciesSection />
+      <AuditTrailSection />
+      <AccessControlSection />
     </>
   );
 }
