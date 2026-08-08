@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PAGE_MAX_WIDTH } from '../lib/layout';
+import { APP_URL, CALENDLY_URL } from '../lib/links';
+import CommandPalette from './CommandPalette';
 
 const NAV_LINKS = [
   { label: 'product', href: '/product', external: false },
@@ -24,7 +26,8 @@ export default function Navigation() {
             OpenProxyAI
           </Link>
 
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, gap: 22, fontSize: 13, display: 'flex' }} className="hidden lg:flex">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="hidden lg:flex">
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, gap: 22, fontSize: 13, display: 'flex' }}>
             {NAV_LINKS.map(l => (
               <li key={l.label}>
                 {l.external ? (
@@ -43,10 +46,12 @@ export default function Navigation() {
               </li>
             ))}
           </ul>
+          <CommandPalette />
+          </div>
 
           <div style={{ display: 'flex', gap: 8 }} className="hidden lg:flex">
-            <a href="#" className="opa-btn">$ sign in</a>
-            <a href="#" className="opa-btn opa-btn-primary">$ book demo →</a>
+            <a href={APP_URL} className="opa-btn">$ sign in</a>
+            <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
           </div>
 
           <button className="lg:hidden" onClick={() => setMobileOpen(!mobileOpen)}
@@ -61,8 +66,8 @@ export default function Navigation() {
               ? <a key={l.label} href={l.href} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</a>
               : <Link key={l.label} to={l.href} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</Link>)}
             <div style={{ display: 'flex', gap: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
-              <a href="#" className="opa-btn">$ sign in</a>
-              <a href="#" className="opa-btn opa-btn-primary">$ book demo →</a>
+              <a href={APP_URL} className="opa-btn">$ sign in</a>
+              <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
             </div>
           </div>
         )}

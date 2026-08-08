@@ -1,4 +1,5 @@
 import { PAGE_MAX_WIDTH } from '../lib/layout';
+import { useCountUp } from '../lib/useCountUp';
 
 const ROUTERS = [
   { name: 'openai · gpt-4o',              rps: 46, lat: '168ms p50', s: 'ok'   },
@@ -15,6 +16,8 @@ const TOTAL_RPS = ROUTERS.reduce((sum, r) => sum + r.rps, 0);
 const MAX_RPS = Math.max(...ROUTERS.map(r => r.rps));
 
 export default function RouterSection() {
+  const { ref: statRef, value: animatedRps } = useCountUp(TOTAL_RPS);
+
   return (
     <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }}>
       <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
@@ -29,7 +32,7 @@ export default function RouterSection() {
         <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 40 }} className="router-layout">
           {/* Big stat */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(52px,5.5vw,76px)', fontWeight: 500, letterSpacing: '-0.03em', color: 'var(--ink)', lineHeight: 1 }}>{TOTAL_RPS}</span>
+            <span ref={statRef} style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(52px,5.5vw,76px)', fontWeight: 500, letterSpacing: '-0.03em', color: 'var(--ink)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{animatedRps}</span>
             <span style={{ fontSize: 12, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>requests / sec</span>
             <span style={{ fontSize: 12, color: 'var(--accent)', marginTop: 12 }}>8 providers · 0 downtime</span>
           </div>
@@ -51,7 +54,7 @@ export default function RouterSection() {
                 <div key={r.name} style={{
                   display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 16, alignItems: 'center',
                   padding: '10px 0', borderTop: i === 0 ? 'none' : '1px solid var(--line)', fontSize: 12.5, marginTop: i === 0 ? 14 : 0,
-                }}>
+                }} className="data-row">
                   <span style={{ color: 'var(--ink)' }}>{r.name}</span>
                   <span style={{ color: 'var(--ink-3)' }}>{r.lat}</span>
                   <span style={{ color: r.s === 'warn' ? 'var(--warn)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums', minWidth: 56, textAlign: 'right' }}>{r.rps} rps</span>

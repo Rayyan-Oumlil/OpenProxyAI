@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { PAGE_MAX_WIDTH } from '../lib/layout';
+import { APP_URL } from '../lib/links';
 
 const TEAMS  = ['eng-platform','support-bot','research','finance','marketing','ext-partner'];
 const MODELS = ['gpt-4o','claude-3.5-sonnet','gemini-1.5-pro','gpt-4o-mini','mistral-large-2','llama-3-70b','command-r+'];
@@ -76,8 +77,8 @@ export default function HeroSection() {
               OpenProxyAI routes, governs, and logs every LLM call across your org. 1,600+ models behind one API — with policy enforcement, PII redaction, cost attribution, and a replay-able audit trail.
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <a href="#" className="opa-btn opa-btn-primary">$ start trial →</a>
-              <a href="#" className="opa-btn">$ curl examples</a>
+              <a href={APP_URL} className="opa-btn opa-btn-primary">$ start trial →</a>
+              <a href="#deploy" className="opa-btn">$ curl examples</a>
             </div>
           </div>
 

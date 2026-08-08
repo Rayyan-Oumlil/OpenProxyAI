@@ -78,6 +78,40 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.opa-card:hover {
+  border-color: var(--line-2);
+  box-shadow: 0 0 0 1px var(--line-2), 0 12px 32px -18px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* ── Data row (table-like lists) ── */
+.data-row {
+  transition: background-color 0.15s ease;
+}
+.data-row:hover {
+  background: var(--panel-2);
+}
+.policy-row {
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.policy-row:hover {
+  border-color: var(--line-2);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel-2));
+}
+
+/* ── Scroll reveal ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.65s cubic-bezier(0.16,1,0.3,1), transform 0.65s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { transition: none; opacity: 1 !important; transform: none !important; }
 }
 
 .opa-card-head {

@@ -30,7 +30,7 @@ export default function BuildVsBuySection() {
             <div key={r.item} style={{
               display: 'grid', gridTemplateColumns: '1fr 200px 140px', gap: 16, padding: '14px 18px',
               borderBottom: i < ROWS.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13, alignItems: 'center',
-            }} className="bvb-row">
+            }} className="bvb-row data-row">
               <span style={{ color: 'var(--ink)' }}>{r.item}</span>
               <span style={{ color: 'var(--ink-2)' }}>{r.build}</span>
               <span style={{ color: 'var(--accent)' }}>{r.buy}</span>

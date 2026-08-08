@@ -28,7 +28,7 @@ export default function ModelCatalogSection() {
             <div key={c.provider} style={{
               display: 'grid', gridTemplateColumns: '200px 1fr', gap: 16, padding: '14px 18px',
               borderBottom: i < CATALOG.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13,
-            }}>
+            }} className="data-row">
               <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{c.provider}</span>
               <span style={{ color: 'var(--ink-2)' }}>{c.models}</span>
             </div>

@@ -33,7 +33,7 @@ export default function ComplianceSection() {
             <div key={t.name} style={{
               display: 'grid', gridTemplateColumns: '140px 130px 1fr', gap: 16, padding: '14px 18px',
               borderBottom: i < TEMPLATES.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13, alignItems: 'center',
-            }} className="tmpl-row">
+            }} className="tmpl-row data-row">
               <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{t.name}</span>
               <span style={{ fontSize: 10.5, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t.tag}</span>
               <span style={{ color: 'var(--ink-2)' }}>{t.desc}</span>
