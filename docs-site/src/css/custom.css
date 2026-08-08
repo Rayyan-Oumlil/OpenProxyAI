@@ -48,3 +48,7 @@
 [data-theme='dark'] code {
   background: #141720;
 }
+
+.docusaurus-mermaid-container {
+  overflow-x: auto;
+}
