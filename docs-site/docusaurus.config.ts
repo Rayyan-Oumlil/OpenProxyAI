@@ -40,7 +40,25 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
         },
-        blog: false,
+        blog: {
+          routeBasePath: 'blog',
+          blogTitle: 'OpenProxyAI Blog',
+          blogDescription: 'Engineering notes on running an LLM control plane — architecture, security, and what actually happens inside the request pipeline.',
+          postsPerPage: 10,
+          blogSidebarTitle: 'Recent posts',
+          blogSidebarCount: 10,
+          showReadingTime: true,
+          feedOptions: {
+            type: ['rss', 'atom'],
+            xslt: true,
+            title: 'OpenProxyAI Blog',
+            description: 'Engineering notes on running an LLM control plane.',
+            copyright: `Copyright © ${new Date().getFullYear()} OpenProxyAI`,
+          },
+          onInlineTags: 'warn',
+          onInlineAuthors: 'warn',
+          onUntruncatedBlogPosts: 'warn',
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -76,7 +94,7 @@ const config: Config = {
           clusterBkg: '#0b0d12',
           clusterBorder: '#1c2029',
           edgeLabelBackground: '#0b0d12',
-          fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
           actorBkg: '#141720',
           actorBorder: '#35d399',
           actorTextColor: '#e7ecf2',
@@ -110,6 +128,11 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          to: '/blog',
+          label: 'Blog',
+          position: 'left',
+        },
+        {
           href: 'https://openproxyai.com',
           label: '← Back to site',
           position: 'right',
@@ -133,6 +156,7 @@ const config: Config = {
           items: [
             {label: 'Getting Started', to: '/'},
             {label: 'API Reference', to: '/api-reference/overview'},
+            {label: 'Blog', to: '/blog'},
           ],
         },
         {

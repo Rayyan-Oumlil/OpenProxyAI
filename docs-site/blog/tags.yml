@@ -1,0 +1,15 @@
+architecture:
+  label: Architecture
+  description: How the system is put together and why.
+
+security:
+  label: Security
+  description: Data isolation, audit trails, and compliance posture.
+
+engineering:
+  label: Engineering
+  description: Implementation notes and technical deep-dives.
+
+product:
+  label: Product
+  description: Feature announcements and what shipped.
