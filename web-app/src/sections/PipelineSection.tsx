@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PAGE_MAX_WIDTH } from '../lib/layout';
 
 const STEPS = [
   { n: '01 · AUTH',   t: 'verify key',         d: '0.2ms · jwt' },
@@ -13,7 +14,7 @@ const SEC: React.CSSProperties = {
   padding: '60px 0',
   borderTop: '1px solid var(--line)',
 };
-const WRAP: React.CSSProperties = { maxWidth: 1380, margin: '0 auto', padding: '0 24px' };
+const WRAP: React.CSSProperties = { maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' };
 
 export default function PipelineSection() {
   const [hot, setHot] = useState(0);

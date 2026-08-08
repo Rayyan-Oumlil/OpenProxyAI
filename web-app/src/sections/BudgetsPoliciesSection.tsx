@@ -1,3 +1,5 @@
+import { PAGE_MAX_WIDTH } from '../lib/layout';
+
 const BUDGETS = [
   { team: 'eng-platform', pct: 78, s: 'ok',   amt: '$641 / $820' },
   { team: 'support-bot',  pct: 48, s: 'ok',   amt: '$284 / $600' },
@@ -8,12 +10,12 @@ const BUDGETS = [
 ];
 
 const POLICIES = [
-  { name: 'pii_redact',   mode: 'enforce',  desc: 'regex + dlp-v4',       hits: 22108, s: 'ok'   },
-  { name: 'secrets_scan', mode: 'enforce',  desc: 'response side',          hits: 6420, s: 'ok'   },
-  { name: 'topic_guard',  mode: 'enforce',  desc: 'legal·medical·harm',     hits: 2364, s: 'ok'   },
-  { name: 'injection',    mode: 'enforce',  desc: 'score > 0.8 block',       hits: 312, s: 'ok'   },
-  { name: 'model_allow',  mode: 'enforce',  desc: 'gpt-4o,claude·sonnet',    hits: 184, s: 'ok'   },
-  { name: 'jailbreak_lm', mode: 'log-only', desc: 'small classifier',         hits: 42,  s: 'warn' },
+  { name: 'pii_redact',   mode: 'enforce',  desc: 'regex + dlp-v4',       hits: 1842, s: 'ok'   },
+  { name: 'secrets_scan', mode: 'enforce',  desc: 'response side',          hits: 611, s: 'ok'   },
+  { name: 'topic_guard',  mode: 'enforce',  desc: 'legal·medical·harm',     hits: 248, s: 'ok'   },
+  { name: 'injection',    mode: 'enforce',  desc: 'score > 0.8 block',       hits: 57, s: 'ok'   },
+  { name: 'model_allow',  mode: 'enforce',  desc: 'gpt-4o,claude·sonnet',    hits: 33, s: 'ok'   },
+  { name: 'jailbreak_lm', mode: 'log-only', desc: 'small classifier',         hits: 9,  s: 'warn' },
 ];
 
 function barColor(s: string) {
@@ -25,9 +27,9 @@ function barColor(s: string) {
 export default function BudgetsPoliciesSection() {
   return (
     <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ maxWidth: 1380, margin: '0 auto', padding: '0 24px' }}>
+      <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§03 · budgets · policies</span>
+          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§02 · budgets · policies</span>
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Cost controls and guardrails — <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>per team, per model, per dollar.</em>
           </h2>

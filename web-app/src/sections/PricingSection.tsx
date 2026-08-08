@@ -1,3 +1,5 @@
+import { PAGE_MAX_WIDTH } from '../lib/layout';
+
 const PLANS = [
   {
     name: 'free_trial',
@@ -27,10 +29,10 @@ const PLANS = [
 
 export default function PricingSection() {
   return (
-    <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }} id="pricing">
-      <div style={{ maxWidth: 1380, margin: '0 auto', padding: '0 24px' }}>
+    <section style={{ padding: '60px 0' }}>
+      <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§05 · pricing</span>
+          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§01 · pricing</span>
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Flat fee. <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>No token surprises.</em> Start free.
           </h2>
