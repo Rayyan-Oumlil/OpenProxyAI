@@ -7,6 +7,18 @@ description: OpenProxyAI's 3-tier cache — in-memory, Redis, and semantic (pgve
 
 OpenProxyAI checks a 3-tier cache before calling a provider. Tiers are checked in order; the first hit wins.
 
+```mermaid
+flowchart LR
+    Req([Request]) --> L1{L1 · in-memory<br/>&lt;1ms}
+    L1 -->|hit| Resp([Response])
+    L1 -->|miss| L2{L2 · Redis<br/>~2ms}
+    L2 -->|hit| Resp
+    L2 -->|miss| L3{L3 · semantic<br/>~40ms}
+    L3 -->|hit| Resp
+    L3 -->|miss| Provider[(Call provider)]
+    Provider --> Resp
+```
+
 ## L1 — In-memory
 
 A per-instance TTL cache. Matches on exact request content. Sub-millisecond hits, but scoped to a single proxy process — a hit on one instance doesn't help a request that lands on another.

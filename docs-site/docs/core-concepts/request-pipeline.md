@@ -7,6 +7,23 @@ description: The six stages every OpenProxyAI request passes through, in order.
 
 Every request to `/v1/chat/completions` or `/v1/embeddings` passes through the same six stages, in order, before OpenProxyAI calls a provider.
 
+```mermaid
+flowchart TD
+    Req([Request]) --> Auth{1 · Auth}
+    Auth -->|invalid key| R401[401]
+    Auth -->|ok| Rate{2 · Rate limit}
+    Rate -->|over limit| R429[429]
+    Rate -->|ok| Policy{3 · Policy}
+    Policy -->|enforce block| R446[446]
+    Policy -->|budget exceeded| R402[402]
+    Policy -->|ok / log-only| Cache{4 · Cache}
+    Cache -->|hit L1/L2/L3| Resp([Response])
+    Cache -->|miss| Route[5 · Route to provider]
+    Route --> Provider[(Provider)]
+    Provider --> Resp
+    Resp -.->|async, never blocks| Log[(6 · Log)]
+```
+
 ## 1. Auth
 
 The bearer API key is verified and resolved to an organization, and — if the key is team-scoped — a team. Requests with a missing or invalid key are rejected before any other work happens.

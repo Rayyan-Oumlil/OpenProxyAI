@@ -10,6 +10,17 @@ OpenProxyAI is the control plane for enterprise AI — a single gateway that sit
 
 Instead of every team managing its own provider keys, rate limits, and logging, all traffic goes through one proxy that is OpenAI-API-compatible. Point your existing SDK at OpenProxyAI's `base_url` and nothing else in your application code changes.
 
+```mermaid
+flowchart LR
+    A["Your app<br/>(existing SDK)"] -->|"1 API key"| B["OpenProxyAI<br/>(your VPC)"]
+    B -->|auth · policy · cache · route| C{Provider}
+    C --> D[OpenAI]
+    C --> E[Anthropic]
+    C --> F[Azure]
+    C --> G[Mistral / more]
+    B -.->|logged async| H[(Audit log)]
+```
+
 ## What it does
 
 - **One API key** in front of every provider you use — rotate provider keys without touching client code.

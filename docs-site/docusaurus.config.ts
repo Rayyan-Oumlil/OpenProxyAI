@@ -13,7 +13,7 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://docs.openproxy.ai',
+  url: 'https://docs.openproxyai.com',
   baseUrl: '/',
 
   organizationName: 'openproxyai',
@@ -21,6 +21,11 @@ const config: Config = {
 
   onBrokenLinks: 'warn',
   onBrokenAnchors: 'warn',
+
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
 
   i18n: {
     defaultLocale: 'en',
@@ -54,6 +59,38 @@ const config: Config = {
       {name: 'og:site_name', content: 'OpenProxyAI Docs'},
       {name: 'twitter:card', content: 'summary_large_image'},
     ],
+    mermaid: {
+      theme: {light: 'base', dark: 'base'},
+      options: {
+        themeVariables: {
+          background: '#0f1117',
+          primaryColor: '#141720',
+          primaryTextColor: '#e7ecf2',
+          primaryBorderColor: '#262b36',
+          secondaryColor: '#0f1117',
+          tertiaryColor: '#0b0d12',
+          lineColor: '#35d399',
+          textColor: '#e7ecf2',
+          mainBkg: '#141720',
+          nodeBorder: '#262b36',
+          clusterBkg: '#0b0d12',
+          clusterBorder: '#1c2029',
+          edgeLabelBackground: '#0b0d12',
+          fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+          actorBkg: '#141720',
+          actorBorder: '#35d399',
+          actorTextColor: '#e7ecf2',
+          signalColor: '#a8b0bd',
+          signalTextColor: '#e7ecf2',
+          labelBoxBkgColor: '#141720',
+          labelBoxBorderColor: '#35d399',
+          labelTextColor: '#e7ecf2',
+          noteBkgColor: '#0b0d12',
+          noteTextColor: '#a8b0bd',
+          noteBorderColor: '#1c2029',
+        },
+      },
+    },
     colorMode: {
       defaultMode: 'dark',
       disableSwitch: true,
@@ -73,7 +110,7 @@ const config: Config = {
           label: 'Docs',
         },
         {
-          href: 'https://openproxy.ai',
+          href: 'https://openproxyai.com',
           label: '← Back to site',
           position: 'right',
         },
@@ -85,10 +122,10 @@ const config: Config = {
         {
           title: 'Product',
           items: [
-            {label: 'Product', href: 'https://openproxy.ai/product'},
-            {label: 'Security', href: 'https://openproxy.ai/security'},
-            {label: 'Providers', href: 'https://openproxy.ai/providers'},
-            {label: 'Pricing', href: 'https://openproxy.ai/pricing'},
+            {label: 'Product', href: 'https://openproxyai.com/product'},
+            {label: 'Security', href: 'https://openproxyai.com/security'},
+            {label: 'Providers', href: 'https://openproxyai.com/providers'},
+            {label: 'Pricing', href: 'https://openproxyai.com/pricing'},
           ],
         },
         {
@@ -96,6 +133,13 @@ const config: Config = {
           items: [
             {label: 'Getting Started', to: '/'},
             {label: 'API Reference', to: '/api-reference/overview'},
+          ],
+        },
+        {
+          title: 'Trust',
+          items: [
+            {label: 'Trust Center', to: '/security/trust-center'},
+            {label: 'Changelog', to: '/changelog'},
           ],
         },
       ],

@@ -11,6 +11,15 @@ Every organization's data is isolated using PostgreSQL row-level security (RLS) 
 
 Application-level isolation (a `WHERE org_id = ?` clause added by convention in every query) is only as strong as every engineer remembering to add it correctly, every time, in every query, forever. Database-level RLS makes the org boundary a property of the database itself: a query that forgets to scope by organization doesn't leak another org's rows — RLS returns none, because the database enforces the boundary independently of what the application code asked for.
 
+```mermaid
+flowchart TD
+    subgraph "App code (fallible)"
+        Q1["SELECT * FROM requests<br/>— forgot WHERE org_id"]
+    end
+    Q1 --> DB[(Postgres + RLS policy)]
+    DB -->|"session scoped to org=acme"| Result["Rows: acme only<br/>never org=other"]
+```
+
 ## How it's applied
 
 Every database session that touches an RLS-protected table sets the current organization context once, at the start of the session, before any query runs against that table. From that point, every query in that session is automatically scoped — there is no per-query opt-in.
