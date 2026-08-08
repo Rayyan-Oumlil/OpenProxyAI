@@ -1,11 +1,11 @@
+import { Routes, Route } from 'react-router-dom';
 import Navigation from './components/Navigation';
-import HeroSection from './sections/HeroSection';
-import PipelineSection from './sections/PipelineSection';
-import RouterSection from './sections/RouterSection';
-import BudgetsPoliciesSection from './sections/BudgetsPoliciesSection';
-import DeploySection from './sections/DeploySection';
-import PricingSection from './sections/PricingSection';
 import FooterSection from './sections/FooterSection';
+import HomePage from './pages/HomePage';
+import ProductPage from './pages/ProductPage';
+import SecurityPage from './pages/SecurityPage';
+import ProvidersPage from './pages/ProvidersPage';
+import PricingPage from './pages/PricingPage';
 import './App.css';
 
 function App() {
@@ -15,14 +15,15 @@ function App() {
       <div style={{ position: 'relative', zIndex: 1 }}>
         <Navigation />
         <main>
-          <HeroSection />
-          <PipelineSection />
-          <RouterSection />
-          <BudgetsPoliciesSection />
-          <DeploySection />
-          <PricingSection />
-          <FooterSection />
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/product" element={<ProductPage />} />
+            <Route path="/security" element={<SecurityPage />} />
+            <Route path="/providers" element={<ProvidersPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+          </Routes>
         </main>
+        <FooterSection />
       </div>
     </div>
   );

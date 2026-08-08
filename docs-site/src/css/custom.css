@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --ifm-color-primary: #35d399;
+  --ifm-color-primary-dark: #1fc78a;
+  --ifm-color-primary-darker: #1dbc82;
+  --ifm-color-primary-darkest: #189b6b;
+  --ifm-color-primary-light: #51daa9;
+  --ifm-color-primary-lighter: #5edeb0;
+  --ifm-color-primary-lightest: #85e6c2;
+  --ifm-code-font-size: 90%;
+  --ifm-font-family-base: 'Inter', system-ui, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --ifm-heading-font-weight: 500;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #35d399;
+  --ifm-color-primary-dark: #1fc78a;
+  --ifm-color-primary-darker: #1dbc82;
+  --ifm-color-primary-darkest: #189b6b;
+  --ifm-color-primary-light: #51daa9;
+  --ifm-color-primary-lighter: #5edeb0;
+  --ifm-color-primary-lightest: #85e6c2;
+
+  --ifm-background-color: #06070a;
+  --ifm-background-surface-color: #0f1117;
+  --ifm-navbar-background-color: #0b0d12;
+  --ifm-footer-background-color: #0b0d12;
+  --ifm-toc-border-color: #1c2029;
+  --ifm-color-emphasis-300: #262b36;
+  --ifm-hr-border-color: #1c2029;
+  --docusaurus-highlighted-code-line-bg: rgba(53, 211, 153, 0.1);
+}
+
+[data-theme='dark'] .navbar,
+[data-theme='dark'] .footer,
+[data-theme='dark'] .footer--dark {
+  border-top: 1px solid #1c2029;
+  background-color: #0b0d12;
+}
+
+[data-theme='dark'] .menu__link--active,
+[data-theme='dark'] .menu__link:hover {
+  background: #141720;
+}
+
+[data-theme='dark'] code {
+  background: #141720;
+}

@@ -3,6 +3,9 @@ name: Build & Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
     inputs:
       environment:

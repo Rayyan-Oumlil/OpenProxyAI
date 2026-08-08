@@ -1,20 +1,22 @@
+import { PAGE_MAX_WIDTH } from '../lib/layout';
+
 const ROUTERS = [
-  { name: 'openai · gpt-4o',             sig: 'stable', rps: 142, lat: '168ms p50', pct: 92, keys: [1,1,1,1],   s: 'ok'   },
-  { name: 'anthropic · claude-3.5-sonnet',sig: 'stable', rps: 54,  lat: '240ms p50', pct: 88, keys: [1,1,1,0],   s: 'ok'   },
-  { name: 'google · gemini-1.5-pro',      sig: 'stable', rps: 31,  lat: '201ms p50', pct: 71, keys: [1,1,1],     s: 'ok'   },
-  { name: 'azure · gpt-4-turbo',          sig: 'stable', rps: 24,  lat: '195ms p50', pct: 64, keys: [1,1],       s: 'ok'   },
-  { name: 'mistral · large-2',            sig: 'stable', rps: 18,  lat: '312ms p50', pct: 52, keys: [1,1,1],     s: 'ok'   },
-  { name: 'cohere · command-r+',          sig: 'stable', rps: 14,  lat: '288ms p50', pct: 46, keys: [1,1],       s: 'ok'   },
-  { name: 'meta · llama-3-70b',           sig: 'warn',   rps: 11,  lat: '421ms p50', pct: 38, keys: [1,0,1],     s: 'warn' },
-  { name: 'groq · mixtral',               sig: 'stable', rps: 8,   lat: '88ms p50',  pct: 22, keys: [1,1],       s: 'ok'   },
+  { name: 'openai · gpt-4o',             sig: 'stable', rps: 46, lat: '168ms p50', pct: 92, keys: [1,1,1,1],   s: 'ok'   },
+  { name: 'anthropic · claude-3.5-sonnet',sig: 'stable', rps: 22, lat: '240ms p50', pct: 88, keys: [1,1,1,0],   s: 'ok'   },
+  { name: 'google · gemini-1.5-pro',      sig: 'stable', rps: 13, lat: '201ms p50', pct: 71, keys: [1,1,1],     s: 'ok'   },
+  { name: 'azure · gpt-4-turbo',          sig: 'stable', rps: 9,  lat: '195ms p50', pct: 64, keys: [1,1],       s: 'ok'   },
+  { name: 'mistral · large-2',            sig: 'stable', rps: 7,  lat: '312ms p50', pct: 52, keys: [1,1,1],     s: 'ok'   },
+  { name: 'cohere · command-r+',          sig: 'stable', rps: 5,  lat: '288ms p50', pct: 46, keys: [1,1],       s: 'ok'   },
+  { name: 'meta · llama-3-70b',           sig: 'warn',   rps: 4,  lat: '421ms p50', pct: 38, keys: [1,0,1],     s: 'warn' },
+  { name: 'groq · mixtral',               sig: 'stable', rps: 3,  lat: '88ms p50',  pct: 22, keys: [1,1],       s: 'ok'   },
 ];
 
 export default function RouterSection() {
   return (
     <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ maxWidth: 1380, margin: '0 auto', padding: '0 24px' }}>
+      <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§02 · provider router</span>
+          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§01 · provider router</span>
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Sixteen hundred models. <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>Weighted rotation,</em> per-region failover.
           </h2>

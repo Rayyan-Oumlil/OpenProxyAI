@@ -1,9 +1,11 @@
+import { PAGE_MAX_WIDTH } from '../lib/layout';
+
 export default function DeploySection() {
   return (
     <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ maxWidth: 1380, margin: '0 auto', padding: '0 24px' }}>
+      <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§04 · deploy</span>
+          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§03 · deploy</span>
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Your VPC. <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>Your keys.</em> Your data boundary.
           </h2>
@@ -23,16 +25,14 @@ export default function DeploySection() {
             <pre style={{ padding: 18, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink)', overflow: 'auto' }}>
               <span style={{ color: 'var(--ink-3)' }}>$ </span>curl -sSL openproxy.ai/install.sh <span style={{ color: 'var(--accent)' }}>|</span> sh{'\n'}
               <span style={{ color: 'var(--ink-3)' }}>$ </span>cd openproxy {'&&'} docker compose up -d{'\n'}
-              {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> postgres        <span style={{ color: 'var(--ink-3)' }}>(pgvector enabled, port 5434)</span>{'\n'}
+              {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> postgres        <span style={{ color: 'var(--ink-3)' }}>(pgvector enabled)</span>{'\n'}
               {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> redis{'\n'}
-              {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> clickhouse      <span style={{ color: 'var(--ink-3)' }}>(sidecar)</span>{'\n'}
               {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> backend         <span style={{ color: 'var(--ink-3)' }}>(fastapi · async)</span>{'\n'}
-              {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> admin-console   <span style={{ color: 'var(--ink-3)' }}>(vite · :5173)</span>{'\n'}
+              {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> admin-console{'\n'}
               {'\n'}
               <span style={{ color: 'var(--ink-3)' }}>$ </span>docker compose exec backend alembic upgrade head{'\n'}
-              {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> 27 migrations applied · HEAD{'\n'}
+              {'  '}<span style={{ color: 'var(--accent)' }}>✔</span> migrations applied · up to date{'\n'}
               {'\n'}
-              <span style={{ color: 'var(--ink-3)' }}>$ </span>open http://localhost:5173{'\n'}
               <span style={{ color: 'var(--ink-3)' }}># → admin console ready ✓</span>
             </pre>
           </div>
@@ -50,7 +50,7 @@ export default function DeploySection() {
               <span style={{ color: '#c7a2ff' }}>from</span> openai <span style={{ color: '#c7a2ff' }}>import</span> OpenAI{'\n'}
               {'\n'}
               client = OpenAI({'\n'}
-              {'  '}base_url=<span style={{ color: '#8bc6ff' }}>"https://openproxy.internal/v1"</span>,{'\n'}
+              {'  '}base_url=<span style={{ color: '#8bc6ff' }}>"https://api.openproxy.ai/v1"</span>,{'\n'}
               {'  '}api_key=os.environ[<span style={{ color: '#8bc6ff' }}>"OPENPROXY_KEY"</span>],{'\n'}
               ){'\n'}
               {'\n'}
