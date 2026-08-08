@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import Navigation from './components/Navigation';
 import FooterSection from './sections/FooterSection';
@@ -7,9 +7,13 @@ import ProductPage from './pages/ProductPage';
 import SecurityPage from './pages/SecurityPage';
 import ProvidersPage from './pages/ProvidersPage';
 import PricingPage from './pages/PricingPage';
+import { useScrollReveal } from './lib/useScrollReveal';
 import './App.css';
 
 function App() {
+  const { pathname } = useLocation();
+  useScrollReveal([pathname]);
+
   return (
     <div style={{ background: 'var(--bg)', color: 'var(--ink)', minHeight: '100vh', position: 'relative' }}>
       <div className="grid-bg" />

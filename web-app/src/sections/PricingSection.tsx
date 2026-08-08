@@ -1,29 +1,30 @@
 import { PAGE_MAX_WIDTH } from '../lib/layout';
+import { APP_URL, CALENDLY_URL } from '../lib/links';
 
 const PLANS = [
   {
     name: 'free_trial',
     price: '$0', period: '/ 14d',
     features: ['10K requests','10 users','all features','email support'],
-    cta: '$ start →', featured: false,
+    cta: '$ start →', href: APP_URL, featured: false,
   },
   {
     name: 'starter',
     price: '$2,500', period: '/ mo',
     features: ['100K req/mo','50 users','SSO','90-day retention'],
-    cta: '$ demo', featured: false,
+    cta: '$ demo', href: CALENDLY_URL, featured: false,
   },
   {
     name: 'growth',
     price: '$7,500', period: '/ mo',
     features: ['200 users','policy + DLP','SCIM','1yr retention'],
-    cta: '$ demo →', featured: true,
+    cta: '$ demo →', href: CALENDLY_URL, featured: true,
   },
   {
     name: 'enterprise',
     price: 'custom', period: '',
     features: ['unlimited','air-gapped / on-prem','7yr retention','99.99% SLA'],
-    cta: '$ contact', featured: false,
+    cta: '$ contact', href: CALENDLY_URL, featured: false,
   },
 ];
 
@@ -64,7 +65,13 @@ export default function PricingSection() {
                   </li>
                 ))}
               </ul>
-              <a href="#" className={p.featured ? 'opa-btn opa-btn-primary' : 'opa-btn'} style={{ marginTop: 'auto' }}>{p.cta}</a>
+              <a
+                href={p.href}
+                target={p.href === APP_URL ? undefined : '_blank'}
+                rel={p.href === APP_URL ? undefined : 'noopener noreferrer'}
+                className={p.featured ? 'opa-btn opa-btn-primary' : 'opa-btn'}
+                style={{ marginTop: 'auto' }}
+              >{p.cta}</a>
             </div>
           ))}
         </div>
@@ -86,8 +93,8 @@ export default function PricingSection() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <a href="#" className="opa-btn opa-btn-primary">$ start trial →</a>
-            <a href="#" className="opa-btn">$ talk sales</a>
+            <a href={APP_URL} className="opa-btn opa-btn-primary">$ start trial →</a>
+            <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn">$ talk sales</a>
           </div>
         </div>
       </div>

@@ -74,7 +74,7 @@ export default function BudgetsPoliciesSection() {
             <div className="opa-card-head"><span>active policies</span><span>6 enforcing · 1 log-only</span></div>
             <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
               {POLICIES.map(p => (
-                <div key={p.name} style={{
+                <div key={p.name} className="policy-row" style={{
                   display: 'grid', gridTemplateColumns: '130px 80px 1fr auto', gap: 10,
                   alignItems: 'center', padding: '8px', border: '1px solid var(--line)',
                   borderRadius: 6, background: 'var(--panel-2)',
