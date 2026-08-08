@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { label: 'security', href: '/security', external: false },
   { label: 'providers', href: '/providers', external: false },
   { label: 'pricing', href: '/pricing', external: false },
-  { label: 'docs', href: 'https://docs-site-ten-nu.vercel.app', external: true },
+  { label: 'docs', href: 'https://docs.openproxyai.com', external: true },
 ];
 
 export default function Navigation() {
