@@ -72,6 +72,7 @@ const config: Config = {
   ],
 
   themeConfig: {
+    image: 'img/og-image.png',
     metadata: [
       {name: 'description', content: 'Documentation for OpenProxyAI — the enterprise LLM proxy and AI control plane. Setup, API reference, policies, security, and deployment guides.'},
       {name: 'og:type', content: 'website'},
