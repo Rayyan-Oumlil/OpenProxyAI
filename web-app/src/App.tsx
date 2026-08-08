@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import Navigation from './components/Navigation';
 import FooterSection from './sections/FooterSection';
 import HomePage from './pages/HomePage';
@@ -25,6 +26,7 @@ function App() {
         </main>
         <FooterSection />
       </div>
+      <Analytics />
     </div>
   );
 }
