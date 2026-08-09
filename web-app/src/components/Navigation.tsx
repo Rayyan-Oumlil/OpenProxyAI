@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PAGE_MAX_WIDTH } from '../lib/layout';
-import { APP_URL, CALENDLY_URL } from '../lib/links';
+import { CALENDLY_URL } from '../lib/links';
 import CommandPalette from './CommandPalette';
 
 const NAV_LINKS = [
@@ -50,7 +50,6 @@ export default function Navigation() {
           </div>
 
           <div style={{ display: 'flex', gap: 8 }} className="hidden lg:flex">
-            <a href={APP_URL} className="opa-btn">$ sign in</a>
             <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
           </div>
 
@@ -66,7 +65,6 @@ export default function Navigation() {
               ? <a key={l.label} href={l.href} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</a>
               : <Link key={l.label} to={l.href} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</Link>)}
             <div style={{ display: 'flex', gap: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
-              <a href={APP_URL} className="opa-btn">$ sign in</a>
               <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
             </div>
           </div>

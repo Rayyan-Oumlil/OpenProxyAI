@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { APP_URL, CALENDLY_URL } from '../lib/links';
+import { CALENDLY_URL } from '../lib/links';
 
 interface PaletteItem {
   label: string;
@@ -15,7 +15,6 @@ const ITEMS: PaletteItem[] = [
   { label: 'providers', hint: '/providers', action: nav => nav('/providers') },
   { label: 'pricing', hint: '/pricing', action: nav => nav('/pricing') },
   { label: 'docs', hint: 'docs.openproxyai.com', action: () => window.open('https://docs.openproxyai.com', '_blank', 'noopener,noreferrer') },
-  { label: 'sign in', hint: 'app.openproxyai.com', action: () => { window.location.href = APP_URL; } },
   { label: 'book a demo', hint: 'calendly', action: () => window.open(CALENDLY_URL, '_blank', 'noopener,noreferrer') },
 ];
 

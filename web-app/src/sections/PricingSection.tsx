@@ -94,7 +94,6 @@ export default function PricingSection() {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <a href={APP_URL} className="opa-btn opa-btn-primary">$ start trial →</a>
-            <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn">$ talk sales</a>
           </div>
         </div>
       </div>
