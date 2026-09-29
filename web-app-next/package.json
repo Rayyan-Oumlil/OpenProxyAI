@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/repo-stats.mjs",
     "dev": "react-router dev",
     "build": "react-router build",
     "postbuild": "node scripts/check-prerender.mjs",
