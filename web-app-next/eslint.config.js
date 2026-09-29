@@ -19,5 +19,9 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // React Router route modules export these alongside the component by convention.
+      'react-refresh/only-export-components': ['error', { allowExportNames: ['meta', 'links', 'Layout', 'ErrorBoundary'] }],
+    },
   },
 ])
