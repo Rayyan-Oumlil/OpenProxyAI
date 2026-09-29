@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, isRouteErrorResponse } from 'react-router';
+import { Analytics } from '@vercel/analytics/react';
+import '@fontsource-variable/inter-tight';
+import '@fontsource-variable/jetbrains-mono';
 import './index.css';
+import Navigation from './components/Navigation';
+import Footer from './components/Footer';
+import CommandPalette from './components/CommandPalette';
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -21,7 +27,20 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-signal focus:px-3 focus:py-2 focus:text-bg">
+        Skip to content
+      </a>
+      <Navigation />
+      <div id="main">
+        <Outlet />
+      </div>
+      <Footer />
+      <CommandPalette />
+      <Analytics />
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: { error: unknown }) {
