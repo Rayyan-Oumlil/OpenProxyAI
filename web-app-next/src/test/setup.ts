@@ -1,5 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
+
+// Vitest globals are off, so Testing Library cannot register its own cleanup.
+afterEach(() => cleanup());
 
 // jsdom has no SVG geometry (getTotalLength), so real GSAP MotionPath would throw in tests.
 vi.mock('gsap', () => ({

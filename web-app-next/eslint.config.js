@@ -22,6 +22,7 @@ export default defineConfig([
     rules: {
       // React Router route modules export these alongside the component by convention.
       'react-refresh/only-export-components': ['error', { allowExportNames: ['meta', 'links', 'Layout', 'ErrorBoundary'] }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
 ])
