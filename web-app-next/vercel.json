@@ -1,0 +1,11 @@
+{
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "build/client",
+  "redirects": [
+    { "source": "/product", "destination": "/models", "permanent": true },
+    { "source": "/security", "destination": "/trust", "permanent": true },
+    { "source": "/providers", "destination": "/models", "permanent": true }
+  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/__spa-fallback.html" }]
+}
