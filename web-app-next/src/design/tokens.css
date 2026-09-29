@@ -1,0 +1,21 @@
+:root {
+  --bg: #0a0e14;
+  --surface: #0f1520;
+  --surface-2: #151d2b;
+  --line: #1e2a3a;
+  --ink: #e6edf5;
+  --ink-dim: #8a9bb0;
+  --signal: #f5a524;
+  --ok: #3fb8af;
+  --danger: #f06a6f;
+
+  --font-sans: 'Inter Tight Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+
+  --step--1: 0.875rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.75rem;
+  --step-3: 2.5rem;
+  --step-4: 3.75rem;
+}
