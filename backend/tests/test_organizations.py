@@ -33,6 +33,12 @@ class _AllResult:
 
 
 class FakeDB:
+
+	@property
+	def info(self) -> dict:
+		# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+		return self.__dict__.setdefault("_info", {})
+
 	def __init__(self, *, scalar_result=None, get_result=None, execute_scalar=0, scalars_items=None):
 		self._scalar_result = scalar_result
 		self._get_result = get_result

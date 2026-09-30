@@ -28,6 +28,12 @@ from app.services.webhook_service import (
 class FakeDB:
     """Minimal async DB stub for webhook tests."""
 
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
+
     def __init__(self, *, get_result=None):
         self._get_result = get_result
         self.added: list = []

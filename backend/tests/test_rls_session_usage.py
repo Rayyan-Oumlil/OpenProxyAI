@@ -39,6 +39,7 @@ class RecordingSession:
 	def __init__(self, log: list, name: str = "app") -> None:
 		self.log = log
 		self.name = name
+		self.info: dict = {}
 
 	async def __aenter__(self):
 		self.log.append(("open", self.name))

@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import event
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -48,9 +49,32 @@ def set_app_role(dbapi_connection: Any, _connection_record: Any) -> None:
 
 event.listen(engine.sync_engine, "connect", set_app_role)
 
+# Session.info key holding the org a session is scoped to (set by set_session_org_id).
+RLS_ORG_KEY = "rls_org_id"
+_SET_ORG_SQL = text("SELECT set_config('app.current_org_id', :org_id, true)")
+
+
+class RequestSession(Session):
+    """Sync session class behind AsyncSessionLocal; carries the org-reapply listener."""
+
+
+def reapply_org_on_begin(session: Any, _transaction: Any, connection: Any) -> None:
+    """Re-apply the session's org at the start of every transaction.
+
+    set_config(..., true) is transaction-scoped, so without this a route that sets the
+    org once (in its auth dependency), commits, and keeps querying would lose it.
+    """
+    org_id = session.info.get(RLS_ORG_KEY)
+    if org_id is not None:
+        connection.execute(_SET_ORG_SQL, {"org_id": org_id})
+
+
+event.listen(RequestSession, "after_begin", reapply_org_on_begin)
+
 AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     bind=engine,
     expire_on_commit=False,
+    sync_session_class=RequestSession,
 )
 
 SystemSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
@@ -60,18 +84,16 @@ SystemSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
 
 
 async def set_session_org_id(session: AsyncSession, org_id: UUID | None) -> None:
-    """Set app.current_org_id for RLS. Transaction-scoped via set_config(..., true)."""
+    """Scope ``session`` to ``org_id`` for RLS, for this and every later transaction on it."""
     if org_id is None:
-        # Use set_config(..., true) so the reset is transaction-scoped, matching the set path.
-        # RESET is session-scoped and would leak state to the next request on a pooled connection.
+        session.info.pop(RLS_ORG_KEY, None)
+        # Transaction-scoped reset: RESET is session-scoped and would leak to pooled connections.
         await session.execute(text("SELECT set_config('app.current_org_id', '', true)"))
-    else:
-        if not isinstance(org_id, UUID):
-            raise TypeError("org_id must be UUID or None")
-        await session.execute(
-            text("SELECT set_config('app.current_org_id', :org_id, true)"),
-            {"org_id": str(org_id)},
-        )
+        return
+    if not isinstance(org_id, UUID):
+        raise TypeError("org_id must be UUID or None")
+    session.info[RLS_ORG_KEY] = str(org_id)
+    await session.execute(_SET_ORG_SQL, {"org_id": str(org_id)})
 
 
 @asynccontextmanager

@@ -202,6 +202,12 @@ def test_is_model_on_allowlist():
 class _NoopSession:
 	"""Stands in for the DB: the allowlist check rejects before anything is persisted."""
 
+	@property
+	def info(self) -> dict:
+		# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+		return self.__dict__.setdefault("_info", {})
+
+
 	async def execute(self, *args, **kwargs):  # noqa: ARG002
 		return None
 

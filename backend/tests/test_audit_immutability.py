@@ -19,6 +19,12 @@ from app.services import analytics_service as analytics_service_module
 
 
 class FakeDB:
+
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
     async def commit(self):
         return None
 
@@ -64,6 +70,12 @@ async def test_archive_old_logs_marks_expired_logs(monkeypatch):
             return [org]
 
     class FakeArchiveSession:
+
+        @property
+        def info(self) -> dict:
+            # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+            return self.__dict__.setdefault("_info", {})
+
         async def execute(self, stmt, *args, **kwargs):
             executed_statements.append(stmt)
             return FakeResult()
@@ -107,6 +119,12 @@ async def test_archive_old_logs_does_not_touch_recent_logs(monkeypatch):
             return [org]
 
     class FakeArchiveSession:
+
+        @property
+        def info(self) -> dict:
+            # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+            return self.__dict__.setdefault("_info", {})
+
         async def execute(self, stmt, *args, **kwargs):
             update_clauses.append(stmt)
             return FakeResult()
