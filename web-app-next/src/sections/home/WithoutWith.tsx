@@ -5,7 +5,7 @@ const PROVIDERS = ['OpenAI', 'Anthropic', 'Azure', 'Mistral'];
 
 function Diagram({ governed }: { governed: boolean }) {
   return (
-    <svg viewBox="0 0 400 260" role="img" aria-label={governed ? 'Every app goes through one gateway' : 'Every app calls every provider directly'} className="h-auto w-full">
+    <svg viewBox="-40 0 460 260" role="img" aria-label={governed ? 'Every app goes through one gateway' : 'Every app calls every provider directly'} className="h-auto w-full">
       {APPS.flatMap((_, a) => (governed
         ? [<line key={`a${a}`} x1={70} y1={40 + a * 60} x2={200} y2={130} stroke="var(--ok)" strokeWidth={1.5} />]
         : PROVIDERS.map((__, p) => <line key={`${a}-${p}`} x1={70} y1={40 + a * 60} x2={330} y2={40 + p * 60} stroke="var(--danger)" strokeOpacity={0.6} />)))}
