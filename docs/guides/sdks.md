@@ -8,8 +8,10 @@ Both Python and TypeScript SDKs provide a simple, OpenAI-compatible interface to
 
 ### Python
 
+> The SDKs are not published to PyPI or npm yet — install them from source as shown.
+
 ```bash
-pip install openproxy-ai
+pip install "git+https://github.com/Rayyan-Oumlil/OpenProxyAI.git#subdirectory=sdk/python"
 ```
 
 Requires Python 3.8+.
@@ -17,7 +19,10 @@ Requires Python 3.8+.
 ### TypeScript / JavaScript
 
 ```bash
-npm install openproxy-ai
+git clone https://github.com/Rayyan-Oumlil/OpenProxyAI.git
+cd OpenProxyAI/sdk/typescript && npm install && npm run build
+# then, from your project:
+npm install /path/to/OpenProxyAI/sdk/typescript
 ```
 
 Supports both ESM and CommonJS.

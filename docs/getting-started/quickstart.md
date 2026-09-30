@@ -58,8 +58,10 @@ Response:
 Install:
 
 ```bash
-pip install openproxy-ai
+pip install "git+https://github.com/Rayyan-Oumlil/OpenProxyAI.git#subdirectory=sdk/python"
 ```
+
+> The SDKs are not published to PyPI or npm yet — install them from source as shown.
 
 Code:
 
@@ -87,7 +89,10 @@ print(f"Request ID: {response.gateway.request_id}")
 Install:
 
 ```bash
-npm install openproxy-ai
+git clone https://github.com/Rayyan-Oumlil/OpenProxyAI.git
+cd OpenProxyAI/sdk/typescript && npm install && npm run build
+# then, from your project:
+npm install /path/to/OpenProxyAI/sdk/typescript
 ```
 
 Code:

@@ -1,6 +1,6 @@
 # OpenProxyAI — Feature Reference
 
-> Complete inventory of shipped capabilities. ~612 passing backend tests, 80+ test files.
+> Complete inventory of shipped capabilities. 612 passing backend tests across 55 test files (`cd backend && pytest`).
 
 ---
 
@@ -108,9 +108,9 @@
 | Enforcement modes | `off` / `log_only` / `enforce` — configurable per org |
 | Model allowlist | Restrict which models an org can use |
 | Keyword blocking | Scan prompt text for forbidden terms |
-| PII detection (regex) | Built-in regex for email, SSN, credit card, phone number |
+| PII detection (regex) | Built-in regex for email, SSN and credit card numbers (phone numbers and names need the optional Presidio integration) |
 | PII detection (NLP) | Optional Presidio integration — disabled by default due to image size (+800 MB) |
-| Prompt injection detection | ML model (`protectai/deberta-v3-base-prompt-injection`) with regex fallback, fail-open |
+| Prompt injection detection | ML model (`protectai/deberta-v3-base-prompt-injection`); regex patterns when the model is not loaded; timeouts and inference errors fail open |
 | Response guardrails | Keyword + PII checks on LLM output before returning to client |
 | Response PII redaction | Replaces detected PII with `[REDACTED]` in streaming and non-streaming responses |
 | Per-org config | Stored in PostgreSQL, 60s Redis cache, instant invalidation on save |
@@ -212,7 +212,7 @@
 | Docker Compose | Local development with PostgreSQL, Redis, backend, frontend |
 | Helm chart | Backend + frontend deployments, HPA (2-10 replicas), PDB, ServiceMonitor, init-container migrations |
 | Frontend Docker | Multi-stage nginx build with SPA fallback |
-| CI/CD | GitHub Actions: test → build → push GHCR → helm upgrade on push to main |
+| CI/CD | GitHub Actions on push to main: test → build → push to GCP Artifact Registry → migrations as a Cloud Run job → deploy to Cloud Run. The Helm chart is for self-hosted installs |
 | cert-manager | LetsEncrypt ClusterIssuer for automatic TLS |
 | Kubernetes | Ingress, ConfigMap, ServiceAccount, bundled PostgreSQL + Redis subcharts |
 | Customer-cluster install | [customer-cluster-install.md](./guides/customer-cluster-install.md) — use your PostgreSQL/Redis, no managed deps |
@@ -224,6 +224,6 @@
 
 | Item | Details |
 |---|---|
-| Python SDK | `openproxy-ai` on PyPI — sync + async, streaming, typed errors |
-| TypeScript SDK | `openproxy-ai` on npm — ESM + CJS, typed streaming |
+| Python SDK | `sdk/python` (install from source) — sync + async, streaming, typed errors |
+| TypeScript SDK | `sdk/typescript` (install from source) — ESM + CJS, typed streaming |
 | Base URL migration | Use OpenAI/Anthropic SDKs with only a `base_url` change — see [base-url-migration.md](./guides/base-url-migration.md) |
