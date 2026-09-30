@@ -21,6 +21,13 @@ const NODE_STYLE: Record<NodeKind, { r: number; fill: string; stroke: string }> 
   store: { r: 7, fill: 'var(--surface-2)', stroke: 'var(--ink-dim)' },
 };
 
+// On phones the SVG is ~0.36x scale, so labels would render at ~5px; a legend replaces them there.
+const LEGEND_GROUPS: { title: string; kinds: NodeKind[] }[] = [
+  { title: 'From', kinds: ['client', 'agent'] },
+  { title: 'Through', kinds: ['gateway'] },
+  { title: 'To', kinds: ['model', 'tool', 'store'] },
+];
+
 export default function ControlMap({ scene, seed = 7, animate = true, onEvent, className }: ControlMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const titleId = useId();
@@ -68,7 +75,7 @@ export default function ControlMap({ scene, seed = 7, animate = true, onEvent, c
                   x={l.x}
                   y={n.kind === 'gateway' ? n.y + 44 : n.y + 4}
                   textAnchor={l.anchor}
-                  className="fill-ink-dim font-mono"
+                  className="fill-ink-dim font-mono max-sm:hidden"
                   fontSize={l.fontSize}
                 >
                   {n.label}
@@ -78,6 +85,16 @@ export default function ControlMap({ scene, seed = 7, animate = true, onEvent, c
           })}
         </g>
       </svg>
+      <ul aria-label="Map legend" className="mt-3 grid grid-cols-3 gap-3 px-2 pb-2 font-mono text-[11px] text-ink-dim sm:hidden">
+        {LEGEND_GROUPS.map(group => (
+          <li key={group.title}>
+            <span className="text-ink">{group.title}</span>
+            <ul className="mt-1 space-y-0.5">
+              {scene.nodes.filter(n => group.kinds.includes(n.kind)).map(n => <li key={n.id}>{n.label}</li>)}
+            </ul>
+          </li>
+        ))}
+      </ul>
       <figcaption className="sr-only">
         {scene.description} Nodes: {scene.nodes.map(n => n.label).join(', ')}.
       </figcaption>

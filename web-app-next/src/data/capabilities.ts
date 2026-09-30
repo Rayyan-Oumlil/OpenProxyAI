@@ -3,7 +3,7 @@ export type BacklogId = 'B1' | 'B2' | 'B3' | 'B4' | 'B5' | 'B6';
 
 interface Base { id: string; pillar: Pillar; title: string; summary: string }
 export type Capability =
-  | (Base & { status: 'built'; source: string })
+  | (Base & { status: 'built'; source: string; shippedFrom?: BacklogId })
   | (Base & { status: 'backlog'; backlogId: BacklogId });
 
 const S = 'backend/app/services';
@@ -17,9 +17,10 @@ export const CAPABILITIES: readonly Capability[] = [
   { id: 'cache', pillar: 'models', status: 'built', source: `${S}/cache_service.py`, title: 'Three-tier cache', summary: 'In-memory, Redis exact-match, then pgvector semantic match at a 0.95 similarity threshold.' },
   { id: 'residency', pillar: 'models', status: 'built', source: `${S}/llm_service.py`, title: 'Data residency', summary: 'EU organisations only route through EU or global keys, enforced in SQL.' },
   // Agents
-  { id: 'mcp-gateway', pillar: 'agents', status: 'backlog', backlogId: 'B1', title: 'MCP gateway', summary: 'One endpoint in front of every MCP tool server, with per-caller tool filtering.' },
+  { id: 'mcp-gateway', pillar: 'agents', status: 'built', shippedFrom: 'B1', source: 'backend/app/services/mcp_gateway.py', title: 'MCP gateway', summary: 'One endpoint and one API key in front of every MCP tool server your org registers, with tools namespaced per server.' },
   { id: 'agent-identity', pillar: 'agents', status: 'backlog', backlogId: 'B3', title: 'Per-agent identity', summary: 'Every agent gets its own key, policies and budget, so actions are attributable.' },
-  { id: 'tool-guardrails', pillar: 'agents', status: 'backlog', backlogId: 'B4', title: 'Guardrails on tool calls', summary: 'Tool arguments and results pass the same policy engine as prompts.' },
+  { id: 'tool-policy', pillar: 'agents', status: 'built', source: 'backend/app/services/policy_service.py', title: 'Tool allow and block lists', summary: 'Pattern rules decide which tools agents may call; blocked calls never reach the tool server.' },
+  { id: 'tool-guardrails', pillar: 'agents', status: 'built', shippedFrom: 'B4', source: 'backend/app/services/policy_service.py', title: 'Guardrails on tool calls', summary: 'Tool arguments pass the same keyword and PII checks as prompts, and every call is audited.' },
   { id: 'a2a-audit', pillar: 'agents', status: 'backlog', backlogId: 'B5', title: 'Agent-to-agent audit', summary: 'Calls between agents are logged with caller identity and cost.' },
   // Trust
   { id: 'pii', pillar: 'trust', status: 'built', source: `${S}/policy_service.py`, title: 'PII redaction', summary: 'Emails, SSNs and card numbers are redacted in prompts and in responses, streaming included.' },

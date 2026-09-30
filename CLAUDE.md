@@ -74,7 +74,8 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 |---|---|
 | `backend/app/routes/proxy.py` | Core proxy endpoints (`/v1/chat/completions`, `/v1/embeddings`, `/v1/models`) |
 | `backend/app/services/llm_service.py` | LiteLLM wrapper, provider key rotation, experiments, streaming |
-| `backend/app/services/policy_service.py` | Hook system (`before_request` / `after_request` guardrails) |
+| `backend/app/services/policy_service.py` | Hook system (`before_request` / `after_request` guardrails), `evaluate_tool_call` for MCP |
+| `backend/app/routes/mcp.py` + `services/mcp_gateway.py` | MCP gateway (`POST /v1/mcp`): aggregation, tool policy, audit |
 | `backend/app/services/cache_service.py` | 3-tier cache (L1 TTLCache, L2 Redis, L3 pgvector semantic) |
 | `backend/app/services/audit_logger.py` | Fire-and-forget async logging (never blocks response) |
 | `backend/app/services/rate_limiter.py` | Token-based rate limiting (requests/min + tokens/min + dollars/day) |

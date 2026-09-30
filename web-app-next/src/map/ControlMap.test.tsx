@@ -23,6 +23,18 @@ describe('ControlMap', () => {
     expect(container.querySelectorAll('[data-edge]')).toHaveLength(SCENES.agents.edges.length);
     expect(container.querySelector('[data-layer="packets"]')).not.toBeNull();
   });
+  it('shows a phone-only legend grouping every node by role, and hides the tiny SVG labels there', () => {
+    const { container } = render(<ControlMap scene={SCENES.home} animate={false} />);
+    const legend = screen.getByRole('list', { name: /map legend/i });
+    expect(legend.className).toContain('sm:hidden');
+    for (const n of SCENES.home.nodes) expect(legend).toHaveTextContent(n.label);
+    expect(legend).toHaveTextContent(/From/);
+    expect(legend).toHaveTextContent(/Through/);
+    expect(legend).toHaveTextContent(/To/);
+    const labels = [...container.querySelectorAll('svg text')];
+    expect(labels.length).toBe(SCENES.home.nodes.length);
+    for (const t of labels) expect(t.getAttribute('class')).toContain('max-sm:hidden');
+  });
 });
 
 describe('TracePanel', () => {

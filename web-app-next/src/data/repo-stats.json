@@ -1,7 +1,7 @@
 {
-  "testFunctions": 599,
-  "testFiles": 55,
-  "migrations": 27,
-  "routeModules": 17,
-  "serviceModules": 30
+  "testFunctions": 677,
+  "testFiles": 62,
+  "migrations": 29,
+  "routeModules": 19,
+  "serviceModules": 33
 }
