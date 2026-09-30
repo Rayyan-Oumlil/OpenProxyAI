@@ -42,6 +42,12 @@ class FakePromptTemplate:
 
 
 class FakeDB:
+
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
     def __init__(self, templates=None):
         self._templates = list(templates or [])
         self._added = []

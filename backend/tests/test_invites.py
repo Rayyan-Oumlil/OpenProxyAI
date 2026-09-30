@@ -28,6 +28,12 @@ class FakeScalarResult:
 class FakeDB:
     """Minimal async DB stub used across invite tests."""
 
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
+
     def __init__(
         self,
         *,

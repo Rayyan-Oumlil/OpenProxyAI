@@ -222,3 +222,17 @@ async def test_rls_rejects_insert_for_another_org(two_orgs):
                 ),
                 {"a": org_a_id, "b": org_b_id},
             )
+
+
+@pytest.mark.asyncio
+async def test_org_scope_survives_commit(two_orgs):
+    """Routes set the org once in a dependency, then commit and keep querying."""
+    from app.database import AsyncSessionLocal
+
+    _, org_b_id = two_orgs
+    async with AsyncSessionLocal() as session:
+        await set_session_org_id(session, org_b_id)
+        before = await session.scalar(text("SELECT COUNT(*) FROM api_keys WHERE org_id = :b"), {"b": org_b_id})
+        await session.commit()
+        after = await session.scalar(text("SELECT COUNT(*) FROM api_keys WHERE org_id = :b"), {"b": org_b_id})
+    assert before >= 1 and after == before
