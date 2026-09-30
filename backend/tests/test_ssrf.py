@@ -26,8 +26,12 @@ def test_private_loopback_link_local_and_cgn_are_rejected(monkeypatch, ip):
 
 
 def test_unresolvable_host_is_rejected(monkeypatch):
-	def boom(*a, **k):  # noqa: ARG001
+	def boom(*a, **k):
 		raise OSError("no such host")
 
 	monkeypatch.setattr(ssrf.socket, "getaddrinfo", boom)
 	assert ssrf.is_safe_https_url("https://nope.invalid/mcp") is False
+
+
+def test_invalid_port_is_rejected_not_raised():
+	assert ssrf.is_safe_https_url("https://mcp.example.com:99999/mcp") is False

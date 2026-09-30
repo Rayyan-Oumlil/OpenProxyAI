@@ -55,11 +55,11 @@ class RecordingSession:
 			self.log.append(("query", self.name))
 		return _Empty()
 
-	async def scalars(self, *args, **kwargs):  # noqa: ARG002
+	async def scalars(self, *args, **kwargs):
 		self.log.append(("query", self.name))
 		return _Empty()
 
-	async def get(self, *args, **kwargs):  # noqa: ARG002
+	async def get(self, *args, **kwargs):
 		return None
 
 	def add(self, obj):
@@ -91,7 +91,7 @@ async def test_org_scoped_session_sets_org_before_yielding(log):
 	assert log[:3] == [("open", "app"), ("org", str(ORG_A)), ("body",)]
 
 
-async def test_org_scoped_session_rejects_non_uuid(log):  # noqa: ARG001
+async def test_org_scoped_session_rejects_non_uuid(log):
 	with pytest.raises(TypeError):
 		async with database.org_scoped_session(str(ORG_A)):  # type: ignore[arg-type]
 			pass
@@ -132,7 +132,7 @@ async def test_semantic_cache_insert_is_org_scoped(log, monkeypatch):
 	class _Emb:
 		data = [type("D", (), {"embedding": [0.1, 0.2]})()]
 
-	async def fake_embed(*args, **kwargs):  # noqa: ARG001
+	async def fake_embed(*args, **kwargs):
 		return _Emb()
 
 	monkeypatch.setattr(cache_service, "_embed_for_cache", fake_embed, raising=False)
@@ -145,10 +145,10 @@ class _ListRedis:
 	def __init__(self, items: list[str]) -> None:
 		self.items = items
 
-	async def lpop(self, key):  # noqa: ARG002
+	async def lpop(self, key):
 		return self.items.pop(0) if self.items else None
 
-	async def rpush(self, key, value):  # noqa: ARG002
+	async def rpush(self, key, value):
 		self.items.append(value)
 
 

@@ -92,7 +92,7 @@ async def test_set_session_org_id_remembers_the_org_on_the_session():
 		def __init__(self) -> None:
 			self.info: dict = {}
 
-		async def execute(self, *args, **kwargs):  # noqa: ARG002
+		async def execute(self, *args, **kwargs):
 			return None
 
 	s = _Session()

@@ -70,7 +70,7 @@ def test_policy_api_accepts_and_returns_mcp_fields(client, monkeypatch):
 	class _DB:
 		info: dict = {}
 
-		def add(self, obj):  # noqa: ARG002
+		def add(self, obj):
 			pass
 
 		async def commit(self):
@@ -85,10 +85,10 @@ def test_policy_api_accepts_and_returns_mcp_fields(client, monkeypatch):
 	async def fake_redis():
 		return None
 
-	async def fake_load(org_id, db, redis):  # noqa: ARG001
+	async def fake_load(org_id, db, redis):
 		return _cfg(mcp_blocked_tools=["*__delete_*"])
 
-	async def fake_save(org_id, config, db, redis):  # noqa: ARG001
+	async def fake_save(org_id, config, db, redis):
 		saved.append(config)
 
 	monkeypatch.setattr(policy_service_module.policy_store, "load", fake_load)
@@ -110,7 +110,7 @@ def test_policy_api_accepts_and_returns_mcp_fields(client, monkeypatch):
 
 
 @pytest.mark.parametrize("pattern", ["", "x" * 201])
-def test_policy_api_rejects_empty_or_huge_patterns(client, monkeypatch, pattern):  # noqa: ARG001
+def test_policy_api_rejects_empty_or_huge_patterns(client, monkeypatch, pattern):
 	user = SimpleNamespace(id=uuid4(), org_id=uuid4(), email="a@t.com", role="admin", is_active=True)
 
 	async def fake_user():

@@ -32,13 +32,14 @@ def resolve_safe_url(url: str) -> tuple[bool, str | None]:
     """
     try:
         parsed = urlparse(url)
-    except Exception:
+    except ValueError:
         return False, None
     if parsed.scheme.lower() != "https" or not parsed.hostname:
         return False, None
     try:
-        addr_infos = socket.getaddrinfo(parsed.hostname, parsed.port or 443, type=socket.SOCK_STREAM)
-    except Exception:
+        port = parsed.port or 443  # raises ValueError for out-of-range or non-numeric ports
+        addr_infos = socket.getaddrinfo(parsed.hostname, port, type=socket.SOCK_STREAM)
+    except (OSError, UnicodeError, ValueError):  # gaierror is an OSError; IDNA failures are UnicodeError
         return False, None
     if not addr_infos:
         return False, None

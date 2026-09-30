@@ -6,13 +6,13 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import event
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
 
 from app.config import settings
