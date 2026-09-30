@@ -47,6 +47,7 @@ RLS_TABLES = [
     "webhook_deliveries",
     "semantic_cache_entries",
     "prompt_templates",
+    "mcp_servers",
 ]
 
 
