@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "e2e": "playwright test",
-    "preview": "serve build/client -l 4173"
+    "preview": "serve build/client -l 4173",
+    "og": "node scripts/og-images.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter-tight": "^5.3.0",
