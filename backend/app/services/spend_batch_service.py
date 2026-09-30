@@ -14,8 +14,8 @@ from uuid import UUID
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
-from app.config import settings
 from app import database
+from app.config import settings
 from app.models.request_log import RequestLog
 
 logger = logging.getLogger(__name__)
