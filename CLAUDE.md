@@ -82,14 +82,15 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 | `backend/app/config.py` | `PLAN_FEATURES` dict, `AIRGAP_MODE` flag, all env-based settings |
 | `backend/app/main.py` | Lifespan (DB + Redis init), APScheduler jobs, middleware stack |
 
-## Migration Chain (all 27, in order)
+## Migration Chain (27 files; regenerate with `cd backend && alembic history`)
 ```
-54c0ed90559e → a2b3c4d5e6f7 → a3b4c5d6e7f8 → b1c2d3e4f5a6 → b3e8d87fd2f1
-→ c3d4e5f6a7b8 → c4f9a12e8b7d → d4e5f6a7b8c9 → d4e7f12a9c3b → e5f8a23b4c1d
-→ f1a9c3e7d5b2 → f7a8b9c0d1e2 → e6f7a8b9c0d1 → e6f7a34b9d0c
-→ h9c0d1e2f3a4 → i0d1e2f3a4b5 → j1e2f3a4b5c6 → k2f3a4b5c6d7
-→ l3g4h5i6j7k8 → m4h5i6j7k8l9 → n5i6j7k8l9m0 → o6j7k8l9m0n1
-→ q8l9m0n1o2p3 → r9m0n1o2p3q4
+54c0ed90559e → b3e8d87fd2f1 → c4f9a12e8b7d → d4e7f12a9c3b → e5f8a23b4c1d
+→ f1a9c3e7d5b2 → a2b3c4d5e6f7 → a3b4c5d6e7f8 → b1c2d3e4f5a6 → c3d4e5f6a7b8
+→ e6f7a8b9c0d1 → d4e5f6a7b8c9 → e6f7a34b9d0c (branchpoint)
+    ├─ f7a8b9c0d1e2 → g8b9c0d1e2f3 → h9c0d1e2f3a4 → i0d1e2f3a4b5 → j1e2f3a4b5c6
+    └─ f8a9b0c1d2e3 (RLS policies)
+→ k2f3a4b5c6d7 (merge) → l3g4h5i6j7k8 → m4h5i6j7k8l9 → n5i6j7k8l9m0
+→ o6j7k8l9m0n1 → q8l9m0n1o2p3 → r9m0n1o2p3q4 → s0n1o2p3q4r5 (head)
 ```
 
 ## Architecture Rules (Critical)
@@ -143,7 +144,7 @@ Multiple provider keys per provider — weighted random rotation in `llm_service
 - `ADAPTIVE_LB_ENABLED` — enables adaptive load balancer sampling
 
 ## What to Never Do
-- **Never** call `set_session_org_id()` — skip it and RLS silently returns no rows (data leak / data loss)
+- **Never** skip `set_session_org_id()` before touching an RLS-protected table — skip it and RLS silently returns no rows (data loss) or, if the connection bypasses RLS, exposes other orgs' rows
 - **Never** block the response path with logging — always use `BackgroundTasks`
 - **Never** raise exceptions from sidecar services (ClickHouse, Langfuse, Prometheus, webhooks)
 - **Never** mutate a request-scoped DB session in a background task — create a new one
