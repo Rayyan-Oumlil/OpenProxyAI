@@ -28,4 +28,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # Map snapshots are recorded per OS; CI (linux) records its own baseline on first run.
       - run: npx playwright test --update-snapshots=missing
+      - name: Upload Playwright snapshots and results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            web-app-next/e2e/**/*-snapshots/
+            web-app-next/test-results/
+          retention-days: 7
       - run: npm run lhci

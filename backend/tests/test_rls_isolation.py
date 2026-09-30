@@ -51,6 +51,18 @@ RLS_TABLES = [
 ]
 
 
+@pytest.fixture(autouse=True)
+async def _dispose_app_engines():
+    """Each test runs in its own event loop; pooled asyncpg connections must not leak across loops."""
+    from app.database import engine, system_engine
+
+    for eng in (engine, system_engine):
+        await eng.dispose()
+    yield
+    for eng in (engine, system_engine):
+        await eng.dispose()
+
+
 @pytest.fixture
 async def db_engine():
     url = os.environ.get("DATABASE_URL") or ""
@@ -108,7 +120,7 @@ async def two_orgs(db_engine):
 
 
 @pytest.mark.asyncio
-async def test_request_engine_runs_as_app_role(two_orgs):  # noqa: ARG001
+async def test_request_engine_runs_as_app_role(two_orgs):
     """Request-path sessions are switched to the RLS-subject role, whatever the login role is."""
     from app.config import settings
     from app.database import AsyncSessionLocal
