@@ -68,11 +68,11 @@ export default function EngineeringRoute() {
       <Section eyebrow="Decisions" title="The tradeoffs behind the design.">
         <ul className="grid gap-4 md:grid-cols-2">
           {DECISIONS.map(d => (
-            <li key={d.title} className="rounded-xl border border-line bg-surface p-5">
+            <li key={d.title} className="min-w-0 rounded-xl border border-line bg-surface p-5">
               <h3 className="text-step-1 font-semibold">{d.title}</h3>
               <p className="mt-2">{d.choice}</p>
               <p className="mt-2 text-ink-dim"><span className="text-signal">Tradeoff:</span> {d.tradeoff}</p>
-              <a href={sourceUrl(d.source)} className="mt-3 inline-block font-mono text-step--1 text-ok hover:underline">{d.source} ↗</a>
+              <a href={sourceUrl(d.source)} className="mt-3 inline-block break-all font-mono text-step--1 text-ok hover:underline">{d.source} ↗</a>
             </li>
           ))}
         </ul>
