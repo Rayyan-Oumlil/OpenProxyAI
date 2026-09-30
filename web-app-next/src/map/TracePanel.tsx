@@ -9,7 +9,7 @@ const STATUS_COLOR = { pass: 'text-ok', fail: 'text-danger', skip: 'text-ink-dim
 
 export default function TracePanel({ event }: { event: RequestEvent | null }) {
   return (
-    <aside aria-live="polite" aria-label="Latest request trace" className="rounded-lg border border-line bg-surface p-4 font-mono text-step--1">
+    <aside aria-live="polite" aria-label="Latest request trace" className="min-h-[21rem] rounded-lg border border-line bg-surface p-4 font-mono text-step--1">
       {event === null ? (
         <p className="text-ink-dim">waiting for traffic…</p>
       ) : (

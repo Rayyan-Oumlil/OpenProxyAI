@@ -3,13 +3,21 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration, isRouteErrorResponse }
 import { Analytics } from '@vercel/analytics/react';
 import '@fontsource-variable/inter-tight';
 import '@fontsource-variable/jetbrains-mono';
+import interTightLatin from '@fontsource-variable/inter-tight/files/inter-tight-latin-wght-normal.woff2?url';
+import jetbrainsMonoLatin from '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url';
 import './index.css';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import CommandPalette from './components/CommandPalette';
 
+// Preloaded so above-the-fold text is not gated on CSS parse → font discovery.
+const PRELOADED_FONTS = [interTightLatin, jetbrainsMonoLatin];
+
 export function links() {
-  return [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }];
+  return [
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+    ...PRELOADED_FONTS.map(href => ({ rel: 'preload', as: 'font', type: 'font/woff2', href, crossOrigin: 'anonymous' as const })),
+  ];
 }
 
 export function Layout({ children }: { children: ReactNode }) {
