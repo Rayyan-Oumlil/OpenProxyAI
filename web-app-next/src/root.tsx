@@ -8,6 +8,10 @@ import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import CommandPalette from './components/CommandPalette';
 
+export function links() {
+  return [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }];
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
