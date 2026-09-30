@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import re
 import re as _re
@@ -45,6 +46,9 @@ class PolicyConfig:
 	prompt_injection_detection_enabled: bool = False
 	response_guardrails_enabled: bool = False
 	response_pii_redact: bool = False
+	# MCP gateway: fnmatch patterns on namespaced tool names ("<server>__<tool>"); empty allowlist = all tools.
+	mcp_allowed_tools: list[str] = field(default_factory=list)
+	mcp_blocked_tools: list[str] = field(default_factory=list)
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -71,6 +75,8 @@ class PolicyConfig:
 			prompt_injection_detection_enabled=bool(data.get("prompt_injection_detection_enabled", False)),
 			response_guardrails_enabled=bool(data.get("response_guardrails_enabled", False)),
 			response_pii_redact=bool(data.get("response_pii_redact", False)),
+			mcp_allowed_tools=list(data.get("mcp_allowed_tools") or []),
+			mcp_blocked_tools=list(data.get("mcp_blocked_tools") or []),
 		)
 
 	def to_dict(self) -> dict:
@@ -86,6 +92,8 @@ class PolicyConfig:
 			"prompt_injection_detection_enabled": self.prompt_injection_detection_enabled,
 			"response_guardrails_enabled": self.response_guardrails_enabled,
 			"response_pii_redact": self.response_pii_redact,
+			"mcp_allowed_tools": self.mcp_allowed_tools,
+			"mcp_blocked_tools": self.mcp_blocked_tools,
 		}
 
 
@@ -312,6 +320,38 @@ class PolicyService:
 				triggered_rules=triggered_rules,
 			)
 
+		return PolicyDecision(allowed=True, action="allow", _mode=mode)
+
+	def evaluate_tool_call(self, tool_name: str, arguments: dict, config: PolicyConfig) -> PolicyDecision:
+		"""Policy for an MCP tool call: block/allow patterns, then keyword and PII checks on the arguments."""
+		mode = config.enforcement_mode.lower().strip()
+		if mode == "off":
+			return PolicyDecision(allowed=True, action="allow", _mode=mode)
+
+		if any(fnmatch.fnmatchcase(tool_name, p) for p in config.mcp_blocked_tools):
+			return self._decision_for_violation(
+				mode=mode, reason_code="tool_blocked",
+				detail=f"Tool {tool_name} is blocked by organization policy.", triggered_rules=["mcp_blocked_tools"],
+			)
+		if config.mcp_allowed_tools and not any(fnmatch.fnmatchcase(tool_name, p) for p in config.mcp_allowed_tools):
+			return self._decision_for_violation(
+				mode=mode, reason_code="tool_not_allowed",
+				detail=f"Tool {tool_name} is not on the organization's tool allowlist.", triggered_rules=["mcp_allowed_tools"],
+			)
+
+		text = json.dumps(arguments, ensure_ascii=False, sort_keys=True)
+		keyword_hit = self._keyword_hit(text, config)
+		if keyword_hit is not None:
+			return self._decision_for_violation(
+				mode=mode, reason_code="blocked_keyword",
+				detail=f"Tool arguments matched blocked keyword: {keyword_hit}", triggered_rules=["blocked_keyword"],
+			)
+		pii_match = self._pii_hit(text, config)
+		if pii_match is not None:
+			return self._decision_for_violation(
+				mode=mode, reason_code="pii_detected",
+				detail=f"Potential PII detected in tool arguments: {pii_match}", triggered_rules=["pii_detection"],
+			)
 		return PolicyDecision(allowed=True, action="allow", _mode=mode)
 
 	def _decision_for_violation(
