@@ -32,7 +32,7 @@ export default function EngineeringRoute() {
   return (
     <main>
       <section className="mx-auto max-w-page px-4 pb-8 pt-16 sm:px-6 md:pt-24">
-        <p className="font-mono text-step--1 uppercase tracking-widest text-signal">Engineering</p>
+        <p className="text-step--1 font-medium text-signal">Engineering</p>
         <h1 className="mt-4 max-w-3xl text-step-3 font-semibold leading-tight tracking-tight md:text-step-4">How I built OpenProxyAI.</h1>
         <p className="mt-5 max-w-2xl text-step-1 text-ink-dim">
           I designed and built OpenProxyAI end to end — gateway, admin console, deployment. This page is the short version: what it runs on, the decisions that shaped it, and what is shipped versus next.
@@ -43,7 +43,7 @@ export default function EngineeringRoute() {
         </div>
       </section>
 
-      <Section eyebrow="By the numbers" title="Counted from the repository at build time.">
+      <Section title="Counted from the repository at build time.">
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-5">
           {STATS.map(([value, label]) => (
             <div key={label} className="rounded-xl border border-line bg-surface p-5">
@@ -54,7 +54,7 @@ export default function EngineeringRoute() {
         </dl>
       </Section>
 
-      <Section eyebrow="Stack" title="Boring where it can be, specific where it matters.">
+      <Section title="Boring where it can be, specific where it matters.">
         <dl className="grid gap-x-8 gap-y-4 md:grid-cols-2">
           {STACK.map(([k, v]) => (
             <div key={k} className="flex gap-4 border-b border-line pb-3">
@@ -65,7 +65,7 @@ export default function EngineeringRoute() {
         </dl>
       </Section>
 
-      <Section eyebrow="Decisions" title="The tradeoffs behind the design.">
+      <Section title="The tradeoffs behind the design.">
         <ul className="grid gap-4 md:grid-cols-2">
           {DECISIONS.map(d => (
             <li key={d.title} className="min-w-0 rounded-xl border border-line bg-surface p-5">
@@ -78,10 +78,10 @@ export default function EngineeringRoute() {
         </ul>
       </Section>
 
-      <Section eyebrow="Status" title="Shipped, and next.">
+      <Section title="Shipped, and next.">
         <div className="grid gap-8 md:grid-cols-2">
           <div>
-            <h3 className="font-mono text-step--1 uppercase tracking-widest text-ok">Shipped</h3>
+            <h3 className="text-step--1 font-medium text-ok">Shipped</h3>
             <ul aria-label="Shipped" className="mt-3 space-y-2">
               {built.map(c => (
                 <li key={c.id}><a href={sourceUrl(c.source)} className="hover:text-signal">{c.title}</a></li>
@@ -89,7 +89,7 @@ export default function EngineeringRoute() {
             </ul>
           </div>
           <div>
-            <h3 className="font-mono text-step--1 uppercase tracking-widest text-signal">Next</h3>
+            <h3 className="text-step--1 font-medium text-signal">Next</h3>
             <ul aria-label="Next" className="mt-3 space-y-2">
               {next.map(c => <li key={c.id}>{c.title}</li>)}
             </ul>

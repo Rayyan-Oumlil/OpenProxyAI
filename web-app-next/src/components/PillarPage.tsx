@@ -23,7 +23,7 @@ export default function PillarPage({ pillar, sceneId, eyebrow, title, lede, chil
       <section className="relative overflow-hidden">
         <div className="grid-bg pointer-events-none absolute inset-0" aria-hidden />
         <div className="relative mx-auto max-w-page px-4 pb-12 pt-16 sm:px-6 md:pt-24">
-          <p className="font-mono text-step--1 uppercase tracking-widest text-signal">{eyebrow}</p>
+          <p className="text-step--1 font-medium text-signal">{eyebrow}</p>
           <h1 className="mt-4 max-w-3xl text-step-3 font-semibold leading-tight tracking-tight md:text-step-4">{title}</h1>
           <p className="mt-5 max-w-2xl text-step-1 text-ink-dim">{lede}</p>
           <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_20rem]">
@@ -32,7 +32,7 @@ export default function PillarPage({ pillar, sceneId, eyebrow, title, lede, chil
           </div>
         </div>
       </section>
-      <Section eyebrow="Capabilities" title={`What ${eyebrow.toLowerCase()} covers`}>
+      <Section title={`What ${eyebrow.toLowerCase()} covers`}>
         <FeatureGrid items={capabilitiesFor(pillar)} />
       </Section>
       {children}

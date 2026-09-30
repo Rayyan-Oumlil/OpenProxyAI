@@ -45,7 +45,8 @@ test('map scenes match visual snapshots', async ({ page }, info) => {
 
 test('command palette navigates', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'keyboard shortcut is desktop-only');
-  await page.goto('/');
+  // The shortcut listener attaches on hydration; the prerendered HTML is visible before that.
+  await page.goto('/', { waitUntil: 'networkidle' });
   await page.keyboard.press('Control+k');
   await page.getByLabel('Search pages').fill('trust');
   await page.keyboard.press('Enter');
@@ -62,4 +63,10 @@ test('audit chain breaks on edit', async ({ page }) => {
   await page.goto('/trust');
   await page.getByLabel('Action for entry 3').fill('export_all_logs');
   await expect(page.getByText('✗ broken')).toHaveCount(3);
+});
+
+test('main navigation is reachable on every viewport', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Agents' }).locator('visible=true').first().click();
+  await expect(page).toHaveURL(/\/agents$/);
 });

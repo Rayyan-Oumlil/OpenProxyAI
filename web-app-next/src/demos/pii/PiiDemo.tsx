@@ -12,7 +12,7 @@ export default function PiiDemo() {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div>
-        <label htmlFor={inputId} className="font-mono text-step--1 uppercase tracking-widest text-ink-dim">Your prompt</label>
+        <label htmlFor={inputId} className="text-step--1 font-medium text-ink-dim">Your prompt</label>
         <textarea
           id={inputId}
           value={text}
@@ -24,7 +24,7 @@ export default function PiiDemo() {
         <p className="mt-1 text-right font-mono text-[11px] text-ink-dim">{text.length}/{MAX_INPUT}</p>
       </div>
       <div>
-        <p className="font-mono text-step--1 uppercase tracking-widest text-ink-dim">What the model receives</p>
+        <p className="text-step--1 font-medium text-ink-dim">What the model receives</p>
         <output htmlFor={inputId} aria-live="polite" className="mt-2 block min-h-[11rem] whitespace-pre-wrap break-words rounded-lg border border-line bg-surface p-4 font-mono text-step--1 text-ink">
           {parts.map((p, i) => (
             <span key={i}>
