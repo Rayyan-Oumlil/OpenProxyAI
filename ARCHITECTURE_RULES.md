@@ -96,7 +96,11 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 ## Architecture Rules (Critical)
 
 ### RLS — Row Level Security
+- Request-path connections run as `app_user` (`SET ROLE` on connect, `DB_APP_ROLE`), so RLS applies even when the login role is a superuser
 - Every `AsyncSession` that touches a protected table **must** call `await set_session_org_id(session, org_id)` first
+- Background writers use `org_scoped_session(org_id)` (opens a session with the org already set)
+- `SystemSessionLocal` keeps the login role and bypasses RLS — only for jobs that must read across orgs (health checks, key rotation, adaptive sampling). Never in request handling
+- `request_logs` and `admin_audit_logs` are append-only for `app_user` (only `request_logs.archived_at` is updatable)
 - Fire-and-forget background tasks **must** create their own `AsyncSession` — the request-scoped session is closed after the response
 - The materialized view `mv_daily_spend` is refreshed via `refresh_mv_daily_spend_definer()` (SECURITY DEFINER) to bypass RLS
 
