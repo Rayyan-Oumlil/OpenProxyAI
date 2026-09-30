@@ -1,6 +1,7 @@
 import { useId, useRef } from 'react';
 import SimulatedTag from '../components/SimulatedTag';
-import type { MapNode, NodeKind, RequestEvent, Scene } from './types';
+import { labelLayout } from './layout';
+import type { NodeKind, RequestEvent, Scene } from './types';
 import { useMapAnimation } from './useMapAnimation';
 
 interface ControlMapProps {
@@ -19,11 +20,6 @@ const NODE_STYLE: Record<NodeKind, { r: number; fill: string; stroke: string }> 
   tool: { r: 7, fill: 'var(--surface-2)', stroke: 'var(--ok)' },
   store: { r: 7, fill: 'var(--surface-2)', stroke: 'var(--ink-dim)' },
 };
-
-function labelAnchor(n: MapNode, w: number): { x: number; anchor: 'start' | 'middle' | 'end' } {
-  if (n.kind === 'gateway') return { x: n.x, anchor: 'middle' };
-  return n.x < w / 2 ? { x: n.x - 14, anchor: 'end' } : { x: n.x + 14, anchor: 'start' };
-}
 
 export default function ControlMap({ scene, seed = 7, animate = true, onEvent, className }: ControlMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -64,7 +60,7 @@ export default function ControlMap({ scene, seed = 7, animate = true, onEvent, c
         <g>
           {scene.nodes.map(n => {
             const s = NODE_STYLE[n.kind];
-            const l = labelAnchor(n, scene.viewBox.w);
+            const l = labelLayout(n, scene.viewBox.w);
             return (
               <g key={n.id} data-node={n.id}>
                 <circle cx={n.x} cy={n.y} r={s.r} fill={s.fill} stroke={s.stroke} strokeWidth={n.kind === 'gateway' ? 2 : 1.5} />
@@ -73,7 +69,7 @@ export default function ControlMap({ scene, seed = 7, animate = true, onEvent, c
                   y={n.kind === 'gateway' ? n.y + 44 : n.y + 4}
                   textAnchor={l.anchor}
                   className="fill-ink-dim font-mono"
-                  fontSize={n.kind === 'gateway' ? 16 : 13}
+                  fontSize={l.fontSize}
                 >
                   {n.label}
                 </text>
