@@ -18,8 +18,8 @@ describe('capabilities', () => {
     expect(missing).toEqual([]);
   });
 
-  it('covers every backlog item B1–B6 exactly once', () => {
-    const ids = CAPABILITIES.flatMap(c => (c.status === 'backlog' ? [c.backlogId] : [])).sort();
+  it('traces every backlog item B1–B6 exactly once, whether still planned or shipped', () => {
+    const ids = CAPABILITIES.flatMap(c => (c.status === 'backlog' ? [c.backlogId] : c.shippedFrom ? [c.shippedFrom] : [])).sort();
     expect(ids).toEqual(['B1', 'B2', 'B3', 'B4', 'B5', 'B6']);
   });
 

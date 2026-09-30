@@ -33,6 +33,20 @@
 
 ---
 
+## MCP Gateway
+
+| Feature | Details |
+|---|---|
+| Endpoint | `POST /v1/mcp` — MCP 2025-11-25 Streamable HTTP, JSON-RPC 2.0, authenticated with an OpenProxyAI API key |
+| Aggregation | `tools/list` merges every active upstream server of the org; tools are namespaced `<server>__<tool>`; unreachable servers reported in `_meta` |
+| Tool policy | `mcp_allowed_tools` / `mcp_blocked_tools` (fnmatch) plus keyword/PII guardrails on tool arguments; follows `off` / `log_only` / `enforce` |
+| Blocking | Refused calls never reach the upstream; JSON-RPC error `-32001` with `reason_code` |
+| Audit | One `request_logs` row per `tools/call` (`provider = mcp:<server>`, status 200/446/502/400) |
+| Server registry | `/api/v1/mcp-servers` — admin-only writes, HTTPS + SSRF check, encrypted write-only auth header, admin audit log |
+| Guide | [docs-site/docs/guides/mcp-gateway.md](../docs-site/docs/guides/mcp-gateway.md) |
+
+---
+
 ## Teams (org structure)
 
 | Feature | Details |

@@ -32,6 +32,12 @@ export const DECISIONS: readonly Decision[] = [
     source: 'backend/app/routes/proxy.py',
   },
   {
+    title: 'A stateless MCP gateway',
+    choice: 'Each upstream tool call runs its own MCP initialize handshake instead of the gateway holding long-lived sessions.',
+    tradeoff: 'Nothing to store or rebalance when the gateway scales out, at the cost of one extra round-trip per tool call.',
+    source: 'backend/app/services/mcp_client.py',
+  },
+  {
     title: 'Three cache tiers',
     choice: 'In-process TTL cache, then Redis exact match, then pgvector semantic similarity at 0.95.',
     tradeoff: 'Cheap hits stay cheap, but semantic hits can return a near-miss answer — so the threshold is strict and overridable per request.',
