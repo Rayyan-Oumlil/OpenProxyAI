@@ -7,7 +7,7 @@ from decimal import Decimal
 from redis.asyncio import Redis
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app.database import org_scoped_session
 from app.models.request_log import RequestLog
 from app.services.cost_tracker import cost_tracker_service
 from app.services.spend_batch_service import push_to_batch_queue, _serialize_log_entry
@@ -25,7 +25,7 @@ async def _fire_policy_webhook(
 		from app.models.organization import Organization as _Org
 		from app.services import webhook_service
 
-		async with AsyncSessionLocal() as _db:
+		async with org_scoped_session(org_id) as _db:
 			_org = await _db.get(_Org, org_id)
 			if _org is not None:
 				await webhook_service.dispatch_event(
@@ -58,7 +58,7 @@ async def _fire_anomaly_check(
 	try:
 		from app.models.organization import Organization as _Org
 
-		async with AsyncSessionLocal() as _db:
+		async with org_scoped_session(org_id) as _db:
 			_org = await _db.get(_Org, org_id)
 			if _org is not None:
 				await cost_tracker_service.check_anomaly(
@@ -123,7 +123,7 @@ async def log_request(
 		)
 		await push_to_batch_queue(redis, serialized)
 	else:
-		async with AsyncSessionLocal() as db:
+		async with org_scoped_session(org_id) as db:
 			row = RequestLog(
 				request_id=request_id,
 				org_id=org_id,

@@ -1,5 +1,6 @@
 """Organization settings endpoints."""
 
+import dataclasses
 import math
 import uuid
 from datetime import UTC, datetime
@@ -31,6 +32,10 @@ from app.services.compliance_templates import get_template, list_templates
 from app.services.plan_service import assert_plan_allows, included_tokens_monthly_for_org
 from app.services.policy_service import PolicyConfig, _POLICY_CACHE_KEY, policy_store
 from app.services.webhook_service import _deliver
+
+def _policy_response(config: PolicyConfig) -> PolicyConfigResponse:
+	return PolicyConfigResponse(**dataclasses.asdict(config))
+
 
 router = APIRouter(prefix="/api/v1/organizations", tags=["Organizations"])
 
@@ -151,19 +156,7 @@ async def get_policy_config(
 ) -> PolicyConfigResponse:
 	"""Return the current policy configuration for the organization."""
 	config = await policy_store.load(current_user.org_id, db, redis)
-	return PolicyConfigResponse(
-		enforcement_mode=config.enforcement_mode,
-		allowed_models=config.allowed_models,
-		blocked_keywords=config.blocked_keywords,
-		pii_detection_enabled=config.pii_detection_enabled,
-		pii_entities=config.pii_entities,
-		model_rate_limits=config.model_rate_limits,
-		per_team_limits=config.per_team_limits,
-		updated_at=config.updated_at,
-		prompt_injection_detection_enabled=config.prompt_injection_detection_enabled,
-		response_guardrails_enabled=config.response_guardrails_enabled,
-		response_pii_redact=config.response_pii_redact,
-	)
+	return _policy_response(config)
 
 
 @router.patch("/current/policy", response_model=PolicyConfigResponse)
@@ -192,19 +185,8 @@ async def update_policy_config(
 	current = await policy_store.load(current_user.org_id, db, redis)
 	before_data = current.to_dict()
 
-	new_config = PolicyConfig(
-		enforcement_mode=updates.get("enforcement_mode", current.enforcement_mode),
-		allowed_models=updates.get("allowed_models", current.allowed_models),
-		blocked_keywords=updates.get("blocked_keywords", current.blocked_keywords),
-		pii_detection_enabled=updates.get("pii_detection_enabled", current.pii_detection_enabled),
-		pii_entities=updates.get("pii_entities", current.pii_entities),
-		model_rate_limits=updates.get("model_rate_limits", current.model_rate_limits),
-		per_team_limits=updates.get("per_team_limits", current.per_team_limits),
-		prompt_injection_detection_enabled=updates.get("prompt_injection_detection_enabled", current.prompt_injection_detection_enabled),
-		response_guardrails_enabled=updates.get("response_guardrails_enabled", current.response_guardrails_enabled),
-		response_pii_redact=updates.get("response_pii_redact", current.response_pii_redact),
-		updated_at=datetime.now(UTC),
-	)
+	# replace() keeps every field the request did not mention, including ones added later.
+	new_config = dataclasses.replace(current, **updates, updated_at=datetime.now(UTC))
 
 	await log_admin_action(
 		db,
@@ -221,19 +203,7 @@ async def update_policy_config(
 
 	await policy_store.save(current_user.org_id, new_config, db, redis)
 
-	return PolicyConfigResponse(
-		enforcement_mode=new_config.enforcement_mode,
-		allowed_models=new_config.allowed_models,
-		blocked_keywords=new_config.blocked_keywords,
-		pii_detection_enabled=new_config.pii_detection_enabled,
-		pii_entities=new_config.pii_entities,
-		model_rate_limits=new_config.model_rate_limits,
-		per_team_limits=new_config.per_team_limits,
-		updated_at=new_config.updated_at,
-		prompt_injection_detection_enabled=new_config.prompt_injection_detection_enabled,
-		response_guardrails_enabled=new_config.response_guardrails_enabled,
-		response_pii_redact=new_config.response_pii_redact,
-	)
+	return _policy_response(new_config)
 
 
 @router.get("/current/policy/templates", response_model=list[TemplateListItem])
@@ -271,14 +241,14 @@ async def apply_policy_template(
 
 	current = await policy_store.load(current_user.org_id, db, redis)
 
-	merged_config = PolicyConfig(
+	# The template owns the guardrail fields; everything else (model allowlist, rate limits,
+	# MCP tool policy, fields added later) is kept from the current config.
+	merged_config = dataclasses.replace(
+		current,
 		enforcement_mode=template_def.enforcement_mode,
-		allowed_models=current.allowed_models,
 		blocked_keywords=list(template_def.blocked_keywords),
 		pii_detection_enabled=template_def.pii_detection_enabled,
 		pii_entities=list(template_def.pii_entities),
-		model_rate_limits=dict(current.model_rate_limits),
-		per_team_limits=dict(current.per_team_limits),
 		prompt_injection_detection_enabled=template_def.prompt_injection_detection_enabled,
 		response_guardrails_enabled=template_def.response_guardrails_enabled,
 		response_pii_redact=template_def.response_pii_redact,
@@ -315,19 +285,7 @@ async def apply_policy_template(
 	cache_key = _POLICY_CACHE_KEY.format(org_id=current_user.org_id)
 	await redis.delete(cache_key)
 
-	return PolicyConfigResponse(
-		enforcement_mode=merged_config.enforcement_mode,
-		allowed_models=merged_config.allowed_models,
-		blocked_keywords=merged_config.blocked_keywords,
-		pii_detection_enabled=merged_config.pii_detection_enabled,
-		pii_entities=merged_config.pii_entities,
-		model_rate_limits=merged_config.model_rate_limits,
-		per_team_limits=merged_config.per_team_limits,
-		updated_at=merged_config.updated_at,
-		prompt_injection_detection_enabled=merged_config.prompt_injection_detection_enabled,
-		response_guardrails_enabled=merged_config.response_guardrails_enabled,
-		response_pii_redact=merged_config.response_pii_redact,
-	)
+	return _policy_response(merged_config)
 
 
 @router.get("/current/webhooks", response_model=WebhookConfigResponse)

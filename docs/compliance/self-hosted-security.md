@@ -33,9 +33,9 @@ Security controls and deployment considerations when running OpenProxyAI on **yo
 
 ## Audit Log Immutability
 
-- **PostgreSQL RLS:** `request_logs` enforces org isolation; admins cannot bypass
+- **PostgreSQL RLS:** `request_logs` enforces org isolation for the application role (`app_user`)
 - **Soft archival:** Hourly job sets `archived_at` for logs older than plan retention
-- **No in-place edits:** Logs are append-only; no `UPDATE` or `DELETE` on active rows
+- **No in-place edits:** `app_user` has no `DELETE` on `request_logs` or `admin_audit_logs`, and may `UPDATE` only `request_logs.archived_at` (column-level grant, migration `t1o2p3q4r5s6`)
 - **Export for cold storage:** Archived logs can be copied to S3 Glacier, tape, etc. for long-term retention
 
 **Evidence:** Run `verify_rls.py` to generate CSV evidence for auditors (see [soc2-hipaa.md](./soc2-hipaa.md)).
@@ -64,7 +64,7 @@ OpenProxyAI uses PostgreSQL RLS on:
 - `semantic_cache_entries`
 - `prompt_templates`
 
-Each request sets `app.current_org_id` via `SET LOCAL`; policies restrict access to that org. Database superusers cannot read cross-org data without disabling policies (audit trail).
+Every request-path connection runs `SET ROLE app_user` (configurable via `DB_APP_ROLE`), and each transaction sets `app.current_org_id` with `set_config(..., true)`; policies restrict reads and writes to that org, and a session with no org sees no rows. RLS does **not** constrain superusers or roles with `BYPASSRLS`: the database login used for migrations and the few cross-org maintenance jobs (`SystemSessionLocal`: provider health checks, key rotation, adaptive load-balancing sampling) can read every org. Restrict and audit that login accordingly.
 
 ---
 

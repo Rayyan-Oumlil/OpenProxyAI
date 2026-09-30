@@ -21,6 +21,12 @@ class _FakeExecuteResult:
 
 
 class FakeDB:
+
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
     def __init__(self, *, get_result=None, scalar_results=None, insert_rowcounts=None):
         self._get_result = get_result
         self._scalar_results = list(scalar_results or [])

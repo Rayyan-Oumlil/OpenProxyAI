@@ -15,7 +15,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 import app.database as database_module
-from app.dependencies import get_current_user_from_jwt
+from app.dependencies import get_current_user_from_jwt, get_db
 from app.main import app
 from app.services.policy_service import PolicyConfig, policy_service
 from app.services import llm_service as llm_service_module
@@ -184,6 +184,7 @@ def test_experiments_create_requires_admin(client, monkeypatch):
 		assert resp.status_code == 403
 	finally:
 		app.dependency_overrides.pop(get_current_user_from_jwt, None)
+		app.dependency_overrides.pop(get_db, None)
 
 
 def test_is_model_on_allowlist():
@@ -196,6 +197,23 @@ def test_is_model_on_allowlist():
 		"anthropic/claude-3",
 		PolicyConfig(allowed_models=["openai/gpt-4o"]),
 	)
+
+
+class _NoopSession:
+	"""Stands in for the DB: the allowlist check rejects before anything is persisted."""
+
+	@property
+	def info(self) -> dict:
+		# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+		return self.__dict__.setdefault("_info", {})
+
+
+	async def execute(self, *args, **kwargs):  # noqa: ARG002
+		return None
+
+
+async def _noop_db():
+	yield _NoopSession()
 
 
 def test_experiments_create_rejects_models_not_on_allowlist(client, monkeypatch):
@@ -213,6 +231,7 @@ def test_experiments_create_rejects_models_not_on_allowlist(client, monkeypatch)
 		return user
 
 	app.dependency_overrides[get_current_user_from_jwt] = fake_user
+	app.dependency_overrides[get_db] = _noop_db
 	try:
 		resp = client.post(
 			"/api/v1/experiments",
@@ -227,6 +246,7 @@ def test_experiments_create_rejects_models_not_on_allowlist(client, monkeypatch)
 		assert "allowlist" in resp.json()["detail"].lower()
 	finally:
 		app.dependency_overrides.pop(get_current_user_from_jwt, None)
+		app.dependency_overrides.pop(get_db, None)
 
 
 def test_experiments_create_rejects_target_not_on_allowlist(client, monkeypatch):
@@ -243,6 +263,7 @@ def test_experiments_create_rejects_target_not_on_allowlist(client, monkeypatch)
 		return user
 
 	app.dependency_overrides[get_current_user_from_jwt] = fake_user
+	app.dependency_overrides[get_db] = _noop_db
 	try:
 		resp = client.post(
 			"/api/v1/experiments",
@@ -257,3 +278,4 @@ def test_experiments_create_rejects_target_not_on_allowlist(client, monkeypatch)
 		assert "allowlist" in resp.json()["detail"].lower()
 	finally:
 		app.dependency_overrides.pop(get_current_user_from_jwt, None)
+		app.dependency_overrides.pop(get_db, None)

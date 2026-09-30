@@ -5,77 +5,23 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import ipaddress
 import json
 import logging
-import socket
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.organization import Organization
 from app.models.webhook_delivery import WebhookDelivery
+from app.utils.ssrf import is_private_or_local_ip as _is_private_or_local_ip  # noqa: F401  (re-exported for callers)
+from app.utils.ssrf import resolve_safe_url as _resolve_safe_url
 
 logger = logging.getLogger(__name__)
 
 _MAX_RETRIES = 3
 _BASE_DELAY = 1.0  # seconds
-
-_EXTRA_BLOCKED_NETWORKS = [
-    ipaddress.ip_network("100.64.0.0/10"),  # Carrier-Grade NAT (RFC 6598)
-]
-
-
-def _is_private_or_local_ip(ip_str: str) -> bool:
-    try:
-        ip = ipaddress.ip_address(ip_str)
-    except ValueError:
-        return True
-    if ip.is_private or ip.is_loopback or ip.is_link_local:
-        return True
-    for net in _EXTRA_BLOCKED_NETWORKS:
-        if ip in net:
-            return True
-    return False
-
-
-def _resolve_safe_url(url: str) -> tuple[bool, str | None]:
-    """Resolve hostname, reject private/local/CGN IPs.
-
-    Returns (is_safe, first_resolved_ip_str).
-    The resolved IP is used only for validation; the actual HTTP request
-    is made to the original URL so TLS hostname verification works normally.
-    The DNS rebinding window between resolve and connect is sub-millisecond
-    and not practically exploitable.
-    """
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        return False, None
-    if parsed.scheme.lower() != "https":
-        return False, None
-    if not parsed.hostname:
-        return False, None
-    try:
-        addr_infos = socket.getaddrinfo(
-            parsed.hostname, parsed.port or 443, type=socket.SOCK_STREAM,
-        )
-    except Exception:
-        return False, None
-    if not addr_infos:
-        return False, None
-    for info in addr_infos:
-        sockaddr = info[4]
-        if not sockaddr:
-            return False, None
-        ip_str = sockaddr[0]
-        if _is_private_or_local_ip(ip_str):
-            return False, None
-    return True, addr_infos[0][4][0]
-
 
 def _is_safe_url(url: str) -> bool:
     """Thin wrapper kept for backward compatibility (schema validator, etc.)."""

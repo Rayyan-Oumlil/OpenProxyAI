@@ -1,5 +1,6 @@
 """Pydantic Settings — all configuration loaded from environment variables."""
 
+import re
 from typing import Any
 
 from pydantic import field_validator, model_validator
@@ -29,6 +30,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "postgresql+asyncpg://openproxyai:openproxyai_dev@postgres:5432/openproxyai"
     )
+    # Role request-path connections switch to (SET ROLE) so row-level security applies
+    # even when DATABASE_URL logs in as a superuser or table owner.
+    DB_APP_ROLE: str = "app_user"
 
     # ── Redis ────────────────────────────────────────────────────────
     REDIS_URL: str = "redis://redis:6379/0"
@@ -181,6 +185,16 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173,http://localhost:5173,"
         "http://127.0.0.1:3000,http://localhost:3000"
     )
+
+    @field_validator("DB_APP_ROLE")
+    @classmethod
+    def validate_db_app_role(cls, v: str) -> str:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,62}", v):
+            raise ValueError(
+                f"DB_APP_ROLE must be a plain Postgres identifier, got {v!r}. "
+                "It is used in SET ROLE; leaving it empty would disable row-level security."
+            )
+        return v
 
     @field_validator("PROMPT_INJECTION_SCORE_THRESHOLD", mode="before")
     @classmethod

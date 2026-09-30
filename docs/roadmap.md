@@ -19,7 +19,7 @@ Experiment quality scoring, adaptive load balancing, circuit breaker, prompt_id 
 
 ## Production deployment
 
-**Plan:** [plans/p3-production-deployment.md](../plans/p3-production-deployment.md) — Step-by-step guide for deploying to GCP Cloud Run + Vercel using gcloud CLI, GitHub Actions, and Workload Identity Federation.
+**Guide:** [architecture/deployment.md](./architecture/deployment.md) and [deploy/gcp](../deploy/gcp) — GCP Cloud Run + Vercel via gcloud CLI, GitHub Actions, and Workload Identity Federation.
 
 ---
 

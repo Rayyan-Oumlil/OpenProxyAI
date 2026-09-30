@@ -169,11 +169,11 @@ async def _fire_budget_webhook(org_id: str, spend: float, budget: float) -> None
 	try:
 		from uuid import UUID as _UUID
 
-		from app.database import AsyncSessionLocal
+		from app.database import org_scoped_session
 		from app.models.organization import Organization as _Org
 		from app.services import webhook_service
 
-		async with AsyncSessionLocal() as _db:
+		async with org_scoped_session(_UUID(org_id)) as _db:
 			_org = await _db.get(_Org, _UUID(org_id))
 			if _org is not None:
 				await webhook_service.dispatch_event(
