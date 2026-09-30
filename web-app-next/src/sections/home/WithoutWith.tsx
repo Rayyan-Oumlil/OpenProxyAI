@@ -19,7 +19,7 @@ function Diagram({ governed }: { governed: boolean }) {
 
 export default function WithoutWith() {
   return (
-    <Section eyebrow="Without / with" title="Sixteen unmanaged integrations, or one chokepoint.">
+    <Section title="Sixteen unmanaged integrations, or one chokepoint.">
       <div className="grid gap-4 md:grid-cols-2">
         <figure className="rounded-xl border border-line bg-surface p-5">
           <Diagram governed={false} />

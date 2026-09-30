@@ -24,7 +24,7 @@ await client.chat.completions.create({ model: 'claude-sonnet', messages: [{ role
 
 export default function DropIn() {
   return (
-    <Section eyebrow="Drop-in" title="Change one line. Keep your SDK." lede="OpenAI-compatible endpoints: point base_url at the gateway and every call is governed.">
+    <Section title="Change one line. Keep your SDK." lede="OpenAI-compatible endpoints: point base_url at the gateway and every call is governed.">
       <CodeTabs tabs={TABS} />
     </Section>
   );

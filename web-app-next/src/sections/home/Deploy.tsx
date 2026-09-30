@@ -8,10 +8,10 @@ const TARGETS = [
 
 export default function Deploy() {
   return (
-    <Section eyebrow="Deploy" title="Runs where your data is allowed to be.">
-      <ul className="grid gap-4 md:grid-cols-3">
+    <Section title="Runs where your data is allowed to be.">
+      <ul className="grid gap-x-12 md:grid-cols-3">
         {TARGETS.map(t => (
-          <li key={t.title} className="rounded-xl border border-line bg-surface p-5">
+          <li key={t.title} className="border-t border-line py-6">
             <h3 className="text-step-1 font-semibold">{t.title}</h3>
             <p className="mt-2 text-ink-dim">{t.body}</p>
           </li>

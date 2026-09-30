@@ -11,7 +11,7 @@ const ITEMS = [
 
 export default function OpenSource() {
   return (
-    <Section eyebrow="Open source" title="Read the code before you trust the gateway." lede="Counted from the repository at build time.">
+    <Section title="Read the code before you trust the gateway." lede="Counted from the repository at build time.">
       <dl className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {ITEMS.map(i => (
           <div key={i.label} className="rounded-xl border border-line bg-surface p-5">
