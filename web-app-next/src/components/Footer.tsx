@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-page flex-col gap-4 px-4 py-10 text-step--1 text-ink-dim sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p>
           Designed &amp; built by{' '}
-          <a href={LINKEDIN_URL} className="text-ink hover:text-signal">Rayyan Oumlil</a>
+          <a href={LINKEDIN_URL} className="text-ink underline decoration-line underline-offset-4 hover:text-signal">Rayyan Oumlil</a>
         </p>
         <ul className="flex gap-5">
           <li><Link to="/engineering" className="hover:text-ink">How it's built</Link></li>
