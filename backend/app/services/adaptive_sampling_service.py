@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app.database import SystemSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,8 @@ async def run_adaptive_sampling_job() -> None:
             decode_responses=True,
         )
         try:
-            async with AsyncSessionLocal() as db:
+            # Aggregates request_logs across every org, so it needs the system session.
+            async with SystemSessionLocal() as db:
                 count = await run_adaptive_sampling(redis, db)
                 logger.debug("Adaptive sampling complete — %d keys updated", count)
         finally:

@@ -15,7 +15,7 @@ import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app import database
 from app.models.request_log import RequestLog
 
 logger = logging.getLogger(__name__)
@@ -114,28 +114,37 @@ async def flush_request_logs_batch(redis: Redis) -> int:
     if not entries:
         return 0
 
+    # Entries can belong to several orgs; RLS WITH CHECK requires the matching org
+    # to be set before each group's rows are flushed (set_config is transaction-local).
+    by_org: dict[str, list[dict]] = {}
+    for entry in entries:
+        by_org.setdefault(str(entry["org_id"]), []).append(entry)
+
     try:
-        async with AsyncSessionLocal() as db:
-            for entry in entries:
-                row = RequestLog(
-                    request_id=entry["request_id"],
-                    org_id=entry["org_id"],
-                    user_id=entry["user_id"],
-                    api_key_id=entry["api_key_id"],
-                    provider_key_id=entry.get("provider_key_id"),
-                    model=entry["model"],
-                    provider=entry["provider"],
-                    prompt_tokens=entry["prompt_tokens"],
-                    completion_tokens=entry["completion_tokens"],
-                    total_tokens=entry["total_tokens"],
-                    cost_usd=entry["cost_usd"],
-                    latency_ms=entry["latency_ms"],
-                    ttft_ms=entry["ttft_ms"],
-                    status_code=entry["status_code"],
-                    error_message=entry["error_message"],
-                    request_metadata=entry["request_metadata"],
-                )
-                db.add(row)
+        async with database.AsyncSessionLocal() as db:
+            for org_id, org_entries in by_org.items():
+                await database.set_session_org_id(db, UUID(org_id))
+                for entry in org_entries:
+                    row = RequestLog(
+                        request_id=entry["request_id"],
+                        org_id=entry["org_id"],
+                        user_id=entry["user_id"],
+                        api_key_id=entry["api_key_id"],
+                        provider_key_id=entry.get("provider_key_id"),
+                        model=entry["model"],
+                        provider=entry["provider"],
+                        prompt_tokens=entry["prompt_tokens"],
+                        completion_tokens=entry["completion_tokens"],
+                        total_tokens=entry["total_tokens"],
+                        cost_usd=entry["cost_usd"],
+                        latency_ms=entry["latency_ms"],
+                        ttft_ms=entry["ttft_ms"],
+                        status_code=entry["status_code"],
+                        error_message=entry["error_message"],
+                        request_metadata=entry["request_metadata"],
+                    )
+                    db.add(row)
+                await db.flush()
             await db.commit()
         logger.debug("Flushed %d request logs from batch queue", len(entries))
         return len(entries)

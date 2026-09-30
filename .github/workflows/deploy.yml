@@ -30,7 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector: the migration chain creates the semantic cache's vector column.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: openproxyai_test
           POSTGRES_USER: openproxyai
@@ -68,6 +69,20 @@ jobs:
           SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
           APP_ENV: test
         run: python -m pytest tests/ -q --tb=short -m "not integration"
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
+        run: alembic upgrade head
+      - name: Row-level security integration tests (real Postgres)
+        env:
+          DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
+          APP_ENV: test
+          RLS_TESTS_REQUIRED: "1"
+        # The CI login role is a superuser, which is exactly the case these tests must survive.
+        run: python -m pytest tests/test_rls_isolation.py -q --tb=short -m integration -rs
 
   # ── Build & Push ─────────────────────────────────────────────────────────────
   build:
