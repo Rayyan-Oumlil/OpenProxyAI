@@ -10,6 +10,12 @@ from app.main import app
 
 
 class FakeDB:
+
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
     async def scalar(self, *args, **kwargs):
         return None
 

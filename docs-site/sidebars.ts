@@ -44,6 +44,7 @@ const sidebars: SidebarsConfig = {
         'guides/configuring-sso',
         'guides/compliance-templates',
         'guides/webhooks',
+        'guides/mcp-gateway',
         'guides/prompt-playground',
         'guides/semantic-cache-tuning',
         'guides/data-residency',

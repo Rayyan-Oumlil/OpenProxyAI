@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import AsyncSessionLocal, set_session_org_id
+from app.database import AsyncSessionLocal, SystemSessionLocal, set_session_org_id
 from app.models.llm_provider_key import LLMProviderKey
 from app.models.organization import Organization
 from app.services.crypto_service import decrypt
@@ -82,7 +82,8 @@ async def run_provider_health_check() -> None:
     threshold = getattr(settings, "PROVIDER_HEALTH_FAILURE_THRESHOLD", 3)
 
     try:
-        async with AsyncSessionLocal() as db:
+        # Lists keys for every org, so it needs the system session (RLS would hide them).
+        async with SystemSessionLocal() as db:
             result = await db.scalars(
                 select(LLMProviderKey).where(
                     LLMProviderKey.is_active.is_(True),

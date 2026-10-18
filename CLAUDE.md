@@ -74,7 +74,8 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 |---|---|
 | `backend/app/routes/proxy.py` | Core proxy endpoints (`/v1/chat/completions`, `/v1/embeddings`, `/v1/models`) |
 | `backend/app/services/llm_service.py` | LiteLLM wrapper, provider key rotation, experiments, streaming |
-| `backend/app/services/policy_service.py` | Hook system (`before_request` / `after_request` guardrails) |
+| `backend/app/services/policy_service.py` | Hook system (`before_request` / `after_request` guardrails), `evaluate_tool_call` for MCP |
+| `backend/app/routes/mcp.py` + `services/mcp_gateway.py` | MCP gateway (`POST /v1/mcp`): aggregation, tool policy, audit |
 | `backend/app/services/cache_service.py` | 3-tier cache (L1 TTLCache, L2 Redis, L3 pgvector semantic) |
 | `backend/app/services/audit_logger.py` | Fire-and-forget async logging (never blocks response) |
 | `backend/app/services/rate_limiter.py` | Token-based rate limiting (requests/min + tokens/min + dollars/day) |
@@ -82,20 +83,25 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 | `backend/app/config.py` | `PLAN_FEATURES` dict, `AIRGAP_MODE` flag, all env-based settings |
 | `backend/app/main.py` | Lifespan (DB + Redis init), APScheduler jobs, middleware stack |
 
-## Migration Chain (all 27, in order)
+## Migration Chain (27 files; regenerate with `cd backend && alembic history`)
 ```
-54c0ed90559e → a2b3c4d5e6f7 → a3b4c5d6e7f8 → b1c2d3e4f5a6 → b3e8d87fd2f1
-→ c3d4e5f6a7b8 → c4f9a12e8b7d → d4e5f6a7b8c9 → d4e7f12a9c3b → e5f8a23b4c1d
-→ f1a9c3e7d5b2 → f7a8b9c0d1e2 → e6f7a8b9c0d1 → e6f7a34b9d0c
-→ h9c0d1e2f3a4 → i0d1e2f3a4b5 → j1e2f3a4b5c6 → k2f3a4b5c6d7
-→ l3g4h5i6j7k8 → m4h5i6j7k8l9 → n5i6j7k8l9m0 → o6j7k8l9m0n1
-→ q8l9m0n1o2p3 → r9m0n1o2p3q4
+54c0ed90559e → b3e8d87fd2f1 → c4f9a12e8b7d → d4e7f12a9c3b → e5f8a23b4c1d
+→ f1a9c3e7d5b2 → a2b3c4d5e6f7 → a3b4c5d6e7f8 → b1c2d3e4f5a6 → c3d4e5f6a7b8
+→ e6f7a8b9c0d1 → d4e5f6a7b8c9 → e6f7a34b9d0c (branchpoint)
+    ├─ f7a8b9c0d1e2 → g8b9c0d1e2f3 → h9c0d1e2f3a4 → i0d1e2f3a4b5 → j1e2f3a4b5c6
+    └─ f8a9b0c1d2e3 (RLS policies)
+→ k2f3a4b5c6d7 (merge) → l3g4h5i6j7k8 → m4h5i6j7k8l9 → n5i6j7k8l9m0
+→ o6j7k8l9m0n1 → q8l9m0n1o2p3 → r9m0n1o2p3q4 → s0n1o2p3q4r5 (head)
 ```
 
 ## Architecture Rules (Critical)
 
 ### RLS — Row Level Security
+- Request-path connections run as `app_user` (`SET ROLE` on connect, `DB_APP_ROLE`), so RLS applies even when the login role is a superuser
 - Every `AsyncSession` that touches a protected table **must** call `await set_session_org_id(session, org_id)` first
+- Background writers use `org_scoped_session(org_id)` (opens a session with the org already set)
+- `SystemSessionLocal` keeps the login role and bypasses RLS — only for jobs that must read across orgs (health checks, key rotation, adaptive sampling). Never in request handling
+- `request_logs` and `admin_audit_logs` are append-only for `app_user` (only `request_logs.archived_at` is updatable)
 - Fire-and-forget background tasks **must** create their own `AsyncSession` — the request-scoped session is closed after the response
 - The materialized view `mv_daily_spend` is refreshed via `refresh_mv_daily_spend_definer()` (SECURITY DEFINER) to bypass RLS
 
@@ -143,7 +149,7 @@ Multiple provider keys per provider — weighted random rotation in `llm_service
 - `ADAPTIVE_LB_ENABLED` — enables adaptive load balancer sampling
 
 ## What to Never Do
-- **Never** call `set_session_org_id()` — skip it and RLS silently returns no rows (data leak / data loss)
+- **Never** skip `set_session_org_id()` before touching an RLS-protected table — skip it and RLS silently returns no rows (data loss) or, if the connection bypasses RLS, exposes other orgs' rows
 - **Never** block the response path with logging — always use `BackgroundTasks`
 - **Never** raise exceptions from sidecar services (ClickHouse, Langfuse, Prometheus, webhooks)
 - **Never** mutate a request-scoped DB session in a background task — create a new one

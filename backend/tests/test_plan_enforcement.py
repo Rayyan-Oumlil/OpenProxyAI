@@ -44,6 +44,12 @@ def _admin_user(org_id=None):
 class FakeDB:
     """Minimal async DB stub for plan enforcement tests."""
 
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
+
     def __init__(self, *, get_results=None, scalar_result=None, execute_result=None):
         self._get_results = get_results or {}
         self.scalar_result = scalar_result

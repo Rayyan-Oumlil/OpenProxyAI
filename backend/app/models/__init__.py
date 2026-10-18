@@ -14,6 +14,7 @@ from app.models.semantic_cache import SemanticCacheEntry
 from app.models.team import Team
 from app.models.experiment import Experiment, ExperimentVariant
 from app.models.request_score import RequestScore
+from app.models.mcp_server import McpServer
 
 __all__ = [
     "Base",
@@ -31,4 +32,5 @@ __all__ = [
     "Experiment",
     "ExperimentVariant",
     "RequestScore",
+    "McpServer",
 ]

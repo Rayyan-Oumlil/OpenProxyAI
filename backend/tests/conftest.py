@@ -150,6 +150,12 @@ class FakeRedis:
 class FakeDB:
 	"""Minimal AsyncSession substitute for LLM service tests (execute, scalar, commit)."""
 
+	@property
+	def info(self) -> dict:
+		# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+		return self.__dict__.setdefault("_info", {})
+
+
 	async def execute(self, *args, **kwargs):
 		return None
 

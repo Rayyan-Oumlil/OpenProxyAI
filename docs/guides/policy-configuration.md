@@ -133,7 +133,7 @@ Example: if `"password"` is blocked and user sends a message containing `"My pas
 
 ## PII Detection
 
-Detect personally identifiable information (emails, phone numbers, SSNs, credit card numbers, names).
+Detect personally identifiable information. The built-in regex covers emails, SSNs and credit card numbers; phone numbers, names and other entities need the optional Presidio integration.
 
 ### Requirements
 

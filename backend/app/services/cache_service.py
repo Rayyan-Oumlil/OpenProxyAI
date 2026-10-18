@@ -312,7 +312,7 @@ async def _set_l3_semantic(
     try:
         from datetime import timedelta, timezone
 
-        from app.database import AsyncSessionLocal
+        from app.database import org_scoped_session
         from app.models.semantic_cache import SemanticCacheEntry
         from litellm import aembedding
 
@@ -329,7 +329,8 @@ async def _set_l3_semantic(
         messages_hash = _messages_hash(messages)
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl)
 
-        async with AsyncSessionLocal() as session:
+        scoped_org = org_id if isinstance(org_id, UUID) else UUID(str(org_id))
+        async with org_scoped_session(scoped_org) as session:
             entry = SemanticCacheEntry(
                 org_id=org_id,
                 model=model,

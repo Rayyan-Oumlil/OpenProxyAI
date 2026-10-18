@@ -91,6 +91,12 @@ def _fake_invite(org_id, email="invitee@example.com", role="developer"):
 class FakeDB:
     """Async DB stub that tracks add/commit calls."""
 
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
+
     def __init__(self, *, scalar_result=None, scalars_results=None, get_result=None):
         self.scalar_result = scalar_result
         self.scalars_results = list(scalars_results or [])

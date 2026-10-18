@@ -390,6 +390,12 @@ async def test_team_id_from_api_key_propagates_to_log(monkeypatch, fake_redis):
 	class TeamFakeDB(FakeDB):
 		"""Returns None for experiment query, fake_team for team query."""
 
+		@property
+		def info(self) -> dict:
+			# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+			return self.__dict__.setdefault("_info", {})
+
+
 		def __init__(self, team):
 			self._scalar_results = [None, team]
 			self._scalar_idx = 0
@@ -449,6 +455,12 @@ async def test_team_id_from_header_when_key_has_none(monkeypatch, fake_redis):
 	fake_team = SimpleNamespace(id=team_id, org_id=user.org_id, budget_monthly_usd=Decimal("100"))
 
 	class TeamFakeDB(FakeDB):
+
+		@property
+		def info(self) -> dict:
+			# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+			return self.__dict__.setdefault("_info", {})
+
 		def __init__(self, team):
 			self._scalar_results = [None, team]
 			self._scalar_idx = 0
@@ -511,6 +523,12 @@ async def test_team_id_from_api_key_takes_precedence_over_header(monkeypatch, fa
 	fake_team = SimpleNamespace(id=key_team_id, org_id=user.org_id, budget_monthly_usd=Decimal("100"))
 
 	class TeamFakeDB(FakeDB):
+
+		@property
+		def info(self) -> dict:
+			# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+			return self.__dict__.setdefault("_info", {})
+
 		def __init__(self, team):
 			self._scalar_results = [None, team]
 			self._scalar_idx = 0
