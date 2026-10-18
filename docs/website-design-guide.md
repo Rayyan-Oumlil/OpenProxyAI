@@ -6,7 +6,7 @@ Use this to design the new marketing site in Claude Design (claude.ai → Design
 
 ## 1. What we learned from the two previous sites
 
-| | Old site (`web-app`, live on openproxyai.com) | Redesign (`web-app-next`, deleted) |
+| | Old site (`web-app`, live on openproxyai.com)|
 |---|---|---|
 | Keep | **Energy**: the live "request stream" table (time · team · model · tokens · latency · policy · status badges) made it feel like a running product | **Honesty**: every claim traced to code; 7 real pages; clean on phones |
 | Drop | Invented proof: fake testimonials ("VP of Security", "Trusted by security teams"), "v2.4.1", "under four milliseconds", "1,600+ models", "start trial" / "book demo" for things that don't exist; nav overflowing on phones | Too much text, no images, felt flat |
