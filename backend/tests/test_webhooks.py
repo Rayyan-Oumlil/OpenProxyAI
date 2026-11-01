@@ -28,6 +28,12 @@ from app.services.webhook_service import (
 class FakeDB:
     """Minimal async DB stub for webhook tests."""
 
+    @property
+    def info(self) -> dict:
+        # Mirrors AsyncSession.info (set_session_org_id stores the org there).
+        return self.__dict__.setdefault("_info", {})
+
+
     def __init__(self, *, get_result=None):
         self._get_result = get_result
         self.added: list = []
@@ -491,7 +497,7 @@ def test_resolve_safe_url_rejects_no_hostname():
 def test_resolve_safe_url_rejects_private_ip(monkeypatch):
     """Private IPs (10.0.0.0/8) must be blocked."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("10.0.0.5", 443))],
     )
     safe, ip = _resolve_safe_url("https://internal.example.com/hook")
@@ -501,7 +507,7 @@ def test_resolve_safe_url_rejects_private_ip(monkeypatch):
 def test_resolve_safe_url_rejects_loopback(monkeypatch):
     """Loopback IPs must be blocked."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("127.0.0.1", 443))],
     )
     safe, ip = _resolve_safe_url("https://localhost/hook")
@@ -511,7 +517,7 @@ def test_resolve_safe_url_rejects_loopback(monkeypatch):
 def test_resolve_safe_url_rejects_link_local(monkeypatch):
     """Link-local IPs (169.254.0.0/16) must be blocked."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("169.254.1.1", 443))],
     )
     safe, ip = _resolve_safe_url("https://link-local.example.com/hook")
@@ -521,7 +527,7 @@ def test_resolve_safe_url_rejects_link_local(monkeypatch):
 def test_resolve_safe_url_rejects_cgn(monkeypatch):
     """Carrier-Grade NAT IPs (100.64.0.0/10) must be blocked."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("100.100.1.1", 443))],
     )
     safe, ip = _resolve_safe_url("https://cgn.example.com/hook")
@@ -531,7 +537,7 @@ def test_resolve_safe_url_rejects_cgn(monkeypatch):
 def test_resolve_safe_url_rejects_rfc1918_172(monkeypatch):
     """172.16.0.0/12 private range must be blocked."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("172.16.5.10", 443))],
     )
     safe, ip = _resolve_safe_url("https://corp.example.com/hook")
@@ -541,7 +547,7 @@ def test_resolve_safe_url_rejects_rfc1918_172(monkeypatch):
 def test_resolve_safe_url_rejects_rfc1918_192(monkeypatch):
     """192.168.0.0/16 private range must be blocked."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("192.168.1.1", 443))],
     )
     safe, ip = _resolve_safe_url("https://home.example.com/hook")
@@ -551,7 +557,7 @@ def test_resolve_safe_url_rejects_rfc1918_192(monkeypatch):
 def test_resolve_safe_url_accepts_public_ip(monkeypatch):
     """Public IPs should be accepted and returned."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("93.184.216.34", 443))],
     )
     safe, ip = _resolve_safe_url("https://example.com/hook")
@@ -562,7 +568,7 @@ def test_resolve_safe_url_accepts_public_ip(monkeypatch):
 def test_resolve_safe_url_returns_first_ip(monkeypatch):
     """When multiple IPs resolve, the first public one is returned."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [
             (2, 1, 6, "", ("93.184.216.34", 443)),
             (2, 1, 6, "", ("93.184.216.35", 443)),
@@ -576,7 +582,7 @@ def test_resolve_safe_url_returns_first_ip(monkeypatch):
 def test_resolve_safe_url_rejects_if_any_ip_is_private(monkeypatch):
     """If any resolved IP is private, the whole URL is rejected."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [
             (2, 1, 6, "", ("93.184.216.34", 443)),
             (2, 1, 6, "", ("10.0.0.1", 443)),
@@ -589,7 +595,7 @@ def test_resolve_safe_url_rejects_if_any_ip_is_private(monkeypatch):
 def test_resolve_safe_url_dns_failure(monkeypatch):
     """DNS resolution failure returns (False, None)."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: (_ for _ in ()).throw(socket.gaierror("DNS failed")),
     )
     import socket
@@ -601,7 +607,7 @@ def test_resolve_safe_url_dns_failure(monkeypatch):
 def test_is_safe_url_thin_wrapper(monkeypatch):
     """_is_safe_url should be a thin wrapper around _resolve_safe_url."""
     monkeypatch.setattr(
-        "app.services.webhook_service.socket.getaddrinfo",
+        "app.utils.ssrf.socket.getaddrinfo",
         lambda *a, **kw: [(2, 1, 6, "", ("93.184.216.34", 443))],
     )
     assert _is_safe_url("https://example.com/hook") is True

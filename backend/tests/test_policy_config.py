@@ -12,6 +12,12 @@ from app.services.policy_service import PolicyConfig, PolicyStore
 
 
 class FakeDB:
+
+	@property
+	def info(self) -> dict:
+		# Mirrors AsyncSession.info (set_session_org_id stores the org there).
+		return self.__dict__.setdefault("_info", {})
+
 	def __init__(self):
 		self.added = []
 
