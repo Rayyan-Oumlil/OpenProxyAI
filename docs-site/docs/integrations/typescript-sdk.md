@@ -6,7 +6,10 @@ description: The official openproxy-ai TypeScript/JavaScript package — typed, 
 # TypeScript SDK
 
 ```bash
-npm install openproxy-ai
+git clone https://github.com/Rayyan-Oumlil/OpenProxyAI.git
+cd OpenProxyAI/sdk/typescript && npm install && npm run build
+# then, from your project:
+npm install /path/to/OpenProxyAI/sdk/typescript
 ```
 
 Ships both ESM and CJS builds with full type definitions.

@@ -6,7 +6,7 @@ description: The official openproxy-ai Python package — sync, async, and strea
 # Python SDK
 
 ```bash
-pip install openproxy-ai
+pip install "git+https://github.com/Rayyan-Oumlil/OpenProxyAI.git#subdirectory=sdk/python"
 ```
 
 Requires Python 3.9+.

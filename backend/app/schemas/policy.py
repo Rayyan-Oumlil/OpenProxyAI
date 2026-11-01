@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
+
+# fnmatch pattern on a namespaced MCP tool name, e.g. "github__*".
+ToolPattern = Annotated[str, StringConstraints(min_length=1, max_length=200, strip_whitespace=True)]
 
 
 class PolicyConfigRequest(BaseModel):
@@ -21,6 +24,8 @@ class PolicyConfigRequest(BaseModel):
 	prompt_injection_detection_enabled: bool | None = None
 	response_guardrails_enabled: bool | None = None
 	response_pii_redact: bool | None = None
+	mcp_allowed_tools: list[ToolPattern] | None = None
+	mcp_blocked_tools: list[ToolPattern] | None = None
 
 
 class PolicyConfigResponse(BaseModel):
@@ -35,6 +40,8 @@ class PolicyConfigResponse(BaseModel):
 	prompt_injection_detection_enabled: bool
 	response_guardrails_enabled: bool
 	response_pii_redact: bool
+	mcp_allowed_tools: list[str] = []
+	mcp_blocked_tools: list[str] = []
 
 
 class ApplyTemplateRequest(BaseModel):

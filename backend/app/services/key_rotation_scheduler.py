@@ -6,7 +6,7 @@ import logging
 from sqlalchemy import select
 
 from app.config import settings
-from app.database import AsyncSessionLocal, set_session_org_id
+from app.database import AsyncSessionLocal, SystemSessionLocal, set_session_org_id
 from app.models.llm_provider_key import LLMProviderKey
 from app.services.provider_key_service import rotate_key
 
@@ -19,7 +19,8 @@ async def run_key_rotation() -> None:
         return
 
     try:
-        async with AsyncSessionLocal() as db:
+        # Lists keys for every org, so it needs the system session (RLS would hide them).
+        async with SystemSessionLocal() as db:
             result = await db.scalars(
                 select(LLMProviderKey).where(
                     LLMProviderKey.is_active.is_(True),

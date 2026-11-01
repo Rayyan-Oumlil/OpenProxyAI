@@ -55,16 +55,16 @@ def ids():
 
 @pytest.fixture
 def _mock_db(monkeypatch):
-    """Replace AsyncSessionLocal with an in-memory mock session."""
+    """Replace the org-scoped session with an in-memory mock session."""
     mock_session = AsyncMock()
     mock_session.add = MagicMock()
     mock_session.commit = AsyncMock()
 
     @asynccontextmanager
-    async def fake_session_local():
+    async def fake_org_scoped_session(org_id):  # noqa: ARG001
         yield mock_session
 
-    monkeypatch.setattr("app.services.audit_logger.AsyncSessionLocal", fake_session_local)
+    monkeypatch.setattr("app.services.audit_logger.org_scoped_session", fake_org_scoped_session)
     return mock_session
 
 
