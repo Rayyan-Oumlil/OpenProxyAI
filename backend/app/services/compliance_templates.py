@@ -166,7 +166,7 @@ _TEMPLATE_LIST: list[TemplateListItem] = [
 	},
 	{
 		"name": "government_fedramp",
-		"description": "FedRAMP-aligned guardrails for government: classification keywords, US-only provider recommendations.",
+		"description": "Government guardrails (not a FedRAMP authorization): classification-marking keywords, PII redaction, 3-year audit retention.",
 		"configures": [
 			"Enforcement mode: enforce",
 			"Blocked keywords: classified, top secret, secret//noforn, controlled unclassified, fouo",

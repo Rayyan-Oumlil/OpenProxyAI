@@ -200,7 +200,6 @@ The remaining 67% is OpenProxyAI-original: auth/RBAC, teams, experiments, Stripe
 
 ## 8) Future Roadmap (Planned, Not Yet Shipped)
 These are planned backlog items:
-- **MCP gateway** (Model Context Protocol — lets AI models use external tools like databases, calendars, search)
 - **Voice endpoint** (speech-to-text / text-to-speech proxy — talk to AI instead of typing)
 - **WASM plugin system** (WebAssembly — lets customers write custom logic that runs inside the gateway safely)
 - **External secret manager** integrations (e.g., HashiCorp Vault — enterprise-grade key storage instead of environment variables)

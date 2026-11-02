@@ -12,7 +12,6 @@ from sqlalchemy.orm import selectinload
 from app.database import set_session_org_id
 from app.dependencies import CurrentUser, get_db, get_redis
 from app.models.experiment import Experiment, ExperimentVariant
-from app.models.request_score import RequestScore
 from app.schemas.experiment import (
 	ExperimentCreate,
 	ExperimentResponse,
