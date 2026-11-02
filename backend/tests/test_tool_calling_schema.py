@@ -122,3 +122,15 @@ def test_policy_text_covers_request_level_fields_and_stop():
 
     assert "ignore previous instructions" in text
     assert "STOPWORD" in text
+
+
+def test_policy_text_scans_json_inside_json_and_deep_nesting_without_dropping():
+    import json
+
+    inner = json.dumps({"arguments": json.dumps({"note": "buried-secret"})})
+    assert "buried-secret" in _text({"messages": [{"role": "assistant", "tool_calls": [{"function": {"arguments": inner}}]}]})
+
+    deep = {"leaf": "deep-secret"}
+    for _ in range(2000):  # far past any recursion limit
+        deep = {"n": deep}
+    assert "deep-secret" in _text({"messages": [{"role": "user", "content": "x", "meta": deep}]})
