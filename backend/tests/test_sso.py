@@ -1,7 +1,6 @@
 """SSO endpoint and service tests — OIDC connection CRUD, initiate, callback."""
 
 import asyncio
-import base64
 import json
 from types import SimpleNamespace
 from uuid import uuid4
