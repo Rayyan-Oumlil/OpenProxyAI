@@ -739,11 +739,12 @@ class LLMService:
 			]
 			estimated_prompt = litellm.token_counter(model=ctx.request.model, messages=messages_list)
 			max_completion = getattr(ctx.request, "max_tokens", None) or 4096
-			estimated_cost = litellm.completion_cost(
+			prompt_cost, completion_cost = litellm.cost_per_token(
 				model=ctx.request.model,
 				prompt_tokens=estimated_prompt,
 				completion_tokens=max_completion,
 			)
+			estimated_cost = prompt_cost + completion_cost
 			today = datetime.now(timezone.utc).date().isoformat()
 			org_spend_raw = await ctx.redis.get(f"rl:usd:{ctx.user.org_id}:{today}")
 			org_spend = Decimal(str(
@@ -889,8 +890,10 @@ class LLMService:
 							content = delta.get("content")
 							if content:
 								collected_chunks.append(content)
-					if not client_wants_usage and isinstance(chunk_payload, dict) and chunk_payload.get("usage") and not chunk_payload.get("choices"):
-						continue
+					if not client_wants_usage and isinstance(chunk_payload, dict) and "usage" in chunk_payload:
+						chunk_payload = {k: v for k, v in chunk_payload.items() if k != "usage"}
+						if not chunk_payload.get("choices"):
+							continue
 					yield f"data: {json.dumps(chunk_payload)}\n\n"
 				yield "data: [DONE]\n\n"
 				completed = True
