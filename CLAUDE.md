@@ -52,7 +52,7 @@ backend/
     models/          # SQLAlchemy ORM models
     schemas/         # Pydantic request/response schemas
     middleware/      # cors.py, request_id.py, timing.py
-  alembic/versions/  # 27 migration files
+  alembic/versions/  # 30 migration files
 admin-console/
   src/
     api/             # Typed API client
@@ -83,7 +83,7 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 | `backend/app/config.py` | `PLAN_FEATURES` dict, `AIRGAP_MODE` flag, all env-based settings |
 | `backend/app/main.py` | Lifespan (DB + Redis init), APScheduler jobs, middleware stack |
 
-## Migration Chain (27 files; regenerate with `cd backend && alembic history`)
+## Migration Chain (30 files; regenerate with `cd backend && alembic history`)
 ```
 54c0ed90559e → b3e8d87fd2f1 → c4f9a12e8b7d → d4e7f12a9c3b → e5f8a23b4c1d
 → f1a9c3e7d5b2 → a2b3c4d5e6f7 → a3b4c5d6e7f8 → b1c2d3e4f5a6 → c3d4e5f6a7b8
@@ -91,7 +91,8 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
     ├─ f7a8b9c0d1e2 → g8b9c0d1e2f3 → h9c0d1e2f3a4 → i0d1e2f3a4b5 → j1e2f3a4b5c6
     └─ f8a9b0c1d2e3 (RLS policies)
 → k2f3a4b5c6d7 (merge) → l3g4h5i6j7k8 → m4h5i6j7k8l9 → n5i6j7k8l9m0
-→ o6j7k8l9m0n1 → q8l9m0n1o2p3 → r9m0n1o2p3q4 → s0n1o2p3q4r5 (head)
+→ o6j7k8l9m0n1 → q8l9m0n1o2p3 → r9m0n1o2p3q4 → s0n1o2p3q4r5 → t1o2p3q4r5s6
+→ u2p3q4r5s6t7 (mcp_servers) → v3q4r5s6t7u8 (request_scores RLS, head)
 ```
 
 ## Architecture Rules (Critical)

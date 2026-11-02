@@ -1,4 +1,6 @@
 """Tool-calling messages must survive validation and reach LiteLLM exactly as sent."""
+import pytest
+
 from app.schemas.chat import ChatCompletionRequest
 from app.services.policy_service import policy_service
 
@@ -134,3 +136,23 @@ def test_policy_text_scans_json_inside_json_and_deep_nesting_without_dropping():
     for _ in range(2000):  # far past any recursion limit
         deep = {"n": deep}
     assert "deep-secret" in _text({"messages": [{"role": "user", "content": "x", "meta": deep}]})
+
+
+@pytest.mark.asyncio
+async def test_oversized_request_fails_closed_in_enforce_mode(monkeypatch):
+    from app.services import policy_service as policy_module
+    from app.services.policy_service import PolicyConfig
+
+    monkeypatch.setattr(policy_module, "_MAX_SCAN_NODES", 50)
+    request = ChatCompletionRequest.model_validate(
+        {"model": "m", "messages": [{"role": "user", "content": "x", "meta": list(range(500))}]}
+    )
+
+    enforce = await policy_service.evaluate_chat_request(request, PolicyConfig(enforcement_mode="enforce"))
+    assert not enforce.allowed and enforce.reason_code == "request_too_complex"
+
+    log_only = await policy_service.evaluate_chat_request(request, PolicyConfig(enforcement_mode="log_only"))
+    assert log_only.allowed and log_only.action == "log_only"
+
+    off = await policy_service.evaluate_chat_request(request, PolicyConfig(enforcement_mode="off"))
+    assert off.allowed

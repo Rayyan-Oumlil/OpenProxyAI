@@ -1,0 +1,7 @@
+target-version = "py311"
+line-length = 120
+extend-exclude = ["alembic/versions"]
+
+[lint]
+# Real errors only; legacy style findings stay out of CI until a mechanical cleanup PR.
+select = ["E9", "F"]

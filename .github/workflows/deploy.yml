@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "admin-console/**"
+      - "web-app/**"
       - ".github/workflows/deploy.yml"
-  # PRs run the test job only (incl. migrations + RLS).
+  # PRs run test/lint/build jobs only (incl. migrations, RLS and e2e); never build/migrate/deploy.
   pull_request:
     paths:
       - "backend/**"
+      - "admin-console/**"
+      - "web-app/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
     inputs:
@@ -20,9 +24,9 @@ on:
         type: choice
         options: [production]
 
+# Read-only by default. PR/push jobs run repo code (pip/npm), so they must not be able to mint cloud tokens.
 permissions:
   contents: read
-  id-token: write  # required for Workload Identity Federation
 
 env:
   REGION: ${{ secrets.GCP_REGION }}
@@ -66,7 +70,9 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt ruff
+      - name: Lint (ruff, real-error rules from backend/ruff.toml)
+        run: ruff check .
       - name: Apply migrations
         env:
           DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
@@ -91,10 +97,47 @@ jobs:
         # The CI login role is a superuser, which is exactly the case these tests must survive.
         run: python -m pytest tests/test_rls_isolation.py -q --tb=short -m integration -rs
 
+  # ── Frontends (build + tests only; nothing here deploys) ────────────────────
+  admin-console:
+    name: Admin Console (typecheck, build, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin-console/package-lock.json
+      - run: npm ci
+      - run: npm run build # tsc -b (typecheck) && vite build
+      - run: npm test
+
+  web-app:
+    name: Web App (typecheck, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web-app/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
   # ── Build & Push ─────────────────────────────────────────────────────────────
   build:
     name: Build & Push Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation; deploy jobs only
     needs: test
     # GCP deploys are manual only: pushes and PRs run tests, never build/migrate/deploy.
     if: github.event_name == 'workflow_dispatch'
@@ -132,6 +175,9 @@ jobs:
   migrate:
     name: Run DB Migrations
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation; deploy jobs only
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -173,6 +219,9 @@ jobs:
   deploy:
     name: Deploy to Cloud Run
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation; deploy jobs only
     needs: [build, migrate]
     environment: production
     concurrency:

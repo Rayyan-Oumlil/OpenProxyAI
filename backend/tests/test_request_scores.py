@@ -1,6 +1,5 @@
 """Request scores API tests — submit scores, experiment results include scores."""
 
-from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
 

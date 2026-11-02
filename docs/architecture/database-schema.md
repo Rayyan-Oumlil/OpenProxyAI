@@ -131,7 +131,7 @@ When requesting `gpt-3.5-turbo`:
 
 ## Table: request_logs
 
-**Purpose:** Immutable audit trail of every LLM request. Heavy write workload, optimized for analytics queries.
+**Purpose:** Append-only audit trail of every LLM request (the application role can insert, and only set `archived_at`). Heavy write workload, optimized for analytics queries.
 
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|

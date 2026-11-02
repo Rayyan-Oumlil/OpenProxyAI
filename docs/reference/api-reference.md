@@ -311,7 +311,7 @@ List available compliance templates.
     {
       "id": "government_fedramp",
       "name": "Government — FedRAMP",
-      "description": "FedRAMP-aligned policy: US-only models, classified keyword blocking, strict enforcement",
+      "description": "Government policy (not a FedRAMP authorization): classified keyword blocking, PII redaction, strict enforcement",
       "industry": "government",
       "regulation": "FedRAMP"
     }
