@@ -9,7 +9,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class Message(BaseModel):
 	role: Literal["system", "user", "assistant", "tool"]
-	content: str | list[Any]
+	# Assistant messages that carry tool_calls may have null/absent content.
+	content: str | list[Any] | None = None
+
+	# tool_calls, tool_call_id, name, ... pass through to the provider untouched.
+	model_config = ConfigDict(extra="allow")
 
 
 def _substitute_variables(template: str, variables: dict[str, str]) -> str:
