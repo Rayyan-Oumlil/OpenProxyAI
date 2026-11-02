@@ -489,14 +489,19 @@ class PolicyService:
 			content = message.content
 			if isinstance(content, str):
 				parts.append(content)
-				continue
-			for item in content:
-				if isinstance(item, str):
-					parts.append(item)
-				elif isinstance(item, dict):
-					text_value = item.get("text")
-					if isinstance(text_value, str):
-						parts.append(text_value)
+			else:
+				for item in content or []:
+					if isinstance(item, str):
+						parts.append(item)
+					elif isinstance(item, dict):
+						text_value = item.get("text")
+						if isinstance(text_value, str):
+							parts.append(text_value)
+			# Tool-call arguments are model-authored text forwarded upstream; scan them too.
+			for call in (message.model_extra or {}).get("tool_calls") or []:
+				arguments = (call.get("function") or {}).get("arguments") if isinstance(call, dict) else None
+				if isinstance(arguments, str):
+					parts.append(arguments)
 		return "\n".join(parts)
 
 
