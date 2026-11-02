@@ -397,7 +397,9 @@ class LLMService:
 			"azure": settings.AZURE_API_KEY,
 		}
 		api_key = env_map.get(provider, "")
-		if api_key:
+		# Env keys have no region tag, so only regions the operator opted in may use them.
+		shared_regions = {r.strip().lower() for r in settings.SHARED_KEY_REGIONS.split(",") if r.strip()}
+		if api_key and data_region in shared_regions:
 			return [(None, api_key)]
 
 		raise HTTPException(
