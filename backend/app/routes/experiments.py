@@ -416,11 +416,11 @@ async def get_experiment_results(
 		SELECT variant_id, score_name,
 			AVG(value)::float AS avg_val, COUNT(*)::int AS cnt
 		FROM request_scores
-		WHERE experiment_id = :experiment_id AND variant_id IS NOT NULL
+		WHERE org_id = :org_id AND experiment_id = :experiment_id AND variant_id IS NOT NULL
 		GROUP BY variant_id, score_name
 	""")
 	score_result = await db.execute(
-		score_stmt, {"experiment_id": str(experiment_id)}
+		score_stmt, {"org_id": str(current_user.org_id), "experiment_id": str(experiment_id)}
 	)
 	score_rows = score_result.mappings().all()
 	variant_scores: dict[str, list[dict]] = {}

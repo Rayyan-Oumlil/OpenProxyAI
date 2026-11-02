@@ -48,6 +48,7 @@ RLS_TABLES = [
     "semantic_cache_entries",
     "prompt_templates",
     "mcp_servers",
+    "request_scores",
 ]
 
 
@@ -249,3 +250,36 @@ async def test_org_scope_survives_commit(two_orgs):
         await session.commit()
         after = await session.scalar(text("SELECT COUNT(*) FROM api_keys WHERE org_id = :b"), {"b": org_b_id})
     assert before >= 1 and after == before
+
+
+@pytest.mark.asyncio
+async def test_request_scores_are_org_isolated(two_orgs):
+    """Org A can neither read nor overwrite org B's score, even when reusing its request_id."""
+    from sqlalchemy.dialects.postgresql import insert
+
+    from app.database import org_scoped_session
+    from app.models.request_score import RequestScore
+
+    org_a_id, org_b_id = two_orgs
+    request_id = uuid.uuid4()
+
+    def _upsert(org_id, value):
+        return insert(RequestScore).values(
+            request_id=request_id, org_id=org_id, score_name="quality", value=value
+        ).on_conflict_do_update(
+            index_elements=["org_id", "request_id", "score_name"],
+            set_={RequestScore.value: value},
+        )
+
+    async with org_scoped_session(org_b_id) as session:
+        await session.execute(_upsert(org_b_id, 1))
+        await session.commit()
+
+    async with org_scoped_session(org_a_id) as session:
+        assert await session.scalar(select(RequestScore).where(RequestScore.request_id == request_id)) is None
+        await session.execute(_upsert(org_a_id, 9))
+        await session.commit()
+
+    async with org_scoped_session(org_b_id) as session:
+        row = await session.scalar(select(RequestScore).where(RequestScore.request_id == request_id))
+        assert row is not None and float(row.value) == 1.0

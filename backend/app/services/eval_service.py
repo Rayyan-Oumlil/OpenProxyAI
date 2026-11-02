@@ -151,7 +151,7 @@ async def run_eval_hook(
 					score_name=name,
 					value=value,
 				).on_conflict_do_update(
-					index_elements=["request_id", "score_name"],
+					index_elements=["org_id", "request_id", "score_name"],
 					set_={
 						RequestScore.value: value,
 						RequestScore.experiment_id: experiment_id,

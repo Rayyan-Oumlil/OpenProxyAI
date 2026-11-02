@@ -60,7 +60,7 @@ async def submit_request_scores(
 			score_name=item.name,
 			value=item.value,
 		).on_conflict_do_update(
-			index_elements=["request_id", "score_name"],
+			index_elements=["org_id", "request_id", "score_name"],
 			set_={
 				RequestScore.value: item.value,
 				RequestScore.experiment_id: experiment_id,

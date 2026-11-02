@@ -10,7 +10,7 @@ from sqlalchemy.sql import func
 from app.models.base import Base, UUIDPrimaryKeyMixin
 
 # No direct FK to request_logs (request_id is gateway UUID, not request_logs.id)
-# Org scoping via request_logs join when querying
+# Org-scoped by RLS (v3q4r5s6t7u8); unique on (org_id, request_id, score_name)
 
 
 class RequestScore(UUIDPrimaryKeyMixin, Base):
