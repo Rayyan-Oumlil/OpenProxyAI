@@ -770,10 +770,13 @@ class LLMService:
 		except Exception as exc:
 			logger.warning("Budget pre-flight failed (continuing): %s", exc)
 
+		# Providers only report usage on streams when asked; strip the extra chunk if the client did not.
+		client_wants_usage = bool((ctx.kwargs.get("stream_options") or {}).get("include_usage"))
 		ctx.kwargs["stream"] = True
 
 		async def _stream_call(key: str) -> tuple[Any, Any]:
-			call_kwargs = {**ctx.kwargs, "api_key": key}
+			stream_options = {**(ctx.kwargs.get("stream_options") or {}), "include_usage": True}
+			call_kwargs = {**ctx.kwargs, "api_key": key, "stream_options": stream_options}
 			stream = await acompletion(**call_kwargs)
 			first = await stream.__anext__()
 			if getattr(first, "error", None) is not None:
@@ -826,39 +829,20 @@ class LLMService:
 			prompt_tokens = max(prompt_tokens, int(usage.get("prompt_tokens", 0) or 0))
 			completion_tokens = max(completion_tokens, int(usage.get("completion_tokens", 0) or 0))
 
-		async def event_stream() -> AsyncGenerator[str, None]:
-			first_payload = _to_jsonable(first_chunk)
-			if isinstance(first_payload, dict):
-				_update_usage(first_payload)
-			yield f"data: {json.dumps(first_payload)}\n\n"
-			collected_chunks: list[str] = []
-			async for chunk in stream:
-				chunk_payload = _to_jsonable(chunk)
-				if isinstance(chunk_payload, dict):
-					_update_usage(chunk_payload)
-					for choice in chunk_payload.get("choices", []):
-						delta = choice.get("delta", {})
-						content = delta.get("content")
-						if content:
-							collected_chunks.append(content)
-				yield f"data: {json.dumps(chunk_payload)}\n\n"
-			yield "data: [DONE]\n\n"
-			if (
-				hasattr(ctx.policy_config, "response_guardrails_enabled")
-				and ctx.policy_config.response_guardrails_enabled
-			):
+		def _record_stream(completed: bool, collected_chunks: list[str]) -> None:
+			"""Record cost + audit row. Runs from a finally block so a client disconnect still bills."""
+			nonlocal prompt_tokens, completion_tokens
+			if prompt_tokens == 0 or (completion_tokens == 0 and collected_chunks):
 				try:
-					from app.services.policy_service import PolicyService
-					policy_svc = PolicyService()
-					full_response_text = "".join(collected_chunks)
-					decision_resp = policy_svc.evaluate_response(full_response_text, ctx.policy_config)
-					if not decision_resp.allowed:
-						logger.warning(
-							"Response guardrail violation (stream already delivered): request_id=%s reason=%s",
-							ctx.request_id, decision_resp.reason_code,
+					if prompt_tokens == 0:
+						prompt_tokens = litellm.token_counter(
+							model=ctx.request.model,
+							messages=[m.model_dump(exclude_none=True) for m in ctx.request.messages],
 						)
+					if completion_tokens == 0 and collected_chunks:
+						completion_tokens = litellm.token_counter(model=ctx.request.model, text="".join(collected_chunks))
 				except Exception as exc:
-					logger.error("Response guardrail check failed for request %s: %s", ctx.request_id, exc)
+					logger.warning("Stream token estimate failed for request %s: %s", ctx.request_id, exc)
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 			cost = Decimal("0")
 			if prompt_tokens > 0 or completion_tokens > 0:
@@ -870,26 +854,78 @@ class LLMService:
 						"total_tokens": prompt_tokens + completion_tokens,
 					},
 				})
-			self._schedule_log(
-				ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
-				ctx.request.model, ctx.provider, prompt_tokens, completion_tokens, cost,
-				latency_ms, 200, ttft_ms=ttft_ms, request_metadata=_build_request_metadata(ctx), labels=ctx.labels,
-				team_id=ctx.team_id, provider_key_id=provider_key_id,
-			)
-			if ctx.experiment_info and (settings.EVAL_HOOK_URL or settings.EVAL_LLM_MODEL):
-				full_response_text = "".join(collected_chunks)
-				prompt_text = _extract_prompt_text(ctx.request.messages)
-				exp_id = ctx.experiment_info.get("experiment_id")
-				var_id = ctx.experiment_info.get("variant_id")
-				ctx.background_tasks.add_task(
-					run_eval_hook,
-					ctx.request_id,
-					ctx.user.org_id,
-					uuid.UUID(exp_id) if exp_id else None,
-					uuid.UUID(var_id) if var_id else None,
-					prompt_text,
-					full_response_text,
+			if completed:
+				self._schedule_log(
+					ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
+					ctx.request.model, ctx.provider, prompt_tokens, completion_tokens, cost,
+					latency_ms, 200, ttft_ms=ttft_ms, request_metadata=_build_request_metadata(ctx), labels=ctx.labels,
+					team_id=ctx.team_id, provider_key_id=provider_key_id,
 				)
+				return
+			# Client went away mid-stream: FastAPI may not run BackgroundTasks, so detach the write.
+			_log_detached(
+				redis=ctx.redis, request_id=ctx.request_id, org_id=ctx.user.org_id, user_id=ctx.user.id,
+				api_key_id=ctx.api_key.id, provider_key_id=provider_key_id, model=ctx.request.model,
+				provider=ctx.provider, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+				cost_usd=cost, latency_ms=latency_ms, ttft_ms=ttft_ms, status_code=499,
+				error_message="client_disconnected", request_metadata=_build_request_metadata(ctx),
+				labels=ctx.labels, team_id=ctx.team_id,
+			)
+
+		async def event_stream() -> AsyncGenerator[str, None]:
+			collected_chunks: list[str] = []
+			completed = False
+			try:
+				first_payload = _to_jsonable(first_chunk)
+				if isinstance(first_payload, dict):
+					_update_usage(first_payload)
+				yield f"data: {json.dumps(first_payload)}\n\n"
+				async for chunk in stream:
+					chunk_payload = _to_jsonable(chunk)
+					if isinstance(chunk_payload, dict):
+						_update_usage(chunk_payload)
+						for choice in chunk_payload.get("choices", []):
+							delta = choice.get("delta", {})
+							content = delta.get("content")
+							if content:
+								collected_chunks.append(content)
+					if not client_wants_usage and isinstance(chunk_payload, dict) and chunk_payload.get("usage") and not chunk_payload.get("choices"):
+						continue
+					yield f"data: {json.dumps(chunk_payload)}\n\n"
+				yield "data: [DONE]\n\n"
+				completed = True
+				if (
+					hasattr(ctx.policy_config, "response_guardrails_enabled")
+					and ctx.policy_config.response_guardrails_enabled
+				):
+					try:
+						from app.services.policy_service import PolicyService
+						policy_svc = PolicyService()
+						full_response_text = "".join(collected_chunks)
+						decision_resp = policy_svc.evaluate_response(full_response_text, ctx.policy_config)
+						if not decision_resp.allowed:
+							logger.warning(
+								"Response guardrail violation (stream already delivered): request_id=%s reason=%s",
+								ctx.request_id, decision_resp.reason_code,
+							)
+					except Exception as exc:
+						logger.error("Response guardrail check failed for request %s: %s", ctx.request_id, exc)
+				if ctx.experiment_info and (settings.EVAL_HOOK_URL or settings.EVAL_LLM_MODEL):
+					full_response_text = "".join(collected_chunks)
+					prompt_text = _extract_prompt_text(ctx.request.messages)
+					exp_id = ctx.experiment_info.get("experiment_id")
+					var_id = ctx.experiment_info.get("variant_id")
+					ctx.background_tasks.add_task(
+						run_eval_hook,
+						ctx.request_id,
+						ctx.user.org_id,
+						uuid.UUID(exp_id) if exp_id else None,
+						uuid.UUID(var_id) if var_id else None,
+						prompt_text,
+						full_response_text,
+					)
+			finally:
+				_record_stream(completed, collected_chunks)
 
 		return StreamingResponse(
 			event_stream(),
