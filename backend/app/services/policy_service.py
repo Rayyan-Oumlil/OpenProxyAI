@@ -500,33 +500,53 @@ class PolicyService:
 			# Pass-through fields (tool_calls, name, tool_call_id, ...) are forwarded upstream
 			# verbatim, so every string in them is scanned, including JSON-encoded arguments.
 			_collect_strings(message.model_extra, parts)
+		# Request-level pass-through fields (tools, response_format, ...) and stop sequences are read
+		# by the model too.
+		_collect_strings(request.model_extra, parts)
+		_collect_strings(request.stop, parts)
 		return "\n".join(parts)
 
 
-_MAX_COLLECT_DEPTH = 8
+_MAX_JSON_LAYERS = 8  # JSON-inside-a-string nesting we will unwrap
+_MAX_SCAN_NODES = 50_000
+_UNICODE_ESCAPE = re.compile('\\\\u([0-9a-fA-F]{4})')
 
 
-def _collect_strings(value: Any, out: list[str], depth: int = 0) -> None:
-	"""Append every string in a nested structure; also the decoded form of JSON-encoded strings.
+def _collect_strings(value: Any, out: list[str]) -> None:
+	"""Append every piece of text in a nested structure that the upstream model will read.
 
-	Decoding matters because "\\u0031\\u0032\\u0033" in raw tool-call arguments hides digits
-	from regex scanners but is what the upstream model actually sees.
+	Walks iteratively (no recursion limit to hide behind). Covers dict keys, numbers, JSON-encoded
+	strings (decoded, including strings inside strings) and unicode escapes (decoded even when the
+	JSON is malformed), because a regex over the raw string misses text the model sees after
+	decoding. If the node budget is exhausted the rest is scanned serialised, never dropped.
 	"""
-	if depth > _MAX_COLLECT_DEPTH or value is None:
-		return
-	if isinstance(value, str):
-		out.append(value)
-		if value.lstrip()[:1] in ("{", "["):
-			try:
-				_collect_strings(json.loads(value), out, depth + 1)
-			except ValueError:
-				pass
-	elif isinstance(value, dict):
-		for item in value.values():
-			_collect_strings(item, out, depth + 1)
-	elif isinstance(value, (list, tuple)):
-		for item in value:
-			_collect_strings(item, out, depth + 1)
-
+	stack: list[tuple[Any, int]] = [(value, 0)]
+	visited = 0
+	while stack:
+		current, layer = stack.pop()
+		visited += 1
+		if visited > _MAX_SCAN_NODES:
+			out.append(json.dumps([current, *(item for item, _ in stack)], default=str, ensure_ascii=False))
+			return
+		if current is None or isinstance(current, bool):
+			continue
+		if isinstance(current, (int, float)):
+			out.append(str(current))
+		elif isinstance(current, str):
+			out.append(current)
+			unescaped = _UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), current)
+			if unescaped != current:
+				out.append(unescaped)
+			if layer < _MAX_JSON_LAYERS:
+				try:
+					stack.append((json.loads(current), layer + 1))
+				except (ValueError, RecursionError):
+					pass
+		elif isinstance(current, dict):
+			for key, item in current.items():
+				stack.append((str(key), layer))
+				stack.append((item, layer))
+		elif isinstance(current, (list, tuple)):
+			stack.extend((item, layer) for item in current)
 
 policy_service = PolicyService()
