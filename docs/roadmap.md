@@ -27,7 +27,6 @@ Experiment quality scoring, adaptive load balancing, circuit breaker, prompt_id 
 
 | Item | Notes |
 |------|-------|
-| MCP gateway | Model Context Protocol gateway for tool-augmented LLM flows |
 | Voice endpoint | Speech-to-text / text-to-speech proxy |
 | WASM plugins | Extensibility via WebAssembly modules |
 | Vault / external secrets | Integrate HashiCorp Vault or similar for key injection |

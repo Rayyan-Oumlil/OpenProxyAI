@@ -349,7 +349,7 @@ Controls implemented:
 
 - **CC9.2 Vendor Risk Management:** Provider key rotation without exposure
 - **CC6.1 Logical Access Control:** RBAC, OIDC/SSO, API key authentication
-- **CC7.2 System Monitoring:** Immutable audit logs with 1-hour archival window
+- **CC7.2 System Monitoring:** Append-only audit logs (the application database role cannot update or delete them) with 1-hour archival window
 - **CC9.1 Potential for Misuse:** Rate limiting prevents brute force / DOS
 
 ### HIPAA

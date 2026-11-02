@@ -1,6 +1,6 @@
 # OpenProxyAI — Feature Reference
 
-> Complete inventory of shipped capabilities. 612 passing backend tests across 55 test files (`cd backend && pytest`).
+> Complete inventory of shipped capabilities. 755 passing backend tests across 68 test files (`cd backend && pytest`; 740 without Postgres + Redis, which the RLS and end-to-end suites need).
 
 ---
 
@@ -77,7 +77,7 @@
 |---|---|
 | Healthcare / HIPAA | PII entities (SSN, MRN, PHI), blocked keywords, model allowlist, 7-year audit retention |
 | Finance / PCI-DSS | Credit card regex, trade compliance keywords, SOX export format |
-| Government / FedRAMP | US-only provider keys, classified keyword blocking, FedRAMP security headers |
+| Government / FedRAMP-style | Classified-marking keyword blocking, PII redaction, 3-year audit retention. Not a FedRAMP authorization; the template does not enforce US-only providers (assign US-region provider keys yourself) |
 | Apply endpoint | `POST /api/v1/organizations/current/policy/apply-template` — merge semantics preserving existing org config |
 | Template listing | `GET /api/v1/organizations/current/policy/templates` — returns all available templates with metadata |
 
