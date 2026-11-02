@@ -39,3 +39,7 @@ Thumbs.db
 *.user
 .vercel
 .playwright-mcp/
+
+# Private reference documents (not for the public repo)
+Enreprise AI Proxy.md
+OpenProxyAI 10082026.md
