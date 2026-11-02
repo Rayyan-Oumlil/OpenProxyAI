@@ -19,10 +19,11 @@ from app.routes import mcp as mcp_route
 from app.routes import mcp_servers as mcp_servers_route
 from app.services import mcp_audit
 from app.services.policy_service import PolicyConfig
+from tests.conftest import FakeRedis
 
 ORG = uuid.uuid4()
 USER = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, email="dev@acme.io", role="admin", is_active=True)
-API_KEY = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, team_id=None)
+API_KEY = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, team_id=None, permissions=["proxy:llm", "proxy:mcp"])
 SERVER = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, name="github", url="https://gh.example.com/mcp",
                          auth_header_encrypted=None, is_active=True, created_at=datetime(2026, 9, 30))
 
@@ -86,8 +87,10 @@ def gateway(monkeypatch):
 	async def fake_db():
 		yield db
 
+	redis = FakeRedis()
+
 	async def fake_redis():
-		return None
+		return redis
 
 	async def fake_policy(org_id, db_, redis):
 		return PolicyConfig(enforcement_mode="enforce", pii_detection_enabled=False, mcp_blocked_tools=["*__delete_*"])
@@ -107,16 +110,16 @@ def gateway(monkeypatch):
 	monkeypatch.setattr(mcp_route.policy_store, "load", fake_policy)
 	monkeypatch.setattr(mcp_route, "call_upstream", fake_upstream)
 	monkeypatch.setattr(mcp_route, "record_tool_call", fake_record)
-	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls)
+	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls, redis=redis)
 
 
-def rpc(client, method, params=None, id_=1):
+def rpc(client, method, params=None, id_=1, headers=None):
 	body = {"jsonrpc": "2.0", "method": method}
 	if id_ is not None:
 		body["id"] = id_
 	if params is not None:
 		body["params"] = params
-	return client.post("/v1/mcp", json=body, headers={"Authorization": "Bearer opai_test"})
+	return client.post("/v1/mcp", json=body, headers={"Authorization": "Bearer opai_test", **(headers or {})})
 
 
 # ── POST /v1/mcp ──────────────────────────────────────────────────────────────
@@ -191,6 +194,45 @@ def test_invalid_requests(client, gateway, body):
 
 def test_server_initiated_streams_are_not_offered(client, gateway):
 	assert client.get("/v1/mcp", headers={"Authorization": "Bearer opai_test"}).status_code == 405
+
+
+# ── transport hardening: permission, Origin, rate limit ──────────────────────
+
+
+def test_key_without_the_mcp_permission_is_forbidden(client, gateway, monkeypatch):
+	monkeypatch.setattr(API_KEY, "permissions", ["proxy:llm"])
+	response = rpc(client, "tools/list")
+	assert response.status_code == 403
+	assert response.json()["error"]["code"] == -32005
+	assert gateway.upstream_calls == [] and gateway.audits == []
+
+
+def test_foreign_origin_is_rejected_before_anything_runs(client, gateway):
+	response = rpc(client, "tools/call", {"name": "github__search", "arguments": {}}, headers={"Origin": "https://evil.example"})
+	assert response.status_code == 403
+	assert gateway.upstream_calls == []
+
+
+def test_allowed_origin_and_missing_origin_pass(client, gateway):
+	assert rpc(client, "ping", headers={"Origin": "http://localhost:5173"}).status_code == 200
+	assert rpc(client, "ping").status_code == 200
+
+
+def test_rate_limit_returns_429_with_retry_after(client, gateway, monkeypatch):
+	monkeypatch.setattr(mcp_route.settings, "MCP_RATE_LIMIT_PER_MINUTE", 3)
+	statuses = [rpc(client, "ping", id_=i).status_code for i in range(5)]
+	assert statuses == [200, 200, 200, 429, 429]
+	limited = rpc(client, "ping")
+	assert limited.headers["retry-after"].isdigit()
+	assert limited.json()["error"]["code"] == -32006
+
+
+def test_rate_limit_is_per_api_key(client, gateway, monkeypatch):
+	monkeypatch.setattr(mcp_route.settings, "MCP_RATE_LIMIT_PER_MINUTE", 1)
+	assert rpc(client, "ping").status_code == 200
+	assert rpc(client, "ping").status_code == 429
+	monkeypatch.setattr(API_KEY, "id", uuid.uuid4())
+	assert rpc(client, "ping").status_code == 200
 
 
 # ── audit writer ─────────────────────────────────────────────────────────────
@@ -324,11 +366,16 @@ def test_end_to_end_through_the_real_client(client, gateway, monkeypatch):
 
 	upstream = FakeUpstream(sse=True)
 	monkeypatch.setattr(mcp_client, "_make_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(upstream)))
-	monkeypatch.setattr(mcp_client, "is_safe_https_url", lambda url: True)
+
+	async def resolve(url):
+		return "93.184.216.34"
+
+	monkeypatch.setattr(mcp_client, "resolve_public_ip", resolve)
 	monkeypatch.setattr(mcp_route, "call_upstream", mcp_client.call_upstream)
 
 	response = rpc(client, "tools/call", {"name": "github__search", "arguments": {"q": "rls"}})
 	assert response.json()["result"] == {"echo": "tools/call", "params": {"name": "search", "arguments": {"q": "rls"}}}
-	methods = [json.loads(r.content)["method"] for r in upstream.requests]
+	methods = [json.loads(r.content)["method"] for r in upstream.requests if r.method == "POST"]
 	assert methods == ["initialize", "notifications/initialized", "tools/call"]
+	assert upstream.requests[-1].method == "DELETE"
 	assert gateway.audits[0]["outcome"].status_code == 200
