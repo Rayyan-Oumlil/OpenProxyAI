@@ -126,3 +126,36 @@ async def test_client_disconnect_still_records_usage(monkeypatch, fake_redis):
     assert logs[0]["status_code"] == 499
     assert logs[0]["error_message"] == "client_disconnected"
     assert logs[0]["prompt_tokens"] > 0
+
+
+def _tool_call_chunk(arguments):
+    return {"id": "x", "choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": arguments}}]}, "finish_reason": None}]}
+
+
+@pytest.mark.asyncio
+async def test_tool_call_arguments_are_billed_as_completion_tokens(monkeypatch, fake_redis):
+    response, _, logs, background_tasks = await _start(monkeypatch, fake_redis, [_tool_call_chunk("x" * 4000)])
+    [_ async for _ in response.body_iterator]
+    await background_tasks()
+
+    assert logs[0]["completion_tokens"] >= 500
+
+
+@pytest.mark.asyncio
+async def test_response_that_never_starts_is_still_recorded_once(monkeypatch, fake_redis):
+    """Client gone before the first body byte: the generator never runs, but the upstream call was made."""
+    response, _, logs, _ = await _start(monkeypatch, fake_redis, [_delta("never read")])
+
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            raise OSError("client disconnected")
+
+    with pytest.raises(Exception):  # Starlette wraps the send failure in ClientDisconnect
+        await response(scope={"type": "http", "asgi": {"spec_version": "2.4"}}, receive=receive, send=send)
+    await asyncio.sleep(0.05)
+
+    assert len(logs) == 1
+    assert logs[0]["status_code"] == 499

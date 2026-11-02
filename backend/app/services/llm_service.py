@@ -96,6 +96,30 @@ def _log_detached(**kwargs: Any) -> None:
 	task.add_done_callback(_DETACHED_TASKS.discard)
 
 
+def _extra_delta_text(delta: dict[str, Any]) -> list[str]:
+	"""Billable stream text other than `content`: tool-call names/arguments and reasoning."""
+	parts: list[str] = []
+	for call in delta.get("tool_calls") or []:
+		function = call.get("function") if isinstance(call, dict) else None
+		if isinstance(function, dict):
+			parts.extend(function[k] for k in ("name", "arguments") if isinstance(function.get(k), str))
+	parts.extend(delta[k] for k in ("reasoning_content", "reasoning") if isinstance(delta.get(k), str))
+	return parts
+
+
+class _AccountedStreamingResponse(StreamingResponse):
+	"""StreamingResponse whose accounting hook also runs when the body generator never starts."""
+
+	def __init__(self, *args: Any, on_close: Callable[[], Coroutine[Any, Any, None]], **kwargs: Any) -> None:
+		super().__init__(*args, **kwargs)
+		self._on_close = on_close
+
+	async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+		try:
+			await super().__call__(scope, receive, send)
+		finally:
+			await self._on_close()
+
 def _to_jsonable(value: Any) -> Any:
 	if hasattr(value, "model_dump"):
 		return value.model_dump(exclude_none=True)
@@ -830,20 +854,33 @@ class LLMService:
 			prompt_tokens = max(prompt_tokens, int(usage.get("prompt_tokens", 0) or 0))
 			completion_tokens = max(completion_tokens, int(usage.get("completion_tokens", 0) or 0))
 
-		def _record_stream(completed: bool, collected_chunks: list[str]) -> None:
-			"""Record cost + audit row. Runs from a finally block so a client disconnect still bills."""
+		stream_state = {"completed": False, "recorded": False}
+		collected_chunks: list[str] = []  # response text, for guardrails and eval
+		usage_chunks: list[str] = []  # everything billable: text, tool-call arguments, reasoning
+
+		def _record_stream() -> None:
+			"""Record cost + audit row exactly once, however the response ends (done, disconnect, never started)."""
 			nonlocal prompt_tokens, completion_tokens
-			if prompt_tokens == 0 or (completion_tokens == 0 and collected_chunks):
+			if stream_state["recorded"]:
+				return
+			stream_state["recorded"] = True
+			completed = stream_state["completed"]
+			if prompt_tokens == 0:
+				request_messages = [m.model_dump(exclude_none=True) for m in ctx.request.messages]
 				try:
-					if prompt_tokens == 0:
-						prompt_tokens = litellm.token_counter(
-							model=ctx.request.model,
-							messages=[m.model_dump(exclude_none=True) for m in ctx.request.messages],
-						)
-					if completion_tokens == 0 and collected_chunks:
-						completion_tokens = litellm.token_counter(model=ctx.request.model, text="".join(collected_chunks))
+					prompt_tokens = litellm.token_counter(model=ctx.request.model, messages=request_messages)
 				except Exception as exc:
-					logger.warning("Stream token estimate failed for request %s: %s", ctx.request_id, exc)
+					logger.warning("Stream prompt token estimate failed for request %s: %s", ctx.request_id, exc)
+					prompt_tokens = len(json.dumps(request_messages, default=str)) // 4 + 1
+				# tools / response_format are part of the prompt the provider bills
+				prompt_tokens += len(json.dumps(ctx.request.model_extra or {}, default=str)) // 4
+			if completion_tokens == 0 and usage_chunks:
+				streamed_text = "".join(usage_chunks)
+				try:
+					completion_tokens = litellm.token_counter(model=ctx.request.model, text=streamed_text)
+				except Exception as exc:
+					logger.warning("Stream completion token estimate failed for request %s: %s", ctx.request_id, exc)
+					completion_tokens = len(streamed_text) // 4 + 1
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 			cost = Decimal("0")
 			if prompt_tokens > 0 or completion_tokens > 0:
@@ -873,13 +910,29 @@ class LLMService:
 				labels=ctx.labels, team_id=ctx.team_id,
 			)
 
+		async def _close_stream() -> None:
+			"""Runs when the response ends for any reason, including before the body generator ever started."""
+			try:
+				_record_stream()
+			finally:
+				aclose = getattr(stream, "aclose", None)
+				if aclose is not None:
+					try:
+						await aclose()
+					except Exception as exc:
+						logger.debug("Closing upstream stream failed for request %s: %s", ctx.request_id, exc)
+
 		async def event_stream() -> AsyncGenerator[str, None]:
-			collected_chunks: list[str] = []
-			completed = False
 			try:
 				first_payload = _to_jsonable(first_chunk)
 				if isinstance(first_payload, dict):
 					_update_usage(first_payload)
+					for choice in first_payload.get("choices", []):
+						first_delta = choice.get("delta", {})
+						if first_delta.get("content"):
+							collected_chunks.append(first_delta["content"])
+							usage_chunks.append(first_delta["content"])
+						usage_chunks.extend(_extra_delta_text(first_delta))
 				yield f"data: {json.dumps(first_payload)}\n\n"
 				async for chunk in stream:
 					chunk_payload = _to_jsonable(chunk)
@@ -890,13 +943,15 @@ class LLMService:
 							content = delta.get("content")
 							if content:
 								collected_chunks.append(content)
+								usage_chunks.append(content)
+							usage_chunks.extend(_extra_delta_text(delta))
 					if not client_wants_usage and isinstance(chunk_payload, dict) and "usage" in chunk_payload:
 						chunk_payload = {k: v for k, v in chunk_payload.items() if k != "usage"}
 						if not chunk_payload.get("choices"):
 							continue
 					yield f"data: {json.dumps(chunk_payload)}\n\n"
 				yield "data: [DONE]\n\n"
-				completed = True
+				stream_state["completed"] = True
 				if (
 					hasattr(ctx.policy_config, "response_guardrails_enabled")
 					and ctx.policy_config.response_guardrails_enabled
@@ -928,10 +983,11 @@ class LLMService:
 						full_response_text,
 					)
 			finally:
-				_record_stream(completed, collected_chunks)
+				_record_stream()
 
-		return StreamingResponse(
+		return _AccountedStreamingResponse(
 			event_stream(),
+				on_close=_close_stream,
 			media_type="text/event-stream",
 			headers={
 				"X-OpenProxyAI-Request-Id": str(ctx.request_id),
