@@ -142,10 +142,14 @@ async def test_global_keys_always_included(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_503_when_no_keys_match_region(monkeypatch):
-	"""Org data_region=eu with only US keys returns 503 with region-specific message."""
-	monkeypatch.setattr("app.services.llm_service.settings.OPENAI_API_KEY", "")
-	monkeypatch.setattr("app.services.llm_service.settings.ANTHROPIC_API_KEY", "")
-	monkeypatch.setattr("app.services.llm_service.settings.AZURE_API_KEY", "")
+	"""Org data_region=eu with only US keys returns 503 with region-specific message.
+
+	Gateway-wide env keys are configured on purpose: they carry no region tag and must not
+	rescue an EU org.
+	"""
+	monkeypatch.setattr("app.services.llm_service.settings.OPENAI_API_KEY", "sk-env-openai")
+	monkeypatch.setattr("app.services.llm_service.settings.ANTHROPIC_API_KEY", "sk-env-anthropic")
+	monkeypatch.setattr("app.services.llm_service.settings.AZURE_API_KEY", "sk-env-azure")
 
 	org_id = uuid4()
 	org = FakeOrg(org_id, data_region="eu")
@@ -161,6 +165,31 @@ async def test_503_when_no_keys_match_region(monkeypatch):
 	detail = exc_info.value.detail
 	assert "eu" in str(detail)
 	assert "global" in str(detail)
+
+
+@pytest.mark.asyncio
+async def test_env_key_fallback_allowed_for_shared_region(monkeypatch):
+	"""US org with no DB keys still falls back to the gateway env key (default deployments)."""
+	monkeypatch.setattr("app.services.llm_service.settings.OPENAI_API_KEY", "sk-env-openai")
+	org_id = uuid4()
+	db = DataResidencyFakeDB(FakeOrg(org_id, data_region="us"), keys=[])
+
+	keys = await LLMService()._select_provider_keys(db, org_id, "openai", model=None)
+	assert keys == [(None, "sk-env-openai")]
+
+
+@pytest.mark.asyncio
+async def test_env_key_fallback_refused_outside_shared_regions(monkeypatch):
+	"""EU/AP orgs with no region-tagged key get 503, never the untagged env key."""
+	from fastapi import HTTPException
+
+	monkeypatch.setattr("app.services.llm_service.settings.OPENAI_API_KEY", "sk-env-openai")
+	for region in ("eu", "ap"):
+		org_id = uuid4()
+		db = DataResidencyFakeDB(FakeOrg(org_id, data_region=region), keys=[])
+		with pytest.raises(HTTPException) as exc_info:
+			await LLMService()._select_provider_keys(db, org_id, "openai", model=None)
+		assert exc_info.value.status_code == 503
 
 
 # ── Provider key CRUD with region ─────────────────────────────────────────────

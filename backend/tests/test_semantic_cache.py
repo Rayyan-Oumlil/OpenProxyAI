@@ -42,7 +42,7 @@ async def test_l1_hit_returns_cached_response(mock_redis, org_id):
     ):
         cache_service._get_l1_cache()
         cache_service._L1_CACHE.clear()
-        sha = cache_service._make_key("gpt-4", [{"role": "user", "content": "hi"}], 0.7)
+        sha = cache_service._make_key("gpt-4", [{"role": "user", "content": "hi"}], 0.7, org_id)
         async with cache_service._L1_LOCK:
             cache_service._L1_CACHE[sha] = cached
 
@@ -114,6 +114,7 @@ async def test_l3_semantic_hit_when_similarity_above_threshold(mock_redis, org_i
         patch.object(settings, "SEMANTIC_CACHE_ENABLED", True),
         patch.object(settings, "SEMANTIC_CACHE_SIMILARITY_THRESHOLD", 0.95),
         patch.object(settings, "SEMANTIC_CACHE_EMBEDDING_MODEL", "text-embedding-3-small"),
+        patch.object(settings, "SEMANTIC_CACHE_EMBEDDING_API_KEY", "sk-embed-test"),
         patch("litellm.aembedding", new_callable=AsyncMock) as mock_emb,
     ):
         mock_emb.return_value = MagicMock(data=[MagicMock(embedding=embedding)])
@@ -145,6 +146,7 @@ async def test_l3_returns_none_when_no_matching_rows(mock_redis, org_id):
         patch.object(cache_service, "is_enabled", return_value=True),
         patch.object(settings, "CACHE_ENABLED", False),
         patch.object(settings, "SEMANTIC_CACHE_ENABLED", True),
+        patch.object(settings, "SEMANTIC_CACHE_EMBEDDING_API_KEY", "sk-embed-test"),
         patch("litellm.aembedding", new_callable=AsyncMock) as mock_emb,
     ):
         mock_emb.return_value = MagicMock(data=[MagicMock(embedding=embedding)])
@@ -187,6 +189,7 @@ async def test_l3_miss_when_similarity_below_threshold(mock_redis, org_id):
         patch.object(settings, "CACHE_ENABLED", False),
         patch.object(settings, "SEMANTIC_CACHE_ENABLED", True),
         patch.object(settings, "SEMANTIC_CACHE_SIMILARITY_THRESHOLD", 0.95),
+        patch.object(settings, "SEMANTIC_CACHE_EMBEDDING_API_KEY", "sk-embed-test"),
         patch("litellm.aembedding", new_callable=AsyncMock) as mock_emb,
     ):
         mock_emb.return_value = MagicMock(data=[MagicMock(embedding=embedding)])
@@ -277,6 +280,7 @@ async def test_embedding_failure_swallowed(mock_redis, org_id):
         patch.object(cache_service, "is_enabled", return_value=True),
         patch.object(settings, "CACHE_ENABLED", False),
         patch.object(settings, "SEMANTIC_CACHE_ENABLED", True),
+        patch.object(settings, "SEMANTIC_CACHE_EMBEDDING_API_KEY", "sk-embed-test"),
         patch("litellm.aembedding", new_callable=AsyncMock) as mock_emb,
     ):
         mock_emb.side_effect = RuntimeError("embedding API down")
