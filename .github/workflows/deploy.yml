@@ -24,9 +24,9 @@ on:
         type: choice
         options: [production]
 
+# Read-only by default. PR/push jobs run repo code (pip/npm), so they must not be able to mint cloud tokens.
 permissions:
   contents: read
-  id-token: write  # required for Workload Identity Federation
 
 env:
   REGION: ${{ secrets.GCP_REGION }}
@@ -135,6 +135,9 @@ jobs:
   build:
     name: Build & Push Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation; deploy jobs only
     needs: test
     # GCP deploys are manual only: pushes and PRs run tests, never build/migrate/deploy.
     if: github.event_name == 'workflow_dispatch'
@@ -172,6 +175,9 @@ jobs:
   migrate:
     name: Run DB Migrations
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation; deploy jobs only
     needs: build
     steps:
       - uses: actions/checkout@v4
@@ -213,6 +219,9 @@ jobs:
   deploy:
     name: Deploy to Cloud Run
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation; deploy jobs only
     needs: [build, migrate]
     environment: production
     concurrency:
