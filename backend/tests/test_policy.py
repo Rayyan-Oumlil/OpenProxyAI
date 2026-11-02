@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from fastapi import BackgroundTasks
 
 from app.config import settings
 from app.services.policy_service import policy_service
@@ -76,6 +77,7 @@ async def test_llm_service_blocks_before_rate_limit_for_policy_violation(monkeyp
 
 	monkeypatch.setattr("app.database.set_session_org_id", _noop_set_session)
 
+	bg = BackgroundTasks()
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
 		db=FakeDB(),
@@ -83,8 +85,9 @@ async def test_llm_service_blocks_before_rate_limit_for_policy_violation(monkeyp
 		user=user,
 		api_key=api_key,
 		request_id=uuid4(),
-		background_tasks=SimpleNamespace(add_task=lambda *args, **kwargs: None),
+		background_tasks=bg,
 	)
+	await bg()
 
 	assert response.status_code == 403
 	assert rate_limit_called is False
