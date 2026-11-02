@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from fastapi import BackgroundTasks
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -425,6 +426,7 @@ async def test_team_id_from_api_key_propagates_to_log(monkeypatch, fake_redis):
 
 	api_key = SimpleNamespace(id=uuid4(), org_id=user.org_id, user=user, team_id=team_id)
 
+	bg = BackgroundTasks()
 	response = await llm_module.llm_service.chat_completion(
 		request=llm_module.ChatCompletionRequest(
 			model="openai/gpt-4o-mini",
@@ -435,9 +437,10 @@ async def test_team_id_from_api_key_propagates_to_log(monkeypatch, fake_redis):
 		user=user,
 		api_key=api_key,
 		request_id=uuid4(),
-		background_tasks=SimpleNamespace(add_task=lambda *a, **kw: None),
+		background_tasks=bg,
 		http_request=None,
 	)
+	await bg()
 
 	assert response.status_code == 403
 	assert len(captured) == 1
@@ -492,6 +495,7 @@ async def test_team_id_from_header_when_key_has_none(monkeypatch, fake_redis):
 
 	http_request = _make_request({"x-openproxy-team-id": str(team_id)})
 
+	bg = BackgroundTasks()
 	response = await llm_module.llm_service.chat_completion(
 		request=llm_module.ChatCompletionRequest(
 			model="openai/gpt-4o-mini",
@@ -502,9 +506,10 @@ async def test_team_id_from_header_when_key_has_none(monkeypatch, fake_redis):
 		user=user,
 		api_key=api_key,
 		request_id=uuid4(),
-		background_tasks=SimpleNamespace(add_task=lambda *a, **kw: None),
+		background_tasks=bg,
 		http_request=http_request,
 	)
+	await bg()
 
 	assert response.status_code == 403
 	assert len(captured) == 1
@@ -560,6 +565,7 @@ async def test_team_id_from_api_key_takes_precedence_over_header(monkeypatch, fa
 
 	http_request = _make_request({"x-openproxy-team-id": str(header_team_id)})
 
+	bg = BackgroundTasks()
 	response = await llm_module.llm_service.chat_completion(
 		request=llm_module.ChatCompletionRequest(
 			model="openai/gpt-4o-mini",
@@ -570,9 +576,10 @@ async def test_team_id_from_api_key_takes_precedence_over_header(monkeypatch, fa
 		user=user,
 		api_key=api_key,
 		request_id=uuid4(),
-		background_tasks=SimpleNamespace(add_task=lambda *a, **kw: None),
+		background_tasks=bg,
 		http_request=http_request,
 	)
+	await bg()
 
 	assert response.status_code == 403
 	assert len(captured) == 1
