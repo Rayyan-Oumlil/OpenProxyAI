@@ -4,7 +4,10 @@ uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
 
 # LLM
-litellm>=1.50.0
+# Pinned to the minor line the suite is verified against; bump deliberately (see tests/test_litellm_contract.py).
+litellm>=1.106,<1.107
+# litellm imports mcp when a request carries tools; without it every tool-calling request 502s.
+mcp>=2,<3
 
 # Database
 sqlalchemy[asyncio]>=2.0.30
