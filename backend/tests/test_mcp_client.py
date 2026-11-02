@@ -235,3 +235,57 @@ async def test_no_delete_when_upstream_issued_no_session(monkeypatch):
 	monkeypatch.setattr(mcp_client, "resolve_public_ip", _resolver(PUBLIC_IP))
 	await mcp_client.call_upstream(URL, None, "tools/list", {})
 	assert "DELETE" not in seen
+
+
+async def test_compressed_responses_are_refused(monkeypatch):
+	seen: list[httpx.Request] = []
+
+	def fake(request: httpx.Request) -> httpx.Response:
+		seen.append(request)
+		return httpx.Response(200, content=b"x", headers={"Content-Encoding": "gzip", "Content-Type": "application/json"})
+
+	monkeypatch.setattr(mcp_client, "_make_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(fake)))
+	monkeypatch.setattr(mcp_client, "resolve_public_ip", _resolver(PUBLIC_IP))
+	with pytest.raises(mcp_client.McpUpstreamError, match="content-encoding"):
+		await mcp_client.call_upstream(URL, None, "tools/list", {})
+	assert seen[0].headers["accept-encoding"] == "identity"
+
+
+@pytest.mark.parametrize("payload", [
+	{"jsonrpc": "2.0", "id": 2, "error": "just a string"},
+	{"jsonrpc": "2.0", "id": 2, "result": ["not", "an", "object"]},
+	["a", "list"],
+])
+async def test_malformed_json_rpc_shapes_raise_upstream_error(monkeypatch, payload):
+	def fake(request: httpx.Request) -> httpx.Response:
+		body = json.loads(request.content) if request.content else {}
+		if request.method == "DELETE" or "id" not in body:
+			return httpx.Response(202)
+		if body["method"] == "initialize":
+			return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": {}})
+		return httpx.Response(200, json=payload)
+
+	monkeypatch.setattr(mcp_client, "_make_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(fake)))
+	monkeypatch.setattr(mcp_client, "resolve_public_ip", _resolver(PUBLIC_IP))
+	with pytest.raises(mcp_client.McpUpstreamError):
+		await mcp_client.call_upstream(URL, None, "tools/list", {})
+
+
+async def test_upstream_error_text_is_sanitised_and_truncated(upstream, monkeypatch):
+	upstream(fail_method="tools/call")
+	monkeypatch.setattr(mcp_client, "MAX_ERROR_TEXT", 10)
+	with pytest.raises(mcp_client.McpUpstreamError) as exc:
+		await mcp_client.call_upstream(URL, None, "tools/call", {"name": "x"})
+	assert len(str(exc.value)) <= 10
+
+
+async def test_a_hung_resolver_is_bounded_by_the_total_deadline(monkeypatch):
+	monkeypatch.setattr(mcp_client, "TOTAL_TIMEOUT_SECONDS", 0.2)
+
+	async def hang(url: str) -> str:
+		await asyncio.sleep(30)
+		return PUBLIC_IP
+
+	monkeypatch.setattr(mcp_client, "resolve_public_ip", hang)
+	with pytest.raises(mcp_client.McpUpstreamError, match="timed out"):
+		await asyncio.wait_for(mcp_client.call_upstream(URL, None, "tools/list", {}), timeout=5)

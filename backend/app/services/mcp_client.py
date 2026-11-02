@@ -32,6 +32,7 @@ CLOSE_TIMEOUT_SECONDS = 5.0
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
 _ACCEPT = "application/json, text/event-stream"
+MAX_ERROR_TEXT = 200
 
 
 class McpUpstreamError(Exception):
@@ -50,6 +51,12 @@ class _PinnedTarget:
     url: str  # https://<validated ip>[:port]/path
     host_header: str  # original authority, so virtual hosting still works
     sni: str  # original hostname, so the certificate is verified against the name, not the IP
+
+
+def _safe_text(value: object) -> str:
+    """Upstream free text is attacker-controlled: drop control characters (log injection) and truncate."""
+    text = "".join(ch for ch in str(value) if ch.isprintable())
+    return text[:MAX_ERROR_TEXT]
 
 
 def _make_client() -> httpx.AsyncClient:
@@ -74,7 +81,7 @@ def _parse_sse(text: str, request_id: int) -> dict[str, Any]:
         if not data:
             continue
         message = json.loads(data)
-        if message.get("id") == request_id:
+        if isinstance(message, dict) and message.get("id") == request_id:
             return message
     raise McpUpstreamError(f"upstream SSE stream ended without a response to request {request_id}")
 
@@ -88,13 +95,16 @@ async def _send(
             method,
             target.url,
             json=body,
-            headers={**headers, "Host": target.host_header},
+            headers={**headers, "Host": target.host_header, "Accept-Encoding": "identity"},
             extensions={"sni_hostname": target.sni},
         ) as response:
             if 300 <= response.status_code < 400:
                 raise McpUpstreamError(f"upstream redirect rejected (HTTP {response.status_code})")
             if response.status_code >= 400:
                 return response.status_code, response.headers, b""
+            if response.headers.get("content-encoding", "identity").lower() != "identity":
+                # A compressed body could expand far past the cap before we count it.
+                raise McpUpstreamError("upstream used an unsupported content-encoding")
             declared = response.headers.get("content-length", "")
             if declared.isdigit() and int(declared) > MAX_RESPONSE_BYTES:
                 raise McpUpstreamError("upstream response too large")
@@ -136,9 +146,13 @@ async def _request(
     if not isinstance(message, dict):
         raise McpUpstreamError(f"upstream sent an unreadable response to {method}")
     if "error" in message:
-        error = message["error"] or {}
-        raise McpUpstreamError(str(error.get("message", "upstream error")), code=error.get("code"))
-    return message.get("result") or {}, response_headers
+        error = message["error"] if isinstance(message["error"], dict) else {}
+        code = error.get("code")
+        raise McpUpstreamError(_safe_text(error.get("message", "upstream error")), code=code if isinstance(code, int) else None)
+    result = message.get("result") or {}
+    if not isinstance(result, dict):
+        raise McpUpstreamError(f"upstream sent an unreadable response to {method}")
+    return result, response_headers
 
 
 async def _close_session(client: httpx.AsyncClient, target: _PinnedTarget, headers: dict[str, str]) -> None:
@@ -152,19 +166,19 @@ async def _close_session(client: httpx.AsyncClient, target: _PinnedTarget, heade
 
 async def call_upstream(url: str, auth_header: str | None, method: str, params: dict | None) -> dict[str, Any]:
     """Run ``method`` on the MCP server at ``url`` and return its JSON-RPC ``result``."""
-    ip = await resolve_public_ip(url)
-    if ip is None:
-        raise McpUpstreamError("upstream URL rejected: must be HTTPS and resolve to a public address")
-    target = _pin(url, ip)
-
     headers = {"Accept": _ACCEPT, "Content-Type": "application/json"}
     if auth_header:
         headers["Authorization"] = auth_header
 
     session_headers: dict[str, str] | None = None
+    target: _PinnedTarget | None = None
     async with _make_client() as client:
         try:
             async with asyncio.timeout(TOTAL_TIMEOUT_SECONDS):
+                ip = await resolve_public_ip(url)  # inside the deadline: a slow resolver must not hang the call
+                if ip is None:
+                    raise McpUpstreamError("upstream URL rejected: must be HTTPS and resolve to a public address")
+                target = _pin(url, ip)
                 init_result, init_headers = await _request(
                     client, target, headers, 1, "initialize",
                     {"protocolVersion": PROTOCOL_VERSION, "capabilities": {}, "clientInfo": CLIENT_INFO},
@@ -187,5 +201,5 @@ async def call_upstream(url: str, auth_header: str | None, method: str, params: 
         except TimeoutError as exc:
             raise McpUpstreamError("upstream timed out") from exc
         finally:
-            if session_headers and "Mcp-Session-Id" in session_headers:
+            if target is not None and session_headers and "Mcp-Session-Id" in session_headers:
                 await _close_session(client, target, session_headers)
