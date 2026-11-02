@@ -235,7 +235,18 @@ class PolicyService:
 		config: PolicyConfig | None = None,
 	) -> PolicyDecision:
 		cfg = config or PolicyConfig.from_settings()
-		text = self._extract_chat_text(request)
+		try:
+			text = self._extract_chat_text(request)
+		except PolicyScanLimitExceeded:
+			mode = cfg.enforcement_mode.lower().strip()
+			if mode == "off":
+				return PolicyDecision(allowed=True, action="allow", _mode=mode)
+			return self._decision_for_violation(
+				mode=mode,
+				reason_code="request_too_complex",
+				detail="The request has too many fields to be checked against organization policy.",
+				triggered_rules=["scan_limit"],
+			)
 		decision = self._evaluate(model=request.model, text=text, config=cfg)
 		if self._skip_injection(decision, cfg):
 			return decision
@@ -512,13 +523,17 @@ _MAX_SCAN_NODES = 50_000
 _UNICODE_ESCAPE = re.compile('\\\\u([0-9a-fA-F]{4})')
 
 
+class PolicyScanLimitExceeded(Exception):
+	"""The request is too large to scan completely; policy fails closed rather than scanning part of it."""
+
+
 def _collect_strings(value: Any, out: list[str]) -> None:
 	"""Append every piece of text in a nested structure that the upstream model will read.
 
 	Walks iteratively (no recursion limit to hide behind). Covers dict keys, numbers, JSON-encoded
 	strings (decoded, including strings inside strings) and unicode escapes (decoded even when the
 	JSON is malformed), because a regex over the raw string misses text the model sees after
-	decoding. If the node budget is exhausted the rest is scanned serialised, never dropped.
+	decoding. Exhausting the node budget raises PolicyScanLimitExceeded (fail closed).
 	"""
 	stack: list[tuple[Any, int]] = [(value, 0)]
 	visited = 0
@@ -526,8 +541,7 @@ def _collect_strings(value: Any, out: list[str]) -> None:
 		current, layer = stack.pop()
 		visited += 1
 		if visited > _MAX_SCAN_NODES:
-			out.append(json.dumps([current, *(item for item, _ in stack)], default=str, ensure_ascii=False))
-			return
+			raise PolicyScanLimitExceeded("request has too many fields to scan against policy")
 		if current is None or isinstance(current, bool):
 			continue
 		if isinstance(current, (int, float)):
