@@ -5,6 +5,7 @@ Shared by webhook delivery and the MCP gateway (both call URLs that org admins c
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 from urllib.parse import urlparse
@@ -52,3 +53,13 @@ def resolve_safe_url(url: str) -> tuple[bool, str | None]:
 
 def is_safe_https_url(url: str) -> bool:
     return resolve_safe_url(url)[0]
+
+
+async def resolve_public_ip(url: str) -> str | None:
+    """Validate ``url`` and return the public IP to connect to, or None if it is unsafe.
+
+    Resolution runs in a worker thread (getaddrinfo blocks). Callers must connect to the returned
+    address instead of resolving the hostname again, which closes the DNS-rebinding window.
+    """
+    safe, ip = await asyncio.to_thread(resolve_safe_url, url)
+    return ip if safe else None

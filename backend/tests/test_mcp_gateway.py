@@ -114,3 +114,5 @@ async def test_non_object_arguments_are_invalid_params():
 async def test_upstream_failure_becomes_a_gateway_error():
 	outcome = await mcp_gateway.call_tool([GITHUB], _cfg(), "github__search", {}, FakeUpstreams(broken={GITHUB.url}))
 	assert outcome.error["code"] == mcp_gateway.ERR_UPSTREAM and outcome.status_code == 502
+	assert "connection refused" not in outcome.error["message"]
+	assert outcome.error["message"] == "Upstream MCP server github unavailable"
