@@ -82,6 +82,20 @@ def _split_model(model_name: str) -> tuple[str, str]:
 	return provider, model
 
 
+_DETACHED_TASKS: set[asyncio.Task] = set()
+
+
+def _log_detached(**kwargs: Any) -> None:
+	"""Fire-and-forget audit write for paths that re-raise an HTTPException.
+
+	FastAPI drops BackgroundTasks when a route raises, so these writes run as a detached task
+	(log_request opens its own org-scoped session) instead of being awaited inline.
+	"""
+	task = asyncio.create_task(log_request(**kwargs))
+	_DETACHED_TASKS.add(task)
+	task.add_done_callback(_DETACHED_TASKS.discard)
+
+
 def _to_jsonable(value: Any) -> Any:
 	if hasattr(value, "model_dump"):
 		return value.model_dump(exclude_none=True)
@@ -198,6 +212,18 @@ def _parse_cache_override(request: Request | None) -> CacheOverride | None:
 	if v in ("skip", "no-store", "no-cache"):
 		return v  # type: ignore[return-value]
 	return None
+
+
+def _is_cache_unsafe(request: ChatCompletionRequest) -> bool:
+	"""Tool-calling and structured-output requests must bypass the cache.
+
+	The cache key covers model, messages and temperature only, so the same messages with
+	different tools / response_format would be served each other's cached answer.
+	"""
+	extras = request.model_extra or {}
+	if any(extras.get(k) for k in ("tools", "functions", "tool_choice", "function_call", "response_format")):
+		return True
+	return any(m.role == "tool" or (m.model_extra or {}).get("tool_calls") for m in request.messages)
 
 
 def _parse_retries_header(request: Request | None) -> int | None:
@@ -571,7 +597,7 @@ class LLMService:
 
 		if not decision.allowed:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
-			await log_request(
+			ctx.background_tasks.add_task(log_request,
 				redis=ctx.redis,
 				request_id=ctx.request_id,
 				org_id=ctx.user.org_id,
@@ -610,7 +636,7 @@ class LLMService:
 		)
 		if not ok:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
-			await log_request(
+			ctx.background_tasks.add_task(log_request,
 				redis=ctx.redis,
 				request_id=ctx.request_id,
 				org_id=ctx.user.org_id,
@@ -885,7 +911,7 @@ class LLMService:
 		db: AsyncSession,
 	) -> JSONResponse:
 		"""Cache check, fallback call, response guardrail, cost/log, return."""
-		cache_override = _parse_cache_override(ctx.http_request)
+		cache_override = "skip" if _is_cache_unsafe(ctx.request) else _parse_cache_override(ctx.http_request)
 		# Cache check — failure must never block a real LLM call
 		try:
 			cache_messages = [
@@ -1123,7 +1149,7 @@ class LLMService:
 
 		except HTTPException as exc:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
-			await log_request(
+			_log_detached(
 				redis=redis,
 				request_id=request_id,
 				org_id=user.org_id,
@@ -1241,7 +1267,7 @@ class LLMService:
 			policy_metadata = decision.as_metadata()
 			if not decision.allowed:
 				latency_ms = int((time.perf_counter() - start) * 1000)
-				await log_request(
+				background_tasks.add_task(log_request,
 					redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
 					api_key_id=api_key.id, model=request.model, provider=provider,
 					prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
@@ -1264,7 +1290,7 @@ class LLMService:
 			)
 			if not ok:
 				latency_ms = int((time.perf_counter() - start) * 1000)
-				await log_request(
+				background_tasks.add_task(log_request,
 					redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
 					api_key_id=api_key.id, model=request.model, provider=provider,
 					prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
@@ -1330,7 +1356,7 @@ class LLMService:
 			)
 		except HTTPException as exc:
 			latency_ms = int((time.perf_counter() - start) * 1000)
-			await log_request(
+			_log_detached(
 				redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
 				api_key_id=api_key.id, model=request.model, provider=provider,
 				prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),

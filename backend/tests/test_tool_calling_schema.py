@@ -48,3 +48,42 @@ def test_policy_text_includes_tool_call_arguments_and_tolerates_null_content():
 
     assert "123-45-6789" in text
     assert "look it up" in text
+
+
+def test_policy_text_decodes_json_escaped_tool_call_arguments():
+    """Escaped digits hide from regex scanners in the raw string but not from the model."""
+    escaped = '{"ssn": "' + chr(92) + 'u0031' + chr(92) + 'u0032' + chr(92) + 'u0033-45-6789"}'
+    assert "123" not in escaped
+    payload = {
+        "model": "openai/gpt-4o-mini",
+        "messages": [
+            {"role": "assistant", "tool_calls": [{"id": "c", "type": "function", "function": {"name": "f", "arguments": escaped}}]},
+        ],
+    }
+    text = policy_service._extract_chat_text(ChatCompletionRequest.model_validate(payload))
+
+    assert "123-45-6789" in text
+
+
+def test_token_estimate_counts_passthrough_fields():
+    from app.utils.token_estimator import estimate_tokens
+
+    plain = ChatCompletionRequest.model_validate({"model": "m", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1})
+    bloated = ChatCompletionRequest.model_validate(
+        {
+            "model": "m",
+            "messages": [{"role": "assistant", "tool_calls": [{"function": {"arguments": "x" * 40_000}}]}],
+            "max_tokens": 1,
+        }
+    )
+
+    assert estimate_tokens(bloated) > estimate_tokens(plain) + 5_000
+
+
+def test_tool_and_structured_requests_bypass_cache():
+    from app.services.llm_service import _is_cache_unsafe
+
+    assert _is_cache_unsafe(ChatCompletionRequest.model_validate(PAYLOAD))
+    assert _is_cache_unsafe(ChatCompletionRequest.model_validate({"model": "m", "messages": [{"role": "user", "content": "x"}], "tools": [{"type": "function"}]}))
+    assert _is_cache_unsafe(ChatCompletionRequest.model_validate({"model": "m", "messages": [{"role": "user", "content": "x"}], "response_format": {"type": "json_object"}}))
+    assert not _is_cache_unsafe(ChatCompletionRequest.model_validate({"model": "m", "messages": [{"role": "user", "content": "x"}]}))

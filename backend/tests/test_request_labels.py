@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from fastapi import BackgroundTasks
 from fastapi import HTTPException, Request
 
 from tests.conftest import FakeDB
@@ -166,7 +167,7 @@ async def test_labels_forwarded_to_log_request_on_policy_block(monkeypatch, fake
 	)
 	user = SimpleNamespace(id=uuid4(), org_id=uuid4(), budget_daily_usd=Decimal("50"))
 	api_key = SimpleNamespace(id=uuid4())
-	background_tasks = SimpleNamespace(add_task=lambda *args, **kwargs: None)
+	background_tasks = BackgroundTasks()
 
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
@@ -178,6 +179,8 @@ async def test_labels_forwarded_to_log_request_on_policy_block(monkeypatch, fake
 		background_tasks=background_tasks,
 		http_request=http_request,
 	)
+
+	await background_tasks()
 
 	assert response.status_code == 403
 	assert len(captured) == 1
@@ -214,7 +217,7 @@ async def test_labels_absent_no_error_on_policy_block(monkeypatch, fake_redis):
 	)
 	user = SimpleNamespace(id=uuid4(), org_id=uuid4(), budget_daily_usd=Decimal("50"))
 	api_key = SimpleNamespace(id=uuid4())
-	background_tasks = SimpleNamespace(add_task=lambda *args, **kwargs: None)
+	background_tasks = BackgroundTasks()
 
 	response = await llm_service_module.llm_service.chat_completion(
 		request=request,
@@ -226,6 +229,8 @@ async def test_labels_absent_no_error_on_policy_block(monkeypatch, fake_redis):
 		background_tasks=background_tasks,
 		http_request=http_request,
 	)
+
+	await background_tasks()
 
 	assert response.status_code == 403
 	assert len(captured) == 1
