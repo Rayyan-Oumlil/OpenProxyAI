@@ -500,33 +500,49 @@ class PolicyService:
 			# Pass-through fields (tool_calls, name, tool_call_id, ...) are forwarded upstream
 			# verbatim, so every string in them is scanned, including JSON-encoded arguments.
 			_collect_strings(message.model_extra, parts)
+		# Request-level pass-through fields (tools, response_format, ...) and stop sequences are read
+		# by the model too.
+		_collect_strings(request.model_extra, parts)
+		_collect_strings(request.stop, parts)
 		return "\n".join(parts)
 
 
 _MAX_COLLECT_DEPTH = 8
+_UNICODE_ESCAPE = re.compile('\\\\u([0-9a-fA-F]{4})')
 
 
 def _collect_strings(value: Any, out: list[str], depth: int = 0) -> None:
-	"""Append every string in a nested structure; also the decoded form of JSON-encoded strings.
+	"""Append every piece of text in a nested structure that the upstream model will read.
 
-	Decoding matters because "\\u0031\\u0032\\u0033" in raw tool-call arguments hides digits
-	from regex scanners but is what the upstream model actually sees.
+	Covers dict keys, numbers, JSON-encoded strings (decoded) and unicode escapes (decoded even
+	when the JSON is malformed), because a regex over the raw string misses text the model
+	sees after decoding. Past the depth limit the remainder is scanned serialised, never dropped.
 	"""
-	if depth > _MAX_COLLECT_DEPTH or value is None:
+	if value is None or isinstance(value, bool):
+		return
+	if isinstance(value, (int, float)):
+		out.append(str(value))
+		return
+	if depth > _MAX_COLLECT_DEPTH:
+		out.append(json.dumps(value, default=str))
 		return
 	if isinstance(value, str):
 		out.append(value)
-		if value.lstrip()[:1] in ("{", "["):
-			try:
-				_collect_strings(json.loads(value), out, depth + 1)
-			except ValueError:
-				pass
+		unescaped = _UNICODE_ESCAPE.sub(lambda m: chr(int(m.group(1), 16)), value)
+		if unescaped != value:
+			out.append(unescaped)
+		try:
+			decoded = json.loads(value)
+		except ValueError:
+			return
+		if not isinstance(decoded, str):
+			_collect_strings(decoded, out, depth + 1)
 	elif isinstance(value, dict):
-		for item in value.values():
+		for key, item in value.items():
+			_collect_strings(str(key), out, depth + 1)
 			_collect_strings(item, out, depth + 1)
 	elif isinstance(value, (list, tuple)):
 		for item in value:
 			_collect_strings(item, out, depth + 1)
-
 
 policy_service = PolicyService()
