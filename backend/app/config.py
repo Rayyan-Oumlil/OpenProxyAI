@@ -195,6 +195,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000,http://localhost:3000"
     )
 
+    # ── MCP gateway ──────────────────────────────────────────────────
+    # Requests per minute per API key on POST /v1/mcp (separate from the LLM RPM counter).
+    MCP_RATE_LIMIT_PER_MINUTE: int = 120
+
     @field_validator("DB_APP_ROLE")
     @classmethod
     def validate_db_app_role(cls, v: str) -> str:

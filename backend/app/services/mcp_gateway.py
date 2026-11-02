@@ -8,12 +8,15 @@ docs/superpowers/specs/2026-09-30-mcp-gateway-design.md
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
 from app.services.mcp_client import McpUpstreamError
 from app.services.policy_service import PolicyConfig, PolicyDecision, policy_service
+
+logger = logging.getLogger(__name__)
 
 TOOL_SEPARATOR = "__"
 MAX_LIST_PAGES = 10
@@ -110,6 +113,8 @@ async def call_tool(
     try:
         result = await call(server.url, server.auth_header, "tools/call", {"name": tool, "arguments": arguments})
     except McpUpstreamError as exc:
+        # The upstream's own error text can carry prompt-injection or internals; log it, never forward it.
+        logger.warning("MCP upstream %s failed on tools/call: %s", server.name, exc)
         return ToolCallOutcome(tool=name, server=server.name, status_code=502, decision=decision,
-                               error={"code": ERR_UPSTREAM, "message": f"Upstream MCP server {server.name} failed: {exc}"})
+                               error={"code": ERR_UPSTREAM, "message": f"Upstream MCP server {server.name} unavailable"})
     return ToolCallOutcome(tool=name, server=server.name, status_code=200, decision=decision, result=result)

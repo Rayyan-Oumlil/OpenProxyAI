@@ -16,12 +16,15 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.dependencies import ProxyAuth, get_db, get_redis
+from app.middleware.cors import parse_origins
 from app.models.mcp_server import McpServer
 from app.services.crypto_service import decrypt
 from app.services.mcp_audit import record_tool_call
 from app.services.mcp_client import call_upstream
 from app.services.mcp_gateway import UpstreamServer, call_tool, list_tools
+from app.services.mcp_rate_limit import check_mcp_rate_limit
 from app.services.policy_service import policy_store
 
 router = APIRouter(tags=["MCP Gateway"])
@@ -33,6 +36,10 @@ SERVER_INFO = {"name": "OpenProxyAI MCP Gateway", "version": "1.0.0"}
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
+FORBIDDEN = -32005
+RATE_LIMITED = -32006
+
+MCP_PERMISSION = "proxy:mcp"
 
 
 def _result(request_id: Any, result: dict) -> JSONResponse:
@@ -44,6 +51,15 @@ def _error(request_id: Any, code: int, message: str, data: dict | None = None, s
 	if data is not None:
 		error["data"] = data
 	return JSONResponse({"jsonrpc": "2.0", "id": request_id, "error": error}, status_code=status_code)
+
+
+def _origin_allowed(origin: str | None) -> bool:
+	"""Browsers always send Origin, so a mismatch is a web page trying to drive the gateway
+	(DNS rebinding / drive-by). Non-browser agents send none, which is allowed."""
+	if origin is None:
+		return True
+	allowed = {o.rstrip("/").lower() for o in parse_origins(settings.CORS_ORIGINS)}
+	return "*" in allowed or origin.rstrip("/").lower() in allowed
 
 
 async def _active_servers(db: AsyncSession, org_id: uuid.UUID) -> list[UpstreamServer]:
@@ -69,6 +85,15 @@ async def mcp_endpoint(
 	redis: Redis = Depends(get_redis),
 ) -> Response:
 	user, api_key = auth
+	if not _origin_allowed(request.headers.get("origin")):
+		return _error(None, FORBIDDEN, "Origin not allowed", status_code=403)
+	if MCP_PERMISSION not in (api_key.permissions or []):
+		return _error(None, FORBIDDEN, f"API key lacks the {MCP_PERMISSION} permission", status_code=403)
+	allowed, retry_after = await check_mcp_rate_limit(redis, api_key.id, settings.MCP_RATE_LIMIT_PER_MINUTE)
+	if not allowed:
+		response = _error(None, RATE_LIMITED, "Rate limit exceeded", status_code=429)
+		response.headers["Retry-After"] = str(retry_after)
+		return response
 	try:
 		message = await request.json()
 	except ValueError:

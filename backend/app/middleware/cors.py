@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 
-def _parse_origins(raw: str) -> list[str]:
+def parse_origins(raw: str) -> list[str]:
     """Accept JSON array or comma-separated string."""
     try:
         parsed = json.loads(raw)
@@ -21,7 +21,7 @@ def _parse_origins(raw: str) -> list[str]:
 
 def add_cors_middleware(app: FastAPI) -> None:
     """Register CORSMiddleware with origins from settings."""
-    origins = _parse_origins(settings.CORS_ORIGINS)
+    origins = parse_origins(settings.CORS_ORIGINS)
     if "*" in origins:
         # Wildcard CORS requires allow_credentials=False (CORS spec).
         # For credentialed requests (cookies/auth), set explicit origins instead.
