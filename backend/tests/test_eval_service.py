@@ -1,6 +1,5 @@
 """Eval hook (HTTP / LLM-as-judge) tests — fail-open, score parsing, storage."""
 
-from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
 from unittest.mock import AsyncMock, patch, MagicMock

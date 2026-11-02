@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "admin-console/**"
+      - "web-app/**"
       - ".github/workflows/deploy.yml"
-  # PRs run the test job only (incl. migrations + RLS).
+  # PRs run test/lint/build jobs only (incl. migrations, RLS and e2e); never build/migrate/deploy.
   pull_request:
     paths:
       - "backend/**"
+      - "admin-console/**"
+      - "web-app/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
     inputs:
@@ -66,19 +70,23 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt ruff
+      - name: Lint (ruff, real-error rules from backend/ruff.toml)
+        run: ruff check .
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
+        run: alembic upgrade head
+      # Unit tests plus the end-to-end pipeline suite (real app, Postgres, Redis, fake OpenAI upstream).
       - name: Run tests
         env:
           DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
           APP_ENV: test
+          E2E_TESTS_REQUIRED: "1"
         run: python -m pytest tests/ -q --tb=short -m "not integration"
-      - name: Apply migrations
-        env:
-          DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
-          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
-        run: alembic upgrade head
       - name: Row-level security integration tests (real Postgres)
         env:
           DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
@@ -88,6 +96,40 @@ jobs:
           RLS_TESTS_REQUIRED: "1"
         # The CI login role is a superuser, which is exactly the case these tests must survive.
         run: python -m pytest tests/test_rls_isolation.py -q --tb=short -m integration -rs
+
+  # ── Frontends (build + tests only; nothing here deploys) ────────────────────
+  admin-console:
+    name: Admin Console (typecheck, build, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin-console/package-lock.json
+      - run: npm ci
+      - run: npm run build # tsc -b (typecheck) && vite build
+      - run: npm test
+
+  web-app:
+    name: Web App (typecheck, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web-app/package-lock.json
+      - run: npm ci
+      - run: npm run build
 
   # ── Build & Push ─────────────────────────────────────────────────────────────
   build:
