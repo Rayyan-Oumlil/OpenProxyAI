@@ -38,10 +38,15 @@ def _get_l1_cache() -> TTLCache[str, dict[str, Any]] | None:
     return _L1_CACHE
 
 
-def _make_key(model: str, messages: list, temperature: Optional[float]) -> str:
-    """SHA-256 hash for exact-match key (L2 Redis)."""
+def _make_key(
+    model: str,
+    messages: list,
+    temperature: Optional[float],
+    org_id: Optional[UUID | str] = None,
+) -> str:
+    """SHA-256 hash for exact-match key (L1/L2). Scoped by org so tenants never share entries."""
     payload = json.dumps(
-        {"model": model, "messages": messages, "temp": temperature},
+        {"model": model, "messages": messages, "temp": temperature, "org": str(org_id) if org_id else None},
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -69,6 +74,39 @@ def _cache_key_text(messages: list) -> str:
                 if isinstance(c, dict) and "text" in c:
                     parts.append(c["text"])
     return "\n".join(parts)
+
+
+def _shared_key_regions() -> set[str]:
+    return {r.strip().lower() for r in settings.SHARED_KEY_REGIONS.split(",") if r.strip()}
+
+
+async def _org_region(db: AsyncSession, org_id: UUID | str) -> str:
+    from app.models.organization import Organization
+
+    org_uuid = org_id if isinstance(org_id, UUID) else UUID(str(org_id))
+    org = await db.get(Organization, org_uuid)
+    region = getattr(org, "data_region", None)
+    return region.strip().lower() if isinstance(region, str) and region.strip() else "us"
+
+
+def _embedding_kwargs(region: str) -> dict[str, Any] | None:
+    """Explicit litellm kwargs for the semantic-cache embedding call, or None to skip L3.
+
+    Never relies on ambient provider env keys: prompts leave the gateway only to the endpoint
+    the operator configured, and never for air-gapped or region-restricted orgs.
+    """
+    if settings.AIRGAP_MODE or region not in _shared_key_regions():
+        return None
+    api_key = settings.SEMANTIC_CACHE_EMBEDDING_API_KEY.strip()
+    api_base = settings.SEMANTIC_CACHE_EMBEDDING_API_BASE.strip()
+    if not api_key and not api_base:
+        return None
+    kwargs: dict[str, Any] = {"model": settings.SEMANTIC_CACHE_EMBEDDING_MODEL}
+    if api_key:
+        kwargs["api_key"] = api_key
+    if api_base:
+        kwargs["api_base"] = api_base
+    return kwargs
 
 
 def _redis_key(sha: str) -> str:
@@ -139,7 +177,7 @@ async def get(
     if not is_enabled():
         return None, None
 
-    sha = _make_key(model, messages, temperature)
+    sha = _make_key(model, messages, temperature, org_id)
     cache_key_text = _cache_key_text(messages)
 
     # L1
@@ -190,12 +228,12 @@ async def get(
             from app.models.semantic_cache import SemanticCacheEntry
             from litellm import aembedding
 
-            emb_model = getattr(settings, "SEMANTIC_CACHE_EMBEDDING_MODEL", "text-embedding-3-small")
-            emb_result = await aembedding(model=emb_model, input=cache_key_text)
-            if emb_result and emb_result.data:
-                query_embedding = emb_result.data[0].embedding
-            else:
-                query_embedding = None
+            emb_kwargs = _embedding_kwargs(await _org_region(db, org_id))
+            query_embedding = None
+            if emb_kwargs is not None:
+                emb_result = await aembedding(input=cache_key_text, **emb_kwargs)
+                if emb_result and emb_result.data:
+                    query_embedding = emb_result.data[0].embedding
 
             if query_embedding:
                 from sqlalchemy import and_, func
@@ -254,7 +292,7 @@ async def set(
     if not is_enabled():
         return
 
-    sha = _make_key(model, messages, temperature)
+    sha = _make_key(model, messages, temperature, org_id)
     body = response if isinstance(response, dict) else {}
     if not isinstance(body, dict):
         try:
@@ -320,8 +358,14 @@ async def _set_l3_semantic(
         if not cache_text.strip():
             return
 
-        emb_model = getattr(settings, "SEMANTIC_CACHE_EMBEDDING_MODEL", "text-embedding-3-small")
-        emb_result = await aembedding(model=emb_model, input=cache_text)
+        scoped_org = org_id if isinstance(org_id, UUID) else UUID(str(org_id))
+        async with org_scoped_session(scoped_org) as session:
+            region = await _org_region(session, scoped_org)
+        emb_kwargs = _embedding_kwargs(region)
+        if emb_kwargs is None:
+            return
+
+        emb_result = await aembedding(input=cache_text, **emb_kwargs)
         if not emb_result or not emb_result.data:
             return
 
@@ -329,7 +373,6 @@ async def _set_l3_semantic(
         messages_hash = _messages_hash(messages)
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl)
 
-        scoped_org = org_id if isinstance(org_id, UUID) else UUID(str(org_id))
         async with org_scoped_session(scoped_org) as session:
             entry = SemanticCacheEntry(
                 org_id=org_id,

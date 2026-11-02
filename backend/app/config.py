@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     # even when DATABASE_URL logs in as a superuser or table owner.
     DB_APP_ROLE: str = "app_user"
 
+    # ── Data residency ───────────────────────────────────────────────
+    # Orgs in these regions may use gateway-wide env provider keys (OPENAI_API_KEY, ...) and the
+    # shared semantic-cache embedding endpoint. Env keys carry no region tag, so every other
+    # region must bring region-tagged DB provider keys.
+    SHARED_KEY_REGIONS: str = "us,global"
+
     # ── Redis ────────────────────────────────────────────────────────
     REDIS_URL: str = "redis://redis:6379/0"
 
@@ -104,6 +110,9 @@ class Settings(BaseSettings):
     SEMANTIC_CACHE_ENABLED: bool = False
     SEMANTIC_CACHE_SIMILARITY_THRESHOLD: float = 0.95
     SEMANTIC_CACHE_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    # Explicit credentials for the embedding call; L3 is skipped when both are empty.
+    SEMANTIC_CACHE_EMBEDDING_API_KEY: str = ""
+    SEMANTIC_CACHE_EMBEDDING_API_BASE: str = ""
     SEMANTIC_CACHE_MAX_ENTRIES_PER_ORG: int = 10000
     SEMANTIC_CACHE_L1_MAX_SIZE: int = 1000
     SEMANTIC_CACHE_L1_TTL_SECONDS: int = 300

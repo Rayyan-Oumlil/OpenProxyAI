@@ -137,6 +137,7 @@ async def test_semantic_cache_insert_is_org_scoped(log, monkeypatch):
 
 	monkeypatch.setattr(cache_service, "_embed_for_cache", fake_embed, raising=False)
 	monkeypatch.setattr("litellm.aembedding", fake_embed)
+	monkeypatch.setattr("app.services.cache_service.settings.SEMANTIC_CACHE_EMBEDDING_API_KEY", "sk-embed-test")
 	await cache_service._set_l3_semantic(ORG_A, "gpt-4o", [{"role": "user", "content": "hi"}], {"ok": True}, 3, 60)
 	_assert_org_set_before_add(log, ORG_A)
 
