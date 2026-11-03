@@ -1,0 +1,125 @@
+/*
+ * Design tokens for the admin console.
+ *
+ * Dark is the default and matches the website (ink-black surfaces, one mint accent). Light is a cool
+ * paper theme with a deeper green so text and buttons keep 4.5:1 contrast. "System" means no
+ * data-theme attribute: the light block under prefers-color-scheme then applies.
+ *
+ * Semantic colours describe governance outcomes, not generic success/error:
+ *   ok     allowed / healthy      warn   flagged / needs attention
+ *   err    blocked / failed       drift  changed since approval
+ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  color-scheme: dark;
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* type scale: 12 / 13 / 14 / 16 / 20 / 28 */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+
+  /* 4px grid */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --bg: #06070a;
+  --bg-raised: #0f1117;
+  --bg-sunken: #0b0d12;
+  --bg-hover: #161a23;
+  --line: #1c2029;
+  --line-strong: #2a303c;
+  --text: #e7ecf2;
+  --text-2: #b3bbc7;
+  --muted: #8791a1;
+
+  --accent: #35d399;
+  --accent-ink: #04130d;
+  --ok: #35d399;
+  --warn: #ffb65c;
+  --err: #ff7070;
+  --drift: #a78bfa;
+
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f5f6f8;
+  --bg-raised: #ffffff;
+  --bg-sunken: #eef0f4;
+  --bg-hover: #e8ebf1;
+  --line: #dde1e8;
+  --line-strong: #c6ccd6;
+  --text: #12151c;
+  --text-2: #3b4351;
+  --muted: #5a6575;
+
+  --accent: #0a7d57;
+  --accent-ink: #ffffff;
+  --ok: #0a7d57;
+  --warn: #a85d00;
+  --err: #c62f2f;
+  --drift: #6d4fd6;
+
+  --scrim: rgba(18, 21, 28, 0.45);
+  --shadow-pop: 0 8px 24px rgba(18, 21, 28, 0.16);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --bg: #f5f6f8;
+    --bg-raised: #ffffff;
+    --bg-sunken: #eef0f4;
+    --bg-hover: #e8ebf1;
+    --line: #dde1e8;
+    --line-strong: #c6ccd6;
+    --text: #12151c;
+    --text-2: #3b4351;
+    --muted: #5a6575;
+
+    --accent: #0a7d57;
+    --accent-ink: #ffffff;
+    --ok: #0a7d57;
+    --warn: #a85d00;
+    --err: #c62f2f;
+    --drift: #6d4fd6;
+
+    --scrim: rgba(18, 21, 28, 0.45);
+    --shadow-pop: 0 8px 24px rgba(18, 21, 28, 0.16);
+  }
+}
+
+/* Names the existing pages already use, mapped onto the new palette. */
+:root {
+  --surface: var(--bg-raised);
+  --accent-sky: var(--accent);
+  --accent-teal: var(--ok);
+  --accent-rose: var(--err);
+  --accent-amber: var(--warn);
+  --accent-violet: var(--drift);
+  --card-shadow: none;
+}

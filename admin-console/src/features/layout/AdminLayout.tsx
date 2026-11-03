@@ -1,279 +1,186 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  List,
-  Shield,
-  ShieldCheck,
-  Key,
-  Plug2,
-  Sliders,
-  Users,
-  Building2,
-  ChevronDown,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-  LogOut,
-  CreditCard,
-  FlaskConical,
-  BarChart3,
-} from "lucide-react";
+
+import { ThemeToggle } from "../../components/ui/ThemeToggle";
 import { cn } from "../../lib/utils";
+import { DESKTOP_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { useAuth } from "../../state/AuthContext";
+import { NAV_GROUPS } from "./nav";
 
-type NavItem = { label: string; to: string; icon: React.ElementType };
-type NavGroup = { label: string; icon: React.ElementType; items: NavItem[] };
-type NavEntry = NavItem | ({ group: true } & NavGroup);
+const COLLAPSE_KEY = "sidebarCollapsed";
 
-const NAV: NavEntry[] = [
-  { label: "Dashboard", to: "/", icon: LayoutDashboard },
-  { label: "Request Logs", to: "/logs", icon: List },
-  { label: "Playground", to: "/playground", icon: FlaskConical },
-  {
-    group: true,
-    label: "Monitor",
-    icon: Shield,
-    items: [
-      { label: "Audit Log", to: "/audit", icon: ShieldCheck },
-    ],
-  },
-  {
-    group: true,
-    label: "Settings",
-    icon: Sliders,
-    items: [
-      { label: "API Keys", to: "/api-keys", icon: Key },
-      { label: "Provider Keys", to: "/provider-keys", icon: Plug2 },
-      { label: "Experiments", to: "/experiments", icon: BarChart3 },
-      { label: "Policy Config", to: "/policy", icon: Sliders },
-      { label: "Billing", to: "/billing", icon: CreditCard },
-    ],
-  },
-  {
-    group: true,
-    label: "Team",
-    icon: Users,
-    items: [
-      { label: "Teams", to: "/teams", icon: Users },
-      { label: "Users & Roles", to: "/users-roles", icon: Users },
-      { label: "Organization", to: "/organization-settings", icon: Building2 },
-    ],
-  },
-];
-
-function SidebarLink({
-  item,
-  collapsed,
-  indent = false,
-}: {
-  item: NavItem;
-  collapsed: boolean;
-  indent?: boolean;
-}) {
-  const Icon = item.icon;
-  return (
-    <NavLink
-      to={item.to}
-      end={item.to === "/"}
-      title={collapsed ? item.label : undefined}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors duration-100",
-          "hover:bg-[rgba(44,109,191,0.08)]",
-          isActive
-            ? "bg-[rgba(44,109,191,0.12)] text-[var(--accent-sky)] font-medium"
-            : "text-[#3e4250]",
-          indent && !collapsed && "ml-2",
-          collapsed && "justify-center"
-        )
-      }
-    >
-      <Icon size={16} className="shrink-0" />
-      {!collapsed && <span className="truncate">{item.label}</span>}
-    </NavLink>
-  );
-}
-
-function SidebarGroup({
-  group,
-  collapsed,
-  expanded,
-  onToggle,
-}: {
-  group: NavGroup;
-  collapsed: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const location = useLocation();
-  const GroupIcon = group.icon;
-  const isAnyActive = group.items.some((item) =>
-    item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)
-  );
-
-  if (collapsed) {
-    return (
-      <>
-        {group.items.map((item) => (
-          <SidebarLink key={item.to} item={item} collapsed={collapsed} />
-        ))}
-      </>
-    );
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSE_KEY) === "true";
+  } catch {
+    return false;
   }
+}
 
+function Wordmark() {
   return (
-    <div>
-      <button
-        type="button"
-        onClick={onToggle}
-        className={cn(
-          "w-full flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
-          "hover:bg-[rgba(44,109,191,0.06)]",
-          isAnyActive ? "text-[var(--accent-sky)]" : "text-[var(--muted)]"
-        )}
-      >
-        <GroupIcon size={14} className="shrink-0" />
-        <span className="flex-1 text-left">{group.label}</span>
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-      </button>
-      {expanded && (
-        <div className="mt-0.5 flex flex-col gap-0.5">
-          {group.items.map((item) => (
-            <SidebarLink key={item.to} item={item} collapsed={collapsed} indent />
-          ))}
-        </div>
-      )}
-    </div>
+    <span className="wordmark">
+      OpenProxy<span>AI</span>
+    </span>
   );
 }
 
-const DEFAULT_EXPANDED = ["Monitor", "Settings", "Team"];
+interface SidebarProps {
+  collapsed: boolean;
+  onToggleCollapsed?: () => void;
+  onClose?: () => void;
+}
 
-export function AdminLayout() {
+function Sidebar({ collapsed, onToggleCollapsed, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
-
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("sidebarCollapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem("sidebarExpandedGroups");
-      return stored ? JSON.parse(stored) : DEFAULT_EXPANDED;
-    } catch {
-      return DEFAULT_EXPANDED;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("sidebarCollapsed", String(collapsed));
-  }, [collapsed]);
-
-  useEffect(() => {
-    localStorage.setItem("sidebarExpandedGroups", JSON.stringify(expandedGroups));
-  }, [expandedGroups]);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "b") {
-      e.preventDefault();
-      setCollapsed((c) => !c);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
-
-  function toggleGroup(label: string) {
-    setExpandedGroups((prev) =>
-      prev.includes(label) ? prev.filter((g) => g !== label) : [...prev, label]
-    );
-  }
+  const identity = user?.name ?? user?.email ?? "Unknown user";
 
   return (
-    <div className="admin-shell" style={{ gridTemplateColumns: collapsed ? "48px 1fr" : "208px 1fr" }}>
-      <aside
-        className={cn(
-          "left-rail transition-all duration-200 overflow-hidden",
-          collapsed ? "p-1.5" : "p-3"
-        )}
-        style={{ borderRight: "1px solid var(--line)", background: "linear-gradient(180deg, #fff8ed 0%, #fffdf8 100%)" }}
-      >
-        <div className={cn("flex items-center mb-4", collapsed ? "justify-center" : "justify-between px-1")}>
-          {!collapsed && (
-            <span className="font-bold text-[0.95rem] tracking-tight text-foreground">
-              OpenProxy<span style={{ color: "var(--accent-sky)" }}>AI</span>
-            </span>
-          )}
+    <>
+      <div className="rail__head">
+        {collapsed ? null : <Wordmark />}
+        {onToggleCollapsed ? (
           <button
             type="button"
+            className="icon-btn"
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-            onClick={() => setCollapsed((c) => !c)}
-            className="rounded-md p-1 text-muted hover:text-foreground hover:bg-[rgba(0,0,0,0.06)] transition-colors"
-            style={{ border: "none", background: "transparent" }}
           >
-            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            {collapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
           </button>
-        </div>
+        ) : null}
+        {onClose ? (
+          <Dialog.Close className="icon-btn" aria-label="Close navigation">
+            <X size={16} aria-hidden="true" />
+          </Dialog.Close>
+        ) : null}
+      </div>
 
-        <nav className="flex flex-col gap-0.5" aria-label="Main Navigation">
-          {NAV.map((entry) => {
-            if ("group" in entry && entry.group) {
-              return (
-                <SidebarGroup
-                  key={entry.label}
-                  group={entry}
-                  collapsed={collapsed}
-                  expanded={expandedGroups.includes(entry.label)}
-                  onToggle={() => toggleGroup(entry.label)}
-                />
-              );
-            }
-            return (
-              <SidebarLink key={(entry as NavItem).to} item={entry as NavItem} collapsed={collapsed} />
-            );
-          })}
-        </nav>
+      <nav className="rail__nav" aria-label="Main">
+        {NAV_GROUPS.map((group) => (
+          <section key={group.id} aria-labelledby={`nav-${group.id}`}>
+            <h2 id={`nav-${group.id}`} className={cn("nav-group", collapsed && "sr-only")}>
+              {group.label}
+            </h2>
+            <ul>
+              {group.items.map(({ label, to, icon: Icon }) => (
+                <li key={to}>
+                  <NavLink to={to} end={to === "/"} className="nav-item" title={collapsed ? label : undefined}>
+                    <Icon size={16} aria-hidden="true" />
+                    <span className={cn(collapsed && "sr-only")}>{label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </nav>
 
-        <div
-          className={cn("mt-auto pt-3 border-t", collapsed ? "flex justify-center" : "")}
-          style={{ borderColor: "var(--line)" }}
-        >
-          {collapsed ? (
+      <div className="rail__foot">
+        <ThemeToggle compact={collapsed} />
+        {collapsed ? null : (
+          <div className="whoami">
+            <p className="whoami__name" title={identity}>
+              {identity}
+            </p>
+            <p className="whoami__role">{user?.role ?? "member"}</p>
+          </div>
+        )}
+        <button type="button" className="nav-item nav-item--button" onClick={logout} title={collapsed ? "Sign out" : undefined}>
+          <LogOut size={16} aria-hidden="true" />
+          <span className={cn(collapsed && "sr-only")}>Sign out</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+export function AdminLayout() {
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState<boolean>(readCollapsed);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLLAPSE_KEY, String(collapsed));
+    } catch {
+      // Preference just will not persist.
+    }
+  }, [collapsed]);
+
+  // Following a link, or growing the window to desktop width, closes the drawer.
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname, isDesktop]);
+
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (isDesktop && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        setCollapsed((value) => !value);
+      }
+    },
+    [isDesktop],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onKeyDown]);
+
+  return (
+    <div className="shell" data-collapsed={isDesktop && collapsed}>
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
+
+      {isDesktop ? (
+        <aside className="rail" aria-label="Sidebar">
+          <Sidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((value) => !value)} />
+        </aside>
+      ) : (
+        <>
+          <header className="topbar">
             <button
+              ref={menuButton}
               type="button"
-              title="Sign out"
-              onClick={logout}
-              className="rounded-md p-1.5 text-muted hover:text-foreground hover:bg-[rgba(0,0,0,0.06)] transition-colors"
-              style={{ border: "none", background: "transparent" }}
+              className="icon-btn"
+              aria-label="Open navigation"
+              aria-expanded={drawerOpen}
+              aria-controls="nav-drawer"
+              onClick={() => setDrawerOpen(true)}
             >
-              <LogOut size={15} />
+              <Menu size={18} aria-hidden="true" />
             </button>
-          ) : (
-            <div className="profile-box">
-              <p className="text-sm font-medium truncate">{user?.name ?? user?.email ?? "Unknown"}</p>
-              <small>{user?.role ?? "—"}</small>
-              <button
-                type="button"
-                onClick={logout}
-                className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
-                style={{ border: "none", background: "transparent", padding: 0 }}
+            <Wordmark />
+          </header>
+          <Dialog.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
+            <Dialog.Portal>
+              <Dialog.Overlay className="drawer-scrim" />
+              <Dialog.Content
+                id="nav-drawer"
+                className="rail rail--drawer"
+                aria-describedby={undefined}
+                onCloseAutoFocus={(event) => {
+                  // Opened by state rather than a Dialog.Trigger, so hand focus back to the menu button ourselves.
+                  event.preventDefault();
+                  menuButton.current?.focus();
+                }}
               >
-                <LogOut size={13} />
-                Sign out
-              </button>
-            </div>
-          )}
-        </div>
-      </aside>
+                <Dialog.Title className="sr-only">Navigation</Dialog.Title>
+                <Sidebar collapsed={false} onClose={() => setDrawerOpen(false)} />
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+        </>
+      )}
 
-      <main className="content-area overflow-auto">
+      <main id="main-content" className="main" tabIndex={-1}>
         <Outlet />
       </main>
     </div>

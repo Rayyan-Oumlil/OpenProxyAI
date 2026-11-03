@@ -41,7 +41,7 @@ export function App() {
             background: "var(--surface)",
             border: "1px solid var(--line)",
             color: "var(--text)",
-            fontFamily: "Space Grotesk, sans-serif",
+            fontFamily: "var(--font-sans)",
           },
         }}
       />

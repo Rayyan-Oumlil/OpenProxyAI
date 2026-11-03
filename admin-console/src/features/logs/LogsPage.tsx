@@ -244,7 +244,7 @@ export function LogsPage() {
               <tr
                 key={row.id}
                 onClick={() => setSelectedLogId(row.id)}
-                className="table-row-clickable hover:bg-[rgba(44,109,191,0.04)] transition-colors"
+                className="table-row-clickable hover:bg-[var(--bg-hover)] transition-colors"
               >
                 <td className="text-muted text-sm">
                   {formatDateTime(row.created_at)}

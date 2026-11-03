@@ -9,7 +9,7 @@ import {
   Cell,
 } from "recharts";
 import type { CostByModel } from "../../api/types";
-import { formatCost } from "../../lib/utils";
+import { formatAxisCost, formatCost, formatNumber } from "../../lib/utils";
 
 interface TopModelsChartProps {
   data: CostByModel[];
@@ -20,7 +20,7 @@ const COLORS = [
   "var(--accent-teal)",
   "var(--accent-amber)",
   "var(--accent-rose)",
-  "#7c6bbf",
+  "var(--accent-violet)",
 ];
 
 interface TooltipProps {
@@ -44,8 +44,8 @@ function CustomTooltip({ active, payload }: TooltipProps) {
     >
       <p style={{ fontWeight: 600, color: "var(--text)" }}>{d.model}</p>
       <p style={{ color: "var(--muted)", margin: "2px 0" }}>{d.provider}</p>
-      <p style={{ color: "var(--accent-sky-dark)", fontWeight: 500 }}>{formatCost(d.cost_usd)}</p>
-      <p style={{ color: "var(--muted)" }}>{d.requests.toLocaleString()} requests</p>
+      <p style={{ color: "var(--accent)", fontWeight: 500 }}>{formatCost(d.cost_usd)}</p>
+      <p style={{ color: "var(--muted)" }}>{formatNumber(d.requests)} requests</p>
     </div>
   );
 }
@@ -82,7 +82,7 @@ export function TopModelsChart({ data }: TopModelsChartProps) {
           tick={{ fontSize: 11, fill: "var(--muted)", fontFamily: "Inter" }}
           axisLine={false}
           tickLine={false}
-          tickFormatter={(v) => `$${v.toFixed(3)}`}
+          tickFormatter={formatAxisCost}
         />
         <YAxis
           type="category"
@@ -93,7 +93,7 @@ export function TopModelsChart({ data }: TopModelsChartProps) {
           tickLine={false}
           tickFormatter={(v: string) => (v.length > 22 ? v.slice(0, 22) + "…" : v)}
         />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(14,165,233,0.06)" }} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: "color-mix(in srgb, var(--accent) 8%, transparent)" }} />
         <Bar dataKey="cost_usd" radius={[0, 6, 6, 0]}>
           {top5.map((_, i) => (
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
