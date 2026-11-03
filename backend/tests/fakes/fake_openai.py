@@ -38,12 +38,23 @@ def _completion_text(body: dict[str, Any]) -> str:
     return f"echo: {last.get('content')}"
 
 
-def _usage() -> dict[str, int]:
-    return {
-        "prompt_tokens": PROMPT_TOKENS,
-        "completion_tokens": COMPLETION_TOKENS,
-        "total_tokens": PROMPT_TOKENS + COMPLETION_TOKENS,
-    }
+BIG_USAGE_MARKER = "[big-usage]"
+# Priced as gpt-4o-mini this is about $0.02: over a $0.01 daily budget, yet under the 100k tokens/minute limit
+# (a bigger number would trip the rate limit, 429, before the budget check, 402).
+BIG_PROMPT_TOKENS = 50_000
+BIG_COMPLETION_TOKENS = 20_000
+
+
+def _usage(big: bool = False) -> dict[str, int]:
+    """Normal responses report a handful of tokens; a prompt containing [big-usage] reports tens of thousands,
+    which costs real money under the model's price and lets a demo hit a budget with one request."""
+    prompt, completion = (BIG_PROMPT_TOKENS, BIG_COMPLETION_TOKENS) if big else (PROMPT_TOKENS, COMPLETION_TOKENS)
+    return {"prompt_tokens": prompt, "completion_tokens": completion, "total_tokens": prompt + completion}
+
+
+def _wants_big_usage(body: dict[str, Any]) -> bool:
+    last = next((m for m in reversed(body.get("messages", [])) if m.get("role") == "user"), {})
+    return BIG_USAGE_MARKER in str(last.get("content"))
 
 
 def _chunk(model: str, delta: dict[str, Any], finish: str | None = None) -> str:
@@ -111,10 +122,11 @@ def create_app() -> FastAPI:
             return Response("<<not json>>", media_type="application/json")
 
         text = _completion_text(body)
+        big = _wants_big_usage(body)
         if body.get("stream"):
             include_usage = (body.get("stream_options") or {}).get("include_usage")
             return StreamingResponse(
-                _sse(model, text, include_usage=bool(include_usage), fail_midway=model == "mid-stream-error"),
+                _sse(model, text, include_usage=bool(include_usage), fail_midway=model == "mid-stream-error", big=big),
                 media_type="text/event-stream",
             )
 
@@ -125,14 +137,14 @@ def create_app() -> FastAPI:
                 "created": 0,
                 "model": model,
                 "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}],
-                "usage": _usage(),
+                "usage": _usage(big),
             }
         )
 
     return app
 
 
-async def _sse(model: str, text: str, *, include_usage: bool, fail_midway: bool) -> AsyncIterator[str]:
+async def _sse(model: str, text: str, *, include_usage: bool, fail_midway: bool, big: bool = False) -> AsyncIterator[str]:
     yield _chunk(model, {"role": "assistant", "content": ""})
     for index, word in enumerate(text.split(" ")):
         yield _chunk(model, {"content": word if index == 0 else f" {word}"})
@@ -140,7 +152,7 @@ async def _sse(model: str, text: str, *, include_usage: bool, fail_midway: bool)
             raise RuntimeError("fake upstream: connection cut mid-stream")
     yield _chunk(model, {}, finish="stop")
     if include_usage:
-        usage_chunk = {"id": "chatcmpl-fake", "object": "chat.completion.chunk", "created": 0, "model": model, "choices": [], "usage": _usage()}
+        usage_chunk = {"id": "chatcmpl-fake", "object": "chat.completion.chunk", "created": 0, "model": model, "choices": [], "usage": _usage(big)}
         yield f"data: {json.dumps(usage_chunk)}\n\n"
     yield "data: [DONE]\n\n"
 

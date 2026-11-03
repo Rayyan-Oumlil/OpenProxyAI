@@ -15,6 +15,7 @@ import importlib
 import os
 import pkgutil
 import uuid
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select, text
@@ -42,6 +43,9 @@ DEMO_SLUG = "demo"
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = "DemoPass123!"
 BLOCKED_KEYWORD = "project-phoenix"
+INTERN_EMAIL = "intern@example.com"
+# Cannot spend more than this per day; one request containing [big-usage] (see tests/fakes/fake_openai.py) does.
+INTERN_DAILY_BUDGET_USD = Decimal("0.01")
 # opai_<env>_<id>_<secret><4-hex checksum>, the shape generate_api_key() produces.
 _RAW_KEY = "opai_dev_demo0001_00000000000000000000000000demo01"
 
@@ -51,6 +55,7 @@ def _with_checksum(raw: str) -> str:
 
 
 DEMO_API_KEY = _with_checksum(_RAW_KEY)
+INTERN_API_KEY = _with_checksum("opai_dev_demo0002_00000000000000000000000000demo02")
 
 POLICY = {
 	"enforcement_mode": "enforce",
@@ -79,6 +84,20 @@ def _tool(org_id: uuid.UUID, server_id: uuid.UUID, status: str, live: dict[str, 
 	)
 
 
+async def _add_key(session: AsyncSession, org_id: uuid.UUID, user_id: uuid.UUID, full_key: str, permissions: list[str]) -> None:
+	key = ApiKey(
+		user_id=user_id, org_id=org_id, key_prefix=full_key[:18], is_active=True,
+		key_hash=hashlib.sha256(full_key.encode("utf-8")).hexdigest(), permissions=permissions,
+	)
+	session.add(key)
+	await session.flush()
+	# Auth resolves key_hash -> org through this non-RLS table (see auth_service).
+	await session.execute(
+		text("INSERT INTO api_key_lookup (key_hash, org_id, api_key_id) VALUES (:h, :o, :k)"),
+		{"h": key.key_hash, "o": org_id, "k": key.id},
+	)
+
+
 async def seed(session: AsyncSession) -> bool:
 	"""Insert the demo data. Returns False when it already exists."""
 	if await session.scalar(select(Organization.id).where(Organization.slug == DEMO_SLUG)):
@@ -91,17 +110,14 @@ async def seed(session: AsyncSession) -> bool:
 	session.add(admin)
 	await session.flush()
 
-	key = ApiKey(
-		user_id=admin.id, org_id=org.id, key_prefix=DEMO_API_KEY[:18], is_active=True,
-		key_hash=hashlib.sha256(DEMO_API_KEY.encode("utf-8")).hexdigest(), permissions=["proxy:llm", "proxy:mcp"],
+	await _add_key(session, org.id, admin.id, DEMO_API_KEY, ["proxy:llm", "proxy:mcp"])
+	intern = User(
+		org_id=org.id, email=INTERN_EMAIL, name="Demo Intern", password_hash=hash_password(ADMIN_PASSWORD), role="developer",
+		is_active=True, budget_daily_usd=INTERN_DAILY_BUDGET_USD,
 	)
-	session.add(key)
+	session.add(intern)
 	await session.flush()
-	# Auth resolves key_hash -> org through this non-RLS table (see auth_service).
-	await session.execute(
-		text("INSERT INTO api_key_lookup (key_hash, org_id, api_key_id) VALUES (:h, :o, :k)"),
-		{"h": key.key_hash, "o": org.id, "k": key.id},
-	)
+	await _add_key(session, org.id, intern.id, INTERN_API_KEY, ["proxy:llm"])
 	session.add(LLMProviderKey(
 		org_id=org.id, provider="openai", key_alias="demo-fake-upstream", api_key_encrypted=encrypt("sk-demo-fake"),
 		weight=1, region="global", model_patterns=[],
@@ -132,7 +148,7 @@ async def main() -> None:
 	finally:
 		await engine.dispose()
 	if created:
-		print(f"Seeded demo org. Console login: {ADMIN_EMAIL} / {ADMIN_PASSWORD}  API key: {DEMO_API_KEY}")
+		print(f"Seeded demo org. Console login: {ADMIN_EMAIL} / {ADMIN_PASSWORD}  API key: {DEMO_API_KEY}  Intern key (budget-limited): {INTERN_API_KEY}")
 	else:
 		print("Demo org already exists; nothing to do.")
 
