@@ -4,6 +4,7 @@ import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { Suspense } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { LoadingState } from "../../components/LoadingState";
+import { RouteErrorBoundary } from "../../components/RouteErrorBoundary";
 
 import { ThemeToggle } from "../../components/ui/ThemeToggle";
 import { cn } from "../../lib/utils";
@@ -183,9 +184,11 @@ export function AdminLayout() {
       )}
 
       <main id="main-content" className="main" tabIndex={-1}>
-        <Suspense fallback={<LoadingState label="Loading page…" />}>
-          <Outlet />
-        </Suspense>
+        <RouteErrorBoundary resetKey={location.pathname}>
+          <Suspense fallback={<LoadingState label="Loading page…" />}>
+            <Outlet />
+          </Suspense>
+        </RouteErrorBoundary>
       </main>
     </div>
   );

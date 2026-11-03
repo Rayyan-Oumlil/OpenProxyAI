@@ -190,6 +190,7 @@ export function McpServersPage() {
         onRowClick={(server) => setOpenId((current) => (current === server.id ? null : server.id))}
         expandedId={openId}
         renderExpanded={(server) => <McpToolsPanel server={server} />}
+        getRowLabel={(server) => server.name}
       />
       <AddMcpServerDialog
         open={showAdd}
