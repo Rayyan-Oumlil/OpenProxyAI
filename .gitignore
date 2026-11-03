@@ -43,3 +43,5 @@ Thumbs.db
 # Private reference documents (not for the public repo)
 Enreprise AI Proxy.md
 OpenProxyAI 10082026.md
+admin-console/playwright-report/
+admin-console/test-results/

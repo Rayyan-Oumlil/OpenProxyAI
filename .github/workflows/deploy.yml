@@ -112,8 +112,19 @@ jobs:
           cache: npm
           cache-dependency-path: admin-console/package-lock.json
       - run: npm ci
+      - run: npm run lint
       - run: npm run build # tsc -b (typecheck) && vite build
       - run: npm test
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Smoke test (mocked API)
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: admin-console-playwright-report
+          path: admin-console/playwright-report
+          retention-days: 7
 
   web-app:
     name: Web App (typecheck, build)
