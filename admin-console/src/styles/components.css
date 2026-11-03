@@ -790,3 +790,28 @@ textarea:focus-visible {
   font-weight: 600;
   color: var(--text);
 }
+
+/* Destructive action button (ConfirmDialog) */
+.btn-danger {
+  background: var(--err);
+  color: #fff;
+  border: 1px solid var(--err);
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+/* The shared dialog's close button must not pick up the global filled-button style. */
+.dialog-close {
+  background: transparent;
+  color: var(--text-2);
+  border: none;
+  padding: 4px;
+  min-width: 0;
+  box-shadow: none;
+}
+
+.dialog-close:hover:not(:disabled) {
+  background: var(--bg-hover);
+}

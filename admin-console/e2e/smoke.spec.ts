@@ -151,3 +151,23 @@ test("a request trace deep link shows where the time went", async ({ page }) => 
   await expect(waterfall.getByText("100ms")).toBeVisible();
   await expect(page.getByRole("region", { name: "What happened" }).getByText("Miss")).toBeVisible();
 });
+
+test("removing a server asks first, starts on Cancel, and Escape backs out", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Email").fill("ada@example.com");
+  await page.getByLabel("Password").fill("correct horse");
+  await Promise.all([
+    page.waitForResponse((r) => new URL(r.url()).pathname === "/api/v1/auth/me"),
+    page.getByRole("button", { name: "Sign in" }).click(),
+  ]);
+
+  await page.goto("/mcp-servers");
+  await page.getByRole("button", { name: "Remove github" }).click();
+  const dialog = page.getByRole("dialog", { name: "Remove github?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("button", { name: "Remove github" })).toBeFocused(); // focus returns to the trigger
+});

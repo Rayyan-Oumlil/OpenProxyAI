@@ -13,6 +13,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
 import { Badge } from "../../components/ui/badge";
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { formatDate } from "../../lib/utils";
 import {
   Dialog,
@@ -322,6 +323,7 @@ function TemplatesTab({
     },
   });
 
+  const confirm = useConfirm();
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.deletePromptTemplate(id, token!),
     onSuccess: () => {
@@ -461,10 +463,14 @@ function TemplatesTab({
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            if (window.confirm("Delete this template?")) {
-                              deleteMutation.mutate(t.id);
-                            }
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: "Delete template?",
+                              description: `"${t.name}" will be removed for everyone in the organization.`,
+                              confirmLabel: "Delete template",
+                              destructive: true,
+                            });
+                            if (ok) deleteMutation.mutate(t.id);
                           }}
                           className="p-1.5 rounded hover:bg-[var(--bg-hover)]"
                           style={{ color: "var(--accent-rose)" }}
