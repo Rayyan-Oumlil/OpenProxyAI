@@ -18,6 +18,7 @@ from app.main import app
 from app.routes import mcp as mcp_route
 from app.routes import mcp_servers as mcp_servers_route
 from app.services import mcp_audit
+from app.services.mcp_grants import GrantRule
 from app.services.policy_service import PolicyConfig
 from tests.conftest import FakeRedis
 
@@ -107,10 +108,15 @@ def gateway(monkeypatch):
 	app.dependency_overrides[get_current_user_from_api_key] = fake_auth
 	app.dependency_overrides[get_db] = fake_db
 	app.dependency_overrides[get_redis] = fake_redis
+	async def fake_grants(db_, org_id):
+		return list(grants)
+
+	grants: list = []
+	monkeypatch.setattr(mcp_route, "load_grants", fake_grants)
 	monkeypatch.setattr(mcp_route.policy_store, "load", fake_policy)
 	monkeypatch.setattr(mcp_route, "call_upstream", fake_upstream)
 	monkeypatch.setattr(mcp_route, "record_tool_call", fake_record)
-	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls, redis=redis)
+	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls, redis=redis, grants=grants)
 
 
 def rpc(client, method, params=None, id_=1, headers=None):
@@ -233,6 +239,74 @@ def test_rate_limit_is_per_api_key(client, gateway, monkeypatch):
 	assert rpc(client, "ping").status_code == 429
 	monkeypatch.setattr(API_KEY, "id", uuid.uuid4())
 	assert rpc(client, "ping").status_code == 200
+
+
+# ── grants and the narrowing header ──────────────────────────────────────────
+
+SCOPE = "X-OpenProxy-MCP-Tools"
+
+
+def call(client, name="github__search", headers=None):
+	return rpc(client, "tools/call", {"name": name, "arguments": {}}, headers=headers)
+
+
+def test_scope_header_narrows_tools_list(client, gateway):
+	assert [t["name"] for t in rpc(client, "tools/list", headers={SCOPE: "github__search"}).json()["result"]["tools"]] == ["github__search"]
+	assert rpc(client, "tools/list", headers={SCOPE: "jira__*"}).json()["result"]["tools"] == []
+
+
+def test_call_outside_the_scope_is_refused_and_audited_without_reaching_the_upstream(client, gateway):
+	error = call(client, headers={SCOPE: "jira__*"}).json()["error"]
+	assert error["code"] == -32001 and error["data"]["reason_code"] == "tool_out_of_scope"
+	assert [c for c in gateway.upstream_calls if c[1] == "tools/call"] == []
+	audit = gateway.audits[-1]
+	assert audit["outcome"].status_code == 446 and audit["outcome"].access == {"allow": [], "deny": [], "scope": ["jira__*"]}
+
+
+def test_scope_header_cannot_widen_past_organization_policy(client, gateway):
+	error = call(client, "github__delete_repo", headers={SCOPE: "github__delete_repo"}).json()["error"]
+	assert error["data"]["reason_code"] == "tool_blocked"  # org blocklist still wins
+
+
+def test_scope_header_cannot_widen_past_grants(client, gateway):
+	gateway.grants.append(GrantRule("role", "admin", "github__search", "allow"))
+	error = call(client, "github__other", headers={SCOPE: "*"}).json()["error"]
+	assert error["data"]["reason_code"] == "tool_not_granted"
+
+
+@pytest.mark.parametrize("value", ["", "a b", "../x", "a,,b"])
+def test_malformed_scope_header_is_a_400_and_nothing_runs(client, gateway, value):
+	response = call(client, headers={SCOPE: value})
+	assert response.status_code == 400 and response.json()["error"]["code"] == -32600
+	assert gateway.upstream_calls == [] and gateway.audits == []
+
+
+def test_repeated_scope_headers_are_a_400(client, gateway):
+	response = client.post(
+		"/v1/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
+		headers=[("Authorization", "Bearer opai_test"), (SCOPE, "a"), (SCOPE, "b")],
+	)
+	assert response.status_code == 400
+
+
+def test_grants_for_the_caller_restrict_and_deny_wins(client, gateway):
+	gateway.grants += [
+		GrantRule("role", "admin", "github__*", "allow"),
+		GrantRule("api_key", str(API_KEY.id), "github__search", "deny"),
+	]
+	assert call(client).json()["error"]["data"]["reason_code"] == "tool_grant_denied"
+	assert rpc(client, "tools/list").json()["result"]["tools"] == []
+
+
+def test_grants_for_other_callers_do_not_apply(client, gateway):
+	gateway.grants += [GrantRule("user", str(uuid.uuid4()), "*", "deny"), GrantRule("role", "viewer", "x", "allow")]
+	assert "result" in call(client).json()
+
+
+def test_effective_access_is_written_to_the_audit_row(client, gateway):
+	gateway.grants.append(GrantRule("role", "admin", "github__*", "allow"))
+	call(client, headers={SCOPE: "github__search"})
+	assert gateway.audits[-1]["outcome"].access == {"allow": ["github__*"], "deny": [], "scope": ["github__search"]}
 
 
 # ── audit writer ─────────────────────────────────────────────────────────────
