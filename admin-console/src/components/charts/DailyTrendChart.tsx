@@ -9,7 +9,7 @@ import {
   Legend,
 } from "recharts";
 import type { DailyUsageTrend } from "../../api/types";
-import { formatDateShort, formatCost, formatNumber } from "../../lib/utils";
+import { formatAxisCost, formatCompact, formatDateShort, formatCost, formatNumber } from "../../lib/utils";
 
 interface DailyTrendChartProps {
   data: DailyUsageTrend[];
@@ -95,7 +95,7 @@ export function DailyTrendChart({ data }: DailyTrendChartProps) {
           tick={{ fontSize: 11, fill: "var(--muted)", fontFamily: "Inter" }}
           axisLine={false}
           tickLine={false}
-          tickFormatter={formatNumber}
+          tickFormatter={formatCompact}
           width={40}
         />
         <YAxis
@@ -104,7 +104,7 @@ export function DailyTrendChart({ data }: DailyTrendChartProps) {
           tick={{ fontSize: 11, fill: "var(--muted)", fontFamily: "Inter" }}
           axisLine={false}
           tickLine={false}
-          tickFormatter={(v) => `$${v.toFixed(2)}`}
+          tickFormatter={formatAxisCost}
           width={50}
         />
         <Tooltip content={<CustomTooltip />} />

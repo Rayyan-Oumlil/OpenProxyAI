@@ -146,7 +146,7 @@ function KeyCreatedModal({
                   border: "1px solid var(--line)",
                   cursor: "pointer",
                   background: lang === id ? "var(--accent-sky)" : "transparent",
-                  color: lang === id ? "#fff" : "var(--muted)",
+                  color: lang === id ? "var(--accent-ink)" : "var(--muted)",
                   fontWeight: lang === id ? 600 : 400,
                 }}
               >

@@ -94,7 +94,7 @@ function TagInput({
         <span
           key={tag}
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-          style={{ background: "rgba(14,165,233,0.1)", color: "#0369a1" }}
+          style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" }}
         >
           {tag}
           <button
@@ -184,13 +184,13 @@ function TemplateCard({
       className="rounded-xl border p-4"
       style={{
         borderColor: "var(--line)",
-        background: isApplied ? "rgba(14,165,233,0.05)" : "var(--surface)",
+        background: isApplied ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--surface)",
       }}
     >
       <div className="flex items-start gap-3">
         <div
           className="rounded-lg p-2 shrink-0"
-          style={{ background: "rgba(14,165,233,0.1)", color: "#0369a1" }}
+          style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" }}
         >
           <Icon size={20} />
         </div>
@@ -200,7 +200,7 @@ function TemplateCard({
             {isApplied && (
               <span
                 className="text-xs px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(34,197,94,0.15)", color: "#15803d" }}
+                style={{ background: "color-mix(in srgb, var(--ok) 14%, transparent)", color: "var(--ok)" }}
               >
                 Applied
               </span>
@@ -237,7 +237,7 @@ function TemplateCard({
                   fontSize: "0.85rem",
                   borderRadius: 8,
                   background: "var(--accent-sky)",
-                  color: "#fff",
+                  color: "var(--accent-ink)",
                   border: "none",
                   cursor: isApplying ? "not-allowed" : "pointer",
                 }}
@@ -247,7 +247,7 @@ function TemplateCard({
             ) : (
               <span
                 className="inline-block mt-3 text-xs px-2 py-1 rounded-full"
-                style={{ background: "rgba(245,158,11,0.12)", color: "#92400e" }}
+                style={{ background: "color-mix(in srgb, var(--warn) 14%, transparent)", color: "var(--warn)" }}
               >
                 Requires Starter plan
               </span>
@@ -361,7 +361,7 @@ function ModelRateLimitsSection({
           <button
             type="button"
             onClick={addRow}
-            style={{ background: "var(--accent-sky)", color: "#fff", alignSelf: "flex-end" }}
+            style={{ background: "var(--accent-sky)", color: "var(--accent-ink)", alignSelf: "flex-end" }}
           >
             <Plus size={13} /> Add
           </button>
@@ -447,7 +447,7 @@ export function PolicyConfigPage() {
       {!isAdmin && (
         <div
           className="rounded-xl px-4 py-3 text-sm"
-          style={{ background: "rgba(245,158,11,0.1)", color: "#92400e" }}
+          style={{ background: "color-mix(in srgb, var(--warn) 14%, transparent)", color: "var(--warn)" }}
         >
           You need admin privileges to modify policy settings.
         </div>
@@ -504,7 +504,7 @@ export function PolicyConfigPage() {
                 }
               }}
               disabled={applyTemplateMutation.isPending}
-              style={{ background: "var(--accent-sky)", color: "#fff", padding: "0.5rem 1rem", borderRadius: 8 }}
+              style={{ background: "var(--accent-sky)", color: "var(--accent-ink)", padding: "0.5rem 1rem", borderRadius: 8 }}
             >
               {applyTemplateMutation.isPending ? "Applying…" : "Apply Template"}
             </button>
