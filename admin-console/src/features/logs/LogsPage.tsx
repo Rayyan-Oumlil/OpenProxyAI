@@ -147,7 +147,6 @@ export function LogsPage() {
           onClick={handleExport}
           disabled={isExporting}
           className="btn-outline flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors"
-          aria-label={isExporting ? "Exporting policy events" : "Export policy events as CSV"}
         >
           <Download size={14} aria-hidden />
           {isExporting ? "Exporting…" : "Export Policy Events CSV"}

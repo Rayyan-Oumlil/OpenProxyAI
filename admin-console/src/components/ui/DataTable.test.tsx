@@ -100,12 +100,44 @@ describe("DataTable", () => {
     expect(onRowClick).not.toHaveBeenCalled();
   });
 
-  it("expands one row and reports it with aria-expanded", () => {
-    renderTable({ onRowClick: vi.fn(), expandedId: "a", renderExpanded: (row) => <p>Detail for {row.name}</p> });
+  it("expands one row and reports it on a real toggle button, not on the <tr>", () => {
+    renderTable({ onRowClick: vi.fn(), expandedId: "a", renderExpanded: (row) => <p>Detail for {row.name}</p>, getRowLabel: (row) => row.name });
     expect(screen.getByText("Detail for gpt-4o")).not.toBeNull();
     expect(screen.queryByText("Detail for claude")).toBeNull();
-    expect(screen.getByText("gpt-4o").closest("tr")!.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("claude").closest("tr")!.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "Hide details for gpt-4o" }).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "Show details for claude" }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByText("gpt-4o").closest("tr")!.hasAttribute("aria-expanded")).toBe(false);
+  });
+
+  it("points the toggle at the detail row it controls", () => {
+    renderTable({ onRowClick: vi.fn(), expandedId: "a", renderExpanded: () => <p>Detail</p>, getRowLabel: (row) => row.name });
+    const controls = screen.getByRole("button", { name: "Hide details for gpt-4o" }).getAttribute("aria-controls");
+    expect(controls).toBeTruthy();
+    expect(document.getElementById(controls!)?.textContent).toContain("Detail");
+  });
+
+  it("toggles exactly once when the button is clicked, even though the row is clickable too", () => {
+    const onRowClick = vi.fn();
+    renderTable({ onRowClick, renderExpanded: () => <p>Detail</p>, getRowLabel: (row) => row.name });
+    fireEvent.click(screen.getByRole("button", { name: "Show details for gpt-4o" }));
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a clickable row without details keyboard-operable on the row itself", () => {
+    const onRowClick = vi.fn();
+    renderTable({ onRowClick });
+    const row = screen.getByText("gpt-4o").closest("tr")!;
+    expect(row.getAttribute("tabindex")).toBe("0");
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /details/i })).toBeNull();
+  });
+
+  it("makes the scrolling container a labelled, keyboard-focusable region", () => {
+    renderTable();
+    const region = screen.getByRole("region", { name: "Models" });
+    expect(region.getAttribute("tabindex")).toBe("0");
+    expect(region.querySelector("table")).not.toBeNull();
   });
 
   it("renders a footer under the rows", () => {

@@ -970,3 +970,46 @@ textarea:focus-visible {
 .burndown__key--projection::before {
   border-top: 2px dotted var(--text-2);
 }
+
+/* DataTable expand toggle */
+.dt__toggle-col {
+  width: 40px;
+  padding-right: 0;
+}
+
+.dt__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.dt__toggle:hover {
+  background: var(--bg-hover);
+}
+
+.dt__toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.dt__toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt__toggle svg {
+    transition: none;
+  }
+}
+
+/* A scrollable table must be reachable by keyboard so it can be scrolled without a mouse. */
+.dt__scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

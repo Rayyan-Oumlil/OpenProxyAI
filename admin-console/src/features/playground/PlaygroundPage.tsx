@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Play, Plus, Pencil, Trash2, Beaker, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -49,6 +49,7 @@ function CompareTab({
   loadedTemplate: PromptTemplate | null;
   onClearTemplate: () => void;
 }) {
+  const fieldId = useId();
   const [models, setModels] = useState<string[]>([
     "anthropic/claude-haiku-4-5-20251001",
   ]);
@@ -125,7 +126,7 @@ function CompareTab({
               className={cn(
                 "px-3 py-1.5 rounded-lg text-sm transition-colors border",
                 models.includes(m)
-                  ? "bg-[var(--accent-sky)] text-white border-[var(--accent-sky)]"
+                  ? "bg-[var(--accent-sky)] text-[var(--accent-ink)] border-[var(--accent-sky)]"
                   : "border-[var(--line)] hover:bg-[var(--bg-hover)]"
               )}
             >
@@ -165,10 +166,11 @@ function CompareTab({
 
       <div className="flex flex-wrap gap-6 items-center">
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: "var(--muted)" }}>
+          <label htmlFor={`${fieldId}-temperature`} className="block text-sm font-medium mb-1" style={{ color: "var(--muted)" }}>
             Temperature: {temperature.toFixed(1)}
           </label>
           <input
+            id={`${fieldId}-temperature`}
             type="range"
             min={0}
             max={2}
@@ -179,10 +181,11 @@ function CompareTab({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: "var(--muted)" }}>
+          <label htmlFor={`${fieldId}-max-tokens`} className="block text-sm font-medium mb-1" style={{ color: "var(--muted)" }}>
             Max tokens
           </label>
           <input
+            id={`${fieldId}-max-tokens`}
             type="number"
             min={1}
             max={128000}
@@ -578,7 +581,7 @@ export function PlaygroundPage() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors",
                 activeTab === tab.id
-                  ? "bg-[var(--accent-sky)] text-white"
+                  ? "bg-[var(--accent-sky)] text-[var(--accent-ink)]"
                   : "hover:bg-[var(--bg-hover)]"
               )}
             >
