@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Clock, DollarSign, Zap, Hash, Shield, AlertCircle, Copy, Check } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { apiClient } from "../../api/client";
 import type { RequestLogDetail } from "../../api/types";
@@ -117,6 +118,10 @@ export function LogDetailDrawer({ logId, onClose }: LogDetailDrawerProps) {
                   ))}
                 </div>
               )}
+
+              <Link to={`/logs/${d.id}`} className="btn-outline" onClick={onClose} style={{ alignSelf: "flex-start", marginBottom: 12 }}>
+                Open full trace
+              </Link>
 
               {/* Core metrics */}
               <DetailRow icon={Clock} label="Created" value={formatDateTime(d.created_at)} />
