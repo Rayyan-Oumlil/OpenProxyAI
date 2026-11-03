@@ -125,7 +125,7 @@ function CompareTab({
                 "px-3 py-1.5 rounded-lg text-sm transition-colors border",
                 models.includes(m)
                   ? "bg-[var(--accent-sky)] text-white border-[var(--accent-sky)]"
-                  : "border-[var(--line)] hover:bg-[rgba(44,109,191,0.08)]"
+                  : "border-[var(--line)] hover:bg-[var(--bg-hover)]"
               )}
             >
               {m.split("/")[1]}
@@ -200,7 +200,7 @@ function CompareTab({
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
           style={{
             background: "var(--accent-sky)",
-            color: "#fff",
+            color: "var(--accent-ink)",
           }}
         >
           <Play size={16} />
@@ -454,7 +454,7 @@ function TemplatesTab({
                         <button
                           type="button"
                           onClick={() => openEdit(t)}
-                          className="p-1.5 rounded hover:bg-[rgba(0,0,0,0.06)]"
+                          className="p-1.5 rounded hover:bg-[var(--bg-hover)]"
                           title="Edit"
                         >
                           <Pencil size={14} />
@@ -466,7 +466,7 @@ function TemplatesTab({
                               deleteMutation.mutate(t.id);
                             }
                           }}
-                          className="p-1.5 rounded hover:bg-[rgba(0,0,0,0.06)]"
+                          className="p-1.5 rounded hover:bg-[var(--bg-hover)]"
                           style={{ color: "var(--accent-rose)" }}
                           title="Delete"
                         >
@@ -573,7 +573,7 @@ export function PlaygroundPage() {
                 "flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors",
                 activeTab === tab.id
                   ? "bg-[var(--accent-sky)] text-white"
-                  : "hover:bg-[rgba(44,109,191,0.08)]"
+                  : "hover:bg-[var(--bg-hover)]"
               )}
             >
               <Icon size={16} />
