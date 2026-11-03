@@ -86,44 +86,27 @@ class AnalyticsService:
 		base_params = {"org_id": str(org_id), "since": since}
 		params = {**base_params, **team_params, **session_params}
 
-		if not extra_sql:
-			mv_row = (
-				await db.execute(
-					text(
-						"""
-						SELECT
-							COALESCE(SUM(total_requests), 0) AS total_requests,
-							COALESCE(SUM(total_prompt_tokens + total_completion_tokens), 0) AS total_tokens,
-							COALESCE(SUM(total_cost_usd), 0) AS total_cost_usd,
-							COALESCE(AVG(avg_latency_ms), 0) AS avg_latency_ms
-						FROM mv_daily_spend
-						WHERE org_id = :org_id
-						  AND day::date >= :since
-						"""
-					),
-					params,
-				)
-			).mappings().one()
-		else:
-			mv_row = (
-				await db.execute(
-					text(
-						f"""
-						SELECT
-							COALESCE(COUNT(*), 0)::bigint AS total_requests,
-							COALESCE(SUM(total_tokens), 0)::bigint AS total_tokens,
-							COALESCE(SUM(cost_usd), 0) AS total_cost_usd,
-							COALESCE(AVG(latency_ms), 0) AS avg_latency_ms
-						FROM request_logs
-						WHERE org_id = :org_id
-						  AND created_at::date >= :since
-						  AND archived_at IS NULL
-						  {extra_sql}
-						"""
-					),
-					params,
-				)
-			).mappings().one()
+		# Totals come from live request_logs, not mv_daily_spend (refreshed every 5 minutes): the success and
+		# failure counts below are live, so a view-based total disagreed with them right after traffic.
+		mv_row = (
+			await db.execute(
+				text(
+					f"""
+					SELECT
+						COALESCE(COUNT(*), 0)::bigint AS total_requests,
+						COALESCE(SUM(total_tokens), 0)::bigint AS total_tokens,
+						COALESCE(SUM(cost_usd), 0) AS total_cost_usd,
+						COALESCE(AVG(latency_ms), 0) AS avg_latency_ms
+					FROM request_logs
+					WHERE org_id = :org_id
+					  AND created_at::date >= :since
+					  AND archived_at IS NULL
+					  {extra_sql}
+					"""
+				),
+				params,
+			)
+		).mappings().one()
 
 		log_row = (
 			await db.execute(
@@ -187,38 +170,22 @@ class AnalyticsService:
 		days_elapsed = today.day
 		days_in_month = monthrange(today.year, today.month)[1]
 		month_params = {**base_params, "month_start": month_start, "today": today, **team_params, **session_params}
-		if not extra_sql:
-			month_cost_row = (
-				await db.execute(
-					text(
-						"""
-						SELECT COALESCE(SUM(total_cost_usd), 0) AS month_cost_usd
-						FROM mv_daily_spend
-						WHERE org_id = :org_id
-						  AND day::date >= :month_start
-						  AND day::date <= :today
-						"""
-					),
-					month_params,
-				)
-			).mappings().one()
-		else:
-			month_cost_row = (
-				await db.execute(
-					text(
-						f"""
-						SELECT COALESCE(SUM(cost_usd), 0) AS month_cost_usd
-						FROM request_logs
-						WHERE org_id = :org_id
-						  AND created_at::date >= :month_start
-						  AND created_at::date <= :today
-						  AND archived_at IS NULL
-						  {extra_sql}
-						"""
-					),
-					month_params,
-				)
-			).mappings().one()
+		month_cost_row = (
+			await db.execute(
+				text(
+					f"""
+					SELECT COALESCE(SUM(cost_usd), 0) AS month_cost_usd
+					FROM request_logs
+					WHERE org_id = :org_id
+					  AND created_at::date >= :month_start
+					  AND created_at::date <= :today
+					  AND archived_at IS NULL
+					  {extra_sql}
+					"""
+				),
+				month_params,
+			)
+		).mappings().one()
 		month_cost = float(Decimal(str(month_cost_row["month_cost_usd"] or 0)))
 		projected_month_end_cost_usd = (
 			round((month_cost / days_elapsed) * days_in_month, 6) if days_elapsed > 0 else None
@@ -328,52 +295,29 @@ class AnalyticsService:
 		session_sql, session_params = self._session_filter_sql(session_id)
 		extra_sql = team_sql + session_sql
 		params = {"org_id": str(org_id), "since": since, **team_params, **session_params}
-		if not extra_sql:
-			rows = (
-				await db.execute(
-					text(
-						"""
-						SELECT
-							model,
-							provider,
-							COALESCE(SUM(total_requests), 0) AS requests,
-							COALESCE(SUM(total_prompt_tokens + total_completion_tokens), 0) AS tokens,
-							COALESCE(SUM(total_cost_usd), 0) AS cost_usd
-						FROM mv_daily_spend
-						WHERE org_id = :org_id
-						  AND day::date >= :since
-						GROUP BY model, provider
-						ORDER BY cost_usd DESC
-						LIMIT 20
-						"""
-					),
-					params,
-				)
-			).mappings().all()
-		else:
-			rows = (
-				await db.execute(
-					text(
-						f"""
-						SELECT
-							model,
-							provider,
-							COALESCE(COUNT(*), 0) AS requests,
-							COALESCE(SUM(total_tokens), 0) AS tokens,
-							COALESCE(SUM(cost_usd), 0) AS cost_usd
-						FROM request_logs
-						WHERE org_id = :org_id
-						  AND created_at::date >= :since
-						  AND archived_at IS NULL
-						  {extra_sql}
-						GROUP BY model, provider
-						ORDER BY cost_usd DESC
-						LIMIT 20
-						"""
-					),
-					params,
-				)
-			).mappings().all()
+		rows = (
+			await db.execute(
+				text(
+					f"""
+					SELECT
+						model,
+						provider,
+						COALESCE(COUNT(*), 0) AS requests,
+						COALESCE(SUM(total_tokens), 0) AS tokens,
+						COALESCE(SUM(cost_usd), 0) AS cost_usd
+					FROM request_logs
+					WHERE org_id = :org_id
+					  AND created_at::date >= :since
+					  AND archived_at IS NULL
+					  {extra_sql}
+					GROUP BY model, provider
+					ORDER BY cost_usd DESC
+					LIMIT 20
+					"""
+				),
+				params,
+			)
+		).mappings().all()
 		return [
 			CostByModel(
 				model=str(row["model"]),
@@ -397,55 +341,30 @@ class AnalyticsService:
 		session_sql, session_params = self._session_filter_sql(session_id)
 		extra_sql = team_sql + session_sql
 		params = {"org_id": str(org_id), "since": since, **team_params, **session_params}
-		if not extra_sql:
-			rows = (
-				await db.execute(
-					text(
-						"""
-						SELECT
-							m.user_id,
-							u.email,
-							COALESCE(SUM(m.total_requests), 0) AS requests,
-							COALESCE(SUM(m.total_prompt_tokens + m.total_completion_tokens), 0) AS tokens,
-							COALESCE(SUM(m.total_cost_usd), 0) AS cost_usd
-						FROM mv_daily_spend m
-						JOIN users u ON u.id = m.user_id
-						WHERE m.org_id = :org_id
-						  AND u.org_id = :org_id
-						  AND m.day::date >= :since
-						GROUP BY m.user_id, u.email
-						ORDER BY cost_usd DESC
-						LIMIT 50
-						"""
-					),
-					params,
-				)
-			).mappings().all()
-		else:
-			rows = (
-				await db.execute(
-					text(
-						f"""
-						SELECT
-							r.user_id,
-							u.email,
-							COALESCE(COUNT(*), 0) AS requests,
-							COALESCE(SUM(r.total_tokens), 0) AS tokens,
-							COALESCE(SUM(r.cost_usd), 0) AS cost_usd
-						FROM request_logs r
-						JOIN users u ON u.id = r.user_id AND u.org_id = r.org_id
-						WHERE r.org_id = :org_id
-						  AND r.created_at::date >= :since
-						  AND r.archived_at IS NULL
-						  {extra_sql}
-						GROUP BY r.user_id, u.email
-						ORDER BY cost_usd DESC
-						LIMIT 50
-						"""
-					),
-					params,
-				)
-			).mappings().all()
+		rows = (
+			await db.execute(
+				text(
+					f"""
+					SELECT
+						r.user_id,
+						u.email,
+						COALESCE(COUNT(*), 0) AS requests,
+						COALESCE(SUM(r.total_tokens), 0) AS tokens,
+						COALESCE(SUM(r.cost_usd), 0) AS cost_usd
+					FROM request_logs r
+					JOIN users u ON u.id = r.user_id AND u.org_id = r.org_id
+					WHERE r.org_id = :org_id
+					  AND r.created_at::date >= :since
+					  AND r.archived_at IS NULL
+					  {extra_sql}
+					GROUP BY r.user_id, u.email
+					ORDER BY cost_usd DESC
+					LIMIT 50
+					"""
+				),
+				params,
+			)
+		).mappings().all()
 		return [
 			CostByUser(
 				user_id=row["user_id"],
@@ -513,50 +432,28 @@ class AnalyticsService:
 		session_sql, session_params = self._session_filter_sql(session_id)
 		extra_sql = team_sql + session_sql
 		params = {"org_id": str(org_id), "since": since, **team_params, **session_params}
-		if not extra_sql:
-			rows = (
-				await db.execute(
-					text(
-						"""
-						SELECT
-							day::date AS date,
-							COALESCE(SUM(total_requests), 0) AS requests,
-							COALESCE(SUM(total_prompt_tokens + total_completion_tokens), 0) AS tokens,
-							COALESCE(SUM(total_cost_usd), 0) AS cost_usd,
-							COALESCE(AVG(avg_latency_ms), 0) AS avg_latency_ms
-						FROM mv_daily_spend
-						WHERE org_id = :org_id
-						  AND day::date >= :since
-						GROUP BY day::date
-						ORDER BY day::date ASC
-						"""
-					),
-					params,
-				)
-			).mappings().all()
-		else:
-			rows = (
-				await db.execute(
-					text(
-						f"""
-						SELECT
-							created_at::date AS date,
-							COALESCE(COUNT(*), 0) AS requests,
-							COALESCE(SUM(total_tokens), 0) AS tokens,
-							COALESCE(SUM(cost_usd), 0) AS cost_usd,
-							COALESCE(AVG(latency_ms), 0) AS avg_latency_ms
-						FROM request_logs
-						WHERE org_id = :org_id
-						  AND created_at::date >= :since
-						  AND archived_at IS NULL
-						  {extra_sql}
-						GROUP BY created_at::date
-						ORDER BY created_at::date ASC
-						"""
-					),
-					params,
-				)
-			).mappings().all()
+		rows = (
+			await db.execute(
+				text(
+					f"""
+					SELECT
+						created_at::date AS date,
+						COALESCE(COUNT(*), 0) AS requests,
+						COALESCE(SUM(total_tokens), 0) AS tokens,
+						COALESCE(SUM(cost_usd), 0) AS cost_usd,
+						COALESCE(AVG(latency_ms), 0) AS avg_latency_ms
+					FROM request_logs
+					WHERE org_id = :org_id
+					  AND created_at::date >= :since
+					  AND archived_at IS NULL
+					  {extra_sql}
+					GROUP BY created_at::date
+					ORDER BY created_at::date ASC
+					"""
+				),
+				params,
+			)
+		).mappings().all()
 		return [
 			DailyUsageTrend(
 				date=row["date"].isoformat(),
