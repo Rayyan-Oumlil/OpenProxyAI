@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   List,
   Plug2,
+  Server,
   ShieldCheck,
   Sliders,
   Users,
@@ -53,6 +54,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Connect",
     items: [
       { label: "Provider keys", to: "/provider-keys", icon: Plug2 },
+      { label: "MCP servers", to: "/mcp-servers", icon: Server },
       { label: "Experiments", to: "/experiments", icon: BarChart3 },
     ],
   },
