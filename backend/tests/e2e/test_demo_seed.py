@@ -1,17 +1,19 @@
 """The demo seed produces a working tenant: key auth, policy, console login, pinned MCP tools (P1-12)."""
 
 import hashlib
+import time
 
 import pytest
 from sqlalchemy import text
 
-from scripts.seed_demo import ADMIN_EMAIL, ADMIN_PASSWORD, BLOCKED_KEYWORD, DEMO_API_KEY, DEMO_SLUG, seed
+from scripts.seed_demo import ADMIN_EMAIL, ADMIN_PASSWORD, BLOCKED_KEYWORD, DEMO_API_KEY, DEMO_SLUG, INTERN_API_KEY, seed
 from tests.e2e.conftest import _run, upstream_calls
 
 pytestmark = pytest.mark.e2e
 
 CHAT = "/v1/chat/completions"
 HEADERS = {"Authorization": f"Bearer {DEMO_API_KEY}"}
+INTERN_HEADERS = {"Authorization": f"Bearer {INTERN_API_KEY}"}
 
 
 def _body(content: str) -> dict:
@@ -72,3 +74,35 @@ def test_seeded_admin_logs_in_and_sees_pinned_tools(e2e_client):
     deploy = next(t for t in tools if t["name"] == "deploy")
     assert "<IMPORTANT>" in deploy["definition"]["description"]
     assert "<IMPORTANT>" not in deploy["approved_snapshot"]["description"]
+
+
+def test_the_intern_key_hits_its_daily_budget_after_one_expensive_request(e2e_client, upstream):
+    first = e2e_client.post(CHAT, json=_body("summarise this [big-usage]"), headers=INTERN_HEADERS)
+    assert first.status_code == 200
+
+    # Spend is recorded in the background; the next request is refused once it lands.
+    deadline = time.time() + 5
+    second = e2e_client.post(CHAT, json=_body("and another"), headers=INTERN_HEADERS)
+    while second.status_code == 200 and time.time() < deadline:
+        time.sleep(0.2)
+        second = e2e_client.post(CHAT, json=_body("and another"), headers=INTERN_HEADERS)
+
+    # CLAUDE.md lists 402 for "budget exceeded", but a user's daily budget answers 429 (402 only appears on the
+    # streaming pre-flight cost check). Pinned as it is today so changing it is a deliberate, visible decision.
+    assert second.status_code == 429, second.text
+    assert second.json()["limit_type"] == "user_budget_daily_usd"
+    assert len(upstream_calls(upstream)) == 1  # the refused request never reached the provider
+
+
+def test_the_admin_key_is_not_affected_by_the_intern_budget(e2e_client):
+    assert e2e_client.post(CHAT, json=_body("still fine"), headers=HEADERS).status_code == 200
+
+
+def test_the_drifted_mcp_tool_is_denied_without_reaching_the_server(e2e_client):
+    response = e2e_client.post(
+        "/v1/mcp",
+        json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "github__deploy", "arguments": {}}},
+        headers=HEADERS,
+    )
+    assert response.status_code == 200
+    assert response.json()["error"]["code"] == -32004
