@@ -13,7 +13,7 @@ from app.services.crypto_service import encrypt
 class FakeKey:
 	"""Minimal LLMProviderKey ORM model substitute."""
 
-	def __init__(self, org_id, provider, key_alias, api_key_encrypted, weight=1, is_active=True, region="us"):
+	def __init__(self, org_id, provider, key_alias, api_key_encrypted, weight=1, is_active=True, region="us", **health):
 		self.id = uuid4()
 		self.org_id = org_id
 		self.provider = provider
@@ -24,6 +24,9 @@ class FakeKey:
 		self.region = region
 		self.model_patterns = None
 		self.created_at = datetime.now(UTC)
+		self.health_status = health.get("health_status", "unknown")
+		self.consecutive_failures = health.get("consecutive_failures", 0)
+		self.last_health_check_at = health.get("last_health_check_at")
 
 
 class FakeScalarsResult:
@@ -114,6 +117,30 @@ def test_list_returns_masked_keys(client, monkeypatch):
 	# Prefix should be first 8 chars + ellipsis
 	assert item["key_prefix"] == raw_key[:8] + "…"
 	assert "api_key" not in item
+
+
+def test_list_exposes_health_check_state(client):
+	org_id = uuid4()
+	user = SimpleNamespace(id=uuid4(), org_id=org_id, role="admin", is_active=True)
+	checked = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
+	down = FakeKey(org_id, "openai", "primary", encrypt("sk-a"), health_status="unhealthy", consecutive_failures=3, last_health_check_at=checked)
+	never = FakeKey(org_id, "anthropic", "backup", encrypt("sk-b"))
+
+	async def fake_current_user_dep():
+		return user
+
+	async def fake_get_db():
+		yield FakeDB(keys=[down, never])
+
+	app.dependency_overrides[get_current_user_from_jwt] = fake_current_user_dep
+	app.dependency_overrides[get_db] = fake_get_db
+
+	data = client.get("/api/v1/provider-keys", headers={"Authorization": "Bearer test"}).json()
+
+	assert data[0]["health_status"] == "unhealthy"
+	assert data[0]["consecutive_failures"] == 3
+	assert data[0]["last_health_check_at"].startswith("2026-11-03T12:00:00")
+	assert (data[1]["health_status"], data[1]["consecutive_failures"], data[1]["last_health_check_at"]) == ("unknown", 0, None)
 
 
 # ── CREATE ───────────────────────────────────────────────────────────────────

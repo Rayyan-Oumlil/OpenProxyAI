@@ -2,6 +2,7 @@ import {
   BarChart3,
   Building2,
   CreditCard,
+  Activity,
   FlaskConical,
   Key,
   LayoutDashboard,
@@ -54,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Connect",
     items: [
       { label: "Provider keys", to: "/provider-keys", icon: Plug2 },
+      { label: "Provider health", to: "/provider-health", icon: Activity },
       { label: "MCP servers", to: "/mcp-servers", icon: Server },
       { label: "Experiments", to: "/experiments", icon: BarChart3 },
     ],
