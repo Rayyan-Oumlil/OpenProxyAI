@@ -815,3 +815,158 @@ textarea:focus-visible {
 .dialog-close:hover:not(:disabled) {
   background: var(--bg-hover);
 }
+
+/* Dashboard: KPI cards, sparklines, burn-down */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.kpi {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  align-content: start;
+}
+
+.kpi__label {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.kpi__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  line-height: 1.15;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kpi__delta,
+.kpi__sub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.kpi__delta > [aria-hidden="true"] {
+  margin-right: 4px;
+}
+
+.kpi__delta--good {
+  color: var(--ok);
+}
+
+.kpi__delta--bad {
+  color: var(--err);
+}
+
+.kpi__delta--flat,
+.kpi__delta--none {
+  color: var(--muted);
+}
+
+.kpi__spark {
+  width: 100%;
+  height: 28px;
+  margin-top: var(--space-2);
+  color: var(--accent);
+}
+
+.kpi-grid--governance .kpi__value {
+  font-size: var(--text-lg);
+}
+
+.dash-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dash-periods {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.burndown {
+  margin: 0;
+}
+
+.burndown__caption {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-bottom: var(--space-2);
+}
+
+.burndown__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.burndown__axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.burndown__budget {
+  stroke: var(--warn);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.burndown__projection {
+  stroke: var(--text-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+}
+
+.burndown__spent {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.burndown__spent--over {
+  stroke: var(--err);
+}
+
+.burndown__tick {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.burndown__legend {
+  display: flex;
+  gap: var(--space-4);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.burndown__key::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  border-top: 2px solid currentColor;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.burndown__key--spent::before {
+  border-top-color: var(--accent);
+}
+
+.burndown__key--budget::before {
+  border-top: 2px dashed var(--warn);
+}
+
+.burndown__key--projection::before {
+  border-top: 2px dotted var(--text-2);
+}

@@ -64,6 +64,31 @@ const LOG_DETAIL = {
   policy_triggered_rules: null,
 };
 
+function trend(count: number, requests: number, cost: number, endOffset = 0) {
+  const end = new Date(Date.now() - endOffset * 86_400_000);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(end.getTime() - (count - 1 - i) * 86_400_000);
+    return { date: d.toISOString().slice(0, 10), requests, tokens: requests * 15, cost_usd: cost, avg_latency_ms: 120 };
+  });
+}
+
+function overview(periodDays: number) {
+  const requests = periodDays * 20;
+  return {
+    overview: {
+      period_days: periodDays, total_requests: requests, successful_requests: requests - 5, failed_requests: 5,
+      policy_blocked_requests: 3, policy_flagged_requests: 1, total_tokens: requests * 15, total_cost_usd: periodDays * 2,
+      avg_latency_ms: 120, avg_ttft_ms: 40, p50_latency_ms: 100, p95_latency_ms: 300, p99_latency_ms: 450,
+      projected_month_end_cost_usd: 120, forecast_basis_days: 10, cache_hit_rate: 0.3,
+    },
+    by_model: [{ model: "openai/gpt-4o-mini", provider: "openai", requests, tokens: requests * 15, cost_usd: periodDays * 2 }],
+    by_user: [{ user_id: "u1", email: "ada@example.com", requests, tokens: requests * 15, cost_usd: periodDays * 2 }],
+    by_team: [{ team_id: "t1", name: "Platform", requests, tokens: requests * 15, cost_usd: periodDays * 2 }],
+    daily_trend: periodDays === 60 ? [...trend(30, 10, 1, 30), ...trend(30, 20, 2)] : trend(periodDays, 20, 2),
+    generated_at: new Date().toISOString(),
+  };
+}
+
 /** Answers the endpoints the smoke flow touches; everything else is a 404 so pages render their error states. */
 async function mockApi(page: Page) {
   await page.route(`${API}/**`, async (route) => {
@@ -85,6 +110,9 @@ async function mockApi(page: Page) {
     if (pathname === "/api/v1/auth/login") return json({ access_token: jwt(), refresh_token: "r", token_type: "bearer", expires_in: 3600 });
     if (pathname === "/api/v1/auth/me") return json(ME);
     if (pathname === "/api/v1/analytics/logs/l1") return json(LOG_DETAIL);
+    if (pathname === "/api/v1/analytics/overview") return json(overview(Number(new URL(route.request().url()).searchParams.get("period_days"))));
+    if (pathname === "/api/v1/organizations/current") return json({ id: "o1", name: "Demo", budget_monthly_usd: "100" });
+    if (pathname === "/api/v1/teams") return json([]);
     if (pathname === "/api/v1/mcp-servers") return json([SERVER]);
     if (pathname === "/api/v1/mcp-servers/s1/tools") return json([DRIFTED_TOOL]);
     if (pathname === "/api/v1/mcp-servers/s1/tools/t1/approve") return json({ ...DRIFTED_TOOL, status: "approved", approved_snapshot: DRIFTED_TOOL.definition });
@@ -170,4 +198,20 @@ test("removing a server asks first, starts on Cancel, and Escape backs out", asy
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(page.getByRole("button", { name: "Remove github" })).toBeFocused(); // focus returns to the trigger
+});
+
+test("the dashboard shows KPIs with deltas and the budget burn-down", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Email").fill("ada@example.com");
+  await page.getByLabel("Password").fill("correct horse");
+  await Promise.all([
+    page.waitForResponse((r) => new URL(r.url()).pathname === "/api/v1/auth/me"),
+    page.getByRole("button", { name: "Sign in" }).click(),
+  ]);
+
+  await expect(page.getByRole("heading", { name: "Gateway dashboard" })).toBeVisible();
+  const kpis = page.getByRole("region", { name: "Key metrics" });
+  await expect(kpis.getByText("vs previous 30 days").first()).toBeVisible();
+  await expect(page.getByRole("img", { name: /Budget burn-down/ })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Cost by team" })).toBeVisible();
 });
