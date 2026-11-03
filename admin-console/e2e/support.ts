@@ -151,6 +151,7 @@ export async function mockApi(page: Page) {
     if (pathname === "/api/v1/mcp-servers") return json([SERVER]);
     if (pathname === "/api/v1/analytics/logs") return json({ items: [LOG_ITEM], total: 1, page: 1, page_size: 50, total_pages: 1 });
     if (pathname === "/api/v1/provider-keys") return json(PROVIDER_KEYS);
+    if (pathname === "/api/v1/api-keys") return json([]);
     if (pathname === "/api/v1/mcp-servers/s1/tools") return json([DRIFTED_TOOL]);
     if (pathname === "/api/v1/mcp-servers/s1/tools/t1/approve") return json({ ...DRIFTED_TOOL, status: "approved", approved_snapshot: DRIFTED_TOOL.definition });
     return json({ detail: "not mocked" }, 404);

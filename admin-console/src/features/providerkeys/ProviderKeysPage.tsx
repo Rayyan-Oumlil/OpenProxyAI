@@ -324,7 +324,7 @@ export function ProviderKeysPage() {
                     </>
                   )}
                   <td>
-                    {k.circuit_open_until != null && k.circuit_open_until > Date.now() / 1000 ? (
+                    {k.circuit_open_until != null && k.circuit_open_until > keysQuery.dataUpdatedAt / 1000 ? (
                       <Badge variant="warning" title={`Open until ${new Date(k.circuit_open_until * 1000).toLocaleString()}`}>
                         Open
                       </Badge>

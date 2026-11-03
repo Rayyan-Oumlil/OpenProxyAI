@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../state/AuthContext";
 
@@ -11,12 +11,13 @@ export function SSOCallbackPage() {
   const { applySsoCode, error, isAuthenticating } = useAuth();
   const navigate = useNavigate();
   const [done, setDone] = useState(false);
+  const handled = useRef(false);
 
   useEffect(() => {
-    if (done) return;
+    if (handled.current) return;
+    handled.current = true;
     const code = searchParams.get("code");
     if (!code) {
-      setDone(true);
       navigate("/", { replace: true });
       return;
     }
@@ -28,7 +29,7 @@ export function SSOCallbackPage() {
       .catch(() => {
         setDone(true);
       });
-  }, [searchParams, applySsoCode, navigate, done]);
+  }, [searchParams, applySsoCode, navigate]);
 
   if (isAuthenticating && !done) {
     return (
