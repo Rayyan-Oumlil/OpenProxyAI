@@ -10,6 +10,7 @@ OpenProxyAI is an enterprise LLM proxy between your organization and LLM provide
 |----------|---------|
 | [Quickstart](./getting-started/quickstart.md) | Create your first API key and make a request in 5 minutes |
 | [Seeded demo](./getting-started/demo.md) | One command: full stack with demo data and a fake LLM, no provider key needed |
+| [3-minute walkthrough](./getting-started/walkthrough.md) | A scripted demo: PII blocked, budget stop, audit trace, MCP tool denied |
 | [SDKs](./guides/sdks.md) | Install and use the Python or TypeScript SDK |
 
 ---
