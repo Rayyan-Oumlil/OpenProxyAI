@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { Suspense } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { LoadingState } from "../../components/LoadingState";
 
 import { ThemeToggle } from "../../components/ui/ThemeToggle";
 import { cn } from "../../lib/utils";
@@ -181,7 +183,9 @@ export function AdminLayout() {
       )}
 
       <main id="main-content" className="main" tabIndex={-1}>
-        <Outlet />
+        <Suspense fallback={<LoadingState label="Loading page…" />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );
