@@ -577,3 +577,70 @@ textarea:focus-visible {
   outline-offset: 0;
   border-color: var(--accent);
 }
+
+/* MCP servers page */
+.mcp-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mcp-tool-desc {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+  overflow-wrap: anywhere;
+}
+
+.mcp-tools {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.mcp-tools__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+}
+
+.mcp-drift {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mcp-drift__title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.mcp-drift pre {
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mcp-drift__old {
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+}
+
+.mcp-drift__new {
+  background: color-mix(in srgb, var(--err) 12%, transparent);
+}
+
+.mcp-field-error {
+  color: var(--err);
+  font-size: var(--text-sm);
+}
