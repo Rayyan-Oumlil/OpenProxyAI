@@ -9,6 +9,7 @@ import { useAuth } from "./state/AuthContext";
 
 // Each page is its own chunk: the console no longer ships every screen (and recharts) up front.
 const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const RequestTracePage = lazy(() => import("./features/logs/RequestTracePage").then((m) => ({ default: m.RequestTracePage })));
 const LogsPage = lazy(() => import("./features/logs/LogsPage").then((m) => ({ default: m.LogsPage })));
 const ApiKeysPage = lazy(() => import("./features/keys/ApiKeysPage").then((m) => ({ default: m.ApiKeysPage })));
 const LoginPage = lazy(() => import("./features/auth/LoginPage").then((m) => ({ default: m.LoginPage })));
@@ -66,6 +67,7 @@ export function App() {
           <Route path="/" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="logs" element={<LogsPage />} />
+            <Route path="logs/:id" element={<RequestTracePage />} />
             <Route path="api-keys" element={<ApiKeysPage />} />
             <Route path="provider-keys" element={<ProviderKeysPage />} />
             <Route path="mcp-servers" element={<McpServersPage />} />
