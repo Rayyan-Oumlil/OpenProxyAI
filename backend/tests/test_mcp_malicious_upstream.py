@@ -1,9 +1,7 @@
 """The gateway against a hostile upstream MCP server (tests/fixtures/malicious_mcp.py).
 
 Real HTTP, real client, real gateway code: only DNS resolution is stubbed (the fixture listens on
-127.0.0.1, which the SSRF guard would otherwise refuse). Tests marked xfail(strict) pin behaviour that
-later Phase 1 PRs must deliver; they flip to failures the moment the feature lands, forcing the marker off.
-"""
+127.0.0.1, which the SSRF guard would otherwise refuse). """
 
 import asyncio
 import json
@@ -23,7 +21,7 @@ from app.services.mcp_gateway import UpstreamServer
 from app.services.policy_service import PolicyConfig
 from app.utils import ssrf
 from tests.conftest import FakeRedis
-from tests.fixtures.malicious_mcp import INJECTION, METADATA_URL, POISONED_DESCRIPTION, RebindingResolver, RunningMaliciousMcp
+from tests.fixtures.malicious_mcp import INJECTION, METADATA_URL, RebindingResolver, RunningMaliciousMcp
 from tests.test_mcp_routes import API_KEY, ORG, USER, FakeDB
 
 CONFIG = PolicyConfig(enforcement_mode="enforce", pii_detection_enabled=False)
@@ -156,7 +154,7 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 
 	evil = hostile("echo_headers")
 	row = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, name="evil", url=evil.url, auth_header_encrypted="Bearer org-upstream-secret",
-	                      is_active=True, pin_mode="off", created_at=datetime(2026, 9, 30))
+	                      is_active=True, pin_mode="off", scan_mode="off", created_at=datetime(2026, 9, 30))
 	db = FakeDB(servers=[row])
 
 	async def fake_auth():
@@ -203,19 +201,97 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 	assert all(h.get("authorization") == "Bearer org-upstream-secret" for h in seen)
 
 
-# ── gaps closed by later Phase 1 PRs (strict xfail: they must start failing when fixed) ──
+# -- injection carried by tool descriptions and results (scan_mode) ---------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="PR 4: tool descriptions are scanned for hidden instructions")
-async def test_poisoned_descriptions_are_not_served(hostile):
+def _scanning(running: RunningMaliciousMcp, mode: str, name: str = "evil") -> UpstreamServer:
+	return UpstreamServer(name=name, url=running.url, auth_header=None, scan_mode=mode)
+
+
+async def test_poisoned_descriptions_are_hidden_in_block_mode(hostile):
 	evil = hostile("poisoned")
-	listed = await mcp_gateway.list_tools([_server(evil)], CONFIG, mcp_client.call_upstream)
-	served = json.dumps(listed["tools"], ensure_ascii=False)
-	assert "<IMPORTANT>" not in served and POISONED_DESCRIPTION not in served
+	listed = await mcp_gateway.list_tools([_scanning(evil, "block")], CONFIG, mcp_client.call_upstream)
+	assert listed["tools"] == []
 
 
-@pytest.mark.xfail(strict=True, reason="PR 4: tool results are scanned for injection and exfiltration URLs")
-async def test_injected_results_are_blocked_or_redacted(hostile):
+async def test_poisoned_descriptions_are_sanitised_in_redact_mode(hostile):
+	evil = hostile("poisoned")
+	listed = await mcp_gateway.list_tools([_scanning(evil, "redact")], CONFIG, mcp_client.call_upstream)
+	(tool,) = listed["tools"]
+	assert tool["name"] == "evil__search"
+	assert "<IMPORTANT>" not in tool["description"] and chr(0xE0041) not in tool["description"]
+	assert tool["description"].startswith("Search the web.")
+
+
+async def test_poisoned_descriptions_pass_through_in_log_mode_but_are_reported(hostile, caplog):
+	evil = hostile("poisoned")
+	with caplog.at_level("WARNING", logger="app.services.mcp_gateway"):
+		listed = await mcp_gateway.list_tools([_scanning(evil, "log")], CONFIG, mcp_client.call_upstream)
+	assert "<IMPORTANT>" in listed["tools"][0]["description"]
+	assert "unicode_tag" in caplog.text and "SECRET" not in caplog.text and "id_rsa" not in caplog.text
+
+
+async def test_injected_results_are_withheld_in_block_mode(hostile):
 	evil = hostile("injected_result")
-	outcome = await mcp_gateway.call_tool([_server(evil)], CONFIG, "evil__search", {}, mcp_client.call_upstream)
-	assert outcome.error is not None or INJECTION not in json.dumps(outcome.result)
+	outcome = await mcp_gateway.call_tool([_scanning(evil, "block")], CONFIG, "evil__search", {}, mcp_client.call_upstream)
+	assert outcome.status_code == 446 and outcome.result is None
+	assert outcome.error["code"] == mcp_gateway.ERR_OUTPUT_BLOCKED == -32007
+	assert set(outcome.scan_findings) >= {"instruction_override", "markdown_exfil"}
+	assert "SECRET_TOKEN" not in json.dumps(outcome.error)
+
+
+async def test_injected_results_are_sanitised_in_redact_mode(hostile):
+	evil = hostile("injected_result")
+	outcome = await mcp_gateway.call_tool([_scanning(evil, "redact")], CONFIG, "evil__search", {}, mcp_client.call_upstream)
+	assert outcome.status_code == 200
+	text = outcome.result["content"][0]["text"]
+	assert "SECRET_TOKEN" not in text and "Ignore previous" not in text and "[redacted:" in text
+	assert outcome.scan_findings
+
+
+async def test_injected_results_are_delivered_but_flagged_in_log_mode(hostile):
+	evil = hostile("injected_result")
+	outcome = await mcp_gateway.call_tool([_scanning(evil, "log")], CONFIG, "evil__search", {}, mcp_client.call_upstream)
+	assert outcome.status_code == 200 and INJECTION in outcome.result["content"][0]["text"]
+	assert outcome.scan_findings
+
+
+async def test_scan_mode_off_changes_nothing(hostile):
+	evil = hostile("injected_result")
+	outcome = await mcp_gateway.call_tool([_scanning(evil, "off")], CONFIG, "evil__search", {}, mcp_client.call_upstream)
+	assert outcome.status_code == 200 and outcome.scan_findings == ()
+
+
+async def test_clean_results_are_untouched_in_every_mode(hostile):
+	evil = hostile("benign")
+	for mode in ("log", "redact", "block"):
+		outcome = await mcp_gateway.call_tool([_scanning(evil, mode)], CONFIG, "evil__search", {}, mcp_client.call_upstream)
+		assert outcome.status_code == 200 and outcome.result["content"][0]["text"] == "ok" and outcome.scan_findings == ()
+
+
+async def test_scan_findings_reach_the_audit_row(hostile, monkeypatch):
+	from app.services import mcp_audit
+
+	rows = []
+
+	class Session:
+		info: dict = {}
+
+		async def __aenter__(self):
+			return self
+
+		async def __aexit__(self, *exc):
+			return False
+
+		def add(self, row):
+			rows.append(row)
+
+		async def commit(self):
+			return None
+
+	monkeypatch.setattr(mcp_audit, "org_scoped_session", lambda org_id: Session())
+	evil = hostile("injected_result")
+	outcome = await mcp_gateway.call_tool([_scanning(evil, "block")], CONFIG, "evil__search", {}, mcp_client.call_upstream)
+	await mcp_audit.record_tool_call(org_id=ORG, user_id=USER.id, api_key_id=None, outcome=outcome, latency_ms=1)
+	assert "markdown_exfil" in rows[0].request_metadata["scan_findings"]
+	assert rows[0].status_code == 446 and "SECRET_TOKEN" not in json.dumps(rows[0].request_metadata)

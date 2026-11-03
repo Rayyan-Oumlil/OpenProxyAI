@@ -265,7 +265,7 @@ async def test_admin_api_review_flow(tenants, evil, monkeypatch):
 	try:
 		async with AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test") as http:
 			created = await http.post("/api/v1/mcp-servers", json={"name": "pinned", "url": hostile.url, "pin_mode": "enforce"})
-			assert created.status_code == 201 and created.json()["pin_mode"] == "enforce"
+			assert created.status_code == 201 and created.json()["pin_mode"] == "enforce" and created.json()["scan_mode"] == "log"
 			server_id = created.json()["id"]
 
 			tools = (await http.post(f"/api/v1/mcp-servers/{server_id}/sync")).json()
@@ -285,6 +285,8 @@ async def test_admin_api_review_flow(tenants, evil, monkeypatch):
 			assert (await http.get(f"/api/v1/mcp-servers/{server_id}/tools")).json()[0]["status"] == "blocked"
 
 			assert (await http.post(f"/api/v1/mcp-servers/{server_id}/tools/{uuid.uuid4()}/approve")).status_code == 404
+			assert (await http.patch(f"/api/v1/mcp-servers/{server_id}", json={"scan_mode": "block"})).json()["scan_mode"] == "block"
+			assert (await http.patch(f"/api/v1/mcp-servers/{server_id}", json={"scan_mode": "paranoid"})).status_code == 422
 			assert (await http.patch(f"/api/v1/mcp-servers/{server_id}", json={"pin_mode": "off"})).json()["pin_mode"] == "off"
 			assert (await http.post(f"/api/v1/mcp-servers/{server_id}/sync")).status_code == 409
 			assert (await http.patch(f"/api/v1/mcp-servers/{server_id}", json={})).status_code == 422

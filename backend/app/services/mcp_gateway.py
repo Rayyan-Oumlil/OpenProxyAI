@@ -16,6 +16,7 @@ from typing import Any, Protocol
 
 from app.services.mcp_client import McpUpstreamError
 from app.services.mcp_pinning import PIN_OFF, ToolPin, call_gate, served_snapshot
+from app.services.mcp_scanner import SCAN_BLOCK, SCAN_OFF, SCAN_REDACT, scan_value
 from app.services.policy_service import PolicyConfig, PolicyDecision, policy_service
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ MAX_TOOLS_PER_SERVER = 1000  # a hostile server must not flood the agent context
 ERR_INVALID_PARAMS = -32602
 ERR_POLICY_BLOCKED = -32001
 ERR_UPSTREAM = -32002
+ERR_OUTPUT_BLOCKED = -32007  # scan_mode=block: the tool result carried injection
 ERR_TOOL_PIN = -32004  # tool not approved (pending, drifted or blocked) under pin_mode=enforce
 
 UpstreamCall = Callable[[str, str | None, str, dict | None], Awaitable[dict[str, Any]]]
@@ -40,6 +42,7 @@ class UpstreamServer:
     auth_header: str | None
     id: uuid.UUID | None = None
     pin_mode: str = PIN_OFF
+    scan_mode: str = SCAN_OFF
 
 
 class PinStore(Protocol):
@@ -60,6 +63,7 @@ class ToolCallOutcome:
     decision: PolicyDecision | None
     result: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
+    scan_findings: tuple[str, ...] = ()  # categories found in the result (never the text itself)
     pin_status: str | None = None  # pending | approved | drifted | blocked | unpinned; None when pinning is off
 
 
@@ -78,6 +82,19 @@ async def list_server_tools(server: UpstreamServer, call: UpstreamCall) -> list[
         logger.warning("MCP upstream %s advertised %d tools; truncated to %d", server.name, len(tools), MAX_TOOLS_PER_SERVER)
         tools = tools[:MAX_TOOLS_PER_SERVER]
     return tools
+
+
+def _scan_definition(server: UpstreamServer, tool: dict[str, Any]) -> dict[str, Any] | None:
+    """Apply scan_mode to a tool definition about to be shown to an agent. None means hide it."""
+    if server.scan_mode == SCAN_OFF:
+        return tool
+    scanned = scan_value(tool, redact=server.scan_mode == SCAN_REDACT)
+    if not scanned.flagged:
+        return tool
+    logger.warning("MCP tool %s.%s description flagged (%s): mode=%s", server.name, tool["name"], ",".join(scanned.categories), server.scan_mode)
+    if server.scan_mode == SCAN_BLOCK:
+        return None
+    return {**scanned.value, "name": tool["name"]} if server.scan_mode == SCAN_REDACT else tool
 
 
 async def list_tools(
@@ -101,7 +118,10 @@ async def list_tools(
             result = [snap for t in result if (snap := served_snapshot(pinned.get(t.get("name")), server.pin_mode))]
         for tool in result:
             name = f"{server.name}{TOOL_SEPARATOR}{tool['name']}"
-            if policy_service.evaluate_tool_call(name, {}, config).allowed:
+            if not policy_service.evaluate_tool_call(name, {}, config).allowed:
+                continue
+            tool = _scan_definition(server, tool)
+            if tool is not None:
                 tools.append({**tool, "name": name})
     response: dict[str, Any] = {"tools": tools}
     if unavailable:
@@ -163,4 +183,25 @@ async def call_tool(
         logger.warning("MCP upstream %s failed on tools/call: %s", server.name, exc)
         return ToolCallOutcome(tool=name, server=server.name, status_code=502, decision=decision, pin_status=pin_status,
                                error={"code": ERR_UPSTREAM, "message": f"Upstream MCP server {server.name} unavailable"})
-    return ToolCallOutcome(tool=name, server=server.name, status_code=200, decision=decision, result=result, pin_status=pin_status)
+    findings: tuple[str, ...] = ()
+    if server.scan_mode != SCAN_OFF:
+        scanned = scan_value(result, redact=server.scan_mode == SCAN_REDACT)
+        findings = scanned.categories
+        if scanned.flagged:
+            logger.warning("MCP result of %s flagged (%s): mode=%s", name, ",".join(findings), server.scan_mode)
+        if scanned.flagged and server.scan_mode == SCAN_BLOCK:
+            return ToolCallOutcome(
+                tool=name, server=server.name, status_code=446, decision=decision, pin_status=pin_status,
+                scan_findings=findings,
+                error={
+                    "code": ERR_OUTPUT_BLOCKED,
+                    "message": f"Result of {name} was withheld: it looked like a prompt injection",
+                    "data": {"reason_code": "tool_output_flagged", "categories": list(findings)},
+                },
+            )
+        if server.scan_mode == SCAN_REDACT:
+            result = scanned.value
+    return ToolCallOutcome(
+        tool=name, server=server.name, status_code=200, decision=decision, result=result,
+        pin_status=pin_status, scan_findings=findings,
+    )
