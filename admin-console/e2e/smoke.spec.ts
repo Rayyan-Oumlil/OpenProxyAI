@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { prepare } from "./support";
+import { ORG, prepare, signIn } from "./support";
 
 test.beforeEach(async ({ page }) => {
   await prepare(page);
@@ -88,4 +88,18 @@ test("the dashboard shows KPIs with deltas and the budget burn-down", async ({ p
   await expect(kpis.getByText("vs previous 30 days").first()).toBeVisible();
   await expect(page.getByRole("img", { name: /Budget burn-down/ })).toBeVisible();
   await expect(page.getByRole("table", { name: "Cost by team" })).toBeVisible();
+});
+
+test("organization settings fill from the API in a real browser", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/organization-settings");
+  await expect(page.getByLabel("Organization name")).toHaveValue(ORG.name);
+  await expect(page.getByLabel("Monthly budget (USD)")).toHaveValue(ORG.budget_monthly_usd);
+});
+
+test("the onboarding dialog opens for an organization without API keys", async ({ page }) => {
+  // prepare() marks onboarding dismissed; undo that for this test so the first-run path is exercised.
+  await page.addInitScript(() => localStorage.removeItem("openproxy_onboarding_dismissed"));
+  await signIn(page);
+  await expect(page.getByRole("dialog")).toBeVisible();
 });

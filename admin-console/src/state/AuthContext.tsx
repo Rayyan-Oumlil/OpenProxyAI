@@ -106,8 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clearScheduledRefresh, doRefresh],
   );
 
-  // Keep ref current so doRefresh can trigger rescheduling without a circular dep.
-  scheduleRefreshRef.current = scheduleRefresh;
+  // Keep ref current so doRefresh can trigger rescheduling without a circular dep. An effect, not an assignment
+  // during render; declared before the session-restore effect below so it is set first.
+  useEffect(() => {
+    scheduleRefreshRef.current = scheduleRefresh;
+  }, [scheduleRefresh]);
 
   // Clean up the refresh interval on unmount.
   useEffect(() => {
