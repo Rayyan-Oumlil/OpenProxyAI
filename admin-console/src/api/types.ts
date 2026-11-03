@@ -221,6 +221,10 @@ export type ProviderKeyResponse = {
   error_rate?: number | null;
   /** Adaptive LB: effective weight used in key selection */
   effective_weight?: number | null;
+  /** Provider health-check job: unknown until the first check has run */
+  health_status?: string;
+  consecutive_failures?: number;
+  last_health_check_at?: string | null;
 };
 
 export type CreateProviderKeyRequest = {
