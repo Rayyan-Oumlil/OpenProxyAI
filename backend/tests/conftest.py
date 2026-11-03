@@ -15,6 +15,7 @@ class FakeRedis:
 		self._store: dict[str, str] = {}
 		self._counter: dict[str, int] = {}
 		self._zsets: dict[str, dict[str, float]] = {}
+		self._hashes: dict[str, dict[str, str]] = {}
 
 	class _Pipeline:
 		def __init__(self, redis: "FakeRedis") -> None:
@@ -115,6 +116,13 @@ class FakeRedis:
 		if withscores:
 			return [(member, score) for member, score in slice_items]
 		return [member for member, _ in slice_items]
+
+	async def hset(self, key: str, mapping: dict[str, str] | None = None, **fields: str) -> int:
+		self._hashes.setdefault(key, {}).update({**(mapping or {}), **fields})
+		return len(mapping or {}) + len(fields)
+
+	async def hgetall(self, key: str) -> dict[str, str]:
+		return dict(self._hashes.get(key, {}))
 
 	async def exists(self, key: str) -> int:
 		return 1 if key in self._store else 0

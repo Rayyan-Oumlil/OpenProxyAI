@@ -31,6 +31,7 @@ from app.routes.mcp import router as mcp_router
 from app.routes.mcp_bundles import router as mcp_bundles_router
 from app.routes.mcp_grants import router as mcp_grants_router
 from app.routes.mcp_servers import router as mcp_servers_router
+from app.routes.mcp_trust_rules import router as mcp_trust_rules_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.experiments import router as experiments_router
 from app.routes.requests import router as requests_router
@@ -396,6 +397,7 @@ app.include_router(mcp_router)
 app.include_router(mcp_servers_router)
 app.include_router(mcp_grants_router)
 app.include_router(mcp_bundles_router)
+app.include_router(mcp_trust_rules_router)
 
 if settings.PROMETHEUS_ENABLED:
     app.include_router(metrics_router)

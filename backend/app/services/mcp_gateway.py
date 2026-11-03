@@ -16,6 +16,7 @@ from typing import Any, Protocol
 
 from app.services.mcp_client import McpUpstreamError
 from app.services.mcp_grants import ToolAccess
+from app.services.mcp_taint import REASON_SINK_NO_SESSION, REASON_SINK_TAINTED, TaintContext
 from app.services.mcp_pinning import PIN_OFF, ToolPin, call_gate, served_snapshot
 from app.services.mcp_scanner import SCAN_BLOCK, SCAN_OFF, SCAN_REDACT, scan_value
 from app.services.policy_service import PolicyConfig, PolicyDecision, policy_service
@@ -31,6 +32,7 @@ ERR_INVALID_PARAMS = -32602
 ERR_POLICY_BLOCKED = -32001
 ERR_UPSTREAM = -32002
 ERR_OUTPUT_BLOCKED = -32007  # scan_mode=block: the tool result carried injection
+ERR_TAINT = -32009  # a sink refused to run in a tainted or session-less context
 ERR_TOOL_PIN = -32004  # tool not approved (pending, drifted or blocked) under pin_mode=enforce
 
 UpstreamCall = Callable[[str, str | None, str, dict | None], Awaitable[dict[str, Any]]]
@@ -66,6 +68,8 @@ class ToolCallOutcome:
     error: dict[str, Any] | None = None
     scan_findings: tuple[str, ...] = ()  # categories found in the result (never the text itself)
     access: dict[str, Any] | None = None  # grants and request scope that applied (set by the route)
+    taints_session: bool = False  # the result came from an untrusted tool and was delivered
+    taint: dict[str, Any] | None = None  # session state and sink flag, set by the route for the audit row
     pin_status: str | None = None  # pending | approved | drifted | blocked | unpinned; None when pinning is off
 
 
@@ -150,6 +154,7 @@ async def call_tool(
     call: UpstreamCall,
     pins: PinStore | None = None,
     access: ToolAccess | None = None,
+    taint: TaintContext | None = None,
 ) -> ToolCallOutcome:
     """tools/call: resolve the server, apply policy, forward, and describe what happened."""
     if not isinstance(name, str):
@@ -197,6 +202,19 @@ async def call_tool(
                 },
             )
 
+    if taint is not None and taint.rules.is_sink(name) and (taint.session is None or taint.session.tainted):
+        reason = REASON_SINK_NO_SESSION if taint.session is None else REASON_SINK_TAINTED
+        return ToolCallOutcome(
+            tool=name, server=server.name, status_code=446, decision=decision, pin_status=pin_status,
+            error={
+                "code": ERR_TAINT,
+                "message": f"Tool {name} has side effects and cannot run now: this session has handled untrusted content"
+                if taint.session is not None
+                else f"Tool {name} has side effects and requires an MCP session (send Mcp-Session-Id)",
+                "data": {"reason_code": reason},
+            },
+        )
+
     try:
         result = await call(server.url, server.auth_header, "tools/call", {"name": tool, "arguments": arguments})
     except McpUpstreamError as exc:
@@ -225,4 +243,5 @@ async def call_tool(
     return ToolCallOutcome(
         tool=name, server=server.name, status_code=200, decision=decision, result=result,
         pin_status=pin_status, scan_findings=findings,
+        taints_session=taint is not None and taint.rules.output_untrusted(name),
     )

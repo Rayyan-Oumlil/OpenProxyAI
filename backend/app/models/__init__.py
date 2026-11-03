@@ -17,6 +17,7 @@ from app.models.request_score import RequestScore
 from app.models.mcp_server import McpServer
 from app.models.mcp_tool import McpTool, McpToolVersion
 from app.models.tool_grant import ToolGrant
+from app.models.tool_trust_rule import ToolTrustRule
 from app.models.mcp_bundle import ApiKeyMcpBundle, McpBundle, McpBundleTool
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "McpTool",
     "McpToolVersion",
     "ToolGrant",
+    "ToolTrustRule",
     "McpBundle",
     "McpBundleTool",
     "ApiKeyMcpBundle",
