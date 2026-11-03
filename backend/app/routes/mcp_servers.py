@@ -69,6 +69,7 @@ async def create_mcp_server(
 		url=payload.url,
 		auth_header_encrypted=encrypt(payload.auth_header) if payload.auth_header else None,
 		pin_mode=payload.pin_mode,
+		scan_mode=payload.scan_mode,
 	)
 	db.add(server)
 	try:
@@ -78,7 +79,8 @@ async def create_mcp_server(
 	await log_admin_action(
 		db, org_id=current_user.org_id, actor_id=current_user.id, actor_email=current_user.email,
 		action="mcp_server.created", resource_type="mcp_server", resource_id=str(server.id),
-		after={"name": server.name, "url": server.url, "has_auth": bool(server.auth_header_encrypted), "pin_mode": server.pin_mode},
+		after={"name": server.name, "url": server.url, "has_auth": bool(server.auth_header_encrypted), "pin_mode": server.pin_mode,
+		       "scan_mode": server.scan_mode},
 		ip_address=get_ip(request),
 	)
 	await db.commit()
@@ -95,15 +97,18 @@ async def update_mcp_server(
 ) -> McpServerResponse:
 	_require_admin(current_user)
 	server = await _get_owned(db, server_id, current_user.org_id)
-	before = {"is_active": server.is_active, "pin_mode": server.pin_mode}
+	before = {"is_active": server.is_active, "pin_mode": server.pin_mode, "scan_mode": server.scan_mode}
 	if payload.is_active is not None:
 		server.is_active = payload.is_active
 	if payload.pin_mode is not None:
 		server.pin_mode = payload.pin_mode
+	if payload.scan_mode is not None:
+		server.scan_mode = payload.scan_mode
 	await log_admin_action(
 		db, org_id=current_user.org_id, actor_id=current_user.id, actor_email=current_user.email,
 		action="mcp_server.updated", resource_type="mcp_server", resource_id=str(server.id),
-		before=before, after={"is_active": server.is_active, "pin_mode": server.pin_mode}, ip_address=get_ip(request),
+		before=before, after={"is_active": server.is_active, "pin_mode": server.pin_mode, "scan_mode": server.scan_mode},
+		ip_address=get_ip(request),
 	)
 	await db.commit()
 	return McpServerResponse.from_model(server)
