@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 # Tools are exposed as "<name>__<tool>", so names cannot contain "__" or uppercase (see mcp_gateway).
 PinMode = Literal["off", "warn", "enforce"]
+ScanMode = Literal["off", "log", "redact", "block"]
 ServerName = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", min_length=1, max_length=40)]
 
 
@@ -24,16 +25,21 @@ class McpServerCreateRequest(BaseModel):
 		default="warn",
 		description="Tool pinning: off, warn (trust on first use, flag changes) or enforce (admin approval required).",
 	)
+	scan_mode: ScanMode = Field(
+		default="log",
+		description="Injection scan of tool descriptions and results: off, log, redact or block.",
+	)
 
 
 class McpServerUpdateRequest(BaseModel):
 	is_active: bool | None = None
 	pin_mode: PinMode | None = None
+	scan_mode: ScanMode | None = None
 
 	@model_validator(mode="after")
 	def _something_to_change(self) -> "McpServerUpdateRequest":
-		if self.is_active is None and self.pin_mode is None:
-			raise ValueError("Provide is_active and/or pin_mode")
+		if self.is_active is None and self.pin_mode is None and self.scan_mode is None:
+			raise ValueError("Provide is_active, pin_mode and/or scan_mode")
 		return self
 
 
@@ -46,13 +52,15 @@ class McpServerResponse(BaseModel):
 	is_active: bool
 	has_auth: bool
 	pin_mode: str
+	scan_mode: str
 	created_at: datetime
 
 	@classmethod
 	def from_model(cls, server) -> McpServerResponse:
 		return cls(
 			id=server.id, name=server.name, url=server.url, is_active=server.is_active,
-			has_auth=bool(server.auth_header_encrypted), pin_mode=server.pin_mode, created_at=server.created_at,
+			has_auth=bool(server.auth_header_encrypted), pin_mode=server.pin_mode, scan_mode=server.scan_mode,
+			created_at=server.created_at,
 		)
 
 

@@ -71,6 +71,7 @@ async def _active_servers(db: AsyncSession, org_id: uuid.UUID) -> list[UpstreamS
 		UpstreamServer(
 			id=row.id,
 			pin_mode=row.pin_mode,
+			scan_mode=row.scan_mode,
 			name=row.name,
 			url=row.url,
 			auth_header=decrypt(row.auth_header_encrypted) if row.auth_header_encrypted else None,
