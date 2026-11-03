@@ -45,3 +45,7 @@ class ProviderKeyResponse(BaseModel):
 	latency_p99_ms: float | None = None
 	error_rate: float | None = None
 	effective_weight: int | None = None
+	# Provider health-check job (PROVIDER_HEALTH_CHECK_ENABLED): unknown until the first check has run
+	health_status: str = "unknown"
+	consecutive_failures: int = 0
+	last_health_check_at: datetime | None = None
