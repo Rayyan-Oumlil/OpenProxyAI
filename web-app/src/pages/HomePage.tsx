@@ -5,6 +5,7 @@ import RouterSection from '../sections/RouterSection';
 import BudgetsPoliciesSection from '../sections/BudgetsPoliciesSection';
 import DeploySection from '../sections/DeploySection';
 import PricingSection from '../sections/PricingSection';
+import MobileExplore from '../sections/MobileExplore';
 
 export default function HomePage() {
   useEffect(() => { document.title = 'OpenProxyAI · The control plane for enterprise AI'; }, []);
@@ -13,10 +14,16 @@ export default function HomePage() {
     <>
       <HeroSection />
       <PipelineSection />
-      <RouterSection />
+      {/* Phones get the short version: the detail lives on its own page, so the home page stays scannable. */}
+      <div className="hidden lg:block">
+        <RouterSection />
+      </div>
       <BudgetsPoliciesSection />
-      <DeploySection />
-      <PricingSection />
+      <div className="hidden lg:block">
+        <DeploySection />
+        <PricingSection />
+      </div>
+      <MobileExplore />
     </>
   );
 }
