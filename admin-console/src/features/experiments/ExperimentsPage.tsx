@@ -15,6 +15,7 @@ import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
 import { formatDate } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import {
   Dialog,
   DialogContent,
@@ -320,8 +321,16 @@ export function ExperimentsPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete"),
   });
 
-  function handleDelete(id: string) {
-    if (!window.confirm("Delete this experiment? This action cannot be undone.")) return;
+  const confirm = useConfirm();
+
+  async function handleDelete(id: string) {
+    const ok = await confirm({
+      title: "Delete experiment?",
+      description: "This action cannot be undone.",
+      confirmLabel: "Delete experiment",
+      destructive: true,
+    });
+    if (!ok) return;
     deleteMutation.mutate(id);
   }
 

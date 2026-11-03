@@ -13,6 +13,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
 import { Badge } from "../../components/ui/badge";
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { formatDate } from "../../lib/utils";
 import {
   Dialog,
@@ -199,8 +200,16 @@ export function ProviderKeysPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete key"),
   });
 
-  function handleDelete(id: string) {
-    if (!window.confirm("Delete this provider key? This action cannot be undone.")) return;
+  const confirm = useConfirm();
+
+  async function handleDelete(id: string) {
+    const ok = await confirm({
+      title: "Delete provider key?",
+      description: "Requests that rely on this key will fall back to other keys or fail. This action cannot be undone.",
+      confirmLabel: "Delete key",
+      destructive: true,
+    });
+    if (!ok) return;
     deleteMutation.mutate(id);
   }
 
