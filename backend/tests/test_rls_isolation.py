@@ -48,6 +48,8 @@ RLS_TABLES = [
     "semantic_cache_entries",
     "prompt_templates",
     "mcp_servers",
+    "mcp_tools",
+    "mcp_tool_versions",
     "request_scores",
 ]
 

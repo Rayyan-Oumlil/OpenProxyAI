@@ -25,7 +25,7 @@ ORG = uuid.uuid4()
 USER = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, email="dev@acme.io", role="admin", is_active=True)
 API_KEY = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, team_id=None, permissions=["proxy:llm", "proxy:mcp"])
 SERVER = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, name="github", url="https://gh.example.com/mcp",
-                         auth_header_encrypted=None, is_active=True, created_at=datetime(2026, 9, 30))
+                         auth_header_encrypted=None, is_active=True, pin_mode="off", created_at=datetime(2026, 9, 30))
 
 
 class _Rows:

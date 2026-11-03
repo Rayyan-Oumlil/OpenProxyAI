@@ -22,5 +22,7 @@ class McpServer(UUIDPrimaryKeyMixin, Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     # Optional "Authorization" header value sent upstream, Fernet-encrypted; never returned by the API.
     auth_header_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Tool description pinning: off | warn (trust on first use) | enforce (admin approval required).
+    pin_mode: Mapped[str] = mapped_column(String(10), nullable=False, server_default="warn")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

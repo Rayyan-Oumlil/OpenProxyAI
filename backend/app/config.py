@@ -198,6 +198,9 @@ class Settings(BaseSettings):
     # ── MCP gateway ──────────────────────────────────────────────────
     # Requests per minute per API key on POST /v1/mcp (separate from the LLM RPM counter).
     MCP_RATE_LIMIT_PER_MINUTE: int = 120
+    # Re-fetch every pinned server's tool list on a schedule so drift is noticed without agent traffic.
+    MCP_TOOL_SYNC_ENABLED: bool = True
+    MCP_TOOL_SYNC_INTERVAL_MINUTES: int = 15
 
     @field_validator("DB_APP_ROLE")
     @classmethod
