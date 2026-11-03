@@ -51,6 +51,7 @@ RLS_TABLES = [
     "mcp_tools",
     "mcp_tool_versions",
     "tool_grants",
+    "tool_trust_rules",
     "mcp_bundles",
     "mcp_bundle_tools",
     "api_key_mcp_bundles",

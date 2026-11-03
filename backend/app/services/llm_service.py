@@ -42,6 +42,7 @@ from app.services.circuit_breaker_service import (
 from app.services.adaptive_sampling_service import get_error_rate, get_latency_p99
 from app.services.crypto_service import decrypt
 from app.services.eval_service import _extract_prompt_text, run_eval_hook
+from app.services.mcp_taint import ChatTaintResult, load_trust_rules, restrict_chat_request
 from app.services.policy_service import PolicyDecision, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 from app.utils.logging import get_logger
@@ -564,6 +565,17 @@ class LLMService:
 	# Decomposed pipeline steps for chat_completion
 	# ------------------------------------------------------------------
 
+	async def _apply_tool_taint(self, ctx: _RequestContext, db: AsyncSession) -> ChatTaintResult | None:
+		"""Strip sink tools from a conversation that has handled untrusted tool output (see mcp_taint)."""
+		mode = ctx.policy_config.enforcement_mode.lower().strip()
+		if mode == "off" or not any(m.role == "tool" for m in ctx.request.messages):
+			return None
+		rules = await load_trust_rules(db, ctx.user.org_id)
+		result = restrict_chat_request(ctx.request, rules, enforce=mode != "log_only")
+		if result.request is not ctx.request:
+			ctx.request = result.request
+		return result
+
 	async def _build_litellm_kwargs(
 		self,
 		ctx: _RequestContext,
@@ -584,8 +596,13 @@ class LLMService:
 			ctx.experiment_info = experiment_info
 
 		ctx.policy_config = await policy_store.load(ctx.user.org_id, db, ctx.redis)
+		taint = await self._apply_tool_taint(ctx, db)
 		decision = await policy_service.evaluate_chat_request(ctx.request, ctx.policy_config)
+		if decision.allowed and taint is not None and taint.forced_sink:
+			decision = policy_service.taint_violation(taint.forced_sink, ctx.policy_config)
 		ctx.policy_metadata = decision.as_metadata()
+		if taint is not None and taint.tainted:
+			ctx.policy_metadata["tool_taint"] = {"removed": list(taint.removed), "forced_sink": taint.forced_sink}
 
 		# Validate x-openproxy-fallback-model against policy allowlist when present
 		if ctx.fallback_model and ctx.policy_config.allowed_models:
