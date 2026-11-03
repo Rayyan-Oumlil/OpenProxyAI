@@ -7,12 +7,12 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: "bg-[rgba(15,23,42,0.06)] text-foreground",
-  success: "bg-[rgba(20,184,166,0.1)] text-[#0f766e]",
-  error: "bg-[rgba(239,68,68,0.1)] text-[#b91c1c]",
-  warning: "bg-[rgba(245,158,11,0.1)] text-[#92400e]",
-  policy: "bg-[rgba(14,165,233,0.1)] text-[#0369a1]",
-  muted: "bg-[rgba(100,116,139,0.08)] text-muted",
+  default: "bg-[var(--bg-hover)] text-foreground",
+  success: "bg-[color-mix(in_srgb,var(--ok)_14%,transparent)] text-[var(--ok)]",
+  error: "bg-[color-mix(in_srgb,var(--err)_14%,transparent)] text-[var(--err)]",
+  warning: "bg-[color-mix(in_srgb,var(--warn)_14%,transparent)] text-[var(--warn)]",
+  policy: "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-[var(--accent)]",
+  muted: "bg-[var(--bg-sunken)] text-muted",
 };
 
 export function Badge({ variant = "default", className, ...props }: BadgeProps) {

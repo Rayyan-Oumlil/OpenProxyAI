@@ -83,7 +83,7 @@ export function LogDetailDrawer({ logId, onClose }: LogDetailDrawerProps) {
           {query.isError && (
             <div
               className="rounded-lg p-4 text-sm"
-              style={{ background: "rgba(239,68,68,0.08)", color: "#b91c1c" }}
+              style={{ background: "color-mix(in srgb, var(--err) 12%, transparent)", color: "var(--err)" }}
             >
               Failed to load log detail.
             </div>
@@ -110,7 +110,7 @@ export function LogDetailDrawer({ logId, onClose }: LogDetailDrawerProps) {
                     <span
                       key={k}
                       className="text-xs rounded-full px-2 py-0.5"
-                      style={{ background: "rgba(124,58,237,0.1)", color: "#5b21b6" }}
+                      style={{ background: "color-mix(in srgb, var(--drift) 14%, transparent)", color: "var(--drift)" }}
                     >
                       {k}: {v}
                     </span>
@@ -150,7 +150,7 @@ export function LogDetailDrawer({ logId, onClose }: LogDetailDrawerProps) {
               {d.error_message && (
                 <div
                   className="mt-3 rounded-lg p-3 text-sm"
-                  style={{ background: "rgba(239,68,68,0.08)", color: "#b91c1c" }}
+                  style={{ background: "color-mix(in srgb, var(--err) 12%, transparent)", color: "var(--err)" }}
                 >
                   <div className="flex items-center gap-1.5 font-medium mb-1">
                     <AlertCircle size={13} />

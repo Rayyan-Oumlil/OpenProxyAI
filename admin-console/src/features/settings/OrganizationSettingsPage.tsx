@@ -168,7 +168,7 @@ export function OrganizationSettingsPage() {
               style={{
                 marginTop: "0.25rem",
                 padding: "0.5rem",
-                background: "rgba(234, 179, 8, 0.15)",
+                background: "color-mix(in srgb, var(--warn) 14%, transparent)",
                 borderRadius: "4px",
                 fontSize: "0.875rem",
               }}

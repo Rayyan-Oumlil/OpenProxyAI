@@ -1,14 +1,12 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ShieldCheck } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
 import { apiClient } from "../../api/client";
 import type { AdminAuditLogEntry, Page } from "../../api/types";
-import { formatDateTime } from "../../lib/utils";
-import { EmptyState } from "../../components/EmptyState";
-import { ErrorState } from "../../components/ErrorState";
-import { LoadingState } from "../../components/LoadingState";
+import { formatDateTime, formatNumber } from "../../lib/utils";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { useAuth } from "../../state/AuthContext";
 
 // ── Action badge colors ──────────────────────────────────────────────────────
@@ -24,11 +22,11 @@ function getActionCategory(action: string): ActionCategory {
 }
 
 const ACTION_BADGE_STYLES: Record<ActionCategory, React.CSSProperties> = {
-  policy: { background: "rgba(14,165,233,0.1)", color: "#0369a1" },
-  user: { background: "rgba(245,158,11,0.1)", color: "#92400e" },
-  provider_key: { background: "rgba(124,58,237,0.1)", color: "#5b21b6" },
-  invite: { background: "rgba(20,184,166,0.1)", color: "#0f766e" },
-  default: { background: "rgba(100,116,139,0.08)", color: "var(--muted)" },
+  policy: { background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" },
+  user: { background: "color-mix(in srgb, var(--warn) 14%, transparent)", color: "var(--warn)" },
+  provider_key: { background: "color-mix(in srgb, var(--drift) 14%, transparent)", color: "var(--drift)" },
+  invite: { background: "color-mix(in srgb, var(--ok) 14%, transparent)", color: "var(--ok)" },
+  default: { background: "var(--bg-sunken)", color: "var(--muted)" },
 };
 
 function ActionBadge({ action }: { action: string }) {
@@ -48,8 +46,8 @@ function ActionBadge({ action }: { action: string }) {
 function JsonPanel({ label, data }: { label: string; data: Record<string, unknown> | null }) {
   if (!data) {
     return (
-      <div className="flex flex-col gap-1" style={{ flex: 1 }}>
-        <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <div className="flex flex-col gap-1" style={{ flex: "1 1 240px", minWidth: 0 }}>
+        <p style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--muted)" }}>
           {label}
         </p>
         <p style={{ fontSize: "0.82rem", color: "var(--muted)" }}>—</p>
@@ -57,8 +55,8 @@ function JsonPanel({ label, data }: { label: string; data: Record<string, unknow
     );
   }
   return (
-    <div className="flex flex-col gap-1" style={{ flex: 1 }}>
-      <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+    <div className="flex flex-col gap-1" style={{ flex: "1 1 240px", minWidth: 0 }}>
+      <p style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--muted)" }}>
         {label}
       </p>
       <pre
@@ -84,21 +82,23 @@ function JsonPanel({ label, data }: { label: string; data: Record<string, unknow
 
 // ── Detail expanded row ──────────────────────────────────────────────────────
 
-function DetailRow({ entry }: { entry: AdminAuditLogEntry }) {
+function hasDetail(row: AdminAuditLogEntry): boolean {
+  return row.before !== null || row.after !== null || row.resource_id !== null;
+}
+
+function DetailPanel({ entry }: { entry: AdminAuditLogEntry }) {
   return (
-    <tr>
-      <td colSpan={5} style={{ padding: "0.75rem 1rem", background: "rgba(44,109,191,0.03)" }}>
-        <div className="flex gap-4">
-          <JsonPanel label="Before" data={entry.before} />
-          <JsonPanel label="After" data={entry.after} />
-        </div>
-        {entry.resource_id && (
-          <p style={{ marginTop: "0.5rem", fontSize: "0.78rem", color: "var(--muted)" }}>
-            Resource ID: <code style={{ fontSize: "0.75rem" }}>{entry.resource_id}</code>
-          </p>
-        )}
-      </td>
-    </tr>
+    <div>
+      <div className="flex flex-wrap gap-4">
+        <JsonPanel label="Before" data={entry.before} />
+        <JsonPanel label="After" data={entry.after} />
+      </div>
+      {entry.resource_id && (
+        <p style={{ marginTop: "0.5rem", fontSize: "var(--text-sm)", color: "var(--muted)" }}>
+          Resource ID: <code>{entry.resource_id}</code>
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -141,40 +141,27 @@ export function AuditLogPage() {
     setPage(1);
   }
 
-  if (query.isLoading) return <LoadingState label="Loading audit log..." />;
-  if (query.isError)
-    return (
-      <ErrorState
-        title="Unable to load audit log"
-        detail={query.error instanceof Error ? query.error.message : "Unknown error"}
-      />
-    );
-
   const data = query.data;
+
+  const columns: Column<AdminAuditLogEntry>[] = [
+    { key: "when", header: "When", nowrap: true, cell: (row) => <span className="text-muted-sm">{formatDateTime(row.created_at)}</span> },
+    { key: "actor", header: "Actor", cell: (row) => row.actor_email },
+    { key: "action", header: "Action", cell: (row) => <ActionBadge action={row.action} /> },
+    { key: "resource", header: "Resource", cell: (row) => row.resource_type },
+    { key: "ip", header: "IP address", mono: true, cell: (row) => row.ip_address ?? "\u2014" },
+  ];
 
   return (
     <section className="page-wrap">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Security &amp; Compliance</p>
-          <h1 className="flex items-center gap-2">
-            <ShieldCheck size={22} style={{ color: "var(--accent-sky)" }} />
-            Audit Log
-          </h1>
-        </div>
-      </header>
+      <PageHeader title="Audit log" description="Every change an admin makes to policy, keys and users, with who made it and from where." />
 
-      {/* Filter bar */}
-      <div
-        className="surface-panel grid gap-3"
-        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}
-      >
+      <div className="surface-panel filters-grid">
         <label className="inline-control">
           Action
           <input
             type="text"
             value={actionFilter}
-            placeholder="e.g. policy.update"
+            placeholder="policy.update"
             onChange={(e) => {
               resetPage();
               setActionFilter(e.target.value.trim());
@@ -182,11 +169,11 @@ export function AuditLogPage() {
           />
         </label>
         <label className="inline-control">
-          Resource Type
+          Resource type
           <input
             type="text"
             value={resourceTypeFilter}
-            placeholder="e.g. provider_key"
+            placeholder="provider_key"
             onChange={(e) => {
               resetPage();
               setResourceTypeFilter(e.target.value.trim());
@@ -195,78 +182,52 @@ export function AuditLogPage() {
         </label>
       </div>
 
-      {/* Table or empty state */}
-      {!data || data.items.length === 0 ? (
-        <EmptyState
-          title="No audit entries yet"
-          detail="Admin actions (policy changes, user updates, provider key edits) will appear here."
-        />
-      ) : (
-        <section className="surface-panel">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Actor</th>
-                <th>Action</th>
-                <th>Resource</th>
-                <th>IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.map((row) => {
-                const isExpanded = expandedId === row.id;
-                const hasDetail = row.before !== null || row.after !== null || row.resource_id !== null;
-                return (
-                  <Fragment key={row.id}>
-                    <tr
-                      onClick={() => hasDetail && setExpandedId(isExpanded ? null : row.id)}
-                      style={{ cursor: hasDetail ? "pointer" : "default" }}
-                      className="hover:bg-[rgba(44,109,191,0.04)] transition-colors"
-                    >
-                      <td style={{ fontSize: "0.82rem", color: "var(--muted)", whiteSpace: "nowrap" }}>
-                        {formatDateTime(row.created_at)}
-                      </td>
-                      <td style={{ fontSize: "0.85rem" }}>{row.actor_email}</td>
-                      <td>
-                        <ActionBadge action={row.action} />
-                      </td>
-                      <td style={{ fontSize: "0.85rem" }}>{row.resource_type}</td>
-                      <td style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
-                        {row.ip_address ?? "—"}
-                      </td>
-                    </tr>
-                    {isExpanded && <DetailRow key={`${row.id}-detail`} entry={row} />}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-
-          <footer className="table-footer">
-            <p style={{ color: "var(--muted)", fontSize: "0.88rem" }}>
-              Page {data.page} of {data.total_pages}&nbsp;·&nbsp;
-              {data.total.toLocaleString()} total
-            </p>
-            <div className="pager-actions">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                disabled={data.page <= 1}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => (p < data.total_pages ? p + 1 : p))}
-                disabled={data.page >= data.total_pages}
-              >
-                Next
-              </button>
-            </div>
-          </footer>
-        </section>
-      )}
+      <DataTable
+        caption="Admin audit log"
+        columns={columns}
+        rows={data?.items}
+        getRowId={(row) => row.id}
+        isLoading={query.isLoading}
+        error={
+          query.isError
+            ? {
+                title: "Could not load the audit log",
+                detail: query.error instanceof Error ? query.error.message : "The server did not respond.",
+                onRetry: () => void query.refetch(),
+              }
+            : null
+        }
+        empty={{
+          title: "No audit entries yet",
+          detail: "Policy changes, user updates and provider key edits show up here as admins make them.",
+        }}
+        isRowInteractive={hasDetail}
+        onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
+        expandedId={expandedId}
+        renderExpanded={(row) => <DetailPanel entry={row} />}
+        footer={
+          data ? (
+            <>
+              <span>
+                Page {formatNumber(data.page)} of {formatNumber(data.total_pages)} &middot; {formatNumber(data.total)} entries
+              </span>
+              <div className="pager">
+                <button type="button" className="btn-outline" onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={data.page <= 1}>
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  onClick={() => setPage((p) => (p < data.total_pages ? p + 1 : p))}
+                  disabled={data.page >= data.total_pages}
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          ) : null
+        }
+      />
     </section>
   );
 }

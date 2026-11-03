@@ -200,7 +200,7 @@ export function BillingPage() {
             {analyticsQuery.isLoading ? (
               <p style={{ color: "var(--muted)" }}>Loading usage…</p>
             ) : analyticsQuery.isError ? (
-              <p style={{ color: "var(--danger, #c00)" }}>Could not load analytics overview.</p>
+              <p style={{ color: "var(--err)" }}>Could not load analytics overview.</p>
             ) : (
               (() => {
                 const included = orgQuery.data.included_tokens_monthly!;
@@ -223,7 +223,7 @@ export function BillingPage() {
                       style={{
                         height: 8,
                         borderRadius: 4,
-                        background: "var(--line, #ddd)",
+                        background: "var(--line-strong)",
                         overflow: "hidden",
                       }}
                     >
@@ -231,7 +231,7 @@ export function BillingPage() {
                         style={{
                           width: `${pct}%`,
                           height: "100%",
-                          background: pct > 90 ? "var(--danger, #c62828)" : "var(--accent, #2563eb)",
+                          background: pct > 90 ? "var(--err)" : "var(--accent)",
                         }}
                       />
                     </div>
