@@ -44,6 +44,7 @@ from app.services.crypto_service import decrypt
 from app.services.eval_service import _extract_prompt_text, run_eval_hook
 from app.services.mcp_taint import ChatTaintResult, load_trust_rules, restrict_chat_request
 from app.services.policy_service import PolicyDecision, policy_service, policy_store
+from app.services.stage_timing import StageTimer
 from app.services.rate_limiter import rate_limiter_service
 from app.utils.logging import get_logger
 from app.utils.token_estimator import estimate_tokens
@@ -324,11 +325,19 @@ class _RequestContext:
 	max_fallback_attempts: int | None = None  # x-openproxy-retries override
 	fallback_model: str | None = None  # x-openproxy-fallback-model override
 	session_id: str | None = None  # x-openproxy-session-id for trace grouping
+	stages: StageTimer | None = None
+
+	def __post_init__(self) -> None:
+		if self.stages is None:
+			self.stages = StageTimer(origin=self.start)
 
 
 def _build_request_metadata(ctx: _RequestContext, extra: dict | None = None) -> dict:
 	"""Build request_metadata for logging, merging policy_metadata, experiment_info, session_id."""
 	metadata = {**(ctx.policy_metadata or {})}
+	stages = ctx.stages.as_list() if ctx.stages else []
+	if stages:
+		metadata = {**metadata, "stages": stages}
 	if ctx.experiment_info:
 		metadata = {**metadata, "experiment": ctx.experiment_info}
 	if ctx.session_id:
@@ -595,9 +604,10 @@ class LLMService:
 			ctx.provider, ctx.model_name = _split_model(resolved_model)
 			ctx.experiment_info = experiment_info
 
-		ctx.policy_config = await policy_store.load(ctx.user.org_id, db, ctx.redis)
-		taint = await self._apply_tool_taint(ctx, db)
-		decision = await policy_service.evaluate_chat_request(ctx.request, ctx.policy_config)
+		with ctx.stages.stage("policy"):
+			ctx.policy_config = await policy_store.load(ctx.user.org_id, db, ctx.redis)
+			taint = await self._apply_tool_taint(ctx, db)
+			decision = await policy_service.evaluate_chat_request(ctx.request, ctx.policy_config)
 		if decision.allowed and taint is not None and taint.forced_sink:
 			decision = policy_service.taint_violation(taint.forced_sink, ctx.policy_config)
 		ctx.policy_metadata = decision.as_metadata()
@@ -659,21 +669,22 @@ class LLMService:
 			)
 			return self._policy_block_response(decision)
 
-		ok, ctx.rl_headers, limit_type, limit_detail, retry_after = (
-			await rate_limiter_service.check_limits(
-				redis=ctx.redis,
-				org_id=str(ctx.user.org_id),
-				user_id=str(ctx.user.id),
-				request_tokens_estimate=estimate_tokens(ctx.request),
-				max_rpm=settings.DEFAULT_RATE_LIMIT_RPM,
-				max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
-				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
-				user_daily_budget_usd=getattr(ctx.user, "budget_daily_usd", None),
-				team_id=str(ctx.team_id) if ctx.team_id else None,
-				team_budget_monthly_usd=ctx.team_budget_monthly_usd,
-				model=ctx.request.model,
-				policy_config=ctx.policy_config,
-			)
+		with ctx.stages.stage("rate_limit"):
+			ok, ctx.rl_headers, limit_type, limit_detail, retry_after = (
+				await rate_limiter_service.check_limits(
+					redis=ctx.redis,
+					org_id=str(ctx.user.org_id),
+					user_id=str(ctx.user.id),
+					request_tokens_estimate=estimate_tokens(ctx.request),
+					max_rpm=settings.DEFAULT_RATE_LIMIT_RPM,
+					max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
+					max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
+					user_daily_budget_usd=getattr(ctx.user, "budget_daily_usd", None),
+					team_id=str(ctx.team_id) if ctx.team_id else None,
+					team_budget_monthly_usd=ctx.team_budget_monthly_usd,
+					model=ctx.request.model,
+					policy_config=ctx.policy_config,
+				)
 		)
 		if not ok:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
@@ -830,9 +841,10 @@ class LLMService:
 
 		stream, first_chunk, fb_count, provider_key_id = None, None, 0, None
 		try:
-			(stream, first_chunk), fb_count, provider_key_id = await self._execute_with_fallback(
-				ctx.candidate_keys, _stream_call, ctx.request.model, tag=" (stream)", redis=ctx.redis,
-			)
+			with ctx.stages.stage("upstream"):
+				(stream, first_chunk), fb_count, provider_key_id = await self._execute_with_fallback(
+					ctx.candidate_keys, _stream_call, ctx.request.model, tag=" (stream)", redis=ctx.redis,
+				)
 		except Exception as exc:
 			# Retry with x-openproxy-fallback-model when primary keys all fail
 			if _is_retryable(exc) and ctx.fallback_model and not getattr(ctx, "_used_fallback_model", False):
@@ -846,9 +858,10 @@ class LLMService:
 				)
 				ctx.kwargs = ctx.request.model_dump(exclude_none=True)
 				ctx.kwargs.update({"model": ctx.fallback_model, "timeout": 30, "request_timeout": 30, "stream": True})
-				(stream, first_chunk), fb_count, provider_key_id = await self._execute_with_fallback(
-					ctx.candidate_keys, _stream_call, ctx.fallback_model, tag=" (stream+fallback-model)", redis=ctx.redis,
-				)
+				with ctx.stages.stage("upstream"):
+					(stream, first_chunk), fb_count, provider_key_id = await self._execute_with_fallback(
+						ctx.candidate_keys, _stream_call, ctx.fallback_model, tag=" (stream+fallback-model)", redis=ctx.redis,
+					)
 				ctx.policy_metadata = {
 					**(ctx.policy_metadata or {}),
 					"fallback_model_used": ctx.fallback_model,
@@ -1031,15 +1044,16 @@ class LLMService:
 				for m in ctx.request.messages
 			]
 			cache_temperature = getattr(ctx.request, "temperature", None)
-			cached_body, cache_tier = await cache_service.get(
-				ctx.redis,
-				ctx.request.model,
-				cache_messages,
-				cache_temperature,
-				org_id=ctx.user.org_id,
-				db=db,
-				cache_override=cache_override,
-			)
+			with ctx.stages.stage("cache"):
+				cached_body, cache_tier = await cache_service.get(
+					ctx.redis,
+					ctx.request.model,
+					cache_messages,
+					cache_temperature,
+					org_id=ctx.user.org_id,
+					db=db,
+					cache_override=cache_override,
+				)
 			if cached_body is not None and cache_tier:
 				cached_usage = cached_body.get("usage", {}) if isinstance(cached_body, dict) else {}
 				cached_prompt = int(cached_usage.get("prompt_tokens", 0))
@@ -1095,9 +1109,10 @@ class LLMService:
 
 		response, fb_count, provider_key_id = None, 0, None
 		try:
-			response, fb_count, provider_key_id = await self._execute_with_fallback(
-				ctx.candidate_keys, _call, ctx.request.model, redis=ctx.redis,
-			)
+			with ctx.stages.stage("upstream"):
+				response, fb_count, provider_key_id = await self._execute_with_fallback(
+					ctx.candidate_keys, _call, ctx.request.model, redis=ctx.redis,
+				)
 		except Exception as exc:
 			# Retry with x-openproxy-fallback-model when primary keys all fail
 			if _is_retryable(exc) and ctx.fallback_model and not getattr(ctx, "_used_fallback_model", False):
@@ -1111,9 +1126,10 @@ class LLMService:
 				)
 				ctx.kwargs = ctx.request.model_dump(exclude_none=True)
 				ctx.kwargs.update({"model": ctx.fallback_model, "timeout": 30, "request_timeout": 30})
-				response, fb_count, provider_key_id = await self._execute_with_fallback(
-					ctx.candidate_keys, _call, ctx.fallback_model, redis=ctx.redis,
-				)
+				with ctx.stages.stage("upstream"):
+					response, fb_count, provider_key_id = await self._execute_with_fallback(
+						ctx.candidate_keys, _call, ctx.fallback_model, redis=ctx.redis,
+					)
 				ctx.policy_metadata = {
 					**(ctx.policy_metadata or {}),
 					"fallback_model_used": ctx.fallback_model,

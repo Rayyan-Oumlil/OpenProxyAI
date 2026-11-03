@@ -644,3 +644,120 @@ textarea:focus-visible {
   color: var(--err);
   font-size: var(--text-sm);
 }
+
+/* Request trace page */
+.trace-panel {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.trace-panel h2 {
+  font-size: var(--text-md);
+  margin: 0 0 var(--space-3);
+}
+
+.trace-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.trace-row {
+  display: grid;
+  grid-template-columns: 12rem 5.5rem 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.trace-row__ms {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-2);
+}
+
+.trace-row--untimed .trace-row__label,
+.trace-row--untimed .trace-row__ms {
+  color: var(--muted);
+}
+
+.trace-row__track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+
+.trace-row__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+}
+
+.trace-row__bar[data-stage="policy"] {
+  background: var(--drift);
+}
+
+.trace-row__bar[data-stage="rate_limit"] {
+  background: var(--warn);
+}
+
+.trace-row__bar[data-stage="cache"] {
+  background: var(--text-2);
+}
+
+.trace-total,
+.trace-note {
+  margin: var(--space-3) 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.trace-facts {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.trace-fact {
+  display: grid;
+  grid-template-columns: 12rem 1fr;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.trace-fact dt {
+  color: var(--muted);
+}
+
+.trace-fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.trace-fact__detail {
+  color: var(--text-2);
+}
+
+@media (max-width: 640px) {
+  .trace-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .trace-row__track {
+    grid-column: 1 / -1;
+  }
+
+  .trace-fact {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}
