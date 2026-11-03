@@ -56,12 +56,14 @@ function CompareTab({
   const [systemMessage, setSystemMessage] = useState("");
   const [userMessage, setUserMessage] = useState("");
 
+  const [appliedTemplate, setAppliedTemplate] = useState<PromptTemplate | null>(null);
+  if (loadedTemplate && loadedTemplate !== appliedTemplate) {
+    setAppliedTemplate(loadedTemplate);
+    setSystemMessage(loadedTemplate.system_message ?? "");
+    setUserMessage(loadedTemplate.user_template);
+  }
   useEffect(() => {
-    if (loadedTemplate) {
-      setSystemMessage(loadedTemplate.system_message ?? "");
-      setUserMessage(loadedTemplate.user_template);
-      onClearTemplate();
-    }
+    if (loadedTemplate) onClearTemplate(); // the parent's state cannot be set while this component renders
   }, [loadedTemplate, onClearTemplate]);
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState<number | "">(1024);

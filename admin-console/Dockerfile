@@ -11,4 +11,5 @@ FROM nginx:1.27-alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
-HEALTHCHECK --interval=10s --timeout=3s CMD wget -qO- http://localhost/ || exit 1
+# 127.0.0.1, not localhost: alpine resolves localhost to ::1 first, and nginx here listens on IPv4 only.
+HEALTHCHECK --interval=10s --timeout=3s CMD wget -qO- http://127.0.0.1/ || exit 1

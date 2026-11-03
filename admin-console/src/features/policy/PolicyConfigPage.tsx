@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Plus, Trash2, Shield, Landmark, Building2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
@@ -384,12 +384,12 @@ export function PolicyConfigPage() {
 
   const [form, setForm] = useState<PolicyConfigRequest>({ ...DEFAULT_POLICY });
 
-  // Hydrate form once org loads
-  useEffect(() => {
-    if (orgQuery.data) {
-      setForm(extractPolicy(orgQuery.data));
-    }
-  }, [orgQuery.data]);
+  // Hydrate the form when the organization loads or changes (state adjusted while rendering, not in an effect)
+  const [hydratedFrom, setHydratedFrom] = useState<OrganizationResponse | undefined>();
+  if (orgQuery.data && orgQuery.data !== hydratedFrom) {
+    setHydratedFrom(orgQuery.data);
+    setForm(extractPolicy(orgQuery.data));
+  }
 
   const saveMutation = useMutation({
     mutationFn: (data: PolicyConfigRequest) =>

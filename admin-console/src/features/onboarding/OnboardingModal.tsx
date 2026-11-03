@@ -45,15 +45,8 @@ export function OnboardingModal() {
 
   // On mount: decide whether to show the modal
   useEffect(() => {
-    if (!token) {
-      setIsChecking(false);
-      return;
-    }
-
-    if (isDismissed()) {
-      setIsChecking(false);
-      return;
-    }
+    // Nothing to check: with no token, or after dismissal, the modal never opens and renders null.
+    if (!token || isDismissed()) return;
 
     let cancelled = false;
 

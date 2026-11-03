@@ -116,10 +116,13 @@ export function AdminLayout() {
     }
   }, [collapsed]);
 
-  // Following a link, or growing the window to desktop width, closes the drawer.
-  useEffect(() => {
+  // Following a link, or growing the window to desktop width, closes the drawer. Adjusting state while
+  // rendering (React's documented way to reset state when an input changes) avoids an extra render pass.
+  const [seen, setSeen] = useState({ path: location.pathname, isDesktop });
+  if (seen.path !== location.pathname || seen.isDesktop !== isDesktop) {
+    setSeen({ path: location.pathname, isDesktop });
     setDrawerOpen(false);
-  }, [location.pathname, isDesktop]);
+  }
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
