@@ -21,6 +21,10 @@ Enterprise LLM proxy / AI control plane. Sits between org users and LLM provider
 # Start everything
 docker compose up
 
+# Seeded demo (fake LLM, demo org, sample traffic) and its smoke test; see docs/getting-started/demo.md
+docker compose -f docker-compose.demo.yml up --build
+scripts/smoke.sh
+
 # Backend only (hot reload against Docker DB+Redis)
 cd backend && uvicorn app.main:app --reload --port 8000
 
