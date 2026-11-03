@@ -19,6 +19,7 @@ import { PolicyConfigPage } from "./features/policy/PolicyConfigPage";
 import { AuditLogPage } from "./features/audit/AuditLogPage";
 import { BillingPage } from "./features/billing/BillingPage";
 import { PlaygroundPage } from "./features/playground/PlaygroundPage";
+import { McpServersPage } from "./features/mcp/McpServersPage";
 import { useAuth } from "./state/AuthContext";
 
 export function App() {
@@ -61,6 +62,7 @@ export function App() {
             <Route path="logs" element={<LogsPage />} />
             <Route path="api-keys" element={<ApiKeysPage />} />
             <Route path="provider-keys" element={<ProviderKeysPage />} />
+            <Route path="mcp-servers" element={<McpServersPage />} />
             <Route path="experiments" element={<ExperimentsPage />} />
             <Route path="policy" element={<PolicyConfigPage />} />
             <Route path="teams" element={<TeamsPage />} />
