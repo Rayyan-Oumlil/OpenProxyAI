@@ -52,13 +52,13 @@ export default function BudgetsPoliciesSection() {
           <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>enforced · log-only available</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 32 }} className="budget-grid">
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)', gap: 32 }} className="budget-grid">
           {/* Daily budgets — radial gauges */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18, fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
               <span>daily budgets</span><span>reset 00:00 UTC</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20 }} className="gauge-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 20 }} className="gauge-grid">
               {BUDGETS.map(b => (
                 <div key={b.team} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
                   <Gauge pct={b.pct} color={statColor(b.s)} />
@@ -92,8 +92,14 @@ export default function BudgetsPoliciesSection() {
 
       <style>{`
         @media (max-width: 1000px) {
-          .budget-grid { grid-template-columns: 1fr !important; }
-          .gauge-grid { grid-template-columns: repeat(3,1fr) !important; }
+          .budget-grid { grid-template-columns: minmax(0,1fr) !important; }
+          .gauge-grid { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+        }
+        @media (max-width: 640px) {
+          /* name, mode and hit count on one line; the description wraps underneath */
+          .policy-row { grid-template-columns: minmax(0,1fr) auto auto !important; }
+          .policy-row > :nth-child(3) { grid-column: 1 / -1; order: 3; overflow-wrap: anywhere; }
+          .policy-row > :nth-child(4) { order: 2; }
         }
       `}</style>
     </section>

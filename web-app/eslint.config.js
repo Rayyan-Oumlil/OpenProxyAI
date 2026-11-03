@@ -20,4 +20,10 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn/ui files export variant helpers (buttonVariants, useSidebar) beside their components. That only
+    // costs a full reload instead of fast refresh in dev; splitting generated files would make updating them harder.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

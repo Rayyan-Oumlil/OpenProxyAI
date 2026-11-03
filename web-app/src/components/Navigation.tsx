@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PAGE_MAX_WIDTH } from '../lib/layout';
@@ -16,6 +16,15 @@ const NAV_LINKS = [
 export default function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen]);
+
   return (
     <header>
       {/* Nav bar */}
@@ -26,7 +35,7 @@ export default function Navigation() {
             OpenProxyAI
           </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="hidden lg:flex">
+          <div style={{ alignItems: 'center', gap: 28 }} className="hidden lg:flex">
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, gap: 22, fontSize: 13, display: 'flex' }}>
             {NAV_LINKS.map(l => (
               <li key={l.label}>
@@ -49,21 +58,22 @@ export default function Navigation() {
           <CommandPalette />
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }} className="hidden lg:flex">
+          <div style={{ gap: 8 }} className="hidden lg:flex">
             <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
           </div>
 
           <button className="lg:hidden" onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} aria-controls="mobile-menu"
             style={{ background: 'none', border: 'none', color: 'var(--ink)', cursor: 'pointer', padding: 4 }}>
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
 
         {mobileOpen && (
-          <div style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div id="mobile-menu" style={{ borderTop: '1px solid var(--line)', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {NAV_LINKS.map(l => l.external
               ? <a key={l.label} href={l.href} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</a>
-              : <Link key={l.label} to={l.href} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</Link>)}
+              : <Link key={l.label} to={l.href} onClick={() => setMobileOpen(false)} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</Link>)}
             <div style={{ display: 'flex', gap: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
               <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
             </div>
