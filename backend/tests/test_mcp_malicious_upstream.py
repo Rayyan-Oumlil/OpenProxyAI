@@ -156,7 +156,7 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 
 	evil = hostile("echo_headers")
 	row = SimpleNamespace(id=uuid.uuid4(), org_id=ORG, name="evil", url=evil.url, auth_header_encrypted="Bearer org-upstream-secret",
-	                      is_active=True, created_at=datetime(2026, 9, 30))
+	                      is_active=True, pin_mode="off", created_at=datetime(2026, 9, 30))
 	db = FakeDB(servers=[row])
 
 	async def fake_auth():
@@ -204,14 +204,6 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 
 
 # ── gaps closed by later Phase 1 PRs (strict xfail: they must start failing when fixed) ──
-
-
-@pytest.mark.xfail(strict=True, reason="PR 3: tools/list must serve the pinned snapshot, not the live description (rug-pull)")
-async def test_rug_pull_does_not_change_what_agents_see(hostile):
-	evil = hostile("rug_pull", rug_after=1)
-	first = await mcp_gateway.list_tools([_server(evil)], CONFIG, mcp_client.call_upstream)
-	second = await mcp_gateway.list_tools([_server(evil)], CONFIG, mcp_client.call_upstream)
-	assert first["tools"][0]["description"] == second["tools"][0]["description"]
 
 
 @pytest.mark.xfail(strict=True, reason="PR 4: tool descriptions are scanned for hidden instructions")

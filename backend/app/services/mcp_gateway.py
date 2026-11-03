@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from app.services.mcp_client import McpUpstreamError
+from app.services.mcp_pinning import PIN_OFF, ToolPin, call_gate, served_snapshot
 from app.services.policy_service import PolicyConfig, PolicyDecision, policy_service
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ MAX_TOOLS_PER_SERVER = 1000  # a hostile server must not flood the agent context
 ERR_INVALID_PARAMS = -32602
 ERR_POLICY_BLOCKED = -32001
 ERR_UPSTREAM = -32002
+ERR_TOOL_PIN = -32004  # tool not approved (pending, drifted or blocked) under pin_mode=enforce
 
 UpstreamCall = Callable[[str, str | None, str, dict | None], Awaitable[dict[str, Any]]]
 
@@ -35,6 +38,16 @@ class UpstreamServer:
     name: str
     url: str
     auth_header: str | None
+    id: uuid.UUID | None = None
+    pin_mode: str = PIN_OFF
+
+
+class PinStore(Protocol):
+    """Pin state for tools of upstream servers (see mcp_pinning.DbPinStore)."""
+
+    async def reconcile(self, server: UpstreamServer, live: list[dict[str, Any]]) -> dict[str, ToolPin]: ...
+
+    async def get(self, server: UpstreamServer, tool_name: str) -> ToolPin | None: ...
 
 
 @dataclass(frozen=True)
@@ -47,14 +60,15 @@ class ToolCallOutcome:
     decision: PolicyDecision | None
     result: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
+    pin_status: str | None = None  # pending | approved | drifted | blocked | unpinned; None when pinning is off
 
 
-async def _list_server_tools(server: UpstreamServer, call: UpstreamCall) -> list[dict[str, Any]]:
+async def list_server_tools(server: UpstreamServer, call: UpstreamCall) -> list[dict[str, Any]]:
     tools: list[dict[str, Any]] = []
     cursor: str | None = None
     for _ in range(MAX_LIST_PAGES):
         page = await call(server.url, server.auth_header, "tools/list", {"cursor": cursor} if cursor else {})
-        tools.extend(page.get("tools") or [])
+        tools.extend(t for t in page.get("tools") or [] if isinstance(t, dict) and isinstance(t.get("name"), str))
         cursor = page.get("nextCursor")
         if not cursor:
             break
@@ -66,9 +80,14 @@ async def _list_server_tools(server: UpstreamServer, call: UpstreamCall) -> list
     return tools
 
 
-async def list_tools(servers: list[UpstreamServer], config: PolicyConfig, call: UpstreamCall) -> dict[str, Any]:
-    """tools/list across every server; tools the policy would block are not advertised."""
-    results = await asyncio.gather(*(_list_server_tools(s, call) for s in servers), return_exceptions=True)
+async def list_tools(
+    servers: list[UpstreamServer], config: PolicyConfig, call: UpstreamCall, pins: PinStore | None = None
+) -> dict[str, Any]:
+    """tools/list across every server; tools the policy would block are not advertised.
+
+    With pinning on, agents see the approved snapshot of each tool, never the live description.
+    """
+    results = await asyncio.gather(*(list_server_tools(s, call) for s in servers), return_exceptions=True)
     tools: list[dict[str, Any]] = []
     unavailable: list[str] = []
     for server, result in zip(servers, results):
@@ -77,6 +96,9 @@ async def list_tools(servers: list[UpstreamServer], config: PolicyConfig, call: 
             continue
         if isinstance(result, BaseException):
             raise result
+        if pins is not None and server.pin_mode != PIN_OFF:
+            pinned = await pins.reconcile(server, result)
+            result = [snap for t in result if (snap := served_snapshot(pinned.get(t.get("name")), server.pin_mode))]
         for tool in result:
             name = f"{server.name}{TOOL_SEPARATOR}{tool['name']}"
             if policy_service.evaluate_tool_call(name, {}, config).allowed:
@@ -93,7 +115,12 @@ def _invalid(tool: str, message: str) -> ToolCallOutcome:
 
 
 async def call_tool(
-    servers: list[UpstreamServer], config: PolicyConfig, name: Any, arguments: Any, call: UpstreamCall
+    servers: list[UpstreamServer],
+    config: PolicyConfig,
+    name: Any,
+    arguments: Any,
+    call: UpstreamCall,
+    pins: PinStore | None = None,
 ) -> ToolCallOutcome:
     """tools/call: resolve the server, apply policy, forward, and describe what happened."""
     if not isinstance(name, str):
@@ -116,11 +143,24 @@ async def call_tool(
             },
         )
 
+    pin_status: str | None = None
+    if pins is not None and server.pin_mode != PIN_OFF:
+        allowed, pin_status = call_gate(await pins.get(server, tool), server.pin_mode)
+        if not allowed:
+            return ToolCallOutcome(
+                tool=name, server=server.name, status_code=446, decision=decision, pin_status=pin_status,
+                error={
+                    "code": ERR_TOOL_PIN,
+                    "message": f"Tool {name} is not approved ({pin_status}); ask an administrator to review it",
+                    "data": {"reason_code": f"tool_pin_{pin_status}"},
+                },
+            )
+
     try:
         result = await call(server.url, server.auth_header, "tools/call", {"name": tool, "arguments": arguments})
     except McpUpstreamError as exc:
         # The upstream's own error text can carry prompt-injection or internals; log it, never forward it.
         logger.warning("MCP upstream %s failed on tools/call: %s", server.name, exc)
-        return ToolCallOutcome(tool=name, server=server.name, status_code=502, decision=decision,
+        return ToolCallOutcome(tool=name, server=server.name, status_code=502, decision=decision, pin_status=pin_status,
                                error={"code": ERR_UPSTREAM, "message": f"Upstream MCP server {server.name} unavailable"})
-    return ToolCallOutcome(tool=name, server=server.name, status_code=200, decision=decision, result=result)
+    return ToolCallOutcome(tool=name, server=server.name, status_code=200, decision=decision, result=result, pin_status=pin_status)
