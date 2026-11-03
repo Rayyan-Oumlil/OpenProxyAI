@@ -24,6 +24,7 @@ from app.models.mcp_server import McpServer
 from app.services.crypto_service import decrypt
 from app.services.mcp_audit import record_tool_call
 from app.services.mcp_client import call_upstream
+from app.services.mcp_bundles import key_has_bundles, load_bundle_patterns
 from app.services.mcp_gateway import UpstreamServer, call_tool, list_tools
 from app.services.mcp_grants import (
 	SCOPE_HEADER,
@@ -48,6 +49,7 @@ INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
 FORBIDDEN = -32005
 RATE_LIMITED = -32006
+BUNDLE_NOT_FOUND = -32008
 
 MCP_PERMISSION = "proxy:mcp"
 
@@ -97,6 +99,30 @@ async def mcp_endpoint(
 	db: AsyncSession = Depends(get_db),
 	redis: Redis = Depends(get_redis),
 ) -> Response:
+	return await _serve(request, auth, background_tasks, db, redis, None)
+
+
+@router.post("/v1/mcp/{slug}")
+async def mcp_bundle_endpoint(
+	slug: str,
+	request: Request,
+	auth: ProxyAuth,
+	background_tasks: BackgroundTasks,
+	db: AsyncSession = Depends(get_db),
+	redis: Redis = Depends(get_redis),
+) -> Response:
+	"""The same gateway, limited to the tools of one bundle the calling key is attached to."""
+	return await _serve(request, auth, background_tasks, db, redis, slug)
+
+
+async def _serve(
+	request: Request,
+	auth,
+	background_tasks: BackgroundTasks,
+	db: AsyncSession,
+	redis: Redis,
+	bundle_slug: str | None,
+) -> Response:
 	user, api_key = auth
 	if not _origin_allowed(request.headers.get("origin")):
 		return _error(None, FORBIDDEN, "Origin not allowed", status_code=403)
@@ -111,6 +137,14 @@ async def mcp_endpoint(
 		scope = parse_scope_header(request.headers.getlist(SCOPE_HEADER))
 	except ScopeHeaderError as exc:
 		return _error(None, INVALID_REQUEST, str(exc), status_code=400)
+	bundle: tuple[str, ...] | None = None
+	if bundle_slug is None:
+		if await key_has_bundles(db, user.org_id, api_key.id):
+			return _error(None, FORBIDDEN, "This API key is confined to MCP bundles: use /v1/mcp/{bundle}", status_code=403)
+	else:
+		bundle = await load_bundle_patterns(db, user.org_id, api_key.id, bundle_slug)
+		if bundle is None:
+			return _error(None, BUNDLE_NOT_FOUND, "Bundle not found", status_code=404)
 	try:
 		message = await request.json()
 	except ValueError:
@@ -146,7 +180,7 @@ async def mcp_endpoint(
 	config = await policy_store.load(user.org_id, db, redis)
 
 	caller = Caller(user_id=user.id, role=user.role, team_id=getattr(api_key, "team_id", None), api_key_id=api_key.id)
-	access = build_access(await load_grants(db, user.org_id), caller, scope)
+	access = build_access(await load_grants(db, user.org_id), caller, scope, bundle)
 	pins = DbPinStore(db, user.org_id)
 	if method == "tools/list":
 		listed = await list_tools(servers, config, call_upstream, pins, access)
@@ -155,7 +189,10 @@ async def mcp_endpoint(
 
 	started = time.perf_counter()
 	outcome = await call_tool(servers, config, params.get("name"), params.get("arguments", {}), call_upstream, pins, access)
-	outcome = replace(outcome, access=access.summary())
+	summary = access.summary()
+	if bundle_slug is not None:
+		summary = {**summary, "bundle": bundle_slug}
+	outcome = replace(outcome, access=summary)
 	background_tasks.add_task(
 		record_tool_call,
 		org_id=user.org_id,
@@ -171,6 +208,8 @@ async def mcp_endpoint(
 
 @router.get("/v1/mcp")
 @router.delete("/v1/mcp")
-async def mcp_no_stream() -> Response:
+@router.get("/v1/mcp/{slug}")
+@router.delete("/v1/mcp/{slug}")
+async def mcp_no_stream(slug: str | None = None) -> Response:
 	"""The gateway does not open server-initiated SSE streams or hold sessions (spec M1)."""
 	return Response(status_code=405, headers={"Allow": "POST"})

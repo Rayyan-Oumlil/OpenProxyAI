@@ -112,11 +112,21 @@ def gateway(monkeypatch):
 		return list(grants)
 
 	grants: list = []
+	bundles: dict[str, tuple[str, ...]] = {}  # slug -> patterns of bundles the test key is attached to
+
+	async def fake_has_bundles(db_, org_id, api_key_id):
+		return bool(bundles)
+
+	async def fake_bundle(db_, org_id, api_key_id, slug):
+		return bundles.get(slug)
+
 	monkeypatch.setattr(mcp_route, "load_grants", fake_grants)
+	monkeypatch.setattr(mcp_route, "key_has_bundles", fake_has_bundles)
+	monkeypatch.setattr(mcp_route, "load_bundle_patterns", fake_bundle)
 	monkeypatch.setattr(mcp_route.policy_store, "load", fake_policy)
 	monkeypatch.setattr(mcp_route, "call_upstream", fake_upstream)
 	monkeypatch.setattr(mcp_route, "record_tool_call", fake_record)
-	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls, redis=redis, grants=grants)
+	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls, redis=redis, grants=grants, bundles=bundles)
 
 
 def rpc(client, method, params=None, id_=1, headers=None):
@@ -307,6 +317,85 @@ def test_effective_access_is_written_to_the_audit_row(client, gateway):
 	gateway.grants.append(GrantRule("role", "admin", "github__*", "allow"))
 	call(client, headers={SCOPE: "github__search"})
 	assert gateway.audits[-1]["outcome"].access == {"allow": ["github__*"], "deny": [], "scope": ["github__search"]}
+
+
+# ── virtual bundles: POST /v1/mcp/{slug} ─────────────────────────────────────
+
+
+def at_bundle(client, slug, method="tools/list", params=None, headers=None):
+	body = {"jsonrpc": "2.0", "id": 1, "method": method, **({"params": params} if params is not None else {})}
+	return client.post(f"/v1/mcp/{slug}", json=body, headers={"Authorization": "Bearer opai_test", **(headers or {})})
+
+
+def test_bundle_endpoint_lists_only_the_bundle_tools(client, gateway):
+	gateway.bundles["readonly"] = ("github__search",)
+	assert [t["name"] for t in at_bundle(client, "readonly").json()["result"]["tools"]] == ["github__search"]
+	gateway.bundles["nothing"] = ("jira__*",)
+	assert at_bundle(client, "nothing").json()["result"]["tools"] == []
+
+
+def test_a_call_outside_the_bundle_is_refused_and_never_reaches_the_upstream(client, gateway):
+	gateway.bundles["readonly"] = ("jira__*",)
+	response = at_bundle(client, "readonly", "tools/call", {"name": "github__search", "arguments": {}})
+	assert response.json()["error"]["data"]["reason_code"] == "tool_not_in_bundle"
+	assert [c for c in gateway.upstream_calls if c[1] == "tools/call"] == []
+	assert gateway.audits[-1]["outcome"].access["bundle"] == "readonly"
+	assert gateway.audits[-1]["outcome"].access["bundle_patterns"] == ["jira__*"]
+
+
+def test_a_call_inside_the_bundle_works(client, gateway):
+	gateway.bundles["readonly"] = ("github__*",)
+	assert "result" in at_bundle(client, "readonly", "tools/call", {"name": "github__search", "arguments": {}}).json()
+
+
+def test_an_empty_bundle_allows_nothing(client, gateway):
+	gateway.bundles["empty"] = ()
+	assert at_bundle(client, "empty").json()["result"]["tools"] == []
+
+
+def test_unknown_and_unattached_bundles_are_indistinguishable(client, gateway):
+	gateway.bundles["mine"] = ("*",)
+	missing, unknown = at_bundle(client, "does-not-exist"), at_bundle(client, "also-missing")
+	assert missing.status_code == unknown.status_code == 404
+	assert missing.json() == unknown.json() and missing.json()["error"]["code"] == -32008
+
+
+def test_a_key_attached_to_a_bundle_cannot_use_the_bare_endpoint(client, gateway):
+	gateway.bundles["readonly"] = ("github__search",)
+	response = rpc(client, "tools/list")
+	assert response.status_code == 403 and "bundle" in response.json()["error"]["message"]
+	assert gateway.upstream_calls == []
+
+
+def test_a_key_without_bundles_keeps_using_the_bare_endpoint(client, gateway):
+	assert rpc(client, "tools/list").status_code == 200
+
+
+def test_a_bundle_cannot_widen_past_org_policy_or_grants(client, gateway):
+	gateway.bundles["wide"] = ("*",)
+	assert at_bundle(client, "wide", "tools/call", {"name": "github__delete_repo", "arguments": {}}).json()["error"]["data"]["reason_code"] == "tool_blocked"
+	gateway.grants.append(GrantRule("role", "admin", "github__search", "allow"))
+	assert at_bundle(client, "wide", "tools/call", {"name": "github__other", "arguments": {}}).json()["error"]["data"]["reason_code"] == "tool_not_granted"
+
+
+def test_bundle_and_scope_header_intersect(client, gateway):
+	gateway.bundles["b"] = ("github__*",)
+	assert at_bundle(client, "b", headers={SCOPE: "jira__*"}).json()["result"]["tools"] == []
+	assert [t["name"] for t in at_bundle(client, "b", headers={SCOPE: "github__search"}).json()["result"]["tools"]] == ["github__search"]
+
+
+def test_bundle_endpoint_enforces_the_same_front_door_checks(client, gateway, monkeypatch):
+	gateway.bundles["b"] = ("*",)
+	assert at_bundle(client, "b", headers={"Origin": "https://evil.example"}).status_code == 403
+	monkeypatch.setattr(API_KEY, "permissions", ["proxy:llm"])
+	assert at_bundle(client, "b").status_code == 403
+	monkeypatch.setattr(API_KEY, "permissions", ["proxy:llm", "proxy:mcp"])
+	monkeypatch.setattr(mcp_route.settings, "MCP_RATE_LIMIT_PER_MINUTE", 1)
+	assert at_bundle(client, "b").status_code == 200 and at_bundle(client, "b").status_code == 429
+
+
+def test_bundle_endpoint_has_no_sse_stream(client, gateway):
+	assert client.get("/v1/mcp/anything", headers={"Authorization": "Bearer opai_test"}).status_code == 405
 
 
 # ── audit writer ─────────────────────────────────────────────────────────────

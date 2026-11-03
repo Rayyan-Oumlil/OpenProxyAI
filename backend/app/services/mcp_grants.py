@@ -39,6 +39,7 @@ MAX_SUMMARY_PATTERNS = 50
 REASON_DENIED = "tool_grant_denied"
 REASON_NOT_GRANTED = "tool_not_granted"
 REASON_OUT_OF_SCOPE = "tool_out_of_scope"
+REASON_OUT_OF_BUNDLE = "tool_not_in_bundle"
 
 
 class ScopeHeaderError(ValueError):
@@ -86,6 +87,7 @@ class ToolAccess:
     allow: tuple[str, ...] = ()
     deny: tuple[str, ...] = ()
     scope: tuple[str, ...] | None = None
+    bundle: tuple[str, ...] | None = None  # patterns of the bundle endpoint in use; () allows nothing
 
     def check(self, tool_name: str) -> AccessVerdict:
         if _matches(tool_name, self.deny):
@@ -94,6 +96,8 @@ class ToolAccess:
             return AccessVerdict(False, REASON_NOT_GRANTED)
         if self.scope is not None and not _matches(tool_name, self.scope):
             return AccessVerdict(False, REASON_OUT_OF_SCOPE)
+        if self.bundle is not None and not _matches(tool_name, self.bundle):
+            return AccessVerdict(False, REASON_OUT_OF_BUNDLE)
         return AccessVerdict(True)
 
     def summary(self) -> dict[str, Any]:
@@ -104,16 +108,24 @@ class ToolAccess:
         out: dict[str, Any] = {"allow": cap(self.allow), "deny": cap(self.deny)}
         if self.scope is not None:
             out["scope"] = cap(self.scope)
+        if self.bundle is not None:
+            out["bundle_patterns"] = cap(self.bundle)
         return out
 
 
-def build_access(rules: Iterable[GrantRule], caller: Caller, scope: tuple[str, ...] | None = None) -> ToolAccess:
+def build_access(
+    rules: Iterable[GrantRule],
+    caller: Caller,
+    scope: tuple[str, ...] | None = None,
+    bundle: tuple[str, ...] | None = None,
+) -> ToolAccess:
     subjects = caller.subjects()
     applicable = [r for r in rules if (r.subject_type, r.subject_id) in subjects]
     return ToolAccess(
         allow=tuple(sorted({r.tool_pattern for r in applicable if r.effect == "allow"})),
         deny=tuple(sorted({r.tool_pattern for r in applicable if r.effect == "deny"})),
         scope=scope,
+        bundle=bundle,
     )
 
 
