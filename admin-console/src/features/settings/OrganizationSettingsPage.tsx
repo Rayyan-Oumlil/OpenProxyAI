@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -28,16 +28,16 @@ export function OrganizationSettingsPage() {
     enabled: Boolean(token),
   });
 
-  useEffect(() => {
-    if (!orgQuery.data) {
-      return;
-    }
+  // Fill the form when the organization loads or changes (state adjusted while rendering, not in an effect)
+  const [filledFrom, setFilledFrom] = useState<OrganizationResponse | undefined>();
+  if (orgQuery.data && orgQuery.data !== filledFrom) {
+    setFilledFrom(orgQuery.data);
     setName(orgQuery.data.name);
     setBudgetMonthly(orgQuery.data.budget_monthly_usd ?? "");
     setIsActive(orgQuery.data.is_active);
     setDataRegion(orgQuery.data.data_region ?? "us");
     setSettingsJson(JSON.stringify(orgQuery.data.settings ?? {}, null, 2));
-  }, [orgQuery.data]);
+  }
 
   const updateMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>

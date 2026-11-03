@@ -80,11 +80,8 @@ services:
     build: ./admin-console
     ports:
       - "5173:80"
-    # The image's own check calls http://localhost/, which resolves to IPv6 first while nginx listens on IPv4.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 3s
-      timeout: 5s
       retries: 20
     depends_on:
       api: {condition: service_healthy}
