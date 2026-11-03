@@ -1,26 +1,30 @@
+import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "sonner";
 
-import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { AdminLayout } from "./features/layout/AdminLayout";
-import { LogsPage } from "./features/logs/LogsPage";
-import { ApiKeysPage } from "./features/keys/ApiKeysPage";
-import { LoginPage } from "./features/auth/LoginPage";
-import { SignupPage } from "./features/auth/SignupPage";
-import { SSOCallbackPage } from "./features/auth/SSOCallbackPage";
-import { AcceptInvitePage } from "./features/auth/AcceptInvitePage";
-import { OrganizationSettingsPage } from "./features/settings/OrganizationSettingsPage";
-import { UsersRolesPage } from "./features/users/UsersRolesPage";
-import { TeamsPage } from "./features/teams/TeamsPage";
-import { ProviderKeysPage } from "./features/providerkeys/ProviderKeysPage";
-import { ExperimentsPage } from "./features/experiments/ExperimentsPage";
+import { LoadingState } from "./components/LoadingState";
 import { OnboardingModal } from "./features/onboarding/OnboardingModal";
-import { PolicyConfigPage } from "./features/policy/PolicyConfigPage";
-import { AuditLogPage } from "./features/audit/AuditLogPage";
-import { BillingPage } from "./features/billing/BillingPage";
-import { PlaygroundPage } from "./features/playground/PlaygroundPage";
-import { McpServersPage } from "./features/mcp/McpServersPage";
 import { useAuth } from "./state/AuthContext";
+
+// Each page is its own chunk: the console no longer ships every screen (and recharts) up front.
+const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const LogsPage = lazy(() => import("./features/logs/LogsPage").then((m) => ({ default: m.LogsPage })));
+const ApiKeysPage = lazy(() => import("./features/keys/ApiKeysPage").then((m) => ({ default: m.ApiKeysPage })));
+const LoginPage = lazy(() => import("./features/auth/LoginPage").then((m) => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import("./features/auth/SignupPage").then((m) => ({ default: m.SignupPage })));
+const SSOCallbackPage = lazy(() => import("./features/auth/SSOCallbackPage").then((m) => ({ default: m.SSOCallbackPage })));
+const AcceptInvitePage = lazy(() => import("./features/auth/AcceptInvitePage").then((m) => ({ default: m.AcceptInvitePage })));
+const OrganizationSettingsPage = lazy(() => import("./features/settings/OrganizationSettingsPage").then((m) => ({ default: m.OrganizationSettingsPage })));
+const UsersRolesPage = lazy(() => import("./features/users/UsersRolesPage").then((m) => ({ default: m.UsersRolesPage })));
+const TeamsPage = lazy(() => import("./features/teams/TeamsPage").then((m) => ({ default: m.TeamsPage })));
+const ProviderKeysPage = lazy(() => import("./features/providerkeys/ProviderKeysPage").then((m) => ({ default: m.ProviderKeysPage })));
+const ExperimentsPage = lazy(() => import("./features/experiments/ExperimentsPage").then((m) => ({ default: m.ExperimentsPage })));
+const PolicyConfigPage = lazy(() => import("./features/policy/PolicyConfigPage").then((m) => ({ default: m.PolicyConfigPage })));
+const AuditLogPage = lazy(() => import("./features/audit/AuditLogPage").then((m) => ({ default: m.AuditLogPage })));
+const BillingPage = lazy(() => import("./features/billing/BillingPage").then((m) => ({ default: m.BillingPage })));
+const PlaygroundPage = lazy(() => import("./features/playground/PlaygroundPage").then((m) => ({ default: m.PlaygroundPage })));
+const McpServersPage = lazy(() => import("./features/mcp/McpServersPage").then((m) => ({ default: m.McpServersPage })));
 
 export function App() {
   const { token, isRestoring } = useAuth();
@@ -47,12 +51,14 @@ export function App() {
         }}
       />
       {!token ? (
+        <Suspense fallback={<LoadingState label="Loading…" />}>
         <Routes>
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/sso-callback" element={<SSOCallbackPage />} />
           <Route path="/accept-invite" element={<AcceptInvitePage />} />
           <Route path="*" element={<LoginPage />} />
         </Routes>
+        </Suspense>
       ) : (
         <>
         <OnboardingModal />
