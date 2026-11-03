@@ -4,9 +4,13 @@ FROM python:3.11-slim AS builder
 WORKDIR /build
 
 COPY requirements.txt .
+# torch + transformers (multi-GB with CUDA wheels) only serve the optional ML prompt-injection model, which
+# is imported lazily and falls back to regex when absent. The demo image builds with INSTALL_ML=false.
+ARG INSTALL_ML=true
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    && if [ "$INSTALL_ML" = "false" ]; then grep -v -E '^(torch|transformers)([<>=!~ ]|$)' requirements.txt > requirements.lite.txt; else cp requirements.txt requirements.lite.txt; fi \
+    && /opt/venv/bin/pip install --no-cache-dir -r requirements.lite.txt
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────
 FROM python:3.11-slim AS runtime

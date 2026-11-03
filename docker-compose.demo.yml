@@ -1,0 +1,103 @@
+# Seeded demo: docker compose -f docker-compose.demo.yml up --build
+#
+# Self-contained: its own Postgres and Redis, a fake OpenAI-compatible upstream (no provider key
+# needed, no cost), migrations and a demo org on start, and a one-shot job that sends real traffic
+# so the console opens with data. Console http://localhost:5173, API http://localhost:8000.
+# All credentials here are public demo values. Never deploy this file.
+# Reset everything: docker compose -f docker-compose.demo.yml down -v
+
+name: openproxyai-demo
+
+x-backend-env: &backend-env
+  APP_ENV: development
+  DEBUG: "false"
+  SECRET_KEY: demo-secret-key-not-for-production-0123456789
+  DATABASE_URL: postgresql+asyncpg://openproxyai:demo@postgres:5432/openproxyai
+  REDIS_URL: redis://redis:6379/0
+  CORS_ORIGINS: '["http://localhost:5173"]'
+  CACHE_ENABLED: "true"
+  # LiteLLM sends openai/* models here instead of api.openai.com.
+  OPENAI_API_BASE: http://fake-llm:9090/v1
+
+# api and fake-llm share one image; the second build is a layer-cache hit.
+x-backend-build: &backend-build
+  context: ./backend
+  args:
+    INSTALL_ML: "false"
+
+services:
+  postgres:
+    # pgvector is required by the migrations.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: openproxyai
+      POSTGRES_USER: openproxyai
+      POSTGRES_PASSWORD: demo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openproxyai"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  fake-llm:
+    build: *backend-build
+    command: ["uvicorn", "--factory", "tests.fakes.fake_openai:create_app", "--host", "0.0.0.0", "--port", "9090"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:9090/v1/models').raise_for_status()"]
+      interval: 3s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+  api:
+    build: *backend-build
+    command: ["sh", "-c", "alembic upgrade head && python -m scripts.seed_demo && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    environment: *backend-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      fake-llm: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 3s
+      timeout: 10s
+      retries: 60
+      start_period: 20s
+
+  console:
+    build: ./admin-console
+    ports:
+      - "5173:80"
+    # The image's own check calls http://localhost/, which resolves to IPv6 first while nginx listens on IPv4.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      api: {condition: service_healthy}
+
+  # One-shot: sends allowed, cached and blocked requests so the console and audit log have rows.
+  traffic:
+    image: curlimages/curl:8.10.1
+    entrypoint: ["sh", "/demo_traffic.sh"]
+    environment:
+      BASE_URL: http://api:8000
+      FAKE_URL: http://fake-llm:9090
+    volumes:
+      - ./scripts/demo_traffic.sh:/demo_traffic.sh:ro
+    depends_on:
+      api: {condition: service_healthy}
+    restart: "no"
