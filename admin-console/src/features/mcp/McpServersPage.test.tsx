@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ConfirmProvider } from "../../components/ui/ConfirmDialog";
 import { McpServersPage } from "./McpServersPage";
 import { changedFields } from "./toolDiff";
 import type { McpServer, McpTool } from "./types";
@@ -56,7 +57,9 @@ function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <McpServersPage />
+      <ConfirmProvider>
+        <McpServersPage />
+      </ConfirmProvider>
     </QueryClientProvider>,
   );
 }
@@ -93,10 +96,20 @@ describe("McpServersPage", () => {
   });
 
   it("does not delete when the confirmation is declined", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     renderPage();
     fireEvent.click(await screen.findByLabelText("Remove github"));
+    expect(await screen.findByRole("dialog", { name: "Remove github?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(api.deleteServer).not.toHaveBeenCalled();
+  });
+
+  it("deletes after the confirmation is accepted", async () => {
+    api.deleteServer.mockResolvedValue(undefined);
+    renderPage();
+    fireEvent.click(await screen.findByLabelText("Remove github"));
+    fireEvent.click(await screen.findByRole("button", { name: "Remove server" }));
+    await waitFor(() => expect(api.deleteServer).toHaveBeenCalledWith("s1", "tok"));
   });
 
   it("opens the tool list and shows the drift of an unreviewed change", async () => {

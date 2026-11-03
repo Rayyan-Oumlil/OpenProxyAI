@@ -17,6 +17,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
 import { EmptyState } from "../../components/EmptyState";
 import { formatDate } from "../../lib/utils";
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import {
   Dialog,
   DialogContent,
@@ -396,8 +397,16 @@ export function TeamsPage() {
 
   const canManage = user?.role === "admin";
 
-  function handleDelete(id: string) {
-    if (!window.confirm("Delete this team? Members will be unassigned.")) return;
+  const confirm = useConfirm();
+
+  async function handleDelete(id: string) {
+    const ok = await confirm({
+      title: "Delete team?",
+      description: "Members will be unassigned.",
+      confirmLabel: "Delete team",
+      destructive: true,
+    });
+    if (!ok) return;
     deleteMutation.mutate(id);
   }
 

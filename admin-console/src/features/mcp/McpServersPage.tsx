@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable, type Column } from "../../components/ui/DataTable";
+import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { formatDate } from "../../lib/utils";
@@ -58,8 +59,16 @@ export function McpServersPage() {
     onError: (err) => toast.error(errorMessage(err)),
   });
 
-  function confirmDelete(server: McpServer) {
-    if (!window.confirm(`Remove ${server.name}? Its pinned tools and history are deleted too.`)) return;
+  const confirm = useConfirm();
+
+  async function confirmDelete(server: McpServer) {
+    const ok = await confirm({
+      title: `Remove ${server.name}?`,
+      description: "Its pinned tools and their history are deleted too. Agents lose access to its tools.",
+      confirmLabel: "Remove server",
+      destructive: true,
+    });
+    if (!ok) return;
     remove.mutate(server.id);
   }
 
