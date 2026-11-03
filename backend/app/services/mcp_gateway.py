@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 TOOL_SEPARATOR = "__"
 MAX_LIST_PAGES = 10
+MAX_TOOLS_PER_SERVER = 1000  # a hostile server must not flood the agent context with tools
 
 # JSON-RPC error codes (implementation-defined range for gateway errors).
 ERR_INVALID_PARAMS = -32602
@@ -57,6 +58,11 @@ async def _list_server_tools(server: UpstreamServer, call: UpstreamCall) -> list
         cursor = page.get("nextCursor")
         if not cursor:
             break
+        if len(tools) >= MAX_TOOLS_PER_SERVER:
+            break
+    if len(tools) > MAX_TOOLS_PER_SERVER:
+        logger.warning("MCP upstream %s advertised %d tools; truncated to %d", server.name, len(tools), MAX_TOOLS_PER_SERVER)
+        tools = tools[:MAX_TOOLS_PER_SERVER]
     return tools
 
 
