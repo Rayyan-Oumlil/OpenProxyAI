@@ -1,4 +1,5 @@
-import { Fragment, type KeyboardEvent, type ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
+import { Fragment, useId, type KeyboardEvent, type ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
 
@@ -39,6 +40,8 @@ interface DataTableProps<T> {
   /** When set, the row with this id renders `renderExpanded(row)` underneath it. */
   expandedId?: string | null;
   renderExpanded?: (row: T) => ReactNode;
+  /** Names a row for its expand button ("Show details for github"); falls back to a generic label. */
+  getRowLabel?: (row: T) => string;
   footer?: ReactNode;
 }
 
@@ -72,8 +75,12 @@ export function DataTable<T>({
   isRowInteractive,
   expandedId = null,
   renderExpanded,
+  getRowLabel,
   footer,
 }: DataTableProps<T>) {
+  const tableId = useId();
+  const expandable = Boolean(renderExpanded && onRowClick);
+  const columnCount = columns.length + (expandable ? 1 : 0);
   if (error) {
     return (
       <div className="dt dt--message" role="alert">
@@ -108,11 +115,16 @@ export function DataTable<T>({
 
   return (
     <div className={cn("dt", density === "compact" && "dt--compact")}>
-      <div className="dt__scroll">
+      <div className="dt__scroll" tabIndex={0} role="region" aria-label={caption}>
         <table aria-busy={isLoading}>
           <caption className="sr-only">{caption}</caption>
           <thead>
             <tr>
+              {expandable ? (
+                <th scope="col" className="dt__toggle-col">
+                  <span className="sr-only">Details</span>
+                </th>
+              ) : null}
               {columns.map((column) => (
                 <th key={column.key} scope="col" className={cn(column.align === "right" && "dt__right")}>
                   {column.header}
@@ -122,7 +134,7 @@ export function DataTable<T>({
           </thead>
           <tbody>
             {isLoading ? (
-              <Skeleton columns={columns.length} rows={skeletonRows} />
+              <Skeleton columns={columnCount} rows={skeletonRows} />
             ) : (
               (rows ?? []).map((row) => {
                 const id = getRowId(row);
@@ -132,11 +144,29 @@ export function DataTable<T>({
                   <Fragment key={id}>
                     <tr
                       className={cn(interactive && "dt__row--clickable", expanded && "dt__row--open")}
-                      tabIndex={interactive ? 0 : undefined}
-                      aria-expanded={interactive && renderExpanded ? expanded : undefined}
+                      tabIndex={interactive && !expandable ? 0 : undefined}
                       onClick={interactive ? () => onRowClick?.(row) : undefined}
-                      onKeyDown={interactive ? (event) => onKeyDown(event, row) : undefined}
+                      onKeyDown={interactive && !expandable ? (event) => onKeyDown(event, row) : undefined}
                     >
+                      {expandable ? (
+                        <td className="dt__toggle-col">
+                          {interactive ? (
+                            <button
+                              type="button"
+                              className="dt__toggle"
+                              aria-expanded={expanded}
+                              aria-controls={expanded ? `${tableId}-detail-${id}` : undefined}
+                              aria-label={`${expanded ? "Hide" : "Show"} details${getRowLabel ? ` for ${getRowLabel(row)}` : ""}`}
+                              onClick={(event) => {
+                                event.stopPropagation(); // the row's own click would toggle a second time
+                                onRowClick?.(row);
+                              }}
+                            >
+                              <ChevronRight size={16} aria-hidden="true" />
+                            </button>
+                          ) : null}
+                        </td>
+                      ) : null}
                       {columns.map((column) => (
                         <td
                           key={column.key}
@@ -147,8 +177,8 @@ export function DataTable<T>({
                       ))}
                     </tr>
                     {expanded && renderExpanded ? (
-                      <tr className="dt__detail">
-                        <td colSpan={columns.length}>{renderExpanded(row)}</td>
+                      <tr className="dt__detail" id={`${tableId}-detail-${id}`}>
+                        <td colSpan={columnCount}>{renderExpanded(row)}</td>
                       </tr>
                     ) : null}
                   </Fragment>
