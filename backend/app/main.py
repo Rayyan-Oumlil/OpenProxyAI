@@ -28,6 +28,7 @@ from app.routes.invites import router as invites_router
 from app.routes.organizations import router as organizations_router
 from app.routes.playground import router as playground_router
 from app.routes.mcp import router as mcp_router
+from app.routes.mcp_bundles import router as mcp_bundles_router
 from app.routes.mcp_grants import router as mcp_grants_router
 from app.routes.mcp_servers import router as mcp_servers_router
 from app.routes.provider_keys import router as provider_keys_router
@@ -394,6 +395,7 @@ app.include_router(playground_router)
 app.include_router(mcp_router)
 app.include_router(mcp_servers_router)
 app.include_router(mcp_grants_router)
+app.include_router(mcp_bundles_router)
 
 if settings.PROMETHEUS_ENABLED:
     app.include_router(metrics_router)
