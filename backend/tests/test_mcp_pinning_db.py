@@ -8,22 +8,18 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError
 
-from app.database import AsyncSessionLocal, SystemSessionLocal, org_scoped_session
+from app.database import org_scoped_session
 from app.models.mcp_server import McpServer
 from app.models.mcp_tool import McpTool, McpToolVersion
-from app.models.organization import Organization
-from app.models.user import User
 from app.services import mcp_client, mcp_gateway
 from app.services.mcp_gateway import UpstreamServer
 from app.services.mcp_pinning import APPROVED, BLOCKED, DRIFTED, PENDING, DbPinStore, approve_tool, block_tool, call_gate, served_snapshot
 from app.services.policy_service import PolicyConfig
-from app.utils.crypto import hash_password
 from tests.fixtures.malicious_mcp import RunningMaliciousMcp
 
 
@@ -53,25 +49,6 @@ async def _dispose_app_engines():
 	yield
 	for eng in (engine, system_engine):
 		await eng.dispose()
-
-
-@pytest.fixture
-async def tenants():
-	"""Two orgs; org A has an admin user and a server row. Cleaned up through org deletion (cascade)."""
-	async with AsyncSessionLocal() as session:
-		org_a = Organization(name="Pin A", slug=f"pin-a-{uuid.uuid4().hex[:8]}")
-		org_b = Organization(name="Pin B", slug=f"pin-b-{uuid.uuid4().hex[:8]}")
-		session.add_all([org_a, org_b])
-		await session.flush()
-		user = User(org_id=org_a.id, email=f"pin-{uuid.uuid4().hex[:8]}@test.local",
-		            password_hash=hash_password("TestPass1!"), role="admin", is_active=True)
-		session.add(user)
-		await session.commit()
-		ids = SimpleNamespace(a=org_a.id, b=org_b.id, user_a=SimpleNamespace(id=user.id, org_id=org_a.id, email=user.email, role="admin"))
-	yield ids
-	async with SystemSessionLocal() as session:
-		await session.execute(text("DELETE FROM organizations WHERE id IN (:a, :b)"), {"a": ids.a, "b": ids.b})
-		await session.commit()
 
 
 async def make_server(org_id: uuid.UUID, mode: str, url: str = "https://evil.example/mcp") -> UpstreamServer:

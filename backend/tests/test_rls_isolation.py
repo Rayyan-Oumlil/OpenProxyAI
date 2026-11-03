@@ -50,6 +50,7 @@ RLS_TABLES = [
     "mcp_servers",
     "mcp_tools",
     "mcp_tool_versions",
+    "tool_grants",
     "request_scores",
 ]
 

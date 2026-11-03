@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from app.services.mcp_client import McpUpstreamError
+from app.services.mcp_grants import ToolAccess
 from app.services.mcp_pinning import PIN_OFF, ToolPin, call_gate, served_snapshot
 from app.services.mcp_scanner import SCAN_BLOCK, SCAN_OFF, SCAN_REDACT, scan_value
 from app.services.policy_service import PolicyConfig, PolicyDecision, policy_service
@@ -64,6 +65,7 @@ class ToolCallOutcome:
     result: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
     scan_findings: tuple[str, ...] = ()  # categories found in the result (never the text itself)
+    access: dict[str, Any] | None = None  # grants and request scope that applied (set by the route)
     pin_status: str | None = None  # pending | approved | drifted | blocked | unpinned; None when pinning is off
 
 
@@ -98,7 +100,11 @@ def _scan_definition(server: UpstreamServer, tool: dict[str, Any]) -> dict[str, 
 
 
 async def list_tools(
-    servers: list[UpstreamServer], config: PolicyConfig, call: UpstreamCall, pins: PinStore | None = None
+    servers: list[UpstreamServer],
+    config: PolicyConfig,
+    call: UpstreamCall,
+    pins: PinStore | None = None,
+    access: ToolAccess | None = None,
 ) -> dict[str, Any]:
     """tools/list across every server; tools the policy would block are not advertised.
 
@@ -119,6 +125,8 @@ async def list_tools(
         for tool in result:
             name = f"{server.name}{TOOL_SEPARATOR}{tool['name']}"
             if not policy_service.evaluate_tool_call(name, {}, config).allowed:
+                continue
+            if access is not None and not access.check(name).allowed:
                 continue
             tool = _scan_definition(server, tool)
             if tool is not None:
@@ -141,6 +149,7 @@ async def call_tool(
     arguments: Any,
     call: UpstreamCall,
     pins: PinStore | None = None,
+    access: ToolAccess | None = None,
 ) -> ToolCallOutcome:
     """tools/call: resolve the server, apply policy, forward, and describe what happened."""
     if not isinstance(name, str):
@@ -162,6 +171,18 @@ async def call_tool(
                 "data": {"reason_code": decision.reason_code, "triggered_rules": decision.triggered_rules or []},
             },
         )
+
+    if access is not None:
+        verdict = access.check(name)
+        if not verdict.allowed:
+            return ToolCallOutcome(
+                tool=name, server=server.name, status_code=446, decision=decision,
+                error={
+                    "code": ERR_POLICY_BLOCKED,
+                    "message": f"Tool {name} is not available to this caller",
+                    "data": {"reason_code": verdict.reason, "triggered_rules": ["tool_grants"]},
+                },
+            )
 
     pin_status: str | None = None
     if pins is not None and server.pin_mode != PIN_OFF:
