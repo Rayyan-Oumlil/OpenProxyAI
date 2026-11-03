@@ -180,7 +180,11 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 	async def no_grants(db_, org_id):
 		return []
 
+	async def no_bundles(db_, org_id, api_key_id):
+		return False
+
 	monkeypatch.setattr(mcp_route, "load_grants", no_grants)
+	monkeypatch.setattr(mcp_route, "key_has_bundles", no_bundles)
 	monkeypatch.setattr(mcp_route.policy_store, "load", fake_policy)
 	monkeypatch.setattr(mcp_route, "decrypt", lambda value: value)
 	monkeypatch.setattr(mcp_route, "record_tool_call", fake_record)
