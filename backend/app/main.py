@@ -43,6 +43,7 @@ from app.services.provider_health_service import run_provider_health_check
 from app.services.spend_batch_service import run_flush_request_logs_batch
 from app.services.key_rotation_scheduler import run_key_rotation
 from app.services.adaptive_sampling_service import run_adaptive_sampling_job
+from app.services.mcp_tool_sync import run_mcp_tool_sync
 from app.services.spend_report_service import run_monthly_spend_reports, run_weekly_spend_reports
 from app.services.webhook_service import _deliver as _webhook_deliver
 from app.utils.logging import get_logger, setup_logging
@@ -308,6 +309,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "interval",
             minutes=settings.ADAPTIVE_LB_SAMPLE_MINUTES,
             id="adaptive_lb_sampling",
+            max_instances=1,
+            coalesce=True,
+        )
+    if settings.MCP_TOOL_SYNC_ENABLED:
+        scheduler.add_job(
+            run_mcp_tool_sync,
+            "interval",
+            minutes=settings.MCP_TOOL_SYNC_INTERVAL_MINUTES,
+            id="mcp_tool_sync",
             max_instances=1,
             coalesce=True,
         )

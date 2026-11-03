@@ -15,6 +15,7 @@ from app.models.team import Team
 from app.models.experiment import Experiment, ExperimentVariant
 from app.models.request_score import RequestScore
 from app.models.mcp_server import McpServer
+from app.models.mcp_tool import McpTool, McpToolVersion
 
 __all__ = [
     "Base",
@@ -33,4 +34,6 @@ __all__ = [
     "ExperimentVariant",
     "RequestScore",
     "McpServer",
+    "McpTool",
+    "McpToolVersion",
 ]

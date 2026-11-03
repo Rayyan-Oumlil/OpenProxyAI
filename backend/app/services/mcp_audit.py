@@ -19,6 +19,8 @@ async def record_tool_call(
 ) -> None:
 	"""Write the audit row. Runs as a background task with its own org-scoped session."""
 	metadata: dict = {"type": "mcp_tool_call", "tool": outcome.tool, "server": outcome.server}
+	if outcome.pin_status is not None:
+		metadata["pin_status"] = outcome.pin_status
 	if outcome.decision is not None:
 		metadata.update(outcome.decision.as_metadata())
 	async with org_scoped_session(org_id) as session:
