@@ -195,6 +195,21 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000,http://localhost:3000"
     )
 
+    # ── Telemetry export (sidecars: never block or fail a request) ───
+    # SIEM events: AI-POLICY-BLOCK, AI-DLP-BLOCK, AI-UNAUTHORIZED-MCP, ... (ids and reason codes only).
+    SIEM_EXPORT_ENABLED: bool = False
+    SIEM_FORMAT: str = "cef"            # json | cef
+    SIEM_SINK: str = "stdout"           # stdout | file | syslog_udp | syslog_tcp
+    SIEM_SYSLOG_HOST: str = "127.0.0.1"
+    SIEM_SYSLOG_PORT: int = 514
+    SIEM_FILE_PATH: str = ""
+    # OpenTelemetry gen_ai spans over OTLP/HTTP JSON (e.g. http://otel-collector:4318).
+    OTEL_EXPORT_ENABLED: bool = False
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    OTEL_EXPORTER_OTLP_HEADERS: str = ""  # key=value,key2=value2
+    OTEL_SERVICE_NAME: str = "openproxyai"
+    TELEMETRY_QUEUE_SIZE: int = 2000    # per exporter; items beyond this are dropped and counted
+
     # ── MCP gateway ──────────────────────────────────────────────────
     # Requests per minute per API key on POST /v1/mcp (separate from the LLM RPM counter).
     MCP_RATE_LIMIT_PER_MINUTE: int = 120

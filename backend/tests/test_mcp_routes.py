@@ -21,6 +21,7 @@ from app.services import mcp_audit
 from app.services.mcp_grants import GrantRule
 from app.services.mcp_taint import TrustRules
 from app.services.policy_service import PolicyConfig
+from app.services.telemetry import telemetry
 from tests.conftest import FakeRedis
 
 ORG = uuid.uuid4()
@@ -497,6 +498,61 @@ def test_without_sink_rules_a_missing_session_is_fine(client, gateway):
 	assert "result" in tool_call(client, "github__search").json()
 
 
+# ── SIEM events and spans ────────────────────────────────────────────────────
+
+
+class _Recorder:
+	def __init__(self):
+		self.items = []
+
+	def emit(self, item):
+		self.items.append(item)
+
+
+@pytest.fixture
+def telem(monkeypatch):
+	siem, otel = _Recorder(), _Recorder()
+	monkeypatch.setattr(telemetry, "siem", siem)
+	monkeypatch.setattr(telemetry, "otel", otel)
+	return SimpleNamespace(siem=siem, otel=otel)
+
+
+def test_front_door_denials_emit_unauthorized_mcp_events(client, gateway, telem, monkeypatch):
+	rpc(client, "ping", headers={"Origin": "https://evil.example"})
+	monkeypatch.setattr(API_KEY, "permissions", ["proxy:llm"])
+	rpc(client, "ping")
+	monkeypatch.setattr(API_KEY, "permissions", ["proxy:llm", "proxy:mcp"])
+	gateway.bundles["b"] = ("*",)
+	rpc(client, "ping")  # bundle-confined key on the bare endpoint
+	events = telem.siem.items
+	assert [(e.name, e.reason) for e in events] == [
+		("AI-UNAUTHORIZED-MCP", "origin_not_allowed"),
+		("AI-UNAUTHORIZED-MCP", "missing_proxy_mcp_permission"),
+		("AI-UNAUTHORIZED-MCP", "bundle_confined_key_on_bare_endpoint"),
+	]
+	assert all(e.org_id == ORG and e.api_key_id == API_KEY.id for e in events)
+
+
+def test_rate_limit_emits_an_event(client, gateway, telem, monkeypatch):
+	monkeypatch.setattr(mcp_route.settings, "MCP_RATE_LIMIT_PER_MINUTE", 1)
+	rpc(client, "ping")
+	rpc(client, "ping")
+	assert [e.name for e in telem.siem.items] == ["AI-RATE-LIMIT"]
+
+
+def test_a_failing_exporter_does_not_change_the_mcp_response(client, gateway, monkeypatch):
+	class Boom:
+		def emit(self, item):
+			raise RuntimeError("down")
+
+	monkeypatch.setattr(telemetry, "siem", Boom())
+	monkeypatch.setattr(telemetry, "otel", Boom())
+	monkeypatch.setattr(API_KEY, "permissions", ["proxy:llm"])
+	assert rpc(client, "ping").status_code == 403  # still the permission error, not a 500
+	monkeypatch.setattr(API_KEY, "permissions", ["proxy:llm", "proxy:mcp"])
+	assert rpc(client, "ping").status_code == 200
+
+
 # ── audit writer ─────────────────────────────────────────────────────────────
 
 
@@ -537,6 +593,31 @@ async def test_audit_row_is_org_scoped_and_describes_the_call(monkeypatch):
 	assert row.request_metadata["policy"]["reason_code"] == "tool_blocked"
 	assert row.error_message == "blocked"
 	assert log[-1] == ("commit",)
+
+
+async def test_audit_writer_reports_to_telemetry_even_when_the_database_write_fails(monkeypatch):
+	from app.services.mcp_gateway import ToolCallOutcome
+
+	class Recorder:
+		def __init__(self):
+			self.items = []
+
+		def emit(self, item):
+			self.items.append(item)
+
+	siem, otel = Recorder(), Recorder()
+	monkeypatch.setattr(telemetry, "siem", siem)
+	monkeypatch.setattr(telemetry, "otel", otel)
+
+	def broken_session(org_id):
+		raise ConnectionError("database is down")
+
+	monkeypatch.setattr(mcp_audit, "org_scoped_session", broken_session)
+	outcome = ToolCallOutcome(tool="mail__send", server="mail", status_code=446, decision=None,
+	                          error={"code": -32009, "message": "m", "data": {"reason_code": "sink_requires_session"}})
+	with pytest.raises(ConnectionError):
+		await mcp_audit.record_tool_call(org_id=ORG, user_id=USER.id, api_key_id=API_KEY.id, outcome=outcome, latency_ms=3)
+	assert [e.name for e in siem.items] == ["AI-TAINT-BLOCK"] and otel.items[0].name == "execute_tool mail__send"
 
 
 # ── /api/v1/mcp-servers ─────────────────────────────────────────────────────

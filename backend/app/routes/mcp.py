@@ -36,6 +36,8 @@ from app.services.mcp_grants import (
 )
 from app.services.mcp_pinning import DbPinStore
 from app.services.mcp_rate_limit import check_mcp_rate_limit
+from app.services.security_events import SecurityEvent
+from app.services.telemetry import telemetry
 from app.services.mcp_taint import TaintContext, create_session, get_session, load_trust_rules, mark_tainted
 from app.services.policy_service import policy_store
 
@@ -126,12 +128,16 @@ async def _serve(
 	bundle_slug: str | None,
 ) -> Response:
 	user, api_key = auth
+	who = {"org_id": user.org_id, "user_id": user.id, "api_key_id": api_key.id}
 	if not _origin_allowed(request.headers.get("origin")):
+		telemetry.event(SecurityEvent("AI-UNAUTHORIZED-MCP", reason="origin_not_allowed", **who))
 		return _error(None, FORBIDDEN, "Origin not allowed", status_code=403)
 	if MCP_PERMISSION not in (api_key.permissions or []):
+		telemetry.event(SecurityEvent("AI-UNAUTHORIZED-MCP", reason="missing_proxy_mcp_permission", **who))
 		return _error(None, FORBIDDEN, f"API key lacks the {MCP_PERMISSION} permission", status_code=403)
 	allowed, retry_after = await check_mcp_rate_limit(redis, api_key.id, settings.MCP_RATE_LIMIT_PER_MINUTE)
 	if not allowed:
+		telemetry.event(SecurityEvent("AI-RATE-LIMIT", reason="mcp_requests_per_minute", **who))
 		response = _error(None, RATE_LIMITED, "Rate limit exceeded", status_code=429)
 		response.headers["Retry-After"] = str(retry_after)
 		return response
@@ -142,6 +148,7 @@ async def _serve(
 	bundle: tuple[str, ...] | None = None
 	if bundle_slug is None:
 		if await key_has_bundles(db, user.org_id, api_key.id):
+			telemetry.event(SecurityEvent("AI-UNAUTHORIZED-MCP", reason="bundle_confined_key_on_bare_endpoint", **who))
 			return _error(None, FORBIDDEN, "This API key is confined to MCP bundles: use /v1/mcp/{bundle}", status_code=403)
 	else:
 		bundle = await load_bundle_patterns(db, user.org_id, api_key.id, bundle_slug)

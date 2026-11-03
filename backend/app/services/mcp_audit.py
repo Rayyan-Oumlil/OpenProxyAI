@@ -7,6 +7,7 @@ import uuid
 from app.database import org_scoped_session
 from app.models.request_log import RequestLog
 from app.services.mcp_gateway import ToolCallOutcome
+from app.services.telemetry import telemetry
 
 
 async def record_tool_call(
@@ -18,6 +19,7 @@ async def record_tool_call(
 	latency_ms: int,
 ) -> None:
 	"""Write the audit row. Runs as a background task with its own org-scoped session."""
+	telemetry.observe_mcp_call(outcome, org_id=org_id, user_id=user_id, api_key_id=api_key_id, latency_ms=latency_ms)
 	metadata: dict = {"type": "mcp_tool_call", "tool": outcome.tool, "server": outcome.server}
 	if outcome.taint is not None:
 		metadata["taint"] = outcome.taint
