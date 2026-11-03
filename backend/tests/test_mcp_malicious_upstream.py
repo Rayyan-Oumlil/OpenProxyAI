@@ -177,6 +177,10 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 	app.dependency_overrides[get_current_user_from_api_key] = fake_auth
 	app.dependency_overrides[get_db] = fake_db
 	app.dependency_overrides[get_redis] = fake_redis
+	async def no_grants(db_, org_id):
+		return []
+
+	monkeypatch.setattr(mcp_route, "load_grants", no_grants)
 	monkeypatch.setattr(mcp_route.policy_store, "load", fake_policy)
 	monkeypatch.setattr(mcp_route, "decrypt", lambda value: value)
 	monkeypatch.setattr(mcp_route, "record_tool_call", fake_record)
