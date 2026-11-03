@@ -7,6 +7,7 @@ from decimal import Decimal
 from redis.asyncio import Redis
 
 from app.config import settings
+from app.services.telemetry import telemetry
 from app.database import org_scoped_session
 from app.models.request_log import RequestLog
 from app.services.cost_tracker import cost_tracker_service
@@ -95,6 +96,12 @@ async def log_request(
 	team_id: uuid.UUID | None = None,
 	provider_key_id: uuid.UUID | None = None,
 ) -> None:
+	telemetry.observe_request(
+		request_id=request_id, org_id=org_id, user_id=user_id, api_key_id=api_key_id, model=model, provider=provider,
+		prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost_usd=float(cost_usd or 0),
+		latency_ms=latency_ms, status_code=status_code, error_message=error_message,
+		policy_action=((request_metadata or {}).get("policy") or {}).get("action"),
+	)
 	total_tokens = prompt_tokens + completion_tokens
 	metadata = {**(request_metadata or {})}
 	if labels:

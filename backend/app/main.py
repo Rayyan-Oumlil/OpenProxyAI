@@ -47,6 +47,7 @@ from app.services.spend_batch_service import run_flush_request_logs_batch
 from app.services.key_rotation_scheduler import run_key_rotation
 from app.services.adaptive_sampling_service import run_adaptive_sampling_job
 from app.services.mcp_tool_sync import run_mcp_tool_sync
+from app.services.telemetry import telemetry
 from app.services.spend_report_service import run_monthly_spend_reports, run_weekly_spend_reports
 from app.services.webhook_service import _deliver as _webhook_deliver
 from app.utils.logging import get_logger, setup_logging
@@ -224,6 +225,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # DB engine is already created at import time (app.database)
     app.state.db_engine = engine
 
+    telemetry.configure_from_settings()  # raises on bad SIEM/OTLP config: fail hard at startup
+    telemetry.start()
+
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         refresh_materialized_view,
@@ -335,6 +339,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler = getattr(app.state, "scheduler", None)
     if scheduler is not None:
         scheduler.shutdown(wait=False)
+    await telemetry.stop()
     await app.state.redis.aclose()
     await engine.dispose()
     logger.info("Shutdown complete")
