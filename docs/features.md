@@ -42,6 +42,7 @@
 | Tool policy | `mcp_allowed_tools` / `mcp_blocked_tools` (fnmatch) plus keyword/PII guardrails on tool arguments; follows `off` / `log_only` / `enforce` |
 | Blocking | Refused calls never reach the upstream; JSON-RPC error `-32001` with `reason_code` |
 | Audit | One `request_logs` row per `tools/call` (`provider = mcp:<server>`, status 200/446/502/400) |
+| Tool pinning | Per-server `pin_mode`: `off`, `warn` (default; trust on first use, later changes mark the tool `drifted`) or `enforce` (admin approval required). `tools/list` serves the approved snapshot, never the live description; drifted/pending/blocked tools are hidden and refused with JSON-RPC -32004 under `enforce`. Definitions are hashed (sha256 of canonical JSON), versions kept append-only, synced every 15 min (`MCP_TOOL_SYNC_*`) and on `POST /api/v1/mcp-servers/{id}/sync`; review with `.../tools/{id}/approve` and `.../block` |
 | Transport safety | Hostname resolved once and the validated IP is connected to (Host/SNI preserved); 3xx rejected; 2 MB response cap; 30 s total deadline; upstream session closed with `DELETE`; upstream error text is logged, never returned to the agent |
 | Access | API key needs the `proxy:mcp` permission (403 otherwise); browser `Origin` must be in `CORS_ORIGINS` (403); `MCP_RATE_LIMIT_PER_MINUTE` per key (429 + `Retry-After`, default 120) |
 | Server registry | `/api/v1/mcp-servers` — admin-only writes, HTTPS + SSRF check, encrypted write-only auth header, admin audit log |

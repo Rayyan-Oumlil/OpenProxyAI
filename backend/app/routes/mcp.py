@@ -24,6 +24,7 @@ from app.services.crypto_service import decrypt
 from app.services.mcp_audit import record_tool_call
 from app.services.mcp_client import call_upstream
 from app.services.mcp_gateway import UpstreamServer, call_tool, list_tools
+from app.services.mcp_pinning import DbPinStore
 from app.services.mcp_rate_limit import check_mcp_rate_limit
 from app.services.policy_service import policy_store
 
@@ -68,6 +69,8 @@ async def _active_servers(db: AsyncSession, org_id: uuid.UUID) -> list[UpstreamS
 	)
 	return [
 		UpstreamServer(
+			id=row.id,
+			pin_mode=row.pin_mode,
 			name=row.name,
 			url=row.url,
 			auth_header=decrypt(row.auth_header_encrypted) if row.auth_header_encrypted else None,
@@ -128,11 +131,14 @@ async def mcp_endpoint(
 	servers = await _active_servers(db, user.org_id)
 	config = await policy_store.load(user.org_id, db, redis)
 
+	pins = DbPinStore(db, user.org_id)
 	if method == "tools/list":
-		return _result(request_id, await list_tools(servers, config, call_upstream))
+		listed = await list_tools(servers, config, call_upstream, pins)
+		await db.commit()  # persists newly seen / drifted tool definitions
+		return _result(request_id, listed)
 
 	started = time.perf_counter()
-	outcome = await call_tool(servers, config, params.get("name"), params.get("arguments", {}), call_upstream)
+	outcome = await call_tool(servers, config, params.get("name"), params.get("arguments", {}), call_upstream, pins)
 	background_tasks.add_task(
 		record_tool_call,
 		org_id=user.org_id,
