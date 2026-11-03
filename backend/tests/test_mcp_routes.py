@@ -19,6 +19,7 @@ from app.routes import mcp as mcp_route
 from app.routes import mcp_servers as mcp_servers_route
 from app.services import mcp_audit
 from app.services.mcp_grants import GrantRule
+from app.services.mcp_taint import TrustRules
 from app.services.policy_service import PolicyConfig
 from tests.conftest import FakeRedis
 
@@ -120,13 +121,20 @@ def gateway(monkeypatch):
 	async def fake_bundle(db_, org_id, api_key_id, slug):
 		return bundles.get(slug)
 
+	trust = TrustRules()
+	state = {"rules": trust}
+
+	async def fake_rules(db_, org_id):
+		return state["rules"]
+
+	monkeypatch.setattr(mcp_route, "load_trust_rules", fake_rules)
 	monkeypatch.setattr(mcp_route, "load_grants", fake_grants)
 	monkeypatch.setattr(mcp_route, "key_has_bundles", fake_has_bundles)
 	monkeypatch.setattr(mcp_route, "load_bundle_patterns", fake_bundle)
 	monkeypatch.setattr(mcp_route.policy_store, "load", fake_policy)
 	monkeypatch.setattr(mcp_route, "call_upstream", fake_upstream)
 	monkeypatch.setattr(mcp_route, "record_tool_call", fake_record)
-	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls, redis=redis, grants=grants, bundles=bundles)
+	return SimpleNamespace(db=db, audits=audits, upstream_calls=upstream_calls, redis=redis, grants=grants, bundles=bundles, trust=state)
 
 
 def rpc(client, method, params=None, id_=1, headers=None):
@@ -396,6 +404,97 @@ def test_bundle_endpoint_enforces_the_same_front_door_checks(client, gateway, mo
 
 def test_bundle_endpoint_has_no_sse_stream(client, gateway):
 	assert client.get("/v1/mcp/anything", headers={"Authorization": "Bearer opai_test"}).status_code == 405
+
+
+# ── sessions and taint tracking ──────────────────────────────────────────────
+
+SESSION = "Mcp-Session-Id"
+
+
+def start_session(client, path="/v1/mcp") -> str:
+	body = {"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {}}
+	return client.post(path, json=body, headers={"Authorization": "Bearer opai_test"}).headers[SESSION]
+
+
+def tool_call(client, name, session=None, path="/v1/mcp"):
+	body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": {}}}
+	headers = {"Authorization": "Bearer opai_test", **({SESSION: session} if session else {})}
+	return client.post(path, json=body, headers=headers)
+
+
+def test_initialize_issues_a_session_bound_to_the_key(client, gateway):
+	session = start_session(client)
+	assert len(session) == 32
+	stored = gateway.redis._hashes[f"mcp:sess:{session}"]
+	assert stored == {"api_key_id": str(API_KEY.id), "tainted": "0"}
+
+
+@pytest.mark.parametrize("session", ["0" * 32, "garbage", "../x"])
+def test_unknown_or_malformed_sessions_get_404_so_the_client_re_initializes(client, gateway, session):
+	for response in (tool_call(client, "github__search", session), rpc(client, "tools/list", headers={SESSION: session}), rpc(client, "ping", headers={SESSION: session})):
+		assert response.status_code == 404 and response.json()["error"]["code"] == -32010
+	assert gateway.upstream_calls == []
+
+
+def test_another_keys_session_is_indistinguishable_from_an_unknown_one(client, gateway, monkeypatch):
+	session = start_session(client)
+	monkeypatch.setattr(API_KEY, "id", uuid.uuid4())
+	foreign, unknown = tool_call(client, "github__search", session), tool_call(client, "github__search", "0" * 32)
+	assert foreign.status_code == unknown.status_code == 404 and foreign.json() == unknown.json()
+
+
+def test_notifications_with_a_stale_session_are_still_accepted(client, gateway):
+	assert rpc(client, "notifications/initialized", id_=None, headers={SESSION: "0" * 32}).status_code == 202
+
+
+def test_sinks_need_a_session(client, gateway):
+	gateway.trust["rules"] = TrustRules(sinks=("github__push",))
+	error = tool_call(client, "github__push").json()["error"]
+	assert error["code"] == -32009 and error["data"]["reason_code"] == "sink_requires_session"
+	assert [c for c in gateway.upstream_calls if c[1] == "tools/call"] == []
+	assert gateway.audits[-1]["outcome"].status_code == 446 and gateway.audits[-1]["outcome"].taint["session"] == "none"
+
+
+def test_a_clean_session_may_use_a_sink(client, gateway):
+	gateway.trust["rules"] = TrustRules(sinks=("github__push",))
+	assert "result" in tool_call(client, "github__push", start_session(client)).json()
+
+
+def test_reading_untrusted_content_taints_the_session_and_locks_the_sinks(client, gateway):
+	gateway.trust["rules"] = TrustRules(sinks=("github__push",))
+	session = start_session(client)
+	assert "result" in tool_call(client, "github__search", session).json()  # untrusted by default
+	assert gateway.redis._hashes[f"mcp:sess:{session}"]["tainted"] == "1"
+	error = tool_call(client, "github__push", session).json()["error"]
+	assert error["data"]["reason_code"] == "sink_blocked_tainted_session"
+	assert gateway.audits[-1]["outcome"].taint == {"session": "tainted", "sink": True, "taints_session": False}
+	assert start_session(client) != session and "result" in tool_call(client, "github__push", start_session(client)).json()
+
+
+def test_trusted_output_tools_do_not_taint(client, gateway):
+	gateway.trust["rules"] = TrustRules(trusted_output=("github__search",), sinks=("github__push",))
+	session = start_session(client)
+	tool_call(client, "github__search", session)
+	assert gateway.redis._hashes[f"mcp:sess:{session}"]["tainted"] == "0"
+	assert "result" in tool_call(client, "github__push", session).json()
+
+
+def test_a_call_refused_by_policy_does_not_taint(client, gateway):
+	session = start_session(client)
+	assert "error" in tool_call(client, "github__delete_repo", session).json()  # org policy blocks it
+	assert gateway.redis._hashes[f"mcp:sess:{session}"]["tainted"] == "0"
+
+
+def test_the_session_follows_the_caller_across_bundle_endpoints(client, gateway):
+	gateway.bundles["b"] = ("github__*",)
+	gateway.trust["rules"] = TrustRules(sinks=("github__push",))
+	session = start_session(client, "/v1/mcp/b")
+	tool_call(client, "github__search", session, "/v1/mcp/b")
+	assert tool_call(client, "github__push", session, "/v1/mcp/b").json()["error"]["code"] == -32009
+
+
+def test_without_sink_rules_a_missing_session_is_fine(client, gateway):
+	assert "result" in tool_call(client, "github__search").json()
 
 
 # ── audit writer ─────────────────────────────────────────────────────────────

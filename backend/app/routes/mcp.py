@@ -36,6 +36,7 @@ from app.services.mcp_grants import (
 )
 from app.services.mcp_pinning import DbPinStore
 from app.services.mcp_rate_limit import check_mcp_rate_limit
+from app.services.mcp_taint import TaintContext, create_session, get_session, load_trust_rules, mark_tainted
 from app.services.policy_service import policy_store
 
 router = APIRouter(tags=["MCP Gateway"])
@@ -50,6 +51,7 @@ METHOD_NOT_FOUND = -32601
 FORBIDDEN = -32005
 RATE_LIMITED = -32006
 BUNDLE_NOT_FOUND = -32008
+SESSION_NOT_FOUND = -32010
 
 MCP_PERMISSION = "proxy:mcp"
 
@@ -167,8 +169,14 @@ async def _serve(
 			"capabilities": {"tools": {"listChanged": False}},
 			"serverInfo": SERVER_INFO,
 		})
-		response.headers["Mcp-Session-Id"] = uuid.uuid4().hex
+		response.headers["Mcp-Session-Id"] = await create_session(redis, api_key.id)
 		return response
+	session_id = request.headers.get("mcp-session-id")
+	session = None
+	if session_id is not None:
+		session = await get_session(redis, session_id, api_key.id)
+		if session is None:  # unknown, expired or someone else's: the client must initialize again (MCP spec)
+			return _error(request_id, SESSION_NOT_FOUND, "Session not found; send initialize", status_code=404)
 	if method == "ping":
 		return _result(request_id, {})
 	if method not in ("tools/list", "tools/call"):
@@ -188,7 +196,15 @@ async def _serve(
 		return _result(request_id, listed)
 
 	started = time.perf_counter()
-	outcome = await call_tool(servers, config, params.get("name"), params.get("arguments", {}), call_upstream, pins, access)
+	taint = TaintContext(rules=await load_trust_rules(db, user.org_id), session=session)
+	outcome = await call_tool(servers, config, params.get("name"), params.get("arguments", {}), call_upstream, pins, access, taint)
+	if outcome.taints_session and session is not None:
+		await mark_tainted(redis, session.session_id)  # before answering: the next request must already see it
+	outcome = replace(outcome, taint={
+		"session": taint.label,
+		"sink": isinstance(outcome.tool, str) and taint.rules.is_sink(outcome.tool),
+		"taints_session": outcome.taints_session,
+	})
 	summary = access.summary()
 	if bundle_slug is not None:
 		summary = {**summary, "bundle": bundle_slug}

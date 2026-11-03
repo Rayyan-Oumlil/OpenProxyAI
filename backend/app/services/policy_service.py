@@ -365,6 +365,15 @@ class PolicyService:
 			)
 		return PolicyDecision(allowed=True, action="allow", _mode=mode)
 
+	def taint_violation(self, tool_name: str, config: PolicyConfig) -> PolicyDecision:
+		"""A conversation that handled untrusted tool output demanded a side-effect tool via tool_choice."""
+		return self._decision_for_violation(
+			mode=config.enforcement_mode.lower().strip(),
+			reason_code="tool_taint_forced_sink",
+			detail=f"Tool {tool_name} has side effects and cannot be forced after untrusted tool output.",
+			triggered_rules=["tool_taint"],
+		)
+
 	def _decision_for_violation(
 		self,
 		mode: str,
