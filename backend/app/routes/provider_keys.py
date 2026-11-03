@@ -49,6 +49,9 @@ def _to_response(
 		latency_p99_ms=latency_p99_ms,
 		error_rate=error_rate,
 		effective_weight=effective_weight,
+		health_status=getattr(key, "health_status", None) or "unknown",
+		consecutive_failures=getattr(key, "consecutive_failures", None) or 0,
+		last_health_check_at=getattr(key, "last_health_check_at", None),
 	)
 
 
