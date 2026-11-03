@@ -18,6 +18,7 @@ from app.main import app
 from app.routes import mcp as mcp_route
 from app.services import mcp_client, mcp_gateway
 from app.services.mcp_gateway import UpstreamServer
+from app.services.mcp_taint import TrustRules
 from app.services.policy_service import PolicyConfig
 from app.utils import ssrf
 from tests.conftest import FakeRedis
@@ -183,6 +184,10 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 	async def no_bundles(db_, org_id, api_key_id):
 		return False
 
+	async def no_rules(db_, org_id):
+		return TrustRules()
+
+	monkeypatch.setattr(mcp_route, "load_trust_rules", no_rules)
 	monkeypatch.setattr(mcp_route, "load_grants", no_grants)
 	monkeypatch.setattr(mcp_route, "key_has_bundles", no_bundles)
 	monkeypatch.setattr(mcp_route.policy_store, "load", fake_policy)
@@ -194,18 +199,19 @@ async def test_client_headers_and_gateway_key_never_reach_the_upstream(hostile, 
 		"Cookie": "session=abc",
 		"X-Custom": "client-secret",
 		"X-Forwarded-For": "203.0.113.9",
-		"Mcp-Session-Id": "client-session",
 	}
 	body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "evil__search", "arguments": {"q": "x"}}}
 	async with AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test") as http:
-		response = await http.post("/v1/mcp", json=body, headers=headers)
+		init = await http.post("/v1/mcp", json={"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {}}, headers=headers)
+		client_session = init.headers["mcp-session-id"]
+		response = await http.post("/v1/mcp", json=body, headers={**headers, "Mcp-Session-Id": client_session})
 	assert response.status_code == 200
 
 	seen = [r["headers"] for r in evil.server.requests if r["http_method"] == "POST"]
 	assert seen, "the upstream was never called"
 	flat = json.dumps(seen)
 	assert "opai_" not in flat and "client-secret" not in flat and "session=abc" not in flat
-	assert "203.0.113.9" not in flat and "client-session" not in flat
+	assert "203.0.113.9" not in flat and client_session not in flat
 	assert all(h.get("authorization") == "Bearer org-upstream-secret" for h in seen)
 
 
