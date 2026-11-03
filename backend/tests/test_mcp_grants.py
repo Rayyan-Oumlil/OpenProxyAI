@@ -9,6 +9,7 @@ from app.services.mcp_grants import (
 	MAX_SCOPE_PATTERNS,
 	REASON_DENIED,
 	REASON_NOT_GRANTED,
+	REASON_OUT_OF_BUNDLE,
 	REASON_OUT_OF_SCOPE,
 	Caller,
 	GrantRule,
@@ -183,3 +184,22 @@ def test_property_other_subjects_grants_are_irrelevant():
 		            for _ in range(5)]
 		a, b = build_access(rules, CALLER, scope), build_access([*rules, *stranger], CALLER, scope)
 		assert all(a.check(n) == b.check(n) for n in NAMES)
+
+
+def test_bundle_narrows_and_reports_why():
+	access = build_access([], CALLER, bundle=("github__*",))
+	assert access.check("github__x").allowed
+	verdict = access.check("jira__x")
+	assert not verdict.allowed and verdict.reason == REASON_OUT_OF_BUNDLE
+	assert build_access([], CALLER, bundle=()).check("github__x").allowed is False  # empty bundle: nothing
+	assert access.summary()["bundle_patterns"] == ["github__*"]
+
+
+def test_property_a_bundle_never_widens_and_composes_with_the_scope():
+	for rng, rules, scope in cases():
+		bundle = random_scope(rng)
+		plain, bundled, both = (build_access(rules, CALLER, s, b) for s, b in ((None, None), (None, bundle), (scope, bundle)))
+		for name in NAMES:
+			if bundled.check(name).allowed:
+				assert plain.check(name).allowed, (rules, bundle, name)
+			assert both.check(name).allowed == (bundled.check(name).allowed and build_access(rules, CALLER, scope).check(name).allowed)
