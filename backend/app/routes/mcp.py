@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from dataclasses import replace
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
@@ -24,6 +25,14 @@ from app.services.crypto_service import decrypt
 from app.services.mcp_audit import record_tool_call
 from app.services.mcp_client import call_upstream
 from app.services.mcp_gateway import UpstreamServer, call_tool, list_tools
+from app.services.mcp_grants import (
+	SCOPE_HEADER,
+	Caller,
+	ScopeHeaderError,
+	build_access,
+	load_grants,
+	parse_scope_header,
+)
 from app.services.mcp_pinning import DbPinStore
 from app.services.mcp_rate_limit import check_mcp_rate_limit
 from app.services.policy_service import policy_store
@@ -99,6 +108,10 @@ async def mcp_endpoint(
 		response.headers["Retry-After"] = str(retry_after)
 		return response
 	try:
+		scope = parse_scope_header(request.headers.getlist(SCOPE_HEADER))
+	except ScopeHeaderError as exc:
+		return _error(None, INVALID_REQUEST, str(exc), status_code=400)
+	try:
 		message = await request.json()
 	except ValueError:
 		return _error(None, PARSE_ERROR, "Parse error", status_code=400)
@@ -132,14 +145,17 @@ async def mcp_endpoint(
 	servers = await _active_servers(db, user.org_id)
 	config = await policy_store.load(user.org_id, db, redis)
 
+	caller = Caller(user_id=user.id, role=user.role, team_id=getattr(api_key, "team_id", None), api_key_id=api_key.id)
+	access = build_access(await load_grants(db, user.org_id), caller, scope)
 	pins = DbPinStore(db, user.org_id)
 	if method == "tools/list":
-		listed = await list_tools(servers, config, call_upstream, pins)
+		listed = await list_tools(servers, config, call_upstream, pins, access)
 		await db.commit()  # persists newly seen / drifted tool definitions
 		return _result(request_id, listed)
 
 	started = time.perf_counter()
-	outcome = await call_tool(servers, config, params.get("name"), params.get("arguments", {}), call_upstream, pins)
+	outcome = await call_tool(servers, config, params.get("name"), params.get("arguments", {}), call_upstream, pins, access)
+	outcome = replace(outcome, access=access.summary())
 	background_tasks.add_task(
 		record_tool_call,
 		org_id=user.org_id,

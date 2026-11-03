@@ -187,3 +187,32 @@ def clear_dependency_overrides() -> Generator[None, None, None]:
 	app.dependency_overrides.clear()
 	yield
 	app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def tenants():
+	import uuid
+	from types import SimpleNamespace
+
+	from sqlalchemy import text
+
+	from app.database import AsyncSessionLocal, SystemSessionLocal
+	from app.models.organization import Organization
+	from app.models.user import User
+	from app.utils.crypto import hash_password
+
+	"""Two orgs; org A has an admin user and a server row. Cleaned up through org deletion (cascade)."""
+	async with AsyncSessionLocal() as session:
+		org_a = Organization(name="Pin A", slug=f"pin-a-{uuid.uuid4().hex[:8]}")
+		org_b = Organization(name="Pin B", slug=f"pin-b-{uuid.uuid4().hex[:8]}")
+		session.add_all([org_a, org_b])
+		await session.flush()
+		user = User(org_id=org_a.id, email=f"pin-{uuid.uuid4().hex[:8]}@test.local",
+		            password_hash=hash_password("TestPass1!"), role="admin", is_active=True)
+		session.add(user)
+		await session.commit()
+		ids = SimpleNamespace(a=org_a.id, b=org_b.id, user_a=SimpleNamespace(id=user.id, org_id=org_a.id, email=user.email, role="admin"))
+	yield ids
+	async with SystemSessionLocal() as session:
+		await session.execute(text("DELETE FROM organizations WHERE id IN (:a, :b)"), {"a": ids.a, "b": ids.b})
+		await session.commit()

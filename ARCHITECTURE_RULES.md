@@ -92,7 +92,9 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
     └─ f8a9b0c1d2e3 (RLS policies)
 → k2f3a4b5c6d7 (merge) → l3g4h5i6j7k8 → m4h5i6j7k8l9 → n5i6j7k8l9m0
 → o6j7k8l9m0n1 → q8l9m0n1o2p3 → r9m0n1o2p3q4 → s0n1o2p3q4r5 → t1o2p3q4r5s6
-→ u2p3q4r5s6t7 (mcp_servers) → v3q4r5s6t7u8 (request_scores RLS, head)
+→ u2p3q4r5s6t7 (mcp_servers) → v3q4r5s6t7u8 (request_scores RLS)
+→ w4r5s6t7u8v9 (proxy:mcp backfill) → x5s6t7u8v9w0 (mcp_tools pinning) → y6t7u8v9w0x1 (scan_mode)
+→ z7u8v9w0x1y2 (tool_grants, head)
 ```
 
 ## Architecture Rules (Critical)
