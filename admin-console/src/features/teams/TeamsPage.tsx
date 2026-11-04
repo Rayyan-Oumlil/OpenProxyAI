@@ -13,9 +13,8 @@ import type {
   InviteCreatedResponse,
   InviteCreateRequest,
 } from "../../api/types";
-import { LoadingState } from "../../components/LoadingState";
-import { ErrorState } from "../../components/ErrorState";
-import { EmptyState } from "../../components/EmptyState";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { formatDate } from "../../lib/utils";
 import { useConfirm } from "../../components/ui/ConfirmDialog";
 import {
@@ -410,109 +409,70 @@ export function TeamsPage() {
     deleteMutation.mutate(id);
   }
 
-  if (teamsQuery.isLoading) return <LoadingState label="Loading teams…" />;
-  if (teamsQuery.isError)
-    return (
-      <ErrorState
-        title="Unable to load teams"
-        detail={
-          teamsQuery.error instanceof Error ? teamsQuery.error.message : "Unknown error"
-        }
-      />
-    );
-
-  const teams = teamsQuery.data ?? [];
+  const columns: Column<TeamResponse>[] = [
+    { key: "name", header: "Name", cell: (t) => t.name },
+    {
+      key: "budget",
+      header: "Monthly budget",
+      align: "right",
+      mono: true,
+      cell: (t) => (t.budget_monthly_usd != null ? `$${parseFloat(t.budget_monthly_usd).toFixed(2)}` : "—"),
+    },
+    { key: "members", header: "Members", align: "right", mono: true, cell: (t) => t.member_count },
+    { key: "created", header: "Created", nowrap: true, cell: (t) => formatDate(t.created_at) },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (t) => (
+        <div className="flex items-center gap-2">
+          <button type="button" className="btn-icon-only" aria-label={`Manage members of ${t.name}`} onClick={() => setManageTeamId(t.id)}>
+            <Users size={18} style={{ color: "var(--accent-sky)" }} aria-hidden />
+          </button>
+          <button type="button" className="btn-icon-only" aria-label={`Delete ${t.name}`} onClick={() => void handleDelete(t.id)}>
+            <Trash2 size={14} style={{ color: "var(--accent-rose)" }} aria-hidden />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <section className="page-wrap">
-      <header className="page-header with-controls">
-        <div>
-          <p className="eyebrow">Cost Attribution</p>
-          <h1>Teams</h1>
-        </div>
-        {canManage && (
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5"
-            style={{ background: "var(--accent-sky)" }}
-          >
-            <Plus size={15} />
-            Create Team
-          </button>
-        )}
-      </header>
+      <PageHeader
+        title="Teams"
+        description="Attribute cost and set budgets by department or project."
+        actions={
+          canManage ? (
+            <button type="button" onClick={() => setShowAdd(true)} className="flex items-center gap-1.5" style={{ background: "var(--accent-sky)" }}>
+              <Plus size={15} aria-hidden />
+              Create Team
+            </button>
+          ) : undefined
+        }
+      />
 
       {!canManage ? (
-        <EmptyState
-          title="Admin only"
-          detail="Only admins can create and manage teams."
-        />
-      ) : teams.length === 0 ? (
-        <EmptyState
-          title="No teams"
-          detail="Create teams to attribute costs by department or project."
-        />
+        <p className="trace-note" role="status">
+          Admin only. Only admins can create and manage teams.
+        </p>
       ) : (
-        <section className="surface-panel">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Monthly Budget</th>
-                <th>Members</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teams.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.name}</td>
-                  <td>
-                    {t.budget_monthly_usd != null
-                      ? `$${parseFloat(t.budget_monthly_usd).toFixed(2)}`
-                      : "—"}
-                  </td>
-                  <td>{t.member_count}</td>
-                  <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
-                    {formatDate(t.created_at)}
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        title="Manage members"
-                        onClick={() => setManageTeamId(t.id)}
-                        style={{
-                          border: "none",
-                          background: "transparent",
-                          padding: "2px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Users size={18} style={{ color: "var(--accent-sky)" }} />
-                      </button>
-                      <button
-                        type="button"
-                        title="Delete"
-                        onClick={() => handleDelete(t.id)}
-                        style={{
-                          border: "none",
-                          background: "transparent",
-                          padding: "2px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Trash2 size={14} style={{ color: "var(--accent-rose)" }} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <DataTable
+          caption="Teams"
+          columns={columns}
+          rows={teamsQuery.data}
+          getRowId={(t) => t.id}
+          isLoading={teamsQuery.isLoading}
+          error={
+            teamsQuery.isError
+              ? {
+                  title: "Unable to load teams",
+                  detail: teamsQuery.error instanceof Error ? teamsQuery.error.message : "Unknown error",
+                  onRetry: () => void teamsQuery.refetch(),
+                }
+              : null
+          }
+          empty={{ title: "No teams", detail: "Create teams to attribute costs by department or project." }}
+        />
       )}
 
       <AddTeamModal

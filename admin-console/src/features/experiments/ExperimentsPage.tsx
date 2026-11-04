@@ -10,9 +10,8 @@ import type {
   UpdateExperimentRequest,
   VariantMetrics,
 } from "../../api/types";
-import { LoadingState } from "../../components/LoadingState";
-import { ErrorState } from "../../components/ErrorState";
-import { EmptyState } from "../../components/EmptyState";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { formatDate } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
 import { useConfirm } from "../../components/ui/ConfirmDialog";
@@ -334,126 +333,79 @@ export function ExperimentsPage() {
     deleteMutation.mutate(id);
   }
 
-  if (experimentsQuery.isLoading) return <LoadingState label="Loading experiments…" />;
-  if (experimentsQuery.isError)
-    return (
-      <ErrorState
-        title="Unable to load experiments"
-        detail={experimentsQuery.error instanceof Error ? experimentsQuery.error.message : "Unknown error"}
-      />
-    );
-
-  const experiments = experimentsQuery.data ?? [];
+  const columns: Column<ExperimentResponse>[] = [
+    {
+      key: "name",
+      header: "Name",
+      cell: (e) => (
+        <span className="flex items-center gap-1.5">
+          <BarChart3 size={13} className="text-muted" aria-hidden />
+          {e.name}
+        </span>
+      ),
+    },
+    { key: "target", header: "Target model", mono: true, cell: (e) => e.target_model },
+    { key: "variants", header: "Variants", cell: (e) => <span className="text-sm">{e.variants.map((v) => `${v.model} (${v.traffic_weight})`).join(", ")}</span> },
+    { key: "status", header: "Status", cell: (e) => <Badge variant={e.is_active ? "success" : "muted"}>{e.is_active ? "Active" : "Inactive"}</Badge> },
+    { key: "created", header: "Created", nowrap: true, cell: (e) => formatDate(e.created_at) },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (e) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            {e.is_active ? (
+              <button type="button" onClick={() => stopMutation.mutate(e.id)} className="btn-icon-only" aria-label={`Stop experiment ${e.name}`}>
+                <Square size={14} className="text-accent-amber" aria-hidden />
+              </button>
+            ) : (
+              <button type="button" onClick={() => startMutation.mutate(e.id)} className="btn-icon-only" aria-label={`Start experiment ${e.name}`}>
+                <Play size={14} className="text-accent-teal" aria-hidden />
+              </button>
+            )}
+            <button type="button" onClick={() => setEditing(e)} className="text-accent-sky text-xs" aria-label={`Edit experiment ${e.name}`}>
+              Edit
+            </button>
+            <button type="button" onClick={() => void handleDelete(e.id)} className="btn-icon-only" aria-label={`Delete experiment ${e.name}`}>
+              <Trash2 size={14} className="text-accent-rose" aria-hidden />
+            </button>
+          </div>
+          {token && <ResultsPanel experimentId={e.id} token={token} />}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <section className="page-wrap">
-      <header className="page-header with-controls">
-        <div>
-          <p className="eyebrow">A/B Testing</p>
-          <h1>Experiments</h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 bg-accent-sky"
-          aria-label="Create new experiment"
-        >
-          <Plus size={15} aria-hidden />
-          New Experiment
-        </button>
-      </header>
+      <PageHeader
+        title="Experiments"
+        description="A/B test models by splitting traffic, then compare cost, latency and quality."
+        actions={
+          <button type="button" onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 bg-accent-sky" aria-label="Create new experiment">
+            <Plus size={15} aria-hidden />
+            New Experiment
+          </button>
+        }
+      />
 
-      {experiments.length === 0 ? (
-        <EmptyState
-          title="No experiments"
-          detail="Create an experiment to A/B test different models with traffic splitting."
-        />
-      ) : (
-        <section className="surface-panel">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Target model</th>
-                <th>Variants</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {experiments.map((e) => (
-                <tr key={e.id}>
-                  <td>
-                    <div className="flex items-center gap-1.5">
-                      <BarChart3 size={13} className="text-muted" aria-hidden />
-                      {e.name}
-                    </div>
-                  </td>
-                  <td>
-                    <code>{e.target_model}</code>
-                  </td>
-                  <td>
-                    <span className="text-sm">
-                      {e.variants.map((v) => `${v.model} (${v.traffic_weight})`).join(", ")}
-                    </span>
-                  </td>
-                  <td>
-                    <Badge variant={e.is_active ? "success" : "muted"}>
-                      {e.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </td>
-                  <td className="text-muted text-sm">
-                    {formatDate(e.created_at)}
-                  </td>
-                  <td>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        {e.is_active ? (
-                          <button
-                            type="button"
-                            onClick={() => stopMutation.mutate(e.id)}
-                            className="btn-icon-only"
-                            aria-label={`Stop experiment ${e.name}`}
-                          >
-                            <Square size={14} className="text-accent-amber" aria-hidden />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => startMutation.mutate(e.id)}
-                            className="btn-icon-only"
-                            aria-label={`Start experiment ${e.name}`}
-                          >
-                            <Play size={14} className="text-accent-teal" aria-hidden />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setEditing(e)}
-                          className="text-accent-sky text-xs"
-                          aria-label={`Edit experiment ${e.name}`}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(e.id)}
-                          className="btn-icon-only"
-                          aria-label={`Delete experiment ${e.name}`}
-                        >
-                          <Trash2 size={14} className="text-accent-rose" aria-hidden />
-                        </button>
-                      </div>
-                      {token && <ResultsPanel experimentId={e.id} token={token} />}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+      <DataTable
+        caption="Experiments"
+        columns={columns}
+        rows={experimentsQuery.data}
+        getRowId={(e) => e.id}
+        isLoading={experimentsQuery.isLoading}
+        error={
+          experimentsQuery.isError
+            ? {
+                title: "Unable to load experiments",
+                detail: experimentsQuery.error instanceof Error ? experimentsQuery.error.message : "Unknown error",
+                onRetry: () => void experimentsQuery.refetch(),
+              }
+            : null
+        }
+        empty={{ title: "No experiments", detail: "Create an experiment to A/B test different models with traffic splitting." }}
+      />
 
       <ExperimentModal
         key="create"
