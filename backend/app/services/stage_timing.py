@@ -8,6 +8,7 @@ dependency before the pipeline starts and is not timed.
 """
 
 import time
+from typing import Any
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -33,5 +34,27 @@ class StageTimer:
 				"ms": round((time.perf_counter() - began) * 1000),
 			})
 
+	def record(self, name: str, began: float, ended: float) -> None:
+		"""Add a stage that was timed elsewhere (authentication runs before the pipeline starts)."""
+		self._spans.append({
+			"name": name,
+			"start_ms": round((began - self.origin) * 1000),
+			"ms": round((ended - began) * 1000),
+		})
+
 	def as_list(self) -> list[dict[str, int | str]]:
 		return [dict(span) for span in self._spans]
+
+
+def timer_for_request(http_request: Any, pipeline_start: float) -> StageTimer:
+	"""A timer whose clock starts when authentication started, with the auth stage already recorded.
+
+	Authentication is a dependency that runs before the pipeline; it leaves its span on ``request.state``.
+	Without one (tests that replace the dependency, internal callers) the clock starts with the pipeline.
+	"""
+	span = getattr(getattr(http_request, "state", None), "auth_span", None)
+	if isinstance(span, tuple) and len(span) == 2 and all(isinstance(v, float) for v in span) and span[0] <= span[1] <= pipeline_start:
+		timer = StageTimer(origin=span[0])
+		timer.record("auth", span[0], span[1])
+		return timer
+	return StageTimer(origin=pipeline_start)

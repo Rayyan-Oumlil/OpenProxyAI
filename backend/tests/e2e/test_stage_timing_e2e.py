@@ -50,12 +50,13 @@ def test_a_cache_miss_records_policy_rate_limit_cache_and_upstream(e2e_client, u
     assert e2e_client.post(CHAT, json=_body("trace me"), headers=tenant.headers).status_code == 200
 
     (stages,) = _stages(tenant.org_id)
-    assert _names(stages) == ["policy", "rate_limit", "cache", "upstream"]
+    assert _names(stages) == ["auth", "policy", "rate_limit", "cache", "upstream"]
     for stage in stages:
         assert isinstance(stage["start_ms"], int) and isinstance(stage["ms"], int)
         assert stage["start_ms"] >= 0 and stage["ms"] >= 0
     starts = [s["start_ms"] for s in stages]
     assert starts == sorted(starts)  # stages run in order, so offsets never go backwards
+    assert stages[0]["start_ms"] == 0  # the request clock starts with authentication
 
 
 def test_a_cache_hit_has_no_upstream_stage(e2e_client, upstream, make_tenant, monkeypatch):
@@ -67,7 +68,7 @@ def test_a_cache_hit_has_no_upstream_stage(e2e_client, upstream, make_tenant, mo
 
     miss, hit = _stages(tenant.org_id, count=2)
     assert "upstream" in _names(miss)
-    assert _names(hit) == ["policy", "rate_limit", "cache"]
+    assert _names(hit) == ["auth", "policy", "rate_limit", "cache"]
     assert len(upstream_calls(upstream)) == 1
 
 
@@ -78,7 +79,7 @@ def test_a_policy_block_stops_after_the_policy_stage(e2e_client, upstream, make_
     assert e2e_client.post(CHAT, json=_body("a forbidden-word here"), headers=tenant.headers).status_code == 403
 
     (stages,) = _stages(tenant.org_id)
-    assert _names(stages) == ["policy"]
+    assert _names(stages) == ["auth", "policy"]
     assert upstream_calls(upstream) == []
 
 
@@ -90,4 +91,14 @@ def test_a_streaming_request_records_the_upstream_stage(e2e_client, upstream, ma
     assert lines[-1] == "data: [DONE]"
 
     (stages,) = _stages(tenant.org_id)
-    assert _names(stages) == ["policy", "rate_limit", "upstream"]
+    assert _names(stages) == ["auth", "policy", "rate_limit", "upstream"]
+
+
+def test_an_embeddings_request_is_timed_too(e2e_client, upstream, make_tenant):
+    tenant = make_tenant()
+    response = e2e_client.post("/v1/embeddings", json={"model": "openai/text-embedding-3-small", "input": "hello"}, headers=tenant.headers)
+    assert response.status_code == 200
+
+    (stages,) = _stages(tenant.org_id)
+    assert _names(stages) == ["auth", "policy", "rate_limit", "upstream"]
+    assert [s["start_ms"] for s in stages] == sorted(s["start_ms"] for s in stages)

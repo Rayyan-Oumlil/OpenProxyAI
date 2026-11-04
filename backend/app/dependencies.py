@@ -1,5 +1,6 @@
 """Shared FastAPI dependencies — get_db, get_redis, get_current_user."""
 
+import time
 from collections.abc import AsyncGenerator
 from typing import Annotated
 from uuid import UUID
@@ -60,11 +61,13 @@ async def get_current_user_from_jwt(
 
 
 async def get_current_user_from_api_key(
+    request: Request,
     authorization: str | None = Header(default=None, alias="Authorization"),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> tuple[User, ApiKey]:
     """Authenticate proxy request using bearer API key format."""
+    began = time.perf_counter()
     if not authorization:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
 
@@ -79,6 +82,8 @@ async def get_current_user_from_api_key(
     key_model = await validate_api_key(db=db, redis=redis, api_key=credential)
     if key_model.user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    # For the request trace: when authentication ran, so the waterfall can start with it.
+    request.state.auth_span = (began, time.perf_counter())
     return key_model.user, key_model
 
 

@@ -35,10 +35,11 @@ function detail(overrides: Partial<RequestLogDetail> = {}): RequestLogDetail {
     request_metadata: {
       cache: "miss",
       stages: [
-        { name: "policy", start_ms: 0, ms: 12 },
-        { name: "rate_limit", start_ms: 12, ms: 3 },
-        { name: "cache", start_ms: 15, ms: 4 },
-        { name: "upstream", start_ms: 19, ms: 100 },
+        { name: "auth", start_ms: 0, ms: 6 },
+        { name: "policy", start_ms: 6, ms: 12 },
+        { name: "rate_limit", start_ms: 18, ms: 3 },
+        { name: "cache", start_ms: 21, ms: 4 },
+        { name: "upstream", start_ms: 25, ms: 100 },
       ],
     },
     policy_triggered_rules: null,
@@ -78,11 +79,20 @@ describe("RequestTracePage", () => {
       "Cache lookup",
       "Upstream call",
     ]);
+    expect(within(rows[0]).getByText("6ms")).toBeTruthy(); // authentication is timed, not "not timed"
     expect(within(rows[1]).getByText("12ms")).toBeTruthy();
     expect(within(rows[4]).getByText("100ms")).toBeTruthy();
-    expect(within(rows[0]).getByText("not timed")).toBeTruthy();
-    expect(within(waterfall).getByText("Total 120ms")).toBeTruthy();
+    expect(within(waterfall).queryByText("not timed")).toBeNull();
+    expect(within(waterfall).getByText("Total 125ms")).toBeTruthy(); // the stages run past the logged latency, so they set the total
     expect(get).toHaveBeenCalledWith("/api/v1/analytics/logs/l1", "tok");
+  });
+
+  it("keeps the 'not timed' row for requests logged before authentication was timed", async () => {
+    get.mockResolvedValue(detail({ request_metadata: { stages: [{ name: "policy", start_ms: 0, ms: 5 }, { name: "upstream", start_ms: 5, ms: 40 }] } }));
+    renderPage();
+    const waterfall = await screen.findByRole("region", { name: "Where the time went" });
+    expect(within(waterfall).getByText("not timed")).toBeTruthy();
+    expect(within(waterfall).getAllByText("Authentication")).toHaveLength(1);
   });
 
   it("shows a policy block as blocked, with its reason, and says the upstream was not reached", async () => {
