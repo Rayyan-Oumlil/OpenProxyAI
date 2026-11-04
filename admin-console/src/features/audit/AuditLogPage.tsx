@@ -205,6 +205,7 @@ export function AuditLogPage() {
         onRowClick={(row) => setExpandedId(expandedId === row.id ? null : row.id)}
         expandedId={expandedId}
         renderExpanded={(row) => <DetailPanel entry={row} />}
+        getRowLabel={(row) => `${row.action} by ${row.actor_email}`}
         footer={
           data ? (
             <>
