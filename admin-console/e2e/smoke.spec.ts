@@ -103,3 +103,28 @@ test("the onboarding dialog opens for an organization without API keys", async (
   await signIn(page);
   await expect(page.getByRole("dialog")).toBeVisible();
 });
+
+test("Ctrl+K opens the palette, typing narrows it, Enter goes there, and the breadcrumbs follow", async ({ page }) => {
+  await signIn(page);
+  await page.keyboard.press("Control+k");
+  const box = page.getByRole("combobox", { name: "Go to page or action" });
+  await expect(box).toBeFocused();
+
+  await box.fill("mcp");
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("heading", { name: "MCP servers" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toBeHidden();
+  const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+  await expect(crumbs.getByText("Connect")).toBeVisible();
+  await expect(crumbs.getByText("MCP servers")).toHaveAttribute("aria-current", "page");
+});
+
+test("Escape closes the palette and returns focus to where it was", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("button", { name: /^Search/ }).click();
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toBeHidden();
+});
