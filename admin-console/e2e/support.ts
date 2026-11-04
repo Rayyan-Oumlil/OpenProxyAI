@@ -94,8 +94,12 @@ export const PROVIDER_KEYS = [
   },
 ];
 
+export const POLICY_TEMPLATES = [
+  { name: "healthcare_hipaa", description: "PII and PHI guardrails for healthcare workloads.", configures: ["PII detection on", "Response guardrails on"] },
+];
+
 export const ORG = {
-  id: "o1", name: "Demo Org", slug: "demo", plan: "starter", settings: {}, budget_monthly_usd: "100", is_active: true,
+  id: "o1", name: "Demo Org", slug: "demo", plan: "starter", settings: { policy: { enforcement_mode: "enforce", allowed_models: ["gpt-4o"], blocked_keywords: ["project-phoenix"], pii_detection_enabled: true, pii_entities: ["EMAIL_ADDRESS"] } }, budget_monthly_usd: "100", is_active: true,
   data_region: "us", created_at: "2026-11-01T10:00:00Z",
 };
 
@@ -147,6 +151,7 @@ export async function mockApi(page: Page) {
     if (pathname === "/api/v1/analytics/logs/l1") return json(LOG_DETAIL);
     if (pathname === "/api/v1/analytics/overview") return json(overview(Number(new URL(route.request().url()).searchParams.get("period_days"))));
     if (pathname === "/api/v1/organizations/current") return json(ORG);
+    if (pathname === "/api/v1/organizations/current/policy/templates") return json(POLICY_TEMPLATES);
     if (pathname === "/api/v1/teams") return json([]);
     if (pathname === "/api/v1/mcp-servers") return json([SERVER]);
     if (pathname === "/api/v1/analytics/logs") return json({ items: [LOG_ITEM], total: 1, page: 1, page_size: 50, total_pages: 1 });

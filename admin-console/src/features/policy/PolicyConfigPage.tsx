@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { apiClient } from "../../api/client";
 import type { ApplyTemplateRequest, OrganizationResponse, PolicyConfigRequest, PolicyTemplate } from "../../api/types";
 import { LoadingState } from "../../components/LoadingState";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/Tabs";
 import { ErrorState } from "../../components/ErrorState";
 import {
   Dialog,
@@ -57,10 +59,15 @@ function TagInput({
   tags,
   onChange,
   placeholder,
+  label,
+  disabled = false,
 }: {
   tags: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
+  /** Names the field for assistive technology; the visible placeholder disappears once a tag exists. */
+  label: string;
+  disabled?: boolean;
 }) {
   const [input, setInput] = useState("");
 
@@ -78,6 +85,8 @@ function TagInput({
 
   return (
     <div
+      role="group"
+      aria-label={label}
       style={{
         border: "1px solid var(--line)",
         borderRadius: 12,
@@ -94,20 +103,25 @@ function TagInput({
         <span
           key={tag}
           className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-          style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" }}
+          style={{ background: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--text)", border: "1px solid color-mix(in srgb, var(--accent) 40%, transparent)" }}
         >
           {tag}
-          <button
-            type="button"
-            onClick={() => removeTag(tag)}
-            style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", lineHeight: 1 }}
-          >
-            <X size={10} />
-          </button>
+          {disabled ? null : (
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              aria-label={`Remove ${tag}`}
+              style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", lineHeight: 1, color: "inherit" }}
+            >
+              <X size={10} aria-hidden />
+            </button>
+          )}
         </span>
       ))}
       <input
         type="text"
+        aria-label={label}
+        disabled={disabled}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
@@ -135,9 +149,10 @@ function TagInput({
         <button
           type="button"
           onClick={() => addTag(input)}
-          style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--accent-sky)" }}
+          aria-label={`Add ${label}`}
+          style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text)" }}
         >
-          <Plus size={13} />
+          <Plus size={13} aria-hidden />
         </button>
       )}
     </div>
@@ -428,6 +443,11 @@ export function PolicyConfigPage() {
     saveMutation.mutate(form);
   }
 
+  const [tab, setTab] = useState("enforcement");
+  // Unsaved changes: the form against what the server last returned.
+  const serverPolicy = orgQuery.data ? extractPolicy(orgQuery.data) : null;
+  const dirty = serverPolicy !== null && JSON.stringify(serverPolicy) !== JSON.stringify(form);
+
   if (orgQuery.isLoading) return <LoadingState label="Loading policy configuration…" />;
   if (orgQuery.isError)
     return (
@@ -437,46 +457,20 @@ export function PolicyConfigPage() {
       />
     );
 
+  const hasTemplates = Boolean(templatesQuery.data && templatesQuery.data.length > 0);
+
   return (
     <section className="page-wrap">
-      <header className="page-header">
-        <p className="eyebrow">Gateway Governance</p>
-        <h1>Policy Configuration</h1>
-      </header>
+      <PageHeader title="Policy configuration" description="What the gateway allows, blocks, redacts and limits for every request in this organization." />
 
       {!isAdmin && (
         <div
           className="rounded-xl px-4 py-3 text-sm"
           style={{ background: "color-mix(in srgb, var(--warn) 14%, transparent)", color: "var(--warn)" }}
+          role="status"
         >
           You need admin privileges to modify policy settings.
         </div>
-      )}
-
-      {/* Quick Setup — Compliance Templates */}
-      {templatesQuery.data && templatesQuery.data.length > 0 && (
-        <section className="surface-panel stack-form">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Quick Setup</h2>
-          <p className="muted" style={{ fontSize: "0.88rem" }}>
-            Apply a pre-built compliance template to configure guardrails for your industry.
-          </p>
-          <div
-            className="grid gap-4"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
-          >
-            {templatesQuery.data.map((tpl) => (
-              <TemplateCard
-                key={tpl.name}
-                template={tpl}
-                isApplied={currentTemplate === tpl.name}
-                isAdmin={isAdmin}
-                isEligible={orgQuery.data?.plan !== "free"}
-                onApply={() => setConfirmTemplate(tpl.name)}
-                isApplying={applyTemplateMutation.isPending && confirmTemplate === tpl.name}
-              />
-            ))}
-          </div>
-        </section>
       )}
 
       <Dialog open={confirmTemplate !== null} onOpenChange={(open) => !open && setConfirmTemplate(null)}>
@@ -512,175 +506,232 @@ export function PolicyConfigPage() {
         </DialogContent>
       </Dialog>
 
-      <form onSubmit={handleSubmit} className="stack-form">
-        {/* Enforcement Mode */}
-        <section className="surface-panel stack-form">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Enforcement Mode</h2>
-          <p className="muted" style={{ fontSize: "0.88rem" }}>
-            Controls how policy violations are handled globally.
-          </p>
-          <div className="flex flex-col gap-2">
-            {(["observe", "log_only", "enforce"] as const).map((mode) => (
-              <label key={mode} className="flex items-start gap-2.5 cursor-pointer">
+      <form onSubmit={handleSubmit} className="policy-form">
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList aria-label="Policy sections">
+            <TabsTrigger value="enforcement">Enforcement</TabsTrigger>
+            <TabsTrigger value="data">Data protection</TabsTrigger>
+            <TabsTrigger value="limits">Rate limits</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="enforcement" className="stack-form">
+            {/* Enforcement Mode */}
+            <section className="surface-panel stack-form">
+              <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Enforcement Mode</h2>
+              <p className="muted" style={{ fontSize: "0.88rem" }}>
+                Controls how policy violations are handled globally.
+              </p>
+              <div className="flex flex-col gap-2">
+                {(["observe", "log_only", "enforce"] as const).map((mode) => (
+                  <label key={mode} className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="enforcement_mode"
+                      value={mode}
+                      checked={form.enforcement_mode === mode}
+                      onChange={() => setForm((f) => ({ ...f, enforcement_mode: mode }))}
+                      disabled={!isAdmin}
+                      style={{ marginTop: 3 }}
+                    />
+                    <div>
+                      <span className="font-medium" style={{ fontSize: "0.9rem" }}>
+                        {mode === "observe" && "Observe"}
+                        {mode === "log_only" && "Log Only"}
+                        {mode === "enforce" && "Enforce"}
+                      </span>
+                      <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
+                        {mode === "observe" && "Evaluate rules but never block or log policy events."}
+                        {mode === "log_only" && "Log policy events but never block requests."}
+                        {mode === "enforce" && "Block requests that violate policy rules."}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            {/* Model Allowlist */}
+            <section className="surface-panel stack-form">
+              <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Model Allowlist</h2>
+              <p className="muted" style={{ fontSize: "0.88rem" }}>
+                If empty, all models are allowed. Press Enter or comma to add a model.
+              </p>
+              <TagInput
+                tags={form.allowed_models ?? []}
+                onChange={(tags) => setForm((f) => ({ ...f, allowed_models: tags }))}
+                label="Allowed models"
+                disabled={!isAdmin}
+                placeholder="gpt-4o, claude-3-5-sonnet-20241022…"
+              />
+            </section>
+
+            {/* Blocked Keywords */}
+            <section className="surface-panel stack-form">
+              <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Blocked Keywords</h2>
+              <p className="muted" style={{ fontSize: "0.88rem" }}>
+                Requests containing these words/phrases will be flagged or blocked.
+              </p>
+              <TagInput
+                tags={form.blocked_keywords ?? []}
+                onChange={(tags) => setForm((f) => ({ ...f, blocked_keywords: tags }))}
+                label="Blocked keywords"
+                disabled={!isAdmin}
+                placeholder="confidential, password, ssn…"
+              />
+            </section>
+          </TabsContent>
+
+          <TabsContent value="data" className="stack-form">
+            {/* PII Detection */}
+            <section className="surface-panel stack-form">
+              <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>PII Detection</h2>
+              <label className="check-row">
                 <input
-                  type="radio"
-                  name="enforcement_mode"
-                  value={mode}
-                  checked={form.enforcement_mode === mode}
-                  onChange={() => setForm((f) => ({ ...f, enforcement_mode: mode }))}
+                  type="checkbox"
+                  checked={form.pii_detection_enabled}
+                  onChange={(e) => setForm((f) => ({ ...f, pii_detection_enabled: e.target.checked }))}
                   disabled={!isAdmin}
-                  style={{ marginTop: 3 }}
+                />
+                <span style={{ fontSize: "0.9rem" }}>Enable PII Detection</span>
+              </label>
+
+              {form.pii_detection_enabled && (
+                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", marginTop: "0.5rem" }}>
+                  {PII_ENTITIES.map((entity) => (
+                    <label key={entity} className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={(form.pii_entities ?? []).includes(entity)}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            pii_entities: e.target.checked
+                              ? [...(f.pii_entities ?? []), entity]
+                              : (f.pii_entities ?? []).filter((x) => x !== entity),
+                          }))
+                        }
+                        disabled={!isAdmin}
+                      />
+                      <span style={{ fontSize: "0.85rem" }}>{entity}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Advanced Guardrails */}
+            <section className="surface-panel stack-form">
+              <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Advanced Guardrails</h2>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={form.prompt_injection_detection_enabled ?? false}
+                  onChange={(e) => setForm((f) => ({ ...f, prompt_injection_detection_enabled: e.target.checked }))}
+                  disabled={!isAdmin}
                 />
                 <div>
-                  <span className="font-medium" style={{ fontSize: "0.9rem" }}>
-                    {mode === "observe" && "Observe"}
-                    {mode === "log_only" && "Log Only"}
-                    {mode === "enforce" && "Enforce"}
-                  </span>
+                  <span style={{ fontSize: "0.9rem" }}>Prompt Injection Detection</span>
                   <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
-                    {mode === "observe" && "Evaluate rules but never block or log policy events."}
-                    {mode === "log_only" && "Log policy events but never block requests."}
-                    {mode === "enforce" && "Block requests that violate policy rules."}
+                    Blocks jailbreak patterns (ignore instructions, DAN mode, act as, etc.)
                   </p>
                 </div>
               </label>
-            ))}
-          </div>
-        </section>
-
-        {/* Model Allowlist */}
-        <section className="surface-panel stack-form">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Model Allowlist</h2>
-          <p className="muted" style={{ fontSize: "0.88rem" }}>
-            If empty, all models are allowed. Press Enter or comma to add a model.
-          </p>
-          <TagInput
-            tags={form.allowed_models ?? []}
-            onChange={(tags) => setForm((f) => ({ ...f, allowed_models: tags }))}
-            placeholder="gpt-4o, claude-3-5-sonnet-20241022…"
-          />
-        </section>
-
-        {/* Blocked Keywords */}
-        <section className="surface-panel stack-form">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Blocked Keywords</h2>
-          <p className="muted" style={{ fontSize: "0.88rem" }}>
-            Requests containing these words/phrases will be flagged or blocked.
-          </p>
-          <TagInput
-            tags={form.blocked_keywords ?? []}
-            onChange={(tags) => setForm((f) => ({ ...f, blocked_keywords: tags }))}
-            placeholder="confidential, password, ssn…"
-          />
-        </section>
-
-        {/* PII Detection */}
-        <section className="surface-panel stack-form">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>PII Detection</h2>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              checked={form.pii_detection_enabled}
-              onChange={(e) => setForm((f) => ({ ...f, pii_detection_enabled: e.target.checked }))}
-              disabled={!isAdmin}
-            />
-            <span style={{ fontSize: "0.9rem" }}>Enable PII Detection</span>
-          </label>
-
-          {form.pii_detection_enabled && (
-            <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", marginTop: "0.5rem" }}>
-              {PII_ENTITIES.map((entity) => (
-                <label key={entity} className="check-row">
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={form.response_guardrails_enabled ?? false}
+                  onChange={(e) => setForm((f) => ({ ...f, response_guardrails_enabled: e.target.checked }))}
+                  disabled={!isAdmin}
+                />
+                <div>
+                  <span style={{ fontSize: "0.9rem" }}>Response Guardrails</span>
+                  <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
+                    Evaluate LLM responses against policy rules before returning them.
+                  </p>
+                </div>
+              </label>
+              {form.response_guardrails_enabled && (
+                <label className="check-row" style={{ marginLeft: "1.75rem" }}>
                   <input
                     type="checkbox"
-                    checked={(form.pii_entities ?? []).includes(entity)}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        pii_entities: e.target.checked
-                          ? [...(f.pii_entities ?? []), entity]
-                          : (f.pii_entities ?? []).filter((x) => x !== entity),
-                      }))
-                    }
+                    checked={form.response_pii_redact ?? false}
+                    onChange={(e) => setForm((f) => ({ ...f, response_pii_redact: e.target.checked }))}
                     disabled={!isAdmin}
                   />
-                  <span style={{ fontSize: "0.85rem" }}>{entity}</span>
+                  <div>
+                    <span style={{ fontSize: "0.9rem" }}>Redact PII instead of blocking</span>
+                    <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
+                      Replace detected PII with [REDACTED] rather than blocking the response entirely.
+                    </p>
+                  </div>
                 </label>
-              ))}
-            </div>
-          )}
-        </section>
+              )}
+            </section>
+          </TabsContent>
 
-        {/* Advanced Guardrails */}
-        <section className="surface-panel stack-form">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Advanced Guardrails</h2>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              checked={form.prompt_injection_detection_enabled ?? false}
-              onChange={(e) => setForm((f) => ({ ...f, prompt_injection_detection_enabled: e.target.checked }))}
-              disabled={!isAdmin}
-            />
-            <div>
-              <span style={{ fontSize: "0.9rem" }}>Prompt Injection Detection</span>
-              <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
-                Blocks jailbreak patterns (ignore instructions, DAN mode, act as, etc.)
+          <TabsContent value="limits" className="stack-form">
+            {/* Per-Model Rate Limits */}
+            <section className="surface-panel stack-form">
+              <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Per-Model Rate Limits</h2>
+              <p className="muted" style={{ fontSize: "0.88rem" }}>
+                Override global RPM/TPM limits for specific models. Leave empty to use org-level limits.
               </p>
-            </div>
-          </label>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              checked={form.response_guardrails_enabled ?? false}
-              onChange={(e) => setForm((f) => ({ ...f, response_guardrails_enabled: e.target.checked }))}
-              disabled={!isAdmin}
-            />
-            <div>
-              <span style={{ fontSize: "0.9rem" }}>Response Guardrails</span>
-              <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
-                Evaluate LLM responses against policy rules before returning them.
-              </p>
-            </div>
-          </label>
-          {form.response_guardrails_enabled && (
-            <label className="check-row" style={{ marginLeft: "1.75rem" }}>
-              <input
-                type="checkbox"
-                checked={form.response_pii_redact ?? false}
-                onChange={(e) => setForm((f) => ({ ...f, response_pii_redact: e.target.checked }))}
+              <ModelRateLimitsSection
+                limits={form.model_rate_limits ?? {}}
+                onChange={(limits) => setForm((f) => ({ ...f, model_rate_limits: limits }))}
                 disabled={!isAdmin}
               />
-              <div>
-                <span style={{ fontSize: "0.9rem" }}>Redact PII instead of blocking</span>
-                <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "1px 0 0" }}>
-                  Replace detected PII with [REDACTED] rather than blocking the response entirely.
-                </p>
-              </div>
-            </label>
-          )}
-        </section>
+            </section>
+          </TabsContent>
 
-        {/* Per-Model Rate Limits */}
-        <section className="surface-panel stack-form">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Per-Model Rate Limits</h2>
-          <p className="muted" style={{ fontSize: "0.88rem" }}>
-            Override global RPM/TPM limits for specific models. Leave empty to use org-level limits.
-          </p>
-          <ModelRateLimitsSection
-            limits={form.model_rate_limits ?? {}}
-            onChange={(limits) => setForm((f) => ({ ...f, model_rate_limits: limits }))}
-            disabled={!isAdmin}
-          />
-        </section>
+          <TabsContent value="templates" className="stack-form">
+            {hasTemplates ? (
+    <section className="surface-panel stack-form">
+              <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>Quick Setup</h2>
+              <p className="muted" style={{ fontSize: "0.88rem" }}>
+                Apply a pre-built compliance template to configure guardrails for your industry.
+              </p>
+              <div
+                className="grid gap-4"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+              >
+                {(templatesQuery.data ?? []).map((tpl) => (
+                  <TemplateCard
+                    key={tpl.name}
+                    template={tpl}
+                    isApplied={currentTemplate === tpl.name}
+                    isAdmin={isAdmin}
+                    isEligible={orgQuery.data?.plan !== "free"}
+                    onApply={() => setConfirmTemplate(tpl.name)}
+                    isApplying={applyTemplateMutation.isPending && confirmTemplate === tpl.name}
+                  />
+                ))}
+              </div>
+            </section>
+            ) : (
+              <p className="trace-note">No compliance templates are available for this organization.</p>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {isAdmin && (
-          <button
-            type="submit"
-            disabled={saveMutation.isPending}
-            style={{ background: "var(--accent-sky)", alignSelf: "flex-start" }}
-          >
-            {saveMutation.isPending ? "Saving…" : "Save Policy"}
-          </button>
+          <div className="policy-savebar">
+            <span className="policy-savebar__status" role="status">
+              {dirty ? "You have unsaved changes." : "All changes saved."}
+            </span>
+            <button
+              type="button"
+              className="btn-outline"
+              disabled={!dirty || saveMutation.isPending}
+              onClick={() => serverPolicy && setForm(serverPolicy)}
+            >
+              Discard
+            </button>
+            <button type="submit" disabled={!dirty || saveMutation.isPending} style={{ background: "var(--accent-sky)" }}>
+              {saveMutation.isPending ? "Saving…" : "Save policy"}
+            </button>
+          </div>
         )}
       </form>
     </section>
