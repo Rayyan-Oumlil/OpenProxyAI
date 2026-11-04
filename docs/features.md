@@ -160,14 +160,15 @@
 
 | Feature | Details |
 |---|---|
-| Dashboard overview | Cost, tokens, request volume, latency percentiles, projected month-end spend |
-| Daily usage trend | Aggregated from `mv_daily_spend` materialized view (refreshed every 5 min) |
-| Cost by model/user/team | Breakdown charts for cost attribution; `by_team` in analytics overview; dashboard "Cost by team" table |
+| Dashboard overview | Requests, cost, tokens and latency with the change against the previous period and a sparkline each; success rate, policy blocks and flags, cache hit rate; month-to-date budget burn-down with a projection to month end. The overview's totals and every breakdown read live `request_logs`, so they agree with each other right after traffic |
+| Daily usage trend | Per-day requests, tokens, cost and latency from `request_logs` (the `mv_daily_spend` view is still used by billing, the compliance export and provider reconciliation) |
+| Cost by model/user/team/API key | `by_model`, `by_user`, `by_team` and `by_key` in the analytics overview, with the team and session filters; dashboard tables for team, API key and user (admin only) |
 | Latency percentiles | p50/p95/p99 via `percentile_cont()` |
 | TTFT tracking | Time-to-first-token on streaming requests |
 | Monthly projection | Projected month-end spend from daily average |
 | Request log viewer | Paginated, filterable by model, status, policy action, label |
 | Log detail drill-down | Full request/response metadata in slide-out drawer |
+| Request trace | `/logs/:id` waterfall of where a request spent its time: `auth`, `policy`, `rate_limit`, `cache`, `upstream` (chat and embeddings), recorded in `request_metadata.stages`. A stage that did not run is absent; rows logged before stage timing say so |
 | Policy analytics | Violation counts by action/reason with date range filters |
 | Policy event export | JSON + CSV download with formula injection prevention |
 | Compliance report | CSV export: policy violations, user access, key rotations, budget vs actual |
@@ -197,11 +198,13 @@
 | Page | Purpose |
 |---|---|
 | Login / Signup | Email+password auth with self-serve registration |
-| Dashboard | 8 metric cards, daily trend chart, top models chart, performance table, compliance export |
-| Log Viewer | Filterable request log table with detail drawer |
-| API Keys | Create, list, revoke gateway API keys; optional team association (admin dropdown) |
-| Provider Keys | Add, toggle, delete upstream provider keys with region tagging |
-| Policy Config | Full policy editor: enforcement mode, model allowlist, keywords, PII, prompt injection, response guardrails, per-model rate limits, compliance template quick-apply |
+| Dashboard | KPI cards with deltas and sparklines, reliability and governance tiles, budget burn-down, daily trend, spend by model, team, API key and user, compliance export |
+| Request logs | Filterable table on the shared `DataTable` (filters stay on screen when they match nothing), detail drawer, and a full request trace page |
+| API Keys | Create, list, revoke (with confirmation) gateway API keys; optional team association |
+| Provider Keys | Add, toggle, delete upstream provider keys with region tagging; adaptive load-balancing columns when reported |
+| Provider health | One state per key (healthy, degraded, down, not checked, disabled) with the reason, last health check, p99, error rate and effective weight; says why data is missing when health checks or adaptive load balancing are off |
+| Policy Config | Tabs for Enforcement (mode, model allowlist, blocked keywords), Data protection (PII, prompt injection, response guardrails), Rate limits (per model) and Templates (compliance quick-apply); one form, one save bar with unsaved-changes state and Discard |
+| MCP servers | Register upstream tool servers, set pin and scan mode, review each server's tools: approve, block, sync, and a field-level diff of a drifted tool against its approved definition |
 | Billing | Plan cards, Stripe checkout upgrade, portal redirect, subscription status |
 | Audit Log | Paginated admin action log with before/after JSON diff |
 | Prompt Playground | Side-by-side model comparison, prompt template management, variable substitution |
@@ -210,6 +213,9 @@
 | Experiments | Create model A/B tests, variants & weights, start/stop, results view |
 | Users & Roles | Invite, deactivate, role management |
 | Onboarding | 3-step wizard for first-run key creation |
+| Navigation | Responsive: pinned sidebar on wide screens, drawer on narrow ones; groups Observe, Govern, Connect, Admin; breadcrumbs; command palette (Ctrl/Cmd+K) to jump to any page or sign out |
+| Design system | Shared tokens with dark, light and system themes; `DataTable`, `StatusBadge`, `PageHeader`, tabs and a confirmation dialog (`useConfirm`) used across pages; route-level code splitting; a route error boundary so one broken page keeps the console usable |
+| Quality gates | ESLint (0 problems), `tsc`, unit tests, and a Playwright suite with axe-core (WCAG 2.1 A and AA) on every screen in both themes on desktop and mobile viewports, run in CI |
 
 ---
 
@@ -232,6 +238,7 @@
 | Component | Details |
 |---|---|
 | Docker Compose | Local development with PostgreSQL, Redis, backend, frontend |
+| Seeded demo | `docker-compose.demo.yml`: own Postgres and Redis, a fake OpenAI-compatible upstream (no provider key, no cost), migrations, a demo organization with policy, a budget-limited user and a pinned MCP server, the console, and a traffic job. [Run it](./getting-started/demo.md); [3-minute walkthrough](./getting-started/walkthrough.md). `scripts/smoke.sh` boots it from nothing and checks it over HTTP; the same check runs in CI |
 | Helm chart | Backend + frontend deployments, HPA (2-10 replicas), PDB, ServiceMonitor, init-container migrations |
 | Frontend Docker | Multi-stage nginx build with SPA fallback |
 | CI/CD | GitHub Actions on push to main: test → build → push to GCP Artifact Registry → migrations as a Cloud Run job → deploy to Cloud Run. The Helm chart is for self-hosted installs |
