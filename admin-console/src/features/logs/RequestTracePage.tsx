@@ -18,11 +18,14 @@ function Waterfall({ trace }: { trace: Trace }) {
       <h2 id="trace-waterfall-title">Where the time went</h2>
       {trace.hasTimings ? (
         <ol className="trace-rows">
-          <li className="trace-row trace-row--untimed">
-            <span className="trace-row__label">Authentication</span>
-            <span className="trace-row__ms">not timed</span>
-            <span className="trace-row__track" aria-hidden="true" />
-          </li>
+          {trace.stages.some((stage) => stage.name === "auth") ? null : (
+            // Rows logged before authentication was timed.
+            <li className="trace-row trace-row--untimed">
+              <span className="trace-row__label">Authentication</span>
+              <span className="trace-row__ms">not timed</span>
+              <span className="trace-row__track" aria-hidden="true" />
+            </li>
+          )}
           {trace.stages.map((stage, index) => (
             <li key={`${stage.name}-${index}`} className="trace-row">
               <span className="trace-row__label">{stage.label}</span>

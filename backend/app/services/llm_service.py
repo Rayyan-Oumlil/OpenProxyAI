@@ -44,7 +44,7 @@ from app.services.crypto_service import decrypt
 from app.services.eval_service import _extract_prompt_text, run_eval_hook
 from app.services.mcp_taint import ChatTaintResult, load_trust_rules, restrict_chat_request
 from app.services.policy_service import PolicyDecision, policy_service, policy_store
-from app.services.stage_timing import StageTimer
+from app.services.stage_timing import StageTimer, timer_for_request
 from app.services.rate_limiter import rate_limiter_service
 from app.utils.logging import get_logger
 from app.utils.token_estimator import estimate_tokens
@@ -329,7 +329,7 @@ class _RequestContext:
 
 	def __post_init__(self) -> None:
 		if self.stages is None:
-			self.stages = StageTimer(origin=self.start)
+			self.stages = timer_for_request(self.http_request, self.start)
 
 
 def _build_request_metadata(ctx: _RequestContext, extra: dict | None = None) -> dict:
@@ -1382,16 +1382,22 @@ class LLMService:
 		rl_headers: dict[str, str] = {}
 		policy_metadata: dict | None = None
 
+		timer = timer_for_request(http_request, start)
+
 		def _emb_request_metadata(meta: dict | None) -> dict:
 			out = {**(meta or {})}
+			stages = timer.as_list()
+			if stages:
+				out["stages"] = stages
 			if session_id:
 				out["session_id"] = session_id
 			return out
 
 		try:
 			provider, model_name = _split_model(request.model)
-			policy_config = await policy_store.load(user.org_id, db, redis)
-			decision = await policy_service.evaluate_embedding_request(request, policy_config)
+			with timer.stage("policy"):
+				policy_config = await policy_store.load(user.org_id, db, redis)
+				decision = await policy_service.evaluate_embedding_request(request, policy_config)
 			policy_metadata = decision.as_metadata()
 			if not decision.allowed:
 				latency_ms = int((time.perf_counter() - start) * 1000)
@@ -1406,16 +1412,17 @@ class LLMService:
 				)
 				return self._policy_block_response(decision)
 			size = len(request.input) if isinstance(request.input, list) else len(request.input)
-			ok, rl_headers, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
-				redis=redis, org_id=str(user.org_id), user_id=str(user.id),
-				request_tokens_estimate=max(size // 4, 1),
-				max_rpm=settings.DEFAULT_RATE_LIMIT_RPM, max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
-				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
-				user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
-				team_id=str(team_id) if team_id else None,
-				team_budget_monthly_usd=team_budget_monthly_usd,
-				model=request.model, policy_config=policy_config,
-			)
+			with timer.stage("rate_limit"):
+				ok, rl_headers, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
+					redis=redis, org_id=str(user.org_id), user_id=str(user.id),
+					request_tokens_estimate=max(size // 4, 1),
+					max_rpm=settings.DEFAULT_RATE_LIMIT_RPM, max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
+					max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
+					user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
+					team_id=str(team_id) if team_id else None,
+					team_budget_monthly_usd=team_budget_monthly_usd,
+					model=request.model, policy_config=policy_config,
+				)
 			if not ok:
 				latency_ms = int((time.perf_counter() - start) * 1000)
 				background_tasks.add_task(log_request,
@@ -1451,9 +1458,10 @@ class LLMService:
 					encoding_format=request.encoding_format, timeout=30,
 				)
 
-			response, fb_count, provider_key_id = await self._execute_with_fallback(
-				candidate_keys, _emb_call, request.model, tag=" (embed)", redis=redis,
-			)
+			with timer.stage("upstream"):
+				response, fb_count, provider_key_id = await self._execute_with_fallback(
+					candidate_keys, _emb_call, request.model, tag=" (embed)", redis=redis,
+				)
 			if fb_count > 0:
 				policy_metadata = {**(policy_metadata or {}), "fallback_count": fb_count}
 
