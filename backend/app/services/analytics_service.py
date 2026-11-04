@@ -19,6 +19,7 @@ from app.schemas.analytics import (
 	CacheAnalyticsResponse,
 	CostByModel,
 	CostByTeam,
+	CostByKey,
 	CostByUser,
 	DailyUsageTrend,
 	PolicyActionStat,
@@ -48,12 +49,14 @@ class AnalyticsService:
 		overview = await self._overview_stats(db, org_id, since, period_days, team_id=team_id, session_id=session_id)
 		by_model = await self._cost_by_model(db, org_id, since, team_id=team_id, session_id=session_id)
 		by_user = await self._cost_by_user(db, org_id, since, team_id=team_id, session_id=session_id)
+		by_key = await self._cost_by_key(db, org_id, since, team_id=team_id, session_id=session_id)
 		by_team = await self._cost_by_team(db, org_id, since)
 		daily_trend = await self._daily_trend(db, org_id, since, team_id=team_id, session_id=session_id)
 		return AnalyticsResponse(
 			overview=overview,
 			by_model=by_model,
 			by_user=by_user,
+			by_key=by_key,
 			by_team=by_team,
 			daily_trend=daily_trend,
 			generated_at=datetime.now(UTC),
@@ -369,6 +372,56 @@ class AnalyticsService:
 			CostByUser(
 				user_id=row["user_id"],
 				email=str(row["email"] or ""),
+				requests=int(row["requests"] or 0),
+				tokens=int(row["tokens"] or 0),
+				cost_usd=float(Decimal(str(row["cost_usd"] or 0))),
+			)
+			for row in rows
+		]
+
+	async def _cost_by_key(
+		self,
+		db: AsyncSession,
+		org_id: UUID,
+		since: date,
+		team_id: UUID | None = None,
+		session_id: str | None = None,
+	) -> list[CostByKey]:
+		"""Spend per API key, most expensive first. Requests with no key (older rows) are left out."""
+		team_sql, team_params = self._team_filter_sql(team_id)
+		session_sql, session_params = self._session_filter_sql(session_id)
+		extra_sql = team_sql + session_sql
+		params = {"org_id": str(org_id), "since": since, **team_params, **session_params}
+		rows = (
+			await db.execute(
+				text(
+					f"""
+					SELECT
+						r.api_key_id,
+						k.name,
+						k.key_prefix,
+						COALESCE(COUNT(*), 0) AS requests,
+						COALESCE(SUM(r.total_tokens), 0) AS tokens,
+						COALESCE(SUM(r.cost_usd), 0) AS cost_usd
+					FROM request_logs r
+					JOIN api_keys k ON k.id = r.api_key_id AND k.org_id = r.org_id
+					WHERE r.org_id = :org_id
+					  AND r.created_at::date >= :since
+					  AND r.archived_at IS NULL
+					  {extra_sql}
+					GROUP BY r.api_key_id, k.name, k.key_prefix
+					ORDER BY cost_usd DESC, requests DESC
+					LIMIT 50
+					"""
+				),
+				params,
+			)
+		).mappings().all()
+		return [
+			CostByKey(
+				api_key_id=row["api_key_id"],
+				name=row["name"],
+				key_prefix=str(row["key_prefix"]),
 				requests=int(row["requests"] or 0),
 				tokens=int(row["tokens"] or 0),
 				cost_usd=float(Decimal(str(row["cost_usd"] or 0))),

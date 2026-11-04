@@ -123,6 +123,7 @@ export function overview(periodDays: number) {
     by_model: [{ model: "openai/gpt-4o-mini", provider: "openai", requests, tokens: requests * 15, cost_usd: periodDays * 2 }],
     by_user: [{ user_id: "u1", email: "ada@example.com", requests, tokens: requests * 15, cost_usd: periodDays * 2 }],
     by_team: [{ team_id: "t1", name: "Platform", requests, tokens: requests * 15, cost_usd: periodDays * 2 }],
+    by_key: [{ api_key_id: "k1", name: "ci-bot", key_prefix: "opai_dev_ab12", requests, tokens: requests * 15, cost_usd: periodDays * 2 }],
     daily_trend: periodDays === 60 ? [...trend(30, 10, 1, 30), ...trend(30, 20, 2)] : trend(periodDays, 20, 2),
     generated_at: new Date().toISOString(),
   };
