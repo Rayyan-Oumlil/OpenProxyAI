@@ -12,6 +12,8 @@ import pytest
 from sqlalchemy import text
 
 from app.services.auth_service import create_access_token
+from app.models.api_key import ApiKey
+from app.utils.crypto import generate_api_key
 from tests.e2e.conftest import _run, fetch_request_logs
 
 pytestmark = pytest.mark.e2e
@@ -70,3 +72,57 @@ def test_total_requests_is_always_successful_plus_failed(e2e_client, upstream, m
 
     assert (overview["successful_requests"], overview["failed_requests"], overview["policy_blocked_requests"]) == (1, 1, 1)
     assert overview["total_requests"] == overview["successful_requests"] + overview["failed_requests"] == 2
+
+
+def _add_second_key(org_id: uuid.UUID, name: str) -> tuple[str, str]:
+    """A second proxy key for the org's admin user; returns (full key, prefix)."""
+    full_key, key_hash, key_prefix = generate_api_key()
+
+    async def insert(session) -> None:
+        user_id = (await session.execute(text("SELECT id FROM users WHERE org_id = :o"), {"o": org_id})).scalar_one()
+        key = ApiKey(user_id=user_id, org_id=org_id, key_hash=key_hash, key_prefix=key_prefix, name=name, is_active=True)
+        session.add(key)
+        await session.flush()
+        await session.execute(
+            text("INSERT INTO api_key_lookup (key_hash, org_id, api_key_id) VALUES (:h, :o, :k)"),
+            {"h": key_hash, "o": org_id, "k": key.id},
+        )
+        await session.commit()
+
+    _run(insert)
+    return full_key, key_prefix
+
+
+def test_overview_breaks_spend_down_by_api_key(e2e_client, upstream, make_tenant):
+    tenant = make_tenant()
+    second_key, second_prefix = _add_second_key(tenant.org_id, "ci-bot")
+    second_headers = {"Authorization": f"Bearer {second_key}"}
+    for prompt in ("one", "two"):
+        assert e2e_client.post(CHAT, json=_body(prompt), headers=tenant.headers).status_code == 200
+    assert e2e_client.post(CHAT, json=_body("three"), headers=second_headers).status_code == 200
+    _wait_for_logs(tenant.org_id, 3)
+
+    body = e2e_client.get("/api/v1/analytics/overview?period_days=7", headers=_admin_headers(tenant.org_id)).json()
+
+    by_key = {entry["key_prefix"]: entry for entry in body["by_key"]}
+    assert set(by_key) == {tenant.api_key[:18], second_prefix}
+    assert by_key[second_prefix]["name"] == "ci-bot"
+    assert by_key[tenant.api_key[:18]]["name"] is None
+    assert (by_key[tenant.api_key[:18]]["requests"], by_key[second_prefix]["requests"]) == (2, 1)
+    assert by_key[tenant.api_key[:18]]["tokens"] == 30
+    assert all(entry["cost_usd"] > 0 for entry in by_key.values())
+    # the most expensive key first
+    assert [e["requests"] for e in body["by_key"]] == [2, 1]
+    assert sum(e["requests"] for e in body["by_key"]) == body["overview"]["total_requests"]
+
+
+def test_spend_by_key_ignores_other_orgs_keys(e2e_client, upstream, make_tenant):
+    mine, other = make_tenant(), make_tenant()
+    assert e2e_client.post(CHAT, json=_body("mine"), headers=mine.headers).status_code == 200
+    assert e2e_client.post(CHAT, json=_body("theirs"), headers=other.headers).status_code == 200
+    _wait_for_logs(mine.org_id, 1)
+    _wait_for_logs(other.org_id, 1)
+
+    body = e2e_client.get("/api/v1/analytics/overview?period_days=7", headers=_admin_headers(mine.org_id)).json()
+
+    assert [e["key_prefix"] for e in body["by_key"]] == [mine.api_key[:18]]
