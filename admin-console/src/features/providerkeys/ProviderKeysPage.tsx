@@ -9,10 +9,9 @@ import type {
   CreateProviderKeyRequest,
   UpdateProviderKeyRequest,
 } from "../../api/types";
-import { LoadingState } from "../../components/LoadingState";
-import { ErrorState } from "../../components/ErrorState";
-import { EmptyState } from "../../components/EmptyState";
 import { Badge } from "../../components/ui/badge";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { formatDate } from "../../lib/utils";
 import {
@@ -213,163 +212,138 @@ export function ProviderKeysPage() {
     deleteMutation.mutate(id);
   }
 
-  if (keysQuery.isLoading) return <LoadingState label="Loading provider keys…" />;
-  if (keysQuery.isError)
-    return (
-      <ErrorState
-        title="Unable to load provider keys"
-        detail={keysQuery.error instanceof Error ? keysQuery.error.message : "Unknown error"}
-      />
-    );
-
   const keys = keysQuery.data ?? [];
-  const filteredKeys =
-    regionFilter === "all" ? keys : keys.filter((k) => k.region === regionFilter);
+  const filteredKeys = regionFilter === "all" ? keys : keys.filter((k) => k.region === regionFilter);
+  // Adaptive load-balancing columns only exist when some key reports them.
+  const showAdaptive = keys.some((k) => k.effective_weight != null || k.latency_p99_ms != null);
+  // Circuit expiry is judged against when the data was fetched, so rendering stays pure.
+  const nowSeconds = keysQuery.dataUpdatedAt / 1000;
+
+  const adaptiveColumns: Column<ProviderKeyResponse>[] = showAdaptive
+    ? [
+        { key: "p99", header: "P99 (ms)", align: "right", mono: true, cell: (k) => (k.latency_p99_ms != null ? Math.round(k.latency_p99_ms) : "—") },
+        { key: "errors", header: "Error %", align: "right", mono: true, cell: (k) => (k.error_rate != null ? `${(k.error_rate * 100).toFixed(1)}%` : "—") },
+        { key: "effective", header: "Eff. weight", align: "right", mono: true, cell: (k) => (k.effective_weight != null ? k.effective_weight : "—") },
+      ]
+    : [];
+
+  const columns: Column<ProviderKeyResponse>[] = [
+    {
+      key: "provider",
+      header: "Provider",
+      cell: (k) => (
+        <span className="flex items-center gap-1.5">
+          <Plug2 size={13} className="text-muted" aria-hidden />
+          {k.provider}
+        </span>
+      ),
+    },
+    { key: "alias", header: "Alias", cell: (k) => k.key_alias ?? k.alias ?? "—" },
+    {
+      key: "region",
+      header: "Region",
+      cell: (k) => (
+        <Badge variant="muted" className="text-xs">
+          {REGIONS.find((r) => r.value === k.region)?.label ?? k.region ?? "US"}
+        </Badge>
+      ),
+    },
+    { key: "prefix", header: "Key prefix", mono: true, cell: (k) => `${k.key_prefix}…` },
+    { key: "weight", header: "Weight", align: "right", mono: true, cell: (k) => k.weight },
+    ...adaptiveColumns,
+    {
+      key: "circuit",
+      header: "Circuit",
+      cell: (k) =>
+        k.circuit_open_until != null && k.circuit_open_until > nowSeconds ? (
+          <Badge variant="warning" title={`Open until ${new Date(k.circuit_open_until * 1000).toLocaleString()}`}>
+            Open
+          </Badge>
+        ) : (
+          <span className="text-muted text-xs">Closed</span>
+        ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (k) => <Badge variant={k.is_active ? "success" : "muted"}>{k.is_active ? "Active" : "Inactive"}</Badge>,
+    },
+    { key: "created", header: "Created", nowrap: true, cell: (k) => formatDate(k.created_at) },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (k) => (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => toggleMutation.mutate({ id: k.id, is_active: !k.is_active })}
+            className="btn-icon-only"
+            aria-label={k.is_active ? `Deactivate ${k.key_alias ?? k.provider}` : `Activate ${k.key_alias ?? k.provider}`}
+          >
+            {k.is_active ? <ToggleRight size={18} className="text-accent-teal" aria-hidden /> : <ToggleLeft size={18} className="text-muted" aria-hidden />}
+          </button>
+          <button type="button" onClick={() => void handleDelete(k.id)} className="btn-icon-only" aria-label={`Delete ${k.key_alias ?? k.provider}`}>
+            <Trash2 size={14} className="text-accent-rose" aria-hidden />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <section className="page-wrap">
-      <header className="page-header with-controls">
-        <div>
-          <p className="eyebrow">LLM Providers</p>
-          <h1>Provider Keys</h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 bg-accent-sky"
-          aria-label="Add provider key"
-        >
-          <Plus size={15} aria-hidden />
-          Add Provider Key
-        </button>
-      </header>
+      <PageHeader
+        title="Provider keys"
+        description="The LLM provider credentials the gateway routes traffic through."
+        actions={
+          <button type="button" onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 bg-accent-sky" aria-label="Add provider key">
+            <Plus size={15} aria-hidden />
+            Add Provider Key
+          </button>
+        }
+      />
 
-      {keys.length === 0 ? (
-        <EmptyState
-          title="No provider keys"
-          detail="Add an API key to start routing traffic to LLM providers."
-        />
-      ) : (
-        <section className="surface-panel">
-          <div className="flex items-center gap-2 mb-3">
-            <label htmlFor="region-filter" className="text-muted-sm font-medium">
-              Filter by region:
-            </label>
-            <select
-              id="region-filter"
-              value={regionFilter}
-              onChange={(e) => setRegionFilter(e.target.value)}
-              className="select-filter"
-              aria-label="Filter provider keys by region"
-            >
-              <option value="all">All</option>
-              {REGIONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Provider</th>
-                <th>Alias</th>
-                <th>Region</th>
-                <th>Key Prefix</th>
-                <th>Weight</th>
-                {(keys.some((k) => k.effective_weight != null) || keys.some((k) => k.latency_p99_ms != null)) && (
-                  <>
-                    <th title="Adaptive LB: p99 latency (ms)">P99 (ms)</th>
-                    <th title="Adaptive LB: error rate">Error %</th>
-                    <th title="Adaptive LB: effective weight used in selection">Eff. Weight</th>
-                  </>
-                )}
-                <th>Circuit</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredKeys.map((k) => (
-                <tr key={k.id}>
-                  <td>
-                    <div className="flex items-center gap-1.5">
-                      <Plug2 size={13} className="text-muted" aria-hidden />
-                      {k.provider}
-                    </div>
-                  </td>
-                  <td>{k.key_alias ?? k.alias ?? "—"}</td>
-                  <td>
-                    <Badge variant="muted" className="text-xs">
-                      {REGIONS.find((r) => r.value === k.region)?.label ?? k.region ?? "US"}
-                    </Badge>
-                  </td>
-                  <td>
-                    <code>{k.key_prefix}…</code>
-                  </td>
-                  <td>{k.weight}</td>
-                  {(keys.some((x) => x.effective_weight != null) || keys.some((x) => x.latency_p99_ms != null)) && (
-                    <>
-                      <td className="text-muted text-sm">
-                        {k.latency_p99_ms != null ? Math.round(k.latency_p99_ms) : "—"}
-                      </td>
-                      <td className="text-muted text-sm">
-                        {k.error_rate != null ? `${(k.error_rate * 100).toFixed(1)}%` : "—"}
-                      </td>
-                      <td className="text-muted text-sm">
-                        {k.effective_weight != null ? k.effective_weight : "—"}
-                      </td>
-                    </>
-                  )}
-                  <td>
-                    {k.circuit_open_until != null && k.circuit_open_until > keysQuery.dataUpdatedAt / 1000 ? (
-                      <Badge variant="warning" title={`Open until ${new Date(k.circuit_open_until * 1000).toLocaleString()}`}>
-                        Open
-                      </Badge>
-                    ) : (
-                      <span className="text-muted text-xs">Closed</span>
-                    )}
-                  </td>
-                  <td>
-                    <Badge variant={k.is_active ? "success" : "muted"}>
-                      {k.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </td>
-                  <td className="text-muted text-sm">
-                    {formatDate(k.created_at)}
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleMutation.mutate({ id: k.id, is_active: !k.is_active })}
-                        className="btn-icon-only"
-                        aria-label={k.is_active ? `Deactivate ${k.key_alias ?? k.provider}` : `Activate ${k.key_alias ?? k.provider}`}
-                      >
-                        {k.is_active ? (
-                          <ToggleRight size={18} className="text-accent-teal" aria-hidden />
-                        ) : (
-                          <ToggleLeft size={18} className="text-muted" aria-hidden />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(k.id)}
-                        className="btn-icon-only"
-                        aria-label={`Delete ${k.key_alias ?? k.provider}`}
-                      >
-                        <Trash2 size={14} className="text-accent-rose" aria-hidden />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+      <div className="flex items-center gap-2 mb-3">
+        <label htmlFor="region-filter" className="text-muted-sm font-medium">
+          Filter by region:
+        </label>
+        <select
+          id="region-filter"
+          value={regionFilter}
+          onChange={(e) => setRegionFilter(e.target.value)}
+          className="select-filter"
+          aria-label="Filter provider keys by region"
+        >
+          <option value="all">All</option>
+          {REGIONS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <DataTable
+        caption="Provider keys"
+        columns={columns}
+        rows={filteredKeys}
+        getRowId={(k) => k.id}
+        isLoading={keysQuery.isLoading}
+        error={
+          keysQuery.isError
+            ? {
+                title: "Unable to load provider keys",
+                detail: keysQuery.error instanceof Error ? keysQuery.error.message : "Unknown error",
+                onRetry: () => void keysQuery.refetch(),
+              }
+            : null
+        }
+        empty={
+          keys.length === 0
+            ? { title: "No provider keys", detail: "Add an API key to start routing traffic to LLM providers." }
+            : { title: "No keys in this region", detail: "Choose another region or All." }
+        }
+      />
 
       <AddKeyModal
         open={showAdd}

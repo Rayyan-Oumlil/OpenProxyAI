@@ -8,9 +8,10 @@ import { apiClient } from "../../api/client";
 import type { ApiKeyCreatedResponse, ApiKeyResponse } from "../../api/types";
 import { formatDateTime } from "../../lib/utils";
 import type { TeamResponse } from "../../api/types";
-import { EmptyState } from "../../components/EmptyState";
-import { ErrorState } from "../../components/ErrorState";
-import { LoadingState } from "../../components/LoadingState";
+import { useConfirm } from "../../components/ui/ConfirmDialog";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { StatusBadge } from "../../components/ui/StatusBadge";
 import {
   Dialog,
   DialogContent,
@@ -213,6 +214,7 @@ function KeyCreatedModal({
 export function ApiKeysPage() {
   const { token, user } = useAuth();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [newKeyName, setNewKeyName] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
   const [latestCreatedKey, setLatestCreatedKey] = useState<ApiKeyCreatedResponse | null>(null);
@@ -271,30 +273,47 @@ export function ApiKeysPage() {
     setNewKeyName("");
   };
 
-  if (keysQuery.isLoading) {
-    return <LoadingState label="Loading API keys..." />;
+  const teamById = new Map((teamsQuery.data ?? []).map((t) => [t.id, t.name]));
+
+  async function revoke(key: ApiKeyResponse) {
+    const ok = await confirm({
+      title: `Revoke ${key.name ?? "this key"}?`,
+      description: `Anything using ${key.key_prefix} stops working immediately. This cannot be undone.`,
+      confirmLabel: "Revoke key",
+      destructive: true,
+    });
+    if (ok) revokeMutation.mutate(key.id);
   }
 
-  if (keysQuery.isError) {
-    return (
-      <ErrorState
-        title="Unable to load API keys"
-        detail={keysQuery.error instanceof Error ? keysQuery.error.message : "Unknown error"}
-      />
-    );
-  }
-
-  const keys = keysQuery.data ?? [];
-  const teamById = new Map(
-    (teamsQuery.data ?? []).map((t) => [t.id, t.name])
-  );
+  const columns: Column<ApiKeyResponse>[] = [
+    { key: "name", header: "Name", cell: (key) => key.name ?? "Unnamed" },
+    { key: "team", header: "Team", cell: (key) => (key.team_id ? teamById.get(key.team_id) ?? key.team_id : "—") },
+    { key: "prefix", header: "Prefix", mono: true, cell: (key) => key.key_prefix },
+    {
+      key: "status",
+      header: "Status",
+      cell: (key) => <StatusBadge verdict={key.is_active ? "allowed" : "blocked"}>{key.is_active ? "Active" : "Revoked"}</StatusBadge>,
+    },
+    { key: "created", header: "Created", nowrap: true, cell: (key) => formatDateTime(key.created_at) },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (key) => (
+        <button
+          type="button"
+          aria-label={`Revoke ${key.name ?? key.key_prefix}`}
+          disabled={!key.is_active || revokeMutation.isPending}
+          onClick={() => void revoke(key)}
+        >
+          Revoke
+        </button>
+      ),
+    },
+  ];
 
   return (
     <section className="page-wrap">
-      <header className="page-header">
-        <p className="eyebrow">Access Control</p>
-        <h1>API Keys</h1>
-      </header>
+      <PageHeader title="API keys" description="Keys that authorize traffic through the gateway." />
 
       <section className="surface-panel">
         <form onSubmit={onCreateKey} className="inline-form">
@@ -339,44 +358,23 @@ export function ApiKeysPage() {
         )}
       </section>
 
-      <section className="surface-panel">
-        {keys.length === 0 ? (
-          <EmptyState title="No API keys" detail="Create a key to authorize gateway traffic." />
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Team</th>
-                <th>Prefix</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map((key) => (
-                <tr key={key.id}>
-                  <td>{key.name ?? "Unnamed"}</td>
-                  <td>{key.team_id ? teamById.get(key.team_id) ?? key.team_id : "—"}</td>
-                  <td>{key.key_prefix}</td>
-                  <td>{key.is_active ? "active" : "revoked"}</td>
-                  <td>{formatDateTime(key.created_at)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      disabled={!key.is_active || revokeMutation.isPending}
-                      onClick={() => revokeMutation.mutate(key.id)}
-                    >
-                      Revoke
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <DataTable
+        caption="API keys"
+        columns={columns}
+        rows={keysQuery.data}
+        getRowId={(key) => key.id}
+        isLoading={keysQuery.isLoading}
+        error={
+          keysQuery.isError
+            ? {
+                title: "Unable to load API keys",
+                detail: keysQuery.error instanceof Error ? keysQuery.error.message : "Unknown error",
+                onRetry: () => void keysQuery.refetch(),
+              }
+            : null
+        }
+        empty={{ title: "No API keys", detail: "Create a key to authorize gateway traffic." }}
+      />
     </section>
   );
 }
