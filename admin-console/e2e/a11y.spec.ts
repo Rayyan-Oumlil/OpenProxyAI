@@ -54,6 +54,13 @@ for (const theme of ["light", "dark"] as const) {
       expect(await audit(page)).toEqual([]);
     });
 
+    test("command palette open", async ({ page }) => {
+      await signIn(page);
+      await page.getByRole("button", { name: /^Search/ }).click();
+      await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
     for (const route of ROUTES) {
       test(`screen ${route}`, async ({ page }) => {
         await signIn(page);

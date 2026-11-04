@@ -10,7 +10,10 @@ import { ThemeToggle } from "../../components/ui/ThemeToggle";
 import { cn } from "../../lib/utils";
 import { DESKTOP_QUERY, useMediaQuery } from "../../lib/useMediaQuery";
 import { useAuth } from "../../state/AuthContext";
+import { breadcrumbsFor } from "./breadcrumbs";
+import { CommandPalette } from "./CommandPalette";
 import { NAV_GROUPS } from "./nav";
+import { PageBar } from "./PageBar";
 
 const COLLAPSE_KEY = "sidebarCollapsed";
 
@@ -106,6 +109,7 @@ export function AdminLayout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState<boolean>(readCollapsed);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -129,6 +133,10 @@ export function AdminLayout() {
       if (isDesktop && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
         setCollapsed((value) => !value);
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((open) => !open);
       }
     },
     [isDesktop],
@@ -186,7 +194,10 @@ export function AdminLayout() {
         </>
       )}
 
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+
       <main id="main-content" className="main" tabIndex={-1}>
+        <PageBar crumbs={breadcrumbsFor(location.pathname)} onOpenSearch={() => setPaletteOpen(true)} />
         <RouteErrorBoundary resetKey={location.pathname}>
           <Suspense fallback={<LoadingState label="Loading page…" />}>
             <Outlet />
