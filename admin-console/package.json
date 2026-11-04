@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "record:walkthrough": "playwright test -c playwright.record.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.4",
