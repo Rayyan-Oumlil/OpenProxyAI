@@ -4,7 +4,7 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
-import type { AnalyticsResponse, CostByTeam, CostByUser, OrganizationResponse, TeamResponse } from "../../api/types";
+import type { AnalyticsResponse, CostByKey, CostByTeam, CostByUser, OrganizationResponse, TeamResponse } from "../../api/types";
 import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
@@ -34,6 +34,14 @@ const TEAM_COLUMNS: Column<CostByTeam>[] = [
   { key: "team", header: "Team", cell: (t) => t.name },
   { key: "requests", header: "Requests", align: "right", mono: true, cell: (t) => formatNumber(t.requests) },
   { key: "cost", header: "Cost", align: "right", mono: true, cell: (t) => formatCost(t.cost_usd) },
+];
+
+const KEY_COLUMNS: Column<CostByKey>[] = [
+  { key: "key", header: "API key", cell: (k) => k.name ?? "Unnamed" },
+  { key: "prefix", header: "Prefix", mono: true, cell: (k) => k.key_prefix },
+  { key: "requests", header: "Requests", align: "right", mono: true, cell: (k) => formatNumber(k.requests) },
+  { key: "tokens", header: "Tokens", align: "right", mono: true, cell: (k) => formatNumber(k.tokens) },
+  { key: "cost", header: "Cost", align: "right", mono: true, cell: (k) => formatCost(k.cost_usd) },
 ];
 
 const USER_COLUMNS: Column<CostByUser>[] = [
@@ -114,7 +122,7 @@ export function DashboardPage() {
     );
   if (!overviewQuery.data) return <EmptyState title="No metrics yet" detail="Send traffic through your gateway first." />;
 
-  const { overview, by_model, by_team, by_user, daily_trend } = overviewQuery.data;
+  const { overview, by_model, by_team, by_user, by_key, daily_trend } = overviewQuery.data;
 
   const hasPrevious = comparable && previousQuery.data !== undefined;
   const { current, previous } = splitPeriods(
@@ -233,6 +241,13 @@ export function DashboardPage() {
           </section>
         ) : null}
       </div>
+
+      {isAdmin && by_key && by_key.length > 0 ? (
+        <section className="surface-panel">
+          <h2 className="section-title-mb">Cost by API key</h2>
+          <DataTable caption="Cost by API key" columns={KEY_COLUMNS} rows={by_key} getRowId={(k) => k.api_key_id} empty={{ title: "No key spend", detail: "" }} density="compact" />
+        </section>
+      ) : null}
 
       {isAdmin && by_user && by_user.length > 0 ? (
         <section className="surface-panel">
