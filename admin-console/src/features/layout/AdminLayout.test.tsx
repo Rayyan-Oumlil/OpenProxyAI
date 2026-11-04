@@ -161,3 +161,37 @@ describe("AdminLayout below 1024px", () => {
     expect(container.querySelector(".shell")!.getAttribute("data-collapsed")).toBe("false");
   });
 });
+
+describe("AdminLayout page bar", () => {
+  beforeEach(() => setViewport(true));
+
+  it("shows breadcrumbs for the current page, with the page itself as the current item", () => {
+    renderLayout("/audit");
+    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(crumbs).getByText("Observe")).not.toBeNull();
+    expect(within(crumbs).getByText("Audit log").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("opens the command palette from the Search button and with Ctrl+K, and Ctrl+K again closes it", async () => {
+    renderLayout();
+    expect(screen.queryByRole("dialog", { name: "Command palette" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Search/ }));
+    expect(await screen.findByRole("dialog", { name: "Command palette" })).not.toBeNull();
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Command palette" })).toBeNull());
+
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    expect(await screen.findByRole("dialog", { name: "Command palette" })).not.toBeNull();
+  });
+
+  it("goes to the chosen page from the palette", async () => {
+    renderLayout();
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    const box = await screen.findByRole("combobox", { name: "Go to page or action" });
+    fireEvent.change(box, { target: { value: "request logs" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(await screen.findByRole("heading", { name: "Logs page" })).not.toBeNull();
+    expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText("Request logs")).not.toBeNull();
+  });
+});
