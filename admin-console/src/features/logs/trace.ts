@@ -22,6 +22,7 @@ export interface Trace {
 }
 
 const LABELS: Record<string, string> = {
+  auth: "Authentication",
   policy: "Policy checks",
   rate_limit: "Rate limit and budget",
   cache: "Cache lookup",
