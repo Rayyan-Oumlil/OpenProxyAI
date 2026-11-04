@@ -53,6 +53,10 @@ function overview(trend: ReturnType<typeof days>, overrides: Partial<AnalyticsRe
     by_model: [{ model: "openai/gpt-4o-mini", provider: "openai", requests: 600, tokens: 9000, cost_usd: 60 }],
     by_user: [{ user_id: "u1", email: "ada@example.com", requests: 600, tokens: 9000, cost_usd: 60 }],
     by_team: [{ team_id: "t1", name: "Platform", requests: 600, tokens: 9000, cost_usd: 60 }],
+    by_key: [
+      { api_key_id: "k1", name: "ci-bot", key_prefix: "opai_dev_ab12", requests: 400, tokens: 6000, cost_usd: 45 },
+      { api_key_id: "k2", name: null, key_prefix: "opai_dev_cd34", requests: 200, tokens: 3000, cost_usd: 15 },
+    ],
     daily_trend: trend,
     generated_at: `${END}T12:00:00+00:00`,
   } as AnalyticsResponse;
@@ -136,11 +140,16 @@ describe("DashboardPage", () => {
     expect(await screen.findByText(/applies to the whole organization/)).toBeTruthy();
   });
 
-  it("shows spend by team and user to admins only", async () => {
+  it("shows spend by team, API key and user to admins only", async () => {
     mockApi();
     renderPage();
     expect(await screen.findByRole("table", { name: "Cost by team" })).toBeTruthy();
     expect(screen.getByRole("table", { name: "Cost by user" })).toBeTruthy();
+    const keys = screen.getByRole("table", { name: "Cost by API key" });
+    expect(within(keys).getByText("ci-bot")).toBeTruthy();
+    expect(within(keys).getByText("Unnamed")).toBeTruthy(); // a key with no name still identifies by prefix
+    expect(within(keys).getByText("opai_dev_cd34")).toBeTruthy();
+    expect(within(keys).getByText("$45.00")).toBeTruthy();
     cleanup();
 
     auth.role = "member";
@@ -150,6 +159,7 @@ describe("DashboardPage", () => {
     await screen.findByRole("region", { name: "Key metrics" });
     expect(screen.queryByRole("table", { name: "Cost by team" })).toBeNull();
     expect(screen.queryByRole("table", { name: "Cost by user" })).toBeNull();
+    expect(screen.queryByRole("table", { name: "Cost by API key" })).toBeNull();
     expect(get.mock.calls.some((c) => c[0] === "/api/v1/organizations/current")).toBe(false);
   });
 

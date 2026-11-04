@@ -61,6 +61,15 @@ export type CostByUser = {
   cost_usd: number;
 };
 
+export type CostByKey = {
+  api_key_id: string;
+  name: string | null;
+  key_prefix: string;
+  requests: number;
+  tokens: number;
+  cost_usd: number;
+};
+
 export type CostByTeam = {
   team_id: string;
   name: string;
@@ -81,6 +90,7 @@ export type AnalyticsResponse = {
   overview: UsageOverview;
   by_model: CostByModel[];
   by_user: CostByUser[];
+  by_key?: CostByKey[];
   by_team: CostByTeam[];
   daily_trend: DailyUsageTrend[];
   generated_at: string;
