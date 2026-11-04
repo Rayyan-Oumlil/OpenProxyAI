@@ -3,9 +3,9 @@ import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
 import type { UserResponse } from "../../api/types";
-import { EmptyState } from "../../components/EmptyState";
-import { ErrorState } from "../../components/ErrorState";
-import { LoadingState } from "../../components/LoadingState";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { StatusBadge } from "../../components/ui/StatusBadge";
 import { useAuth } from "../../state/AuthContext";
 import { formatDate } from "../../lib/utils";
 
@@ -33,101 +33,85 @@ export function UsersRolesPage() {
 
   const canManageUsers = user?.role === "admin";
 
-  if (usersQuery.isLoading) {
-    return <LoadingState label="Loading users..." />;
-  }
-
-  if (usersQuery.isError) {
-    return (
-      <ErrorState
-        title="Unable to load users"
-        detail={usersQuery.error instanceof Error ? usersQuery.error.message : "Unknown error"}
-      />
-    );
-  }
-
-  const users = usersQuery.data ?? [];
+  const columns: Column<UserResponse>[] = [
+    { key: "email", header: "Email", cell: (row) => row.email },
+    { key: "name", header: "Name", cell: (row) => row.name ?? "-" },
+    {
+      key: "role",
+      header: "Role",
+      cell: (row) => {
+        const isSelf = row.id === user?.id;
+        if (canManageUsers && !isSelf) {
+          return (
+            <select
+              aria-label={`Role for ${row.email}`}
+              value={row.role}
+              onChange={(event) => updateUserMutation.mutate({ userId: row.id, payload: { role: event.target.value } })}
+              disabled={updateUserMutation.isPending}
+            >
+              <option value="admin">admin</option>
+              <option value="developer">developer</option>
+              <option value="viewer">viewer</option>
+            </select>
+          );
+        }
+        return (
+          <span>
+            {row.role}
+            {isSelf ? <span className="text-muted text-xs ml-1">(you)</span> : null}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Status",
+      cell: (row) => <StatusBadge verdict={row.is_active ? "allowed" : "neutral"}>{row.is_active ? "Active" : "Inactive"}</StatusBadge>,
+    },
+    { key: "created", header: "Created", nowrap: true, cell: (row) => formatDate(row.created_at) },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (row) => (
+        <button
+          type="button"
+          aria-label={`${row.is_active ? "Deactivate" : "Activate"} ${row.email}`}
+          disabled={!canManageUsers || row.id === user?.id || updateUserMutation.isPending}
+          onClick={() => updateUserMutation.mutate({ userId: row.id, payload: { is_active: !row.is_active } })}
+        >
+          {row.is_active ? "Deactivate" : "Activate"}
+        </button>
+      ),
+    },
+  ];
 
   return (
     <section className="page-wrap">
-      <header className="page-header">
-        <p className="eyebrow">Team Access</p>
-        <h1>Users &amp; Roles</h1>
-      </header>
+      <PageHeader title="Users & roles" description="Who can sign in to this organization, and what they can do." />
 
       {!canManageUsers ? (
-        <EmptyState
-          title="Read-only access"
-          detail="Only admin users can modify roles and activation status."
-        />
+        <p className="trace-note" role="status">
+          Read-only access. Only admin users can modify roles and activation status.
+        </p>
       ) : null}
 
-      <section className="surface-panel">
-        {users.length === 0 ? (
-          <EmptyState title="No users in organization" detail="Invite users from onboarding or auth flows." />
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((row) => {
-                const isSelf = row.id === user?.id;
-                return (
-                <tr key={row.id}>
-                  <td>{row.email}</td>
-                  <td>{row.name ?? "-"}</td>
-                  <td>
-                    {canManageUsers && !isSelf ? (
-                      <select
-                        value={row.role}
-                        onChange={(event) => {
-                          updateUserMutation.mutate({
-                            userId: row.id,
-                            payload: { role: event.target.value },
-                          });
-                        }}
-                        disabled={updateUserMutation.isPending}
-                      >
-                        <option value="admin">admin</option>
-                        <option value="developer">developer</option>
-                        <option value="viewer">viewer</option>
-                      </select>
-                    ) : (
-                      <span>{row.role}{isSelf && <span className="text-muted text-xs ml-1">(you)</span>}</span>
-                    )}
-                  </td>
-                  <td>{row.is_active ? "active" : "inactive"}</td>
-                  <td>{formatDate(row.created_at)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      disabled={!canManageUsers || isSelf || updateUserMutation.isPending}
-                      onClick={() => {
-                        updateUserMutation.mutate({
-                          userId: row.id,
-                          payload: { is_active: !row.is_active },
-                        });
-                      }}
-                    >
-                      {row.is_active ? "Deactivate" : "Activate"}
-                    </button>
-                  </td>
-                </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <DataTable
+        caption="Users"
+        columns={columns}
+        rows={usersQuery.data}
+        getRowId={(row) => row.id}
+        isLoading={usersQuery.isLoading}
+        error={
+          usersQuery.isError
+            ? {
+                title: "Unable to load users",
+                detail: usersQuery.error instanceof Error ? usersQuery.error.message : "Unknown error",
+                onRetry: () => void usersQuery.refetch(),
+              }
+            : null
+        }
+        empty={{ title: "No users in organization", detail: "Invite users from onboarding or auth flows." }}
+      />
     </section>
   );
 }
-

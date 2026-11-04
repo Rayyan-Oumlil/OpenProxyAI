@@ -5,9 +5,9 @@ import { toast } from "sonner";
 
 import { apiClient, API_BASE_URL } from "../../api/client";
 import type { Page, PolicyAnalyticsResponse, RequestLogItem, TeamResponse } from "../../api/types";
-import { EmptyState } from "../../components/EmptyState";
-import { ErrorState } from "../../components/ErrorState";
-import { LoadingState } from "../../components/LoadingState";
+import { DataTable, type Column } from "../../components/ui/DataTable";
+import { PageHeader } from "../../components/ui/PageHeader";
+import { StatusBadge, verdictForPolicyAction } from "../../components/ui/StatusBadge";
 import { LogDetailDrawer } from "./LogDetailDrawer";
 import { useAuth } from "../../state/AuthContext";
 import { formatCost, formatLatency, formatDateTime } from "../../lib/utils";
@@ -122,36 +122,49 @@ export function LogsPage() {
     }
   }
 
-  if (logsQuery.isLoading) return <LoadingState label="Loading request logs..." />;
-  if (logsQuery.isError)
-    return (
-      <ErrorState
-        title="Unable to load logs"
-        detail={logsQuery.error instanceof Error ? logsQuery.error.message : "Unknown error"}
-      />
-    );
-  if (!logsQuery.data || logsQuery.data.items.length === 0)
-    return <EmptyState title="No request logs" detail="Send at least one request through the proxy." />;
-
   const data = logsQuery.data;
+  const filtered =
+    statusFilter !== "all" || policyActionFilter !== "all" || policyReasonFilter.trim() !== "" || sessionFilter.trim() !== "" ||
+    startDate !== "" || endDate !== "" || teamFilter !== "";
+
+  const columns: Column<RequestLogItem>[] = [
+    { key: "time", header: "Time", nowrap: true, cell: (row) => formatDateTime(row.created_at) },
+    { key: "model", header: "Model", mono: true, cell: (row) => row.model },
+    {
+      key: "status",
+      header: "Status",
+      cell: (row) => <StatusBadge verdict={row.status === "success" ? "allowed" : "blocked"}>{row.status === "success" ? "Success" : "Error"}</StatusBadge>,
+    },
+    {
+      key: "policy",
+      header: "Policy",
+      cell: (row) =>
+        row.policy_action ? (
+          <div className="policy-cell">
+            <StatusBadge verdict={verdictForPolicyAction(row.policy_action)} />
+            <small>{row.policy_reason ?? "-"}</small>
+          </div>
+        ) : (
+          <span className="text-muted">—</span>
+        ),
+    },
+    { key: "tokens", header: "Tokens", align: "right", mono: true, cell: (row) => row.total_tokens.toLocaleString() },
+    { key: "latency", header: "Latency", align: "right", mono: true, cell: (row) => (row.latency_ms != null ? formatLatency(row.latency_ms) : "—") },
+    { key: "cost", header: "Cost", align: "right", mono: true, cell: (row) => formatCost(row.cost_usd) },
+  ];
 
   return (
     <section className="page-wrap">
-      <header className="page-header with-controls">
-        <div>
-          <p className="eyebrow">Traffic Inspection</p>
-          <h1>Request Logs</h1>
-        </div>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={isExporting}
-          className="btn-outline flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors"
-        >
-          <Download size={14} aria-hidden />
-          {isExporting ? "Exporting…" : "Export Policy Events CSV"}
-        </button>
-      </header>
+      <PageHeader
+        title="Request logs"
+        description="Every request through the gateway, with its policy decision, cost and latency."
+        actions={
+          <button type="button" onClick={handleExport} disabled={isExporting} className="btn-outline flex items-center gap-1.5">
+            <Download size={14} aria-hidden />
+            {isExporting ? "Exporting…" : "Export Policy Events CSV"}
+          </button>
+        }
+      />
 
       <div className="surface-panel filters-grid">
         <label className="inline-control">
@@ -212,90 +225,59 @@ export function LogsPage() {
         )}
       </div>
 
-      <section className="surface-panel">
-        {policyQuery.data && (
-          <div className="policy-strip">
-            <strong>Policy events (30d): {policyQuery.data.total_policy_events.toLocaleString()}</strong>
-            <div className="policy-strip-actions">
-              {policyQuery.data.by_action.map((entry) => (
-                <span key={entry.action} className="chip chip-policy">
-                  {entry.action}: {entry.count}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Model</th>
-              <th>Status</th>
-              <th>Policy</th>
-              <th>Tokens</th>
-              <th>Latency</th>
-              <th>Cost</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => setSelectedLogId(row.id)}
-                className="table-row-clickable hover:bg-[var(--bg-hover)] transition-colors"
-              >
-                <td className="text-muted text-sm">
-                  {formatDateTime(row.created_at)}
-                </td>
-                <td className="text-sm">{row.model}</td>
-                <td>
-                  <span className={row.status === "success" ? "chip chip-success" : "chip chip-error"}>
-                    {row.status}
-                  </span>
-                </td>
-                <td>
-                  {row.policy_action ? (
-                    <div className="policy-cell">
-                      <span className="chip chip-policy">{row.policy_action}</span>
-                      <small>{row.policy_reason ?? "-"}</small>
-                    </div>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </td>
-                <td>{row.total_tokens.toLocaleString()}</td>
-                <td>{row.latency_ms != null ? formatLatency(row.latency_ms) : "—"}</td>
-                <td>{formatCost(row.cost_usd)}</td>
-              </tr>
+      {policyQuery.data && (
+        <div className="surface-panel policy-strip">
+          <strong>Policy events (30d): {policyQuery.data.total_policy_events.toLocaleString()}</strong>
+          <div className="policy-strip-actions">
+            {policyQuery.data.by_action.map((entry) => (
+              <span key={entry.action} className="chip chip-policy">
+                {entry.action}: {entry.count}
+              </span>
             ))}
-          </tbody>
-        </table>
-
-        <footer className="table-footer">
-          <p className="text-muted-sm">
-            Page {data.page} of {data.total_pages} &nbsp;·&nbsp; {data.total.toLocaleString()} total
-          </p>
-          <div className="pager-actions">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              disabled={data.page <= 1}
-              aria-label="Previous page"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((p) => (p < data.total_pages ? p + 1 : p))}
-              disabled={data.page >= data.total_pages}
-              aria-label="Next page"
-            >
-              Next
-            </button>
           </div>
-        </footer>
-      </section>
+        </div>
+      )}
+
+      <DataTable
+        caption="Request logs"
+        columns={columns}
+        rows={data?.items}
+        getRowId={(row) => row.id}
+        isLoading={logsQuery.isLoading}
+        error={
+          logsQuery.isError
+            ? {
+                title: "Unable to load logs",
+                detail: logsQuery.error instanceof Error ? logsQuery.error.message : "Unknown error",
+                onRetry: () => void logsQuery.refetch(),
+              }
+            : null
+        }
+        empty={
+          filtered
+            ? { title: "No requests match these filters", detail: "Widen the date range or clear a filter." }
+            : { title: "No request logs", detail: "Send at least one request through the proxy." }
+        }
+        onRowClick={(row) => setSelectedLogId(row.id)}
+        footer={
+          data ? (
+            <>
+              <p className="text-muted-sm">
+                Page {data.page} of {data.total_pages} &nbsp;·&nbsp; {data.total.toLocaleString()} total
+              </p>
+              <div className="pager-actions">
+                <button type="button" onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={data.page <= 1} aria-label="Previous page">
+                  Previous
+                </button>
+                <button type="button" onClick={() => setPage((p) => (p < data.total_pages ? p + 1 : p))} disabled={data.page >= data.total_pages} aria-label="Next page">
+                  Next
+                </button>
+              </div>
+            </>
+          ) : null
+        }
+      />
 
       <LogDetailDrawer logId={selectedLogId} onClose={() => setSelectedLogId(null)} />
     </section>
