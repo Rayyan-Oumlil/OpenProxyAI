@@ -35,11 +35,11 @@ Strategy in one paragraph: lead with "free SSO/RBAC/audit + compliance evidence 
 
 | # | Decision | Recommended default | Status | Blocks |
 |---|---|---|---|---|
-| D1 | Rename the product? | Yes, after a 30-min check of shortlisted names (GitHub org, domains, USPTO/EUIPO). Agent's pick: Gatewarden, fallback Attestgate. Not trademark-checked. | PENDING | Any rename work, SDK package names, public launch |
-| D2 | Lead wedge | Compliance evidence + MCP governance first; classification-aware routing third | PENDING | Phase 2 start |
-| D3 | Licence + pricing | Apache-2.0 core, paid modules in a separate commercial dir; ladder Community free / Team $299 / Business $1,500 / Enterprise from $25k per yr | PENDING | Pricing/Stripe constants, LICENSE files |
-| D4 | Start Phase 0 | Yes (safe under every answer above) | PENDING | Everything |
-| D5 | Scope agreed with Anis | Build his EIAG spec in stages; park the vision paper (voice, "Slack for AI", family/school packages) | PENDING | Phase 2-4 scope |
+| D1 | Rename the product? | Yes, after a 30-min check of shortlisted names (GitHub org, domains, USPTO/EUIPO). Agent's pick: Gatewarden, fallback Attestgate. Not trademark-checked. | **NO** (owner, 2026-11-08): keep the name OpenProxyAI; no rename work | Any rename work, SDK package names, public launch |
+| D2 | Lead wedge | Compliance evidence + MCP governance first; classification-aware routing third | PENDING until the five buyer calls (owner asked for it to be explained; default stays compliance evidence + MCP governance) | Phase 2 start |
+| D3 | Licence + pricing | Apache-2.0 core, paid modules in a separate commercial dir; ladder Community free / Team $299 / Business $1,500 / Enterprise from $25k per yr | PENDING (owner, 2026-11-08: no spending for now: no domain, no paid plans, no pricing or Stripe changes) | Pricing/Stripe constants, LICENSE files |
+| D4 | Start Phase 0 | Yes (safe under every answer above) | **DONE** (Phase 0 and Phase 1 are finished and merged) | Everything |
+| D5 | Scope agreed with Anis | Build his EIAG spec in stages; park the vision paper (voice, "Slack for AI", family/school packages) | **YES** (owner, 2026-11-08): build the EIAG spec in stages; park the vision paper | Phase 2-4 scope |
 | D6 | HTTP status for request-time policy blocks | 446 everywhere (matches CLAUDE.md and `docs-site/.../errors-and-status-codes.md`); the code currently returns 403 and `docs/architecture/overview.md:79` says 403 [CHECKED] | PENDING | Task P0-6 |
 
 Phase 0 tasks other than P0-6 are safe regardless of D1-D3 and D5.
