@@ -168,7 +168,7 @@ Fired when a request is blocked by policy (enforce mode only).
     "reason_code": "blocked_keyword",
     "detail": "Request matched blocked keyword: password",
     "triggered_rules": ["blocked_keyword"],
-    "http_status": 403
+    "http_status": 446
   }
 }
 ```

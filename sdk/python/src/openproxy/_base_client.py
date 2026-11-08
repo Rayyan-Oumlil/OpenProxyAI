@@ -36,14 +36,16 @@ def _raise_for_status(response: httpx.Response) -> None:
 
     if response.status_code == 401:
         raise AuthError(detail, status_code=401, response=body)
+    # 446 is a policy block. Older gateways answered 403 with error=policy_violation, so accept that too.
+    if response.status_code == 446 or (response.status_code == 403 and error == "policy_violation"):
+        raise PolicyViolationError(
+            detail,
+            reason_code=body.get("reason_code"),
+            triggered_rules=body.get("triggered_rules", []),
+            status_code=response.status_code,
+            response=body,
+        )
     if response.status_code == 403:
-        if error == "policy_violation":
-            raise PolicyViolationError(
-                detail,
-                reason_code=body.get("reason_code"),
-                triggered_rules=body.get("triggered_rules", []),
-                response=body,
-            )
         raise AuthError(detail, status_code=403, response=body)
     if response.status_code == 429:
         limit_type = body.get("limit_type", "")

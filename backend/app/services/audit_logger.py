@@ -11,6 +11,7 @@ from app.services.telemetry import telemetry
 from app.database import org_scoped_session
 from app.models.request_log import RequestLog
 from app.services.cost_tracker import cost_tracker_service
+from app.services.policy_service import POLICY_BLOCK_STATUS
 from app.services.spend_batch_service import push_to_batch_queue, _serialize_log_entry
 
 
@@ -174,7 +175,7 @@ async def log_request(
 	)
 
 	# Webhook — policy violation events
-	if status_code == 403:
+	if status_code == POLICY_BLOCK_STATUS:
 		policy_meta = (request_metadata or {}).get("policy", {})
 		if policy_meta.get("action") == "block":
 			import asyncio as _asyncio

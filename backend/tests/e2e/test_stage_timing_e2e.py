@@ -76,7 +76,7 @@ def test_a_policy_block_stops_after_the_policy_stage(e2e_client, upstream, make_
     policy = {"enforcement_mode": "enforce", "blocked_keywords": ["forbidden-word"], "pii_detection_enabled": False}
     tenant = make_tenant(org_settings={"policy": policy})
 
-    assert e2e_client.post(CHAT, json=_body("a forbidden-word here"), headers=tenant.headers).status_code == 403
+    assert e2e_client.post(CHAT, json=_body("a forbidden-word here"), headers=tenant.headers).status_code == 446
 
     (stages,) = _stages(tenant.org_id)
     assert _names(stages) == ["auth", "policy"]

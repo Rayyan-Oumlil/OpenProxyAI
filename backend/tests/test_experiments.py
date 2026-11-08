@@ -152,7 +152,7 @@ async def test_policy_blocks_variant_not_allowed(fake_redis, monkeypatch):
 		background_tasks=BackgroundTasks(),
 	)
 
-	assert resp.status_code == 403
+	assert resp.status_code == 446
 
 
 def test_experiments_require_auth(client):

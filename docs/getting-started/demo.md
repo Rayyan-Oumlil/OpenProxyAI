@@ -32,7 +32,7 @@ These credentials are public demo values. Never reuse them anywhere real.
 ## What is in it
 
 - **Policy** on the demo org: requests mentioning `project-phoenix` and requests containing PII are
-  blocked before they reach the upstream (HTTP 403).
+  blocked before they reach the upstream (HTTP 446).
 - **Request logs and audit rows** from a one-shot traffic job: allowed, cached and blocked requests.
 - **A budget-limited user**, the intern: one request containing `[big-usage]` (the fake LLM then reports a
   costly answer) uses up the $0.01 daily budget, and the next request is refused.

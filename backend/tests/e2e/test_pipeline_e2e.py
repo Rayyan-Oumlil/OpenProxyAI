@@ -88,10 +88,10 @@ def test_blocked_keyword_is_blocked_and_never_reaches_upstream(e2e_client, upstr
 
     response = e2e_client.post(CHAT, json=_body("this has a forbidden-word inside"), headers=tenant.headers)
 
-    assert response.status_code == 403  # becomes 446 once decision D6 is made
+    assert response.status_code == 446
     assert upstream_calls(upstream) == []
     [log] = _wait_for_logs(tenant.org_id, 1)
-    assert log["status_code"] == 403
+    assert log["status_code"] == 446
     assert log["error_message"].startswith("policy_blocked")
 
 
