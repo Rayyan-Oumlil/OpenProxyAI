@@ -215,6 +215,7 @@ async def test_select_provider_keys_single_key():
 	from unittest.mock import AsyncMock, MagicMock
 
 	key = MagicMock()
+	key.api_base, key.is_internal = None, False
 	key.id = uuid4()
 	key.weight = 1
 	key.is_active = True
@@ -254,6 +255,7 @@ async def test_select_provider_keys_multiple_ordered():
 	import random
 
 	key_low = MagicMock()
+	key_low.api_base, key_low.is_internal = None, False
 	key_low.id = uuid4()
 	key_low.weight = 1
 	key_low.is_active = True
@@ -261,6 +263,7 @@ async def test_select_provider_keys_multiple_ordered():
 	key_low.api_key_encrypted = encrypt("sk-low-weight-key123")
 
 	key_mid = MagicMock()
+	key_mid.api_base, key_mid.is_internal = None, False
 	key_mid.id = uuid4()
 	key_mid.weight = 5
 	key_mid.is_active = True
@@ -268,6 +271,7 @@ async def test_select_provider_keys_multiple_ordered():
 	key_mid.api_key_encrypted = encrypt("sk-mid-weight-key123")
 
 	key_high = MagicMock()
+	key_high.api_base, key_high.is_internal = None, False
 	key_high.id = uuid4()
 	key_high.weight = 10
 	key_high.is_active = True

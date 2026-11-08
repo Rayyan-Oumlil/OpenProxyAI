@@ -24,6 +24,16 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
 | S5 | **Preview and shadow.** `POST /v1/policy/preview` runs classify and route with no upstream call and no log. Routing rules can be `shadow=true`: logged, never enforced. | 3 | Preview makes no upstream call and writes no `request_logs` row; shadow never changes the response. |
 | S6 | **Console.** Model registry page (list, edit, enable), data class and `api_base` on the key form, routing decision shown in the request trace. Keyboard e2e and axe cover the new pages. | 2 | e2e and axe pass; the demo seed includes a small registry and one routed-by-class example in the walkthrough. |
 
+## Slice status
+- **S1 done.** Provider keys have `api_base`, `max_data_class`, `is_internal`. Chat, streaming, embeddings, playground compare and
+  the health check honor `api_base`. Private or http endpoints need the operator setting `ALLOW_INTERNAL_PROVIDER_ENDPOINTS`
+  (off by default; leave it off on multi-tenant). The endpoint is validated at save time and again on every use
+  (30 s cache); a key that stops validating is skipped, and if all are skipped the request fails with 503 rather than
+  falling back to the gateway's own key. Known limits, to close before offering this to untrusted tenants: the gap
+  between that check and LiteLLM's own DNS lookup (DNS rebinding), and LiteLLM's HTTP client possibly following
+  redirects from a validated host. The fix for both is egress control (network policy or an egress proxy), not more
+  application checks.
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.

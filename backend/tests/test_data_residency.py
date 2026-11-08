@@ -41,6 +41,9 @@ class FakeKey:
 		self.weight = weight
 		self.is_active = is_active
 		self.region = region
+		self.api_base = None
+		self.max_data_class = "internal"
+		self.is_internal = False
 		self.model_patterns = None
 		self.created_at = datetime.now(UTC)
 
@@ -175,7 +178,7 @@ async def test_env_key_fallback_allowed_for_shared_region(monkeypatch):
 	db = DataResidencyFakeDB(FakeOrg(org_id, data_region="us"), keys=[])
 
 	keys = await LLMService()._select_provider_keys(db, org_id, "openai", model=None)
-	assert keys == [(None, "sk-env-openai")]
+	assert [tuple(k) for k in keys] == [(None, "sk-env-openai", None)]
 
 
 @pytest.mark.asyncio

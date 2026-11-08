@@ -23,6 +23,9 @@ class FakeKey:
 		self.is_active = is_active
 		self.region = region
 		self.model_patterns = None
+		self.api_base = None
+		self.max_data_class = "internal"
+		self.is_internal = False
 		self.created_at = datetime.now(UTC)
 		self.health_status = health.get("health_status", "unknown")
 		self.consecutive_failures = health.get("consecutive_failures", 0)

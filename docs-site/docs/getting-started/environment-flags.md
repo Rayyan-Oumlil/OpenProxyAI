@@ -9,6 +9,7 @@ OpenProxyAI's core request path (auth, rate limiting, policy, cache, provider ro
 
 | Flag | Effect |
 |---|---|
+| `ALLOW_INTERNAL_PROVIDER_ENDPOINTS` | Default `false`. When `true`, an org admin may point a provider key at a private or plain-http `api_base` (vLLM, Ollama, an internal gateway). Leave it off on a multi-tenant deployment: it lets an admin aim the gateway at the operator's private network. Link-local and cloud-metadata addresses are refused either way. |
 | `AIRGAP_MODE` | When `true`, disables everything that calls out to a third party the proxy doesn't strictly need to function: Langfuse observability, ClickHouse analytics dual-write, hosted spend reports, and Stripe metered billing sync. Use this for on-prem / air-gapped deployments. |
 | `BATCH_SPEND_ENABLED` | Enables batched request-log flushing instead of writing each request individually — reduces database write load at high volume. |
 | `PROMETHEUS_ENABLED` | Mounts a `/metrics` endpoint for Prometheus scraping. |

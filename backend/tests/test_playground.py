@@ -9,6 +9,7 @@ import pytest
 
 from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
+from app.services.llm_service import ProviderKeyCandidate
 
 
 class FakePromptTemplate:
@@ -318,7 +319,7 @@ async def test_compare_returns_results_for_all_models(client, monkeypatch):
 
     # Need provider key for openai and anthropic - mock _select_provider_key
     async def fake_select_key(db, org_id, provider, model=None, data_region="us"):
-        return "sk-fake-key"
+        return ProviderKeyCandidate(None, "sk-fake-key")
 
     from app.routes import playground as pg
     monkeypatch.setattr(pg, "_select_provider_key", fake_select_key)
@@ -402,7 +403,7 @@ def test_compare_handles_model_errors_gracefully(client, monkeypatch):
     monkeypatch.setattr(ps.policy_store, "load", fake_policy_load)
 
     async def fake_select_key(db, org_id, provider, model=None, data_region="us"):
-        return "sk-fake-key"
+        return ProviderKeyCandidate(None, "sk-fake-key")
 
     from app.routes import playground as pg
     monkeypatch.setattr(pg, "_select_provider_key", fake_select_key)
@@ -438,3 +439,60 @@ def test_compare_handles_model_errors_gracefully(client, monkeypatch):
     assert "API error" in failed[0]["error"]
     assert len(success) == 1
     assert "Claude says hi" in success[0]["content"]
+
+
+def test_compare_sends_the_keys_api_base(client, monkeypatch):
+    user = SimpleNamespace(id=uuid4(), org_id=uuid4(), role="developer", is_active=True, budget_daily_usd=None)
+    seen = []
+
+    async def fake_acompletion(**kwargs):
+        seen.append(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="hi"))],
+            usage=SimpleNamespace(prompt_tokens=1, completion_tokens=1),
+        )
+
+    async def fake_user():
+        return user
+
+    async def fake_db():
+        yield FakeDB()
+
+    async def fake_redis():
+        return FakeRedis()
+
+    async def fake_check_limits(*args, **kwargs):
+        return (True, {}, None, None, None)
+
+    async def fake_policy_load(*args, **kwargs):
+        from app.services.policy_service import PolicyConfig
+        return PolicyConfig()
+
+    async def fake_select_key(db, org_id, provider, model=None, data_region="us"):
+        return ProviderKeyCandidate(uuid4(), "sk-vllm", "https://8.8.8.8/v1")
+
+    async def noop_log(*args, **kwargs):
+        pass
+
+    from app.routes import playground as pg
+    from app.services import policy_service as ps
+    from app.services import rate_limiter
+
+    monkeypatch.setattr(pg, "acompletion", fake_acompletion)
+    monkeypatch.setattr(pg, "_select_provider_key", fake_select_key)
+    monkeypatch.setattr(pg, "log_request", noop_log)
+    monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", fake_check_limits)
+    monkeypatch.setattr(ps.policy_store, "load", fake_policy_load)
+    app.dependency_overrides[get_current_user_from_jwt] = fake_user
+    app.dependency_overrides[get_db] = fake_db
+    app.dependency_overrides[get_redis] = fake_redis
+
+    response = client.post(
+        "/api/v1/playground/compare",
+        headers={"Authorization": "Bearer x"},
+        json={"models": ["openai/gpt-4", "anthropic/claude-3-5-sonnet"], "messages": [{"role": "user", "content": "Say hi"}]},
+    )
+
+    assert response.status_code == 200
+    assert len(seen) == 2
+    assert all(call["api_base"] == "https://8.8.8.8/v1" and call["api_key"] == "sk-vllm" for call in seen)
