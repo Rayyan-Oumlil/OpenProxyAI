@@ -95,6 +95,18 @@ describe("RequestTracePage", () => {
     expect(within(waterfall).getAllByText("Authentication")).toHaveLength(1);
   });
 
+  it("shows how sensitive the request was judged to be and why, and omits it for older rows", async () => {
+    get.mockResolvedValue(detail({ request_metadata: { data_class: { class: "confidential", source: "detected", entities: ["ssn"] } } }));
+    renderPage();
+    expect(await screen.findByText("Data class")).toBeTruthy();
+    expect(screen.getByText("Confidential (detected: ssn)")).toBeTruthy();
+    cleanup();
+    get.mockResolvedValue(detail({ request_metadata: {} }));
+    renderPage();
+    await screen.findByText("What happened");
+    expect(screen.queryByText("Data class")).toBeNull();
+  });
+
   it("shows a policy block as blocked, with its reason, and says the upstream was not reached", async () => {
     get.mockResolvedValue(
       detail({

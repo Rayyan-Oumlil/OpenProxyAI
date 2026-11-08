@@ -60,6 +60,16 @@ function cacheText(trace: Trace): string {
   return trace.cacheTier === "miss" || trace.cacheTier === null ? "Miss" : `Hit (${trace.cacheTier})`;
 }
 
+const CLASS_NAMES: Record<string, string> = { public: "Public", internal: "Internal", confidential: "Confidential", secret: "Secret" };
+const CLASS_REASON: Record<string, string> = { default: "org default", header: "set by the caller", detected: "detected" };
+
+function dataClassText(trace: Trace): string | null {
+  const dc = trace.dataClass;
+  if (!dc) return null;
+  const reason = CLASS_REASON[dc.source] ?? dc.source;
+  return `${CLASS_NAMES[dc.name] ?? dc.name} (${reason}${dc.entities.length > 0 ? `: ${dc.entities.join(", ")}` : ""})`;
+}
+
 function Outcome({ detail, trace }: { detail: RequestLogDetail; trace: Trace }) {
   const reachedUpstream = trace.stages.some((s) => s.name === "upstream");
   return (
@@ -73,6 +83,7 @@ function Outcome({ detail, trace }: { detail: RequestLogDetail; trace: Trace }) 
             <span className="trace-fact__detail"> Rules: {detail.policy_triggered_rules.join(", ")}</span>
           ) : null}
         </Fact>
+        {dataClassText(trace) ? <Fact label="Data class">{dataClassText(trace)}</Fact> : null}
         <Fact label="Cache">{cacheText(trace)}</Fact>
         <Fact label="Upstream">
           {reachedUpstream || detail.status === "success"

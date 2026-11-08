@@ -50,7 +50,7 @@ def test_a_cache_miss_records_policy_rate_limit_cache_and_upstream(e2e_client, u
     assert e2e_client.post(CHAT, json=_body("trace me"), headers=tenant.headers).status_code == 200
 
     (stages,) = _stages(tenant.org_id)
-    assert _names(stages) == ["auth", "policy", "rate_limit", "cache", "upstream"]
+    assert _names(stages) == ["auth", "policy", "classify", "rate_limit", "cache", "upstream"]
     for stage in stages:
         assert isinstance(stage["start_ms"], int) and isinstance(stage["ms"], int)
         assert stage["start_ms"] >= 0 and stage["ms"] >= 0
@@ -68,7 +68,7 @@ def test_a_cache_hit_has_no_upstream_stage(e2e_client, upstream, make_tenant, mo
 
     miss, hit = _stages(tenant.org_id, count=2)
     assert "upstream" in _names(miss)
-    assert _names(hit) == ["auth", "policy", "rate_limit", "cache"]
+    assert _names(hit) == ["auth", "policy", "classify", "rate_limit", "cache"]
     assert len(upstream_calls(upstream)) == 1
 
 
@@ -79,7 +79,7 @@ def test_a_policy_block_stops_after_the_policy_stage(e2e_client, upstream, make_
     assert e2e_client.post(CHAT, json=_body("a forbidden-word here"), headers=tenant.headers).status_code == 446
 
     (stages,) = _stages(tenant.org_id)
-    assert _names(stages) == ["auth", "policy"]
+    assert _names(stages) == ["auth", "policy", "classify"]
     assert upstream_calls(upstream) == []
 
 
@@ -91,7 +91,7 @@ def test_a_streaming_request_records_the_upstream_stage(e2e_client, upstream, ma
     assert lines[-1] == "data: [DONE]"
 
     (stages,) = _stages(tenant.org_id)
-    assert _names(stages) == ["auth", "policy", "rate_limit", "upstream"]
+    assert _names(stages) == ["auth", "policy", "classify", "rate_limit", "upstream"]
 
 
 def test_an_embeddings_request_is_timed_too(e2e_client, upstream, make_tenant):
@@ -100,5 +100,5 @@ def test_an_embeddings_request_is_timed_too(e2e_client, upstream, make_tenant):
     assert response.status_code == 200
 
     (stages,) = _stages(tenant.org_id)
-    assert _names(stages) == ["auth", "policy", "rate_limit", "upstream"]
+    assert _names(stages) == ["auth", "policy", "classify", "rate_limit", "upstream"]
     assert [s["start_ms"] for s in stages] == sorted(s["start_ms"] for s in stages)
