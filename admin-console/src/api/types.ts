@@ -270,6 +270,43 @@ export type UpdateProviderKeyRequest = {
   model_patterns?: string[] | null;
 };
 
+export type Rating = "low" | "medium" | "high";
+
+export type ModelRegistryEntry = {
+  id: string;
+  model_id: string;
+  provider: string;
+  /** null once the key was deleted: the entry is kept but cannot be routed */
+  provider_key_id: string | null;
+  max_data_class: DataClass;
+  regions: string[];
+  risk_rating: Rating;
+  retention_days: number | null;
+  trains_on_data: boolean;
+  capabilities: string[];
+  cost_tier: Rating | null;
+  owner: string | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateModelRegistryRequest = {
+  model_id: string;
+  provider_key_id?: string | null;
+  max_data_class?: DataClass;
+  regions: string[];
+  risk_rating?: Rating;
+  retention_days?: number | null;
+  trains_on_data?: boolean;
+  capabilities?: string[];
+  cost_tier?: Rating | null;
+  owner?: string | null;
+  enabled?: boolean;
+};
+
+export type UpdateModelRegistryRequest = Partial<Omit<CreateModelRegistryRequest, "model_id">>;
+
 export type PolicyConfigRequest = {
   enforcement_mode?: "off" | "observe" | "log_only" | "enforce";
   allowed_models?: string[];

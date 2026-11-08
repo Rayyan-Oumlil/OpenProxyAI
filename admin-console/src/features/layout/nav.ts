@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Boxes,
   Building2,
   CreditCard,
   Activity,
@@ -48,6 +49,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Policy", to: "/policy", icon: Sliders },
       { label: "API keys", to: "/api-keys", icon: Key },
+      { label: "Model registry", to: "/model-registry", icon: Boxes },
     ],
   },
   {
