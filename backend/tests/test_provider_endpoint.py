@@ -84,3 +84,67 @@ async def test_internal_endpoint_still_rejects_credentials_in_the_url(monkeypatc
 async def test_unresolvable_host_is_rejected(monkeypatch):
 	monkeypatch.setattr(settings, "ALLOW_INTERNAL_PROVIDER_ENDPOINTS", True)
 	assert await validate_api_base("http://no-such-host.invalid/v1", is_internal=True) is not None
+
+
+# ── call-time re-check (a hostname can start resolving somewhere else after it was saved) ──
+
+
+from types import SimpleNamespace  # noqa: E402
+
+from app.utils import provider_endpoint  # noqa: E402
+from app.utils.provider_endpoint import filter_allowed_endpoints  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _fresh_cache():
+	provider_endpoint.clear_runtime_cache()
+
+
+def _key(api_base, is_internal=False):
+	return SimpleNamespace(id=object(), api_base=api_base, is_internal=is_internal)
+
+
+async def test_keys_without_a_custom_endpoint_are_never_checked():
+	keys = [_key(None)]
+	kept, dropped = await filter_allowed_endpoints(keys)
+	assert kept == keys and dropped == 0
+
+
+async def test_a_key_whose_endpoint_stopped_validating_is_dropped(monkeypatch):
+	good, flipped = _key("https://8.8.8.8/v1"), _key("https://1.1.1.1/v1")
+	kept, dropped = await filter_allowed_endpoints([good, flipped])
+	assert kept == [good, flipped] and dropped == 0
+
+	provider_endpoint.clear_runtime_cache()
+
+	async def fake_resolve(url):
+		return None if "1.1.1.1" in url else "8.8.8.8"  # the second host now points at a private address
+
+	monkeypatch.setattr(provider_endpoint, "resolve_public_ip", fake_resolve)
+	kept, dropped = await filter_allowed_endpoints([good, flipped])
+	assert kept == [good] and dropped == 1
+
+
+async def test_internal_keys_stop_working_when_the_operator_turns_the_switch_off(monkeypatch):
+	monkeypatch.setattr(settings, "ALLOW_INTERNAL_PROVIDER_ENDPOINTS", True)
+	internal = _key("http://10.0.0.5:8000/v1", is_internal=True)
+	assert (await filter_allowed_endpoints([internal]))[1] == 0
+
+	provider_endpoint.clear_runtime_cache()
+	monkeypatch.setattr(settings, "ALLOW_INTERNAL_PROVIDER_ENDPOINTS", False)
+	kept, dropped = await filter_allowed_endpoints([internal])
+	assert kept == [] and dropped == 1
+
+
+async def test_results_are_cached_so_every_request_does_not_resolve_dns(monkeypatch):
+	calls = []
+
+	async def counting(url):
+		calls.append(url)
+		return "8.8.8.8"
+
+	monkeypatch.setattr(provider_endpoint, "resolve_public_ip", counting)
+	key = _key("https://8.8.8.8/v1")
+	for _ in range(5):
+		await filter_allowed_endpoints([key])
+	assert len(calls) == 1

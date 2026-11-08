@@ -32,6 +32,7 @@ from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest, Message, _substitute_variables
 from app.services import cache_service
 from app.services.policy_service import POLICY_BLOCK_STATUS
+from app.utils.provider_endpoint import filter_allowed_endpoints
 from app.services.cache_service import CacheOverride
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
@@ -394,6 +395,16 @@ class LLMService:
 			conditions.append(LLMProviderKey.health_status != "unhealthy")
 		rows = await db.scalars(select(LLMProviderKey).where(*conditions))
 		keys = [row for row in rows if row.weight > 0]
+		keys, endpoints_dropped = await filter_allowed_endpoints(keys)
+		if not keys and endpoints_dropped:
+			# Never fall through to the gateway's own key: the data was meant for a private endpoint.
+			raise HTTPException(
+				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+				detail={
+					"error": "no_provider_key",
+					"detail": "Every provider endpoint configured for this provider failed validation. Check the keys' api_base values.",
+				},
+			)
 		# Filter out keys with open circuit (CIRCUIT_BREAKER_ENABLED)
 		if keys and redis and getattr(settings, "CIRCUIT_BREAKER_ENABLED", False):
 			eligible = []
