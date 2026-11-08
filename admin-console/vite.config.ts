@@ -9,7 +9,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    // Playwright specs live in e2e/ and run under `npm run test:e2e`.
-    exclude: ["e2e/**", "node_modules/**", "dist/**"],
+    // Playwright specs live in e2e/ and run under `npm run test:e2e`; e2e-record/ is the video recording (`npm run record:walkthrough`).
+    exclude: ["e2e/**", "e2e-record/**", "node_modules/**", "dist/**"],
   },
 });
