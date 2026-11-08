@@ -27,6 +27,12 @@ class LLMProviderKey(UUIDPrimaryKeyMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     region: Mapped[str] = mapped_column(String(10), server_default="us", nullable=False)
     model_patterns = mapped_column(JSON, nullable=True, default=list)
+    # Where this key's calls go. None means the provider's own endpoint.
+    api_base: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Most sensitive data class this key's endpoint may receive (public < internal < confidential < secret).
+    max_data_class: Mapped[str] = mapped_column(String(20), nullable=False, server_default="internal")
+    # True for endpoints inside the customer's own network (vLLM, Ollama, a private gateway).
+    is_internal: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
     # Health check (provider health check job)

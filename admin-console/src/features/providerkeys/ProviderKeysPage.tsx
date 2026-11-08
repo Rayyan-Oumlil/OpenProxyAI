@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
 import type {
+  DataClass,
   ProviderKeyResponse,
   CreateProviderKeyRequest,
   UpdateProviderKeyRequest,
@@ -43,6 +44,22 @@ const REGIONS = [
   { value: "global", label: "Global" },
 ] as const;
 
+const DATA_CLASSES: { value: DataClass; label: string }[] = [
+  { value: "public", label: "Public" },
+  { value: "internal", label: "Internal" },
+  { value: "confidential", label: "Confidential" },
+  { value: "secret", label: "Secret" },
+];
+
+/** The host is enough to recognise an endpoint in a table; the full URL stays in the tooltip. */
+function endpointHost(apiBase: string): string {
+  try {
+    return new URL(apiBase).host;
+  } catch {
+    return apiBase;
+  }
+}
+
 function AddKeyModal({
   open,
   onClose,
@@ -59,6 +76,9 @@ function AddKeyModal({
   const [apiKey, setApiKey] = useState("");
   const [weight, setWeight] = useState("1.0");
   const [region, setRegion] = useState<"us" | "eu" | "ap" | "global">("us");
+  const [apiBase, setApiBase] = useState("");
+  const [maxDataClass, setMaxDataClass] = useState<DataClass>("internal");
+  const [isInternal, setIsInternal] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,6 +92,9 @@ function AddKeyModal({
       api_key: apiKey.trim(),
       weight: parseFloat(weight) || 1.0,
       region,
+      ...(apiBase.trim() ? { api_base: apiBase.trim() } : {}),
+      max_data_class: maxDataClass,
+      is_internal: isInternal,
     });
   }
 
@@ -137,6 +160,31 @@ function AddKeyModal({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="inline-control">
+            Custom endpoint (optional)
+            <input
+              type="url"
+              value={apiBase}
+              onChange={(e) => setApiBase(e.target.value)}
+              placeholder="https://vllm.example.com/v1"
+              autoComplete="off"
+            />
+          </label>
+          <label className="inline-control">
+            Most sensitive data this endpoint may receive
+            <select value={maxDataClass} onChange={(e) => setMaxDataClass(e.target.value as DataClass)}>
+              {DATA_CLASSES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="inline-control">
+            <span>
+              <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} /> The endpoint is inside my own network
+            </span>
           </label>
           <DialogFooter>
             <button type="button" onClick={onClose} className="btn-outline">
@@ -245,6 +293,28 @@ export function ProviderKeysPage() {
       cell: (k) => (
         <Badge variant="muted" className="text-xs">
           {REGIONS.find((r) => r.value === k.region)?.label ?? k.region ?? "US"}
+        </Badge>
+      ),
+    },
+    {
+      key: "endpoint",
+      header: "Endpoint",
+      cell: (k) =>
+        k.api_base ? (
+          <span title={k.api_base} className="flex items-center gap-1.5">
+            {endpointHost(k.api_base)}
+            {k.is_internal ? <Badge variant="muted" className="text-xs">Private network</Badge> : null}
+          </span>
+        ) : (
+          <span className="text-muted text-xs">Provider default</span>
+        ),
+    },
+    {
+      key: "dataclass",
+      header: "Max data class",
+      cell: (k) => (
+        <Badge variant="muted" className="text-xs">
+          {DATA_CLASSES.find((c) => c.value === (k.max_data_class ?? "internal"))?.label ?? k.max_data_class}
         </Badge>
       ),
     },

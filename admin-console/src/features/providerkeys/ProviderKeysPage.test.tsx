@@ -13,6 +13,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { apiClient } from "../../api/client";
 
 const get = vi.mocked(apiClient.get);
+const post = vi.mocked(apiClient.post);
 const patch = vi.mocked(apiClient.patch);
 const del = vi.mocked(apiClient.del);
 
@@ -45,6 +46,7 @@ function renderPage() {
 
 beforeEach(() => {
   get.mockReset();
+  post.mockReset();
   patch.mockReset();
   del.mockReset();
   patch.mockResolvedValue(key());
@@ -61,6 +63,47 @@ describe("ProviderKeysPage", () => {
     expect(within(table).getByText("EU")).toBeTruthy();
     expect(within(table).getAllByText("sk-abc123…")).toHaveLength(2);
     expect(within(table).getByText("Inactive")).toBeTruthy();
+  });
+
+  it("shows each key's endpoint and the most sensitive data class it may receive", async () => {
+    get.mockResolvedValue([
+      key(),
+      key({ id: "k2", key_alias: "private-vllm", api_base: "http://10.0.0.5:8000/v1", is_internal: true, max_data_class: "confidential" }),
+    ]);
+    renderPage();
+    const table = await screen.findByRole("table", { name: "Provider keys" });
+    await within(table).findByText("private-vllm");
+    expect(within(table).getByText("Provider default")).toBeTruthy();
+    expect(within(table).getByText("10.0.0.5:8000")).toBeTruthy();
+    expect(within(table).getByText("Private network")).toBeTruthy();
+    expect(within(table).getByText("Confidential")).toBeTruthy();
+    expect(within(table).getByText("Internal")).toBeTruthy(); // the first key's default data class
+  });
+
+  it("adds a key with a custom endpoint and a data class", async () => {
+    get.mockResolvedValue([]);
+    post.mockResolvedValue(key());
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Add provider key" }));
+    fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test-12345" } });
+    fireEvent.change(screen.getByLabelText("Custom endpoint (optional)"), { target: { value: "https://vllm.example.com/v1" } });
+    fireEvent.change(screen.getByLabelText("Most sensitive data this endpoint may receive"), { target: { value: "confidential" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Key" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0][1]).toMatchObject({ api_base: "https://vllm.example.com/v1", max_data_class: "confidential", is_internal: false });
+  });
+
+  it("leaves api_base out when no custom endpoint is given", async () => {
+    get.mockResolvedValue([]);
+    post.mockResolvedValue(key());
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Add provider key" }));
+    fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test-12345" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Key" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    const body = post.mock.calls[0][1] as Record<string, unknown>;
+    expect("api_base" in body).toBe(false);
+    expect(body.max_data_class).toBe("internal");
   });
 
   it("shows the adaptive columns only when a key reports them", async () => {

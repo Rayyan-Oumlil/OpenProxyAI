@@ -30,6 +30,7 @@ from app.models.organization import Organization
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
 from app.services.crypto_service import decrypt
+from app.services.llm_service import ProviderKeyCandidate
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 
@@ -50,8 +51,8 @@ async def _select_provider_key(
     provider: str,
     model: str | None = None,
     data_region: str = "us",
-) -> str:
-    """Return decrypted API key for the provider (mirrors LLMService logic including region filter)."""
+) -> ProviderKeyCandidate:
+    """Return the key (and its custom endpoint, if any) for the provider (mirrors LLMService, including the region filter)."""
     rows = await db.scalars(
         select(LLMProviderKey).where(
             LLMProviderKey.org_id == org_id,
@@ -76,8 +77,7 @@ async def _select_provider_key(
         else:
             candidates = keys
         primary = random.choices(candidates, weights=[k.weight for k in candidates], k=1)[0]
-        raw = decrypt(primary.api_key_encrypted)
-        return raw
+        return ProviderKeyCandidate(primary.id, decrypt(primary.api_key_encrypted), primary.api_base)
 
     env_map = {
         "openai": settings.OPENAI_API_KEY,
@@ -86,7 +86,7 @@ async def _select_provider_key(
     }
     api_key = env_map.get(provider, "")
     if api_key:
-        return api_key
+        return ProviderKeyCandidate(None, api_key)
 
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -433,7 +433,7 @@ async def playground_compare(
         start = time.perf_counter()
         provider, model_name = _split_model(model)
         try:
-            api_key = await _select_provider_key(
+            candidate = await _select_provider_key(
                 db, current_user.org_id, provider, model_name, data_region=data_region,
             )
         except HTTPException:
@@ -442,10 +442,12 @@ async def playground_compare(
         kwargs = {
             "model": model,
             "messages": messages_list,
-            "api_key": api_key,
+            "api_key": candidate.api_key,
             "timeout": 30,
             "request_timeout": 30,
         }
+        if candidate.api_base:
+            kwargs["api_base"] = candidate.api_base
         if payload.temperature is not None:
             kwargs["temperature"] = payload.temperature
         if payload.max_tokens is not None:

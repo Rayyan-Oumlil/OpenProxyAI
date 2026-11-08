@@ -150,6 +150,7 @@ Multiple provider keys per provider — weighted random rotation in `llm_service
 | `adaptive_lb_sampling` | Configurable | Only if `ADAPTIVE_LB_ENABLED` |
 
 ## Environment Flags
+- `ALLOW_INTERNAL_PROVIDER_ENDPOINTS` — lets a provider key's `api_base` be private or plain http (self-hosted only; off for multi-tenant)
 - `AIRGAP_MODE=true` — disables Langfuse, ClickHouse, spend reports, Stripe metered sync
 - `BATCH_SPEND_ENABLED` — enables batched request log flushing
 - `PROMETHEUS_ENABLED` — mounts `/metrics` router

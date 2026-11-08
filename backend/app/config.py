@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # region must bring region-tagged DB provider keys.
     SHARED_KEY_REGIONS: str = "us,global"
 
+    # Self-hosted operators set this to let a provider key point at a private or plain-http endpoint
+    # (vLLM, Ollama, an internal gateway). Leave it off on a multi-tenant deployment: an org admin could
+    # otherwise aim the gateway at the operator's private network.
+    ALLOW_INTERNAL_PROVIDER_ENDPOINTS: bool = False
+
     # ── Redis ────────────────────────────────────────────────────────
     REDIS_URL: str = "redis://redis:6379/0"
 

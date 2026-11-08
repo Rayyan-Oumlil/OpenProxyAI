@@ -212,6 +212,9 @@ export type RequestLogDetail = RequestLogItem & {
   policy_triggered_rules: string[] | null;
 };
 
+/** Least to most sensitive. A key's max_data_class is the most sensitive data its endpoint may receive. */
+export type DataClass = "public" | "internal" | "confidential" | "secret";
+
 export type ProviderKeyResponse = {
   id: string;
   provider: string;
@@ -221,6 +224,11 @@ export type ProviderKeyResponse = {
   weight: number;
   is_active: boolean;
   region: string;
+  /** Custom endpoint (vLLM, Ollama, private gateway); null means the provider's own */
+  api_base?: string | null;
+  max_data_class?: DataClass;
+  /** Endpoint is inside the customer's own network */
+  is_internal?: boolean;
   model_patterns: string[] | null;
   created_at: string;
   /** Unix timestamp when circuit closes; null if closed (circuit breaker state) */
@@ -244,6 +252,9 @@ export type CreateProviderKeyRequest = {
   api_key: string;
   weight?: number;
   region?: string;
+  api_base?: string | null;
+  max_data_class?: DataClass;
+  is_internal?: boolean;
   model_patterns?: string[] | null;
 };
 
@@ -253,6 +264,9 @@ export type UpdateProviderKeyRequest = {
   weight?: number;
   is_active?: boolean;
   region?: string;
+  api_base?: string | null;
+  max_data_class?: DataClass;
+  is_internal?: boolean;
   model_patterns?: string[] | null;
 };
 
