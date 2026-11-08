@@ -164,7 +164,7 @@ INDEX idx_request_logs_model (model, created_at DESC)
 **Status Code Meanings:**
 - `200` — Success (OK)
 - `402` — Budget exceeded
-- `403` — Policy violation
+- `446` — Blocked by policy
 - `429` — Rate limited
 - `502/503/504` — Provider error
 - `-2` — Timeout (internal)

@@ -95,7 +95,7 @@ def derive(status, error=None, model="openai/gpt-4o"):
 	("policy_blocked:model_not_allowed", "AI-POLICY-BLOCK"),
 ])
 def test_policy_blocks_map_to_the_right_event(error, expected):
-	[ev] = derive(403, error)
+	[ev] = derive(446, error)
 	assert ev.name == expected and ev.reason == error.split(":")[1] and ev.details["model"] == "openai/gpt-4o"
 
 
@@ -115,7 +115,7 @@ def test_a_403_that_is_not_a_policy_block_produces_nothing():
 
 
 def test_user_controlled_text_is_stripped_from_details():
-	[ev] = derive(403, "policy_blocked:x", model="evil\n<script>alert(1)</script>|=")
+	[ev] = derive(446, "policy_blocked:x", model="evil\n<script>alert(1)</script>|=")
 	assert all(c not in ev.details["model"] for c in "<>|=\n")
 
 

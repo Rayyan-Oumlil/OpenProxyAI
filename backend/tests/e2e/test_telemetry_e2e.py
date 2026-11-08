@@ -66,7 +66,7 @@ def test_a_successful_request_produces_a_gen_ai_span_and_no_security_event(e2e_c
 def test_a_policy_block_produces_a_siem_event_without_the_prompt(e2e_client, upstream, make_tenant, recorders):
     siem, otel = recorders
     tenant = make_tenant(org_settings={"policy": POLICY})
-    assert e2e_client.post(CHAT, json=_body("this has a forbidden-word inside"), headers=tenant.headers).status_code == 403
+    assert e2e_client.post(CHAT, json=_body("this has a forbidden-word inside"), headers=tenant.headers).status_code == 446
     assert _wait(lambda: siem.items)
     [event] = siem.items
     assert event.name == "AI-DLP-BLOCK" and event.reason == "blocked_keyword" and str(event.org_id) == str(tenant.org_id)
@@ -87,7 +87,7 @@ def test_exporter_failure_never_changes_a_successful_response(e2e_client, upstre
 def test_exporter_failure_never_changes_a_policy_block(e2e_client, upstream, make_tenant, exploding):
     tenant = make_tenant(org_settings={"policy": POLICY})
     response = e2e_client.post(CHAT, json=_body("forbidden-word"), headers=tenant.headers)
-    assert response.status_code == 403 and upstream_calls(upstream) == []
+    assert response.status_code == 446 and upstream_calls(upstream) == []
     assert _wait(lambda: fetch_request_logs(tenant.org_id))
     assert fetch_request_logs(tenant.org_id)[0]["error_message"].startswith("policy_blocked")
 

@@ -65,7 +65,7 @@ def test_total_requests_is_always_successful_plus_failed(e2e_client, upstream, m
     policy = {"enforcement_mode": "enforce", "blocked_keywords": ["forbidden-word"], "pii_detection_enabled": False}
     tenant = make_tenant(org_settings={"policy": policy})
     assert e2e_client.post(CHAT, json=_body("fine"), headers=tenant.headers).status_code == 200
-    assert e2e_client.post(CHAT, json=_body("a forbidden-word"), headers=tenant.headers).status_code == 403
+    assert e2e_client.post(CHAT, json=_body("a forbidden-word"), headers=tenant.headers).status_code == 446
     _wait_for_logs(tenant.org_id, 2)
 
     overview = e2e_client.get("/api/v1/analytics/overview?period_days=7", headers=_admin_headers(tenant.org_id)).json()["overview"]

@@ -40,7 +40,7 @@ def test_siem_events_reach_a_file_sink_through_the_real_lifespan(upstream, make_
         monkeypatch.setattr(settings, key, value)
     tenant = make_tenant(org_settings={"policy": POLICY})
     with TestClient(app) as client:
-        assert client.post(CHAT, json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": "a forbidden-word here"}]}, headers=tenant.headers).status_code == 403
+        assert client.post(CHAT, json={"model": "openai/gpt-4o-mini", "messages": [{"role": "user", "content": "a forbidden-word here"}]}, headers=tenant.headers).status_code == 446
     lines = path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == 1 and lines[0].startswith("CEF:0|OpenProxyAI|Gateway|1.0|AI-DLP-BLOCK|")
     assert "reason=blocked_keyword" in lines[0] and "forbidden-word" not in lines[0]

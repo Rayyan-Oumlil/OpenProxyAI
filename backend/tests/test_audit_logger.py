@@ -231,7 +231,7 @@ class TestLabels:
 class TestPolicyBlock:
     @pytest.mark.asyncio
     async def test_policy_block_fires_webhook_path(self, fake_redis, ids, _mock_db, monkeypatch):
-        """When status_code=403 and policy.action='block', the webhook code path is reached."""
+        """When status_code=446 and policy.action='block', the webhook code path is reached."""
         created_tasks = []
         monkeypatch.setattr(asyncio, "create_task", lambda coro: (created_tasks.append(coro), coro.close()))
 
@@ -248,7 +248,7 @@ class TestPolicyBlock:
             cost_usd=Decimal("0"),
             latency_ms=5,
             ttft_ms=None,
-            status_code=403,
+            status_code=446,
             request_metadata={"policy": {"action": "block", "reason_code": "blocked_model"}},
         )
         assert len(created_tasks) >= 1

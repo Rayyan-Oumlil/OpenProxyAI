@@ -184,6 +184,10 @@ policy_store = PolicyStore()
 # ── Policy decision ───────────────────────────────────────────────────────────
 
 
+# HTTP status for a request or response blocked by policy (decision D6); 403 stays for real authorization failures.
+POLICY_BLOCK_STATUS = 446
+
+
 @dataclass
 class PolicyDecision:
 	allowed: bool

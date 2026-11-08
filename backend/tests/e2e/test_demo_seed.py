@@ -50,13 +50,13 @@ def test_seeded_key_reaches_the_upstream(e2e_client, upstream):
 
 def test_seeded_policy_blocks_the_keyword_before_the_upstream(e2e_client, upstream):
     response = e2e_client.post(CHAT, json=_body(f"tell me about {BLOCKED_KEYWORD}"), headers=HEADERS)
-    assert response.status_code == 403
+    assert response.status_code == 446
     assert upstream_calls(upstream) == []
 
 
 def test_seeded_policy_blocks_pii(e2e_client, upstream):
     response = e2e_client.post(CHAT, json=_body("my ssn is 123-45-6789"), headers=HEADERS)
-    assert response.status_code == 403
+    assert response.status_code == 446
     assert upstream_calls(upstream) == []
 
 

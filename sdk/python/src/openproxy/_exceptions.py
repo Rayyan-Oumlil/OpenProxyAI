@@ -16,10 +16,10 @@ class AuthError(OpenProxyError):
 
 
 class PolicyViolationError(OpenProxyError):
-    """HTTP 403 — request blocked by policy."""
+    """HTTP 446 — request or response blocked by policy (older gateways used 403)."""
 
-    def __init__(self, message: str, reason_code: str | None = None, triggered_rules: list[str] | None = None, **kwargs):
-        super().__init__(message, status_code=403, **kwargs)
+    def __init__(self, message: str, reason_code: str | None = None, triggered_rules: list[str] | None = None, status_code: int = 446, **kwargs):
+        super().__init__(message, status_code=status_code, **kwargs)
         self.reason_code = reason_code
         self.triggered_rules = triggered_rules or []
 

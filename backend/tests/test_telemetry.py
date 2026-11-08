@@ -272,7 +272,7 @@ def test_failed_requests_mark_the_span_with_a_sanitised_label():
 def test_blocked_request_emits_a_siem_event_and_an_error_span():
 	telemetry = Telemetry()
 	telemetry.siem, telemetry.otel = Recorder(), Recorder()
-	telemetry.observe_request(**{**REQUEST, "status_code": 403, "error_message": "policy_blocked:pii_detected", "policy_action": "block"})
+	telemetry.observe_request(**{**REQUEST, "status_code": 446, "error_message": "policy_blocked:pii_detected", "policy_action": "block"})
 	assert [e.name for e in telemetry.siem.items] == ["AI-DLP-BLOCK"]
 	assert telemetry.otel.items[0].error == "policy_blocked" and telemetry.otel.items[0].attributes["openproxyai.policy.action"] == "block"
 
@@ -293,7 +293,7 @@ def test_the_facade_never_raises_whatever_the_exporters_do():
 	telemetry = Telemetry()
 	telemetry.siem, telemetry.otel = Exploding(), Exploding()
 	telemetry.event(EVENT)
-	telemetry.observe_request(**{**REQUEST, "status_code": 403, "error_message": "policy_blocked:pii_detected"})
+	telemetry.observe_request(**{**REQUEST, "status_code": 446, "error_message": "policy_blocked:pii_detected"})
 	telemetry.observe_mcp_call(ToolCallOutcome(tool="t", server="s", status_code=200, decision=None),
 	                           org_id=1, user_id=2, api_key_id=3, latency_ms=1)
 	telemetry.observe_request(**{**REQUEST, "latency_ms": "not-a-number", "cost_usd": object()})  # malformed values are swallowed too

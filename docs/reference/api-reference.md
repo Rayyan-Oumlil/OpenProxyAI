@@ -254,7 +254,7 @@ Run the same prompt against multiple models side-by-side. Requires admin or deve
 }
 ```
 
-Policy evaluation runs for each model before comparison begins. If any model is blocked by policy, the request returns HTTP 403.
+Policy evaluation runs for each model before comparison begins. If any model is blocked by policy, the request returns HTTP 446.
 
 ### Prompt Template CRUD
 
@@ -364,7 +364,7 @@ Every response from the proxy includes the following headers:
 | 400 | Bad Request | Invalid request schema, missing required field | Missing `model` or malformed `messages` array |
 | 401 | Unauthorized | Missing or invalid API key | `Authorization` header missing or invalid |
 | 402 | Payment Required | Daily budget exceeded | Spend today >= daily budget limit |
-| 403 | Forbidden | Request blocked by policy | Blocked keyword detected, model not allowed, or PII found |
+| 446 | Blocked by policy | Request blocked by policy | Blocked keyword detected, model not allowed, or PII found |
 | 429 | Too Many Requests | Rate limit exceeded | Exceeded RPM or TPM limit |
 | 502 | Bad Gateway | Provider returned an error | OpenAI API error, Anthropic API error, etc. |
 | 503 | Service Unavailable | No active provider key | No configured provider key for the requested provider |
@@ -542,7 +542,7 @@ List all requests for your organization. Paginated and filterable.
 | `page` | integer | 1 | Page number |
 | `limit` | integer | 50 | Results per page (max 200) |
 | `model` | string | — | Filter by model (e.g., `gpt-4o-mini`) |
-| `status` | string | — | Filter by HTTP status (e.g., `200`, `403`) |
+| `status` | string | — | Filter by HTTP status (e.g., `200`, `446`) |
 | `policy_action` | string | — | Filter by policy action (`allow`, `block`, `log_only`) |
 
 **Response**

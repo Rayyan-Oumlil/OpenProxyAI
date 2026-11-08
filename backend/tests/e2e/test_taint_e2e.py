@@ -61,7 +61,7 @@ def test_forcing_a_sink_after_untrusted_output_is_blocked_before_the_model_is_ca
     tenant = _enforcing_tenant(make_tenant)
     forced = {"type": "function", "function": {"name": "mail__send"}}
     response = e2e_client.post(CHAT, json=_body(after_tool_output=True, tools=[SINK, READ], tool_choice=forced), headers=tenant.headers)
-    assert response.status_code == 403  # policy block status is pinned until decision D6
+    assert response.status_code == 446
     assert upstream_calls(upstream) == []
 
 
