@@ -4,19 +4,27 @@ External endpoints follow the same rule as webhooks (https, public address). Int
 a private gateway) may be private or plain http, but only when the operator enabled them, and never link-local,
 multicast or unspecified addresses (cloud metadata lives there).
 
-This checks at save time. LiteLLM resolves the host again when it calls, so a hostname that later resolves
-somewhere else is not caught here.
+``validate_api_base`` runs at save time. ``filter_allowed_endpoints`` repeats it at call time (cached for a short
+while), so a hostname that later resolves to a private address, or an operator who turns the internal switch off,
+stops a key from being used. It cannot close the gap between that check and LiteLLM's own DNS lookup, nor stop
+redirects: that needs egress control (see docs/plan/phase-2-plan.md).
 """
 
 from __future__ import annotations
 
 import asyncio
 import ipaddress
+import logging
 import socket
+import time
+from collections.abc import Sequence
+from typing import Protocol, TypeVar
 from urllib.parse import urlparse
 
 from app.config import settings
 from app.utils.ssrf import resolve_public_ip
+
+logger = logging.getLogger(__name__)
 
 _ALWAYS_BLOCKED_NETWORKS = [
 	ipaddress.ip_network("169.254.0.0/16"),  # link-local, incl. the cloud metadata address
@@ -71,3 +79,55 @@ async def validate_api_base(api_base: str, *, is_internal: bool) -> str | None:
 	if await resolve_public_ip(api_base) is None:
 		return "api_base must resolve to a public address"
 	return None
+
+
+# ── call-time re-check ───────────────────────────────────────────────────────
+
+_RUNTIME_TTL_SECONDS = 30.0
+_RUNTIME_CACHE_MAX = 1024
+_runtime_cache: dict[tuple[str, bool], tuple[float, bool]] = {}
+
+
+class _HasEndpoint(Protocol):
+	api_base: str | None
+	is_internal: bool
+
+
+K = TypeVar("K", bound=_HasEndpoint)
+
+
+def clear_runtime_cache() -> None:
+	_runtime_cache.clear()
+
+
+async def _still_allowed(api_base: str, is_internal: bool) -> bool:
+	now = time.monotonic()
+	cached = _runtime_cache.get((api_base, is_internal))
+	if cached is not None and now - cached[0] < _RUNTIME_TTL_SECONDS:
+		return cached[1]
+	allowed = await validate_api_base(api_base, is_internal=is_internal) is None
+	if len(_runtime_cache) >= _RUNTIME_CACHE_MAX:
+		_runtime_cache.clear()
+	_runtime_cache[(api_base, is_internal)] = (now, allowed)
+	return allowed
+
+
+async def api_base_still_allowed(api_base: str, *, is_internal: bool) -> bool:
+	return await _still_allowed(api_base, is_internal)
+
+
+async def filter_allowed_endpoints(keys: Sequence[K]) -> tuple[list[K], int]:
+	"""Keep keys that use the provider's own endpoint or whose custom endpoint still validates.
+
+	Returns (kept, dropped_count). Callers must treat "every key dropped" as an error, never as a reason to try
+	some other credential: that would send data meant for a private endpoint somewhere else.
+	"""
+	kept: list[K] = []
+	dropped = 0
+	for key in keys:
+		if key.api_base and not await _still_allowed(key.api_base, key.is_internal):
+			logger.warning("provider key skipped: its api_base no longer passes validation (key=%s)", getattr(key, "id", "?"))
+			dropped += 1
+			continue
+		kept.append(key)
+	return kept, dropped

@@ -31,6 +31,7 @@ from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
 from app.services.crypto_service import decrypt
 from app.services.llm_service import ProviderKeyCandidate
+from app.utils.provider_endpoint import filter_allowed_endpoints
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 
@@ -65,6 +66,15 @@ async def _select_provider_key(
         )
     )
     keys = [row for row in rows if row.weight > 0]
+    keys, endpoints_dropped = await filter_allowed_endpoints(keys)
+    if not keys and endpoints_dropped:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "error": "no_provider_key",
+                "detail": "Every provider endpoint configured for this provider failed validation. Check the keys' api_base values.",
+            },
+        )
     if keys:
         if model:
             matched = [

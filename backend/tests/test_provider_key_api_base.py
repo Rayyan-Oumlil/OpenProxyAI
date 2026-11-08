@@ -117,7 +117,7 @@ def test_non_admin_cannot_set_api_base(client):
 
 def _row(api_base):
 	key = MagicMock()
-	key.id, key.weight, key.model_patterns, key.api_base = uuid4(), 1, None, api_base
+	key.id, key.weight, key.model_patterns, key.api_base, key.is_internal = uuid4(), 1, None, api_base, False
 	key.api_key_encrypted = encrypt("sk-only-key-123456")
 	return key
 
@@ -129,6 +129,45 @@ async def test_selection_returns_the_keys_api_base():
 	[candidate] = await LLMService()._select_provider_keys(db, uuid4(), "openai")
 	assert candidate[0] is not None and candidate[1] == "sk-only-key-123456"
 	assert candidate[2] == "https://8.8.8.8/v1"
+
+
+async def test_selection_skips_a_key_whose_endpoint_no_longer_validates(monkeypatch):
+	from app.utils import provider_endpoint
+
+	provider_endpoint.clear_runtime_cache()
+
+	async def unsafe(url):
+		return None
+
+	monkeypatch.setattr(provider_endpoint, "resolve_public_ip", unsafe)
+	safe_row, unsafe_row = _row(None), _row("https://1.1.1.1/v1")
+	db = MagicMock()
+	db.get = AsyncMock(return_value=None)
+	db.scalars = AsyncMock(return_value=iter([safe_row, unsafe_row]))
+	result = await LLMService()._select_provider_keys(db, uuid4(), "openai")
+	assert [c.key_id for c in result] == [safe_row.id]
+
+
+async def test_selection_never_falls_back_to_the_gateways_own_key_when_every_endpoint_was_dropped(monkeypatch):
+	from fastapi import HTTPException
+
+	from app.utils import provider_endpoint
+
+	provider_endpoint.clear_runtime_cache()
+	monkeypatch.setattr(settings, "OPENAI_API_KEY", "sk-gateway-env-key")
+	monkeypatch.setattr(settings, "SHARED_KEY_REGIONS", "us,global")
+
+	async def unsafe(url):
+		return None
+
+	monkeypatch.setattr(provider_endpoint, "resolve_public_ip", unsafe)
+	db = MagicMock()
+	db.get = AsyncMock(return_value=None)
+	db.scalars = AsyncMock(return_value=iter([_row("https://1.1.1.1/v1")]))
+	with pytest.raises(HTTPException) as exc:
+		await LLMService()._select_provider_keys(db, uuid4(), "openai")
+	assert exc.value.status_code == 503
+	assert exc.value.detail["error"] == "no_provider_key"
 
 
 async def test_execute_with_fallback_passes_api_base_only_when_set():

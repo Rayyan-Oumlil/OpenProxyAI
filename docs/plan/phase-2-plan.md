@@ -27,8 +27,10 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
 ## Slice status
 - **S1 done.** Provider keys have `api_base`, `max_data_class`, `is_internal`. Chat, streaming, embeddings, playground compare and
   the health check honor `api_base`. Private or http endpoints need the operator setting `ALLOW_INTERNAL_PROVIDER_ENDPOINTS`
-  (off by default; leave it off on multi-tenant). Known limits, to close before offering this to untrusted tenants:
-  validation happens at save time only (a hostname can later resolve elsewhere), and LiteLLM's HTTP client may follow
+  (off by default; leave it off on multi-tenant). The endpoint is validated at save time and again on every use
+  (30 s cache); a key that stops validating is skipped, and if all are skipped the request fails with 503 rather than
+  falling back to the gateway's own key. Known limits, to close before offering this to untrusted tenants: the gap
+  between that check and LiteLLM's own DNS lookup (DNS rebinding), and LiteLLM's HTTP client possibly following
   redirects from a validated host. The fix for both is egress control (network policy or an egress proxy), not more
   application checks.
 
