@@ -204,7 +204,8 @@
 | Dashboard | KPI cards with deltas and sparklines, reliability and governance tiles, budget burn-down, daily trend, spend by model, team, API key and user, compliance export |
 | Request logs | Filterable table on the shared `DataTable` (filters stay on screen when they match nothing), detail drawer, and a full request trace page |
 | API Keys | Create, list, revoke (with confirmation) gateway API keys; optional team association |
-| Provider Keys | Add, toggle, delete upstream provider keys with region tagging; adaptive load-balancing columns when reported |
+| Model registry | Governance > Model registry: list, add, edit, enable or disable and remove vetted models with their provider key, data class, regions, risk, retention and capabilities; shows when a model has no key attached |
+| Provider Keys | Add, toggle, delete upstream provider keys with region tagging, custom endpoint and data class; adaptive load-balancing columns when reported |
 | Provider health | One state per key (healthy, degraded, down, not checked, disabled) with the reason, last health check, p99, error rate and effective weight; says why data is missing when health checks or adaptive load balancing are off |
 | Policy Config | Tabs for Enforcement (mode, model allowlist, blocked keywords), Data protection (PII, prompt injection, response guardrails), Rate limits (per model) and Templates (compliance quick-apply); one form, one save bar with unsaved-changes state and Discard |
 | MCP servers | Register upstream tool servers, set pin and scan mode, review each server's tools: approve, block, sync, and a field-level diff of a drifted tool against its approved definition |

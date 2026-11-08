@@ -16,6 +16,7 @@ const ROUTES = [
   "/policy",
   "/api-keys",
   "/provider-keys",
+  "/model-registry",
   "/provider-health",
   "/mcp-servers",
   "/experiments",

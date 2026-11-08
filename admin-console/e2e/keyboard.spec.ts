@@ -7,7 +7,7 @@ import { prepare, signIn } from "./support";
  * focused, nothing traps focus, the skip link works, and the dialog hands focus back. Desktop only: a phone
  * has no Tab key.
  */
-const ROUTES = ["/", "/logs", "/policy", "/api-keys", "/mcp-servers", "/billing"];
+const ROUTES = ["/", "/logs", "/policy", "/api-keys", "/model-registry", "/mcp-servers", "/billing"];
 const MAX_TABS = 120;
 
 interface Stop {

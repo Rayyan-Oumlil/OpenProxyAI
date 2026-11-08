@@ -94,6 +94,43 @@ export const PROVIDER_KEYS = [
   },
 ];
 
+export const MODEL_REGISTRY = [
+  {
+    id: "m1",
+    model_id: "openai/gpt-4o",
+    provider: "openai",
+    provider_key_id: PROVIDER_KEYS[0]?.id ?? null,
+    max_data_class: "confidential",
+    regions: ["us", "eu"],
+    risk_rating: "medium",
+    retention_days: 30,
+    trains_on_data: false,
+    capabilities: ["CODE_GENERATION"],
+    cost_tier: null,
+    owner: "platform",
+    enabled: true,
+    created_at: "2026-11-01T10:00:00Z",
+    updated_at: "2026-11-01T10:00:00Z",
+  },
+  {
+    id: "m2",
+    model_id: "ollama/llama3:70b",
+    provider: "ollama",
+    provider_key_id: null,
+    max_data_class: "secret",
+    regions: ["us"],
+    risk_rating: "low",
+    retention_days: 0,
+    trains_on_data: true,
+    capabilities: [],
+    cost_tier: "low",
+    owner: null,
+    enabled: false,
+    created_at: "2026-11-01T10:00:00Z",
+    updated_at: "2026-11-01T10:00:00Z",
+  },
+];
+
 export const POLICY_TEMPLATES = [
   { name: "healthcare_hipaa", description: "PII and PHI guardrails for healthcare workloads.", configures: ["PII detection on", "Response guardrails on"] },
 ];
@@ -157,6 +194,7 @@ export async function mockApi(page: Page) {
     if (pathname === "/api/v1/mcp-servers") return json([SERVER]);
     if (pathname === "/api/v1/analytics/logs") return json({ items: [LOG_ITEM], total: 1, page: 1, page_size: 50, total_pages: 1 });
     if (pathname === "/api/v1/provider-keys") return json(PROVIDER_KEYS);
+    if (pathname === "/api/v1/model-registry") return json(MODEL_REGISTRY);
     if (pathname === "/api/v1/api-keys") return json([]);
     if (pathname === "/api/v1/mcp-servers/s1/tools") return json([DRIFTED_TOOL]);
     if (pathname === "/api/v1/mcp-servers/s1/tools/t1/approve") return json({ ...DRIFTED_TOOL, status: "approved", approved_snapshot: DRIFTED_TOOL.definition });
