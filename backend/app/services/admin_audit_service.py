@@ -51,6 +51,9 @@ def serialize_provider_key(key) -> dict:
         "is_active": key.is_active,
         "region": key.region,
         "model_patterns": key.model_patterns,
+        "api_base": getattr(key, "api_base", None),
+        "max_data_class": getattr(key, "max_data_class", None),
+        "is_internal": getattr(key, "is_internal", None),
     }
 
 

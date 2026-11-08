@@ -12,6 +12,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal, SystemSessionLocal, set_session_org_id
 from app.models.llm_provider_key import LLMProviderKey
 from app.services.crypto_service import decrypt
+from app.utils.provider_endpoint import api_base_still_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,23 @@ async def _ping_anthropic(api_key: str) -> bool:
         return False
 
 
-async def _ping_provider(provider: str, api_key: str) -> bool:
+async def _ping_custom_endpoint(api_base: str, api_key: str) -> bool:
+    """A key with its own endpoint is checked there, not against the provider's public API."""
+    try:
+        async with httpx.AsyncClient(timeout=HEALTH_TIMEOUT, follow_redirects=False) as client:
+            r = await client.get(
+                f"{api_base.rstrip('/')}/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            return r.status_code == 200
+    except Exception as e:
+        logger.debug("Custom endpoint health check failed: %s", e)
+        return False
+
+
+async def _ping_provider(provider: str, api_key: str, api_base: str | None = None) -> bool:
+    if api_base:
+        return await _ping_custom_endpoint(api_base, api_key)
     if provider == "openai":
         return await _ping_openai(api_key)
     if provider == "anthropic":
@@ -97,7 +114,10 @@ async def run_provider_health_check() -> None:
             if not plaintext:
                 continue
 
-            ok = await _ping_provider(key.provider, plaintext)
+            if key.api_base and not await api_base_still_allowed(key.api_base, is_internal=key.is_internal):
+                ok = False  # never probe an endpoint that no longer validates
+            else:
+                ok = await _ping_provider(key.provider, plaintext, key.api_base)
             now = datetime.now(UTC)
 
             async with AsyncSessionLocal() as db:

@@ -16,6 +16,7 @@ from app.services.adaptive_sampling_service import get_error_rate, get_latency_p
 from app.services.circuit_breaker_service import get_open_until, is_enabled as circuit_breaker_enabled
 from app.services.crypto_service import decrypt, encrypt
 from app.services.provider_key_service import rotate_key as rotate_key_service
+from app.utils.provider_endpoint import validate_api_base
 
 router = APIRouter(prefix="/api/v1/provider-keys", tags=["Provider Keys"])
 
@@ -44,6 +45,9 @@ def _to_response(
 		weight=key.weight,
 		is_active=key.is_active,
 		region=key.region,
+		api_base=key.api_base,
+		max_data_class=key.max_data_class,
+		is_internal=key.is_internal,
 		created_at=key.created_at,
 		circuit_open_until=circuit_open_until,
 		latency_p99_ms=latency_p99_ms,
@@ -53,6 +57,17 @@ def _to_response(
 		consecutive_failures=getattr(key, "consecutive_failures", None) or 0,
 		last_health_check_at=getattr(key, "last_health_check_at", None),
 	)
+
+
+async def _check_api_base(api_base: str | None, is_internal: bool) -> None:
+	if api_base is None:
+		return
+	error = await validate_api_base(api_base, is_internal=is_internal)
+	if error:
+		raise HTTPException(
+			status_code=422,
+			detail={"error": "invalid_api_base", "detail": error},
+		)
 
 
 def _compute_effective_weight(
@@ -129,6 +144,8 @@ async def create_provider_key(
 	if current_user.role != "admin":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
 
+	await _check_api_base(payload.api_base, payload.is_internal)
+
 	key = LLMProviderKey(
 		org_id=current_user.org_id,
 		provider=payload.provider,
@@ -137,6 +154,9 @@ async def create_provider_key(
 		weight=payload.weight,
 		is_active=True,
 		region=payload.region,
+		api_base=payload.api_base,
+		max_data_class=payload.max_data_class,
+		is_internal=payload.is_internal,
 	)
 	db.add(key)
 
@@ -182,6 +202,11 @@ async def update_provider_key(
 	before = serialize_provider_key(key)
 
 	updates = payload.model_dump(exclude_unset=True)
+	if "api_base" in updates or "is_internal" in updates:
+		await _check_api_base(
+			updates.get("api_base", key.api_base),
+			updates.get("is_internal", key.is_internal),
+		)
 	for field_name, field_value in updates.items():
 		setattr(key, field_name, field_value)
 
