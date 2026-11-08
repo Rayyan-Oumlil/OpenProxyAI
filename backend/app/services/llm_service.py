@@ -10,7 +10,7 @@ from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Any, NamedTuple
 
 import litellm
 from fastapi import BackgroundTasks, HTTPException, Request, status
@@ -60,8 +60,17 @@ def _provider_error_public_detail(exc: Exception) -> str:
 
 _RETRYABLE_STATUS_CODES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
 
-# (key_id, decrypted_key) — key_id is None for env-provided keys
-ProviderKeyCandidate = tuple[uuid.UUID | None, str]
+class ProviderKeyCandidate(NamedTuple):
+	"""One provider key to try. key_id is None for env-provided keys; api_base None means the provider's own endpoint."""
+
+	key_id: uuid.UUID | None
+	api_key: str
+	api_base: str | None = None
+
+
+def _with_api_base(call_kwargs: dict[str, Any], api_base: str | None) -> dict[str, Any]:
+	"""Add LiteLLM's api_base only for a key that has one, so default calls are byte-for-byte unchanged."""
+	return {**call_kwargs, "api_base": api_base} if api_base else call_kwargs
 
 
 def _is_retryable(exc: Exception) -> bool:
@@ -450,7 +459,7 @@ class LLMService:
 				reverse=True,
 			)
 			ordered = [primary, *fallbacks][: limit]
-			return [(k.id, decrypt(k.api_key_encrypted)) for k in ordered]
+			return [ProviderKeyCandidate(k.id, decrypt(k.api_key_encrypted), k.api_base) for k in ordered]
 
 		env_map = {
 			"openai": settings.OPENAI_API_KEY,
@@ -461,7 +470,7 @@ class LLMService:
 		# Env keys have no region tag, so only regions the operator opted in may use them.
 		shared_regions = {r.strip().lower() for r in settings.SHARED_KEY_REGIONS.split(",") if r.strip()}
 		if api_key and data_region in shared_regions:
-			return [(None, api_key)]
+			return [ProviderKeyCandidate(None, api_key)]
 
 		raise HTTPException(
 			status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -738,12 +747,12 @@ class LLMService:
 	@staticmethod
 	async def _execute_with_fallback(
 		candidates: list[ProviderKeyCandidate],
-		call_fn: Callable[[str], Coroutine[Any, Any, Any]],
+		call_fn: Callable[..., Coroutine[Any, Any, Any]],
 		model_label: str,
 		tag: str = "",
 		redis: Redis | None = None,
 	) -> tuple[Any, int, uuid.UUID | None]:
-		"""Iterate candidate keys, calling *call_fn(api_key)* for each.
+		"""Iterate candidate keys, calling *call_fn(api_key)* for each (plus ``api_base=`` for a key that has one).
 
 		Returns (response, fallback_count, winning_key_id). winning_key_id is None for env keys.
 		Retryable exceptions cause fallback to the next key; non-retryable propagate.
@@ -758,12 +767,14 @@ class LLMService:
 		last_exc: Exception | None = None
 		fallback_count = 0
 		winning_key_id: uuid.UUID | None = None
-		for idx, (key_id, api_key) in enumerate(candidates):
+		for idx, candidate in enumerate(candidates):
+			key_id, api_key = candidate[0], candidate[1]
+			api_base = candidate[2] if len(candidate) > 2 else None
 			if idx > 0:
 				fallback_count += 1
 				logger.warning("provider fallback%s attempt=%d model=%s", tag, idx + 1, model_label)
 			try:
-				response = await call_fn(api_key)
+				response = await (call_fn(api_key, api_base=api_base) if api_base else call_fn(api_key))
 				winning_key_id = key_id
 				await circuit_record_success(redis, key_id)
 				break
@@ -828,9 +839,9 @@ class LLMService:
 		client_wants_usage = bool((ctx.kwargs.get("stream_options") or {}).get("include_usage"))
 		ctx.kwargs["stream"] = True
 
-		async def _stream_call(key: str) -> tuple[Any, Any]:
+		async def _stream_call(key: str, api_base: str | None = None) -> tuple[Any, Any]:
 			stream_options = {**(ctx.kwargs.get("stream_options") or {}), "include_usage": True}
-			call_kwargs = {**ctx.kwargs, "api_key": key, "stream_options": stream_options}
+			call_kwargs = _with_api_base({**ctx.kwargs, "api_key": key, "stream_options": stream_options}, api_base)
 			stream = await acompletion(**call_kwargs)
 			first = await stream.__anext__()
 			if getattr(first, "error", None) is not None:
@@ -1104,8 +1115,8 @@ class LLMService:
 		except Exception as exc:
 			logger.warning("Cache check failed (continuing): %s", exc)
 
-		async def _call(key: str) -> Any:
-			call_kwargs = {**ctx.kwargs, "api_key": key}
+		async def _call(key: str, api_base: str | None = None) -> Any:
+			call_kwargs = _with_api_base({**ctx.kwargs, "api_key": key}, api_base)
 			return await acompletion(**call_kwargs)
 
 		response, fb_count, provider_key_id = None, 0, None
@@ -1453,10 +1464,13 @@ class LLMService:
 					headers={**rl_headers, **(exc.headers or {})},
 				) from exc
 
-			async def _emb_call(key: str) -> Any:
+			async def _emb_call(key: str, api_base: str | None = None) -> Any:
 				return await aembedding(
-					model=request.model, input=request.input, api_key=key,
-					encoding_format=request.encoding_format, timeout=30,
+					**_with_api_base(
+						{"model": request.model, "input": request.input, "api_key": key,
+						 "encoding_format": request.encoding_format, "timeout": 30},
+						api_base,
+					),
 				)
 
 			with timer.stage("upstream"):
