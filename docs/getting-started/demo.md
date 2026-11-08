@@ -7,8 +7,17 @@ else: no LLM provider key, no cost. The "LLM" behind it is a fake OpenAI-compati
 docker compose -f docker-compose.demo.yml up --build
 ```
 
-The first run builds two images (backend and console), so it takes longer than later runs. When the
-`traffic` container prints `all checks passed`, the stack is ready.
+The first run builds two images (backend and console), so it takes longer than later runs. On a slow
+connection, pull the prebuilt images instead (published from `main` by the `Demo images` workflow) and skip
+the build:
+
+```bash
+docker compose -f docker-compose.demo.yml pull api console fake-llm
+docker compose -f docker-compose.demo.yml up
+```
+
+If the pull fails (for example the package is not public yet), `up --build` always works.
+When the `traffic` container prints `all checks passed`, the stack is ready.
 
 | What | Where |
 |---|---|

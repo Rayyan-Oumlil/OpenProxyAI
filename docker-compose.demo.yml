@@ -48,6 +48,7 @@ services:
       retries: 20
 
   fake-llm:
+    image: ghcr.io/rayyan-oumlil/openproxyai-demo-backend:latest
     build: *backend-build
     command: ["uvicorn", "--factory", "tests.fakes.fake_openai:create_app", "--host", "0.0.0.0", "--port", "9090"]
     ports:
@@ -60,6 +61,7 @@ services:
       start_period: 10s
 
   api:
+    image: ghcr.io/rayyan-oumlil/openproxyai-demo-backend:latest
     build: *backend-build
     command: ["sh", "-c", "alembic upgrade head && python -m scripts.seed_demo && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     environment: *backend-env
@@ -77,6 +79,7 @@ services:
       start_period: 20s
 
   console:
+    image: ghcr.io/rayyan-oumlil/openproxyai-demo-console:latest
     build: ./admin-console
     ports:
       - "5173:80"
