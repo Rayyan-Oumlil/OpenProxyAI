@@ -39,6 +39,13 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   default), and there is no org-scoped cache yet because nothing reads the registry before S4. A model's data class cannot exceed
   its key's at write time; S4 must still take the minimum, because a key's class can be lowered later.
 
+- **S3 done.** `classification_service`: effective class = max(org default, caller header which can only raise, mapped PII
+  entities); unknown header value is a 400; text too large to scan counts as `confidential`; recorded in the audit row
+  metadata and the trace, returned as `X-OpenProxyAI-Data-Class`. Org defaults live in the policy config
+  (`default_data_class`, `data_class_map`), no new table. Not done, deliberately: per-API-key and per-team default
+  classes (needs buyer input on who sets them), and a console form for the two policy fields. Presidio scans now run in a
+  worker thread, for classification and for the existing policy check.
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.

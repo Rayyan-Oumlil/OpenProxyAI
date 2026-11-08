@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import json
 import re
@@ -19,6 +20,7 @@ from app.config import settings
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.utils.logging import get_logger
 from app.services import presidio_service
+from app.services.data_class import DATA_CLASSES, DEFAULT_DATA_CLASS
 
 logger = get_logger(__name__)
 
@@ -29,6 +31,20 @@ _POLICY_CACHE_KEY = "policy:config:{org_id}"
 
 
 # ── Policy config (per-org, loaded from DB / Redis) ──────────────────────────
+
+_ENTITY_NAME = re.compile(r"^[A-Za-z0-9_]{1,50}$")
+
+
+def _valid_class(value: object, fallback: str) -> str:
+	return value if isinstance(value, str) and value in DATA_CLASSES else fallback
+
+
+def _clean_class_map(raw: object) -> dict[str, str]:
+	"""Stored data is validated by the API; if something invalid got in anyway, drop it rather than guess."""
+	if not isinstance(raw, dict):
+		return {}
+	return {k: v for k, v in raw.items() if isinstance(k, str) and _ENTITY_NAME.match(k) and v in DATA_CLASSES}
+
 
 
 @dataclass
@@ -49,6 +65,10 @@ class PolicyConfig:
 	# MCP gateway: fnmatch patterns on namespaced tool names ("<server>__<tool>"); empty allowlist = all tools.
 	mcp_allowed_tools: list[str] = field(default_factory=list)
 	mcp_blocked_tools: list[str] = field(default_factory=list)
+	# Data classification (Phase 2): the class of a request that shows no sign of being more sensitive, and the
+	# class each detected entity (e.g. "ssn", "US_SSN") raises it to. The org's map overrides the built-in defaults.
+	default_data_class: str = DEFAULT_DATA_CLASS
+	data_class_map: dict[str, str] = field(default_factory=dict)
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -77,6 +97,8 @@ class PolicyConfig:
 			response_pii_redact=bool(data.get("response_pii_redact", False)),
 			mcp_allowed_tools=list(data.get("mcp_allowed_tools") or []),
 			mcp_blocked_tools=list(data.get("mcp_blocked_tools") or []),
+			default_data_class=_valid_class(data.get("default_data_class"), DEFAULT_DATA_CLASS),
+			data_class_map=_clean_class_map(data.get("data_class_map")),
 		)
 
 	def to_dict(self) -> dict:
@@ -94,6 +116,8 @@ class PolicyConfig:
 			"response_pii_redact": self.response_pii_redact,
 			"mcp_allowed_tools": self.mcp_allowed_tools,
 			"mcp_blocked_tools": self.mcp_blocked_tools,
+			"default_data_class": self.default_data_class,
+			"data_class_map": self.data_class_map,
 		}
 
 
@@ -251,11 +275,47 @@ class PolicyService:
 				detail="The request has too many fields to be checked against organization policy.",
 				triggered_rules=["scan_limit"],
 			)
-		decision = self._evaluate(model=request.model, text=text, config=cfg)
+		decision = await self._evaluate_off_loop(model=request.model, text=text, config=cfg)
 		if self._skip_injection(decision, cfg):
 			return decision
 		injection = await self._check_injection_async(text, cfg)
 		return injection if injection is not None else decision
+
+	async def _evaluate_off_loop(self, model: str, text: str, config: PolicyConfig) -> PolicyDecision:
+		"""Presidio's NLP pass takes tens of milliseconds and would stall every other request on the event loop."""
+		if presidio_service.is_enabled():
+			return await asyncio.to_thread(self._evaluate, model, text, config)
+		return self._evaluate(model=model, text=text, config=config)
+
+	def chat_text(self, request: ChatCompletionRequest) -> str:
+		"""All the text policy and classification inspect. Raises PolicyScanLimitExceeded on an oversized request."""
+		return self._extract_chat_text(request)
+
+	@staticmethod
+	def embedding_text(request: EmbeddingRequest) -> str:
+		if isinstance(request.input, list):
+			return "\n".join(str(item) for item in request.input)
+		return str(request.input)
+
+	def pii_entities_found(self, text: str, config: PolicyConfig) -> list[str]:
+		"""Every distinct kind of PII in the text (first-seen order), for classification.
+
+		Empty when the org turned PII detection off. Blocking uses ``_pii_hit``, which stops at the first hit;
+		classification needs them all.
+		"""
+		if not config.pii_detection_enabled:
+			return []
+		found: list[str] = []
+		if presidio_service.is_enabled():
+			entities = config.pii_entities or settings.PRESIDIO_ENTITIES
+			for result in presidio_service.analyze(text, entities=entities):
+				if result.score >= settings.PRESIDIO_SCORE_THRESHOLD and result.entity_type not in found:
+					found.append(result.entity_type)
+			return found
+		for name, pattern in (("email", self._EMAIL_RE), ("ssn", self._SSN_RE), ("payment_card", self._CC_RE)):
+			if pattern.search(text):
+				found.append(name)
+		return found
 
 	async def evaluate_embedding_request(
 		self,
@@ -263,11 +323,8 @@ class PolicyService:
 		config: PolicyConfig | None = None,
 	) -> PolicyDecision:
 		cfg = config or PolicyConfig.from_settings()
-		if isinstance(request.input, list):
-			text = "\n".join(str(item) for item in request.input)
-		else:
-			text = str(request.input)
-		decision = self._evaluate(model=request.model, text=text, config=cfg)
+		text = self.embedding_text(request)
+		decision = await self._evaluate_off_loop(model=request.model, text=text, config=cfg)
 		if self._skip_injection(decision, cfg):
 			return decision
 		injection = await self._check_injection_async(text, cfg)

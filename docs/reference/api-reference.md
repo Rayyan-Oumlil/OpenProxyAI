@@ -202,6 +202,7 @@ Send these on `POST /v1/chat/completions` and `POST /v1/embeddings` (gateway **A
 | `x-openproxy-labels` | JSON object, string keys/values (≤64 chars each, max 10 keys) | Departmental or chargeback labels; stored on request logs / metadata. |
 | `x-openproxy-team-id` | UUID | Optional team context; team must exist in the org and the API key’s user must be a member. |
 | `x-openproxy-retries` | 0–5 | Per-request override for max provider fallback attempts (0 = no retry, 1–5 = max attempts). |
+| `x-openproxy-data-class` | `public`, `internal`, `confidential` or `secret` | The sensitivity you assert for this request. It can only raise the class the gateway computes, never lower it. An unknown value is rejected with 400 `invalid_data_class` |
 | `x-openproxy-fallback-model` | `provider/model` (e.g. `openai/gpt-4o-mini`) | When all provider keys fail for the primary model, retry with this alternate model. Must be allowed by org policy. |
 | `x-openproxy-session-id` | UUID or opaque string (≤64 chars) | Session/trace ID for grouping related LLM calls; stored in request metadata and filterable in analytics. |
 
@@ -348,6 +349,7 @@ Every response from the proxy includes the following headers:
 | `X-OpenProxyAI-Latency-Ms` | integer | Total gateway latency in milliseconds |
 | `X-OpenProxyAI-TTFT-Ms` | integer | Time to first token (streaming only) |
 | `X-OpenProxyAI-Cache` | string | `hit` or `miss` (only if caching is enabled) |
+| `X-OpenProxyAI-Data-Class` | string | How sensitive the gateway judged the request: `public`, `internal`, `confidential` or `secret` |
 | `X-OpenProxyAI-Policy-Action` | string | Policy decision: `allow`, `block`, or `log_only` |
 | `X-OpenProxyAI-Policy-Reason` | string | Reason code if blocked (e.g., `blocked_keyword`, `model_not_allowed`) |
 | `X-OpenProxyAI-Gateway-Error` | boolean | `true` if error originated in gateway (not the provider) |
