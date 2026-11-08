@@ -34,6 +34,11 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   redirects from a validated host. The fix for both is egress control (network policy or an egress proxy), not more
   application checks.
 
+- **S2 done.** `model_registry` table (RLS forced, audited), admin-only CRUD. Deviations from §B, on purpose: the endpoint comes
+  from the linked provider key (no `api_base` or `internal` columns to drift apart), `regions` is required (no permissive
+  default), and there is no org-scoped cache yet because nothing reads the registry before S4. A model's data class cannot exceed
+  its key's at write time; S4 must still take the minimum, because a key's class can be lowered later.
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.

@@ -8,6 +8,14 @@ sidebar_position: 100
 
 A summary of what's shipped, grouped by build phase. This tracks major capability milestones, not every individual PR.
 
+## Unreleased — November 2026
+
+- **Breaking: policy blocks return HTTP 446, not 403.** Requests blocked by policy (PII, keywords, model allowlist) now use the same status as response guardrails. 403 now means only a real authorization failure. The Python and TypeScript SDKs raise `PolicyViolationError` on 446 and still accept a 403 from an older gateway. Raw HTTP clients that check for 403 on blocks must check for 446. Existing log rows keep their old status.
+- **Custom provider endpoints** — a provider key can set `api_base` (vLLM, Ollama, a private gateway) and a `max_data_class`. External endpoints must be https and public; private or plain-http endpoints need the operator setting `ALLOW_INTERNAL_PROVIDER_ENDPOINTS`.
+- **Model registry** — `GET/POST/PATCH/DELETE /api/v1/model-registry` (admins only): per-model data class, regions, risk rating, retention, capabilities, linked provider key. Administration only for now; routing does not use it yet.
+- **Admin console** — command palette (Ctrl/Cmd+K) with theme switching, breadcrumbs, spend by API key, shared tables, tabbed policy page, keyboard and axe accessibility audits.
+- **Seeded demo** — `docker compose -f docker-compose.demo.yml up`, with prebuilt images published to GHCR and a recorded walkthrough.
+
 ## Phase 7 — 2026-03-19
 
 - **Semantic caching** — 3-tier cache (L1 in-memory, L2 Redis, L3 pgvector semantic), per-request override header, dashboard metrics

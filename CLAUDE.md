@@ -98,7 +98,7 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 → o6j7k8l9m0n1 → q8l9m0n1o2p3 → r9m0n1o2p3q4 → s0n1o2p3q4r5 → t1o2p3q4r5s6
 → u2p3q4r5s6t7 (mcp_servers) → v3q4r5s6t7u8 (request_scores RLS)
 → w4r5s6t7u8v9 (proxy:mcp backfill) → x5s6t7u8v9w0 (mcp_tools pinning) → y6t7u8v9w0x1 (scan_mode)
-→ z7u8v9w0x1y2 (tool_grants) → a8v9w0x1y2z3 (mcp_bundles) → b9w0x1y2z3a4 (tool_trust_rules, head)
+→ z7u8v9w0x1y2 (tool_grants) → a8v9w0x1y2z3 (mcp_bundles) → b9w0x1y2z3a4 (tool_trust_rules) → c0x1y2z3a4b5 (provider key api_base, max_data_class) → d1y2z3a4b5c6 (model_registry, head)
 ```
 
 ## Architecture Rules (Critical)

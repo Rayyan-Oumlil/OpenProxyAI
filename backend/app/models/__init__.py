@@ -19,9 +19,11 @@ from app.models.mcp_tool import McpTool, McpToolVersion
 from app.models.tool_grant import ToolGrant
 from app.models.tool_trust_rule import ToolTrustRule
 from app.models.mcp_bundle import ApiKeyMcpBundle, McpBundle, McpBundleTool
+from app.models.model_registry import ModelRegistryEntry
 
 __all__ = [
     "Base",
+    "ModelRegistryEntry",
     "Organization",
     "User",
     "ApiKey",
