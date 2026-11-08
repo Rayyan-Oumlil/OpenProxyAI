@@ -109,6 +109,22 @@ describe("buildTrace", () => {
     expect(bad).toMatchObject({ cacheTier: null, fallbackCount: 0, taintRemoved: [] });
   });
 
+  it("labels the classification stage and reads the data class, ignoring malformed values", () => {
+    const trace = buildTrace(
+      detail({
+        request_metadata: {
+          stages: [{ name: "classify", start_ms: 0, ms: 1 }],
+          data_class: { class: "confidential", source: "detected", entities: ["ssn", 4, "email"] },
+        },
+      }),
+    );
+    expect(trace.stages[0].label).toBe("Data classification");
+    expect(trace.dataClass).toEqual({ name: "confidential", source: "detected", entities: ["ssn", "email"] });
+    expect(buildTrace(detail({ request_metadata: {} })).dataClass).toBeNull();
+    expect(buildTrace(detail({ request_metadata: { data_class: { class: 3 } } })).dataClass).toBeNull();
+    expect(buildTrace(detail({ request_metadata: { data_class: [] } })).dataClass).toBeNull();
+  });
+
   it("has no total when neither latency nor stages exist", () => {
     expect(buildTrace(detail({ latency_ms: null })).totalMs).toBeNull();
   });

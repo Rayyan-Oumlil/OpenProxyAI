@@ -19,11 +19,14 @@ export interface Trace {
   fallbackCount: number;
   fallbackModel: string | null;
   taintRemoved: string[];
+  /** How sensitive the request was judged to be, and why; null for rows logged before classification existed. */
+  dataClass: { name: string; source: string; entities: string[] } | null;
 }
 
 const LABELS: Record<string, string> = {
   auth: "Authentication",
   policy: "Policy checks",
+  classify: "Data classification",
   rate_limit: "Rate limit and budget",
   cache: "Cache lookup",
   upstream: "Upstream call",
@@ -71,6 +74,15 @@ export function buildTrace(detail: RequestLogDetail): Trace {
   });
 
   const taint = isRecord(metadata.tool_taint) ? metadata.tool_taint : {};
+  const dc = isRecord(metadata.data_class) ? metadata.data_class : null;
+  const dataClass =
+    dc && typeof dc.class === "string"
+      ? {
+          name: dc.class,
+          source: typeof dc.source === "string" ? dc.source : "default",
+          entities: Array.isArray(dc.entities) ? dc.entities.filter((e): e is string => typeof e === "string") : [],
+        }
+      : null;
   return {
     totalMs,
     stages,
@@ -79,5 +91,6 @@ export function buildTrace(detail: RequestLogDetail): Trace {
     fallbackCount: nonNegative(metadata.fallback_count) ?? 0,
     fallbackModel: typeof metadata.fallback_model_used === "string" ? metadata.fallback_model_used : null,
     taintRemoved: Array.isArray(taint.removed) ? taint.removed.filter((t): t is string => typeof t === "string") : [],
+    dataClass,
   };
 }

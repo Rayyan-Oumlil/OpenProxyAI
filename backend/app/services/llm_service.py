@@ -32,6 +32,13 @@ from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest, Message, _substitute_variables
 from app.services import cache_service
 from app.services.policy_service import POLICY_BLOCK_STATUS
+from app.services.classification_service import (
+	DATA_CLASS_HEADER,
+	Classification,
+	InvalidDataClass,
+	classify_chat_request,
+	classify_embedding_request,
+)
 from app.utils.provider_endpoint import filter_allowed_endpoints
 from app.services.cache_service import CacheOverride
 from app.services.audit_logger import log_request
@@ -336,6 +343,7 @@ class _RequestContext:
 	max_fallback_attempts: int | None = None  # x-openproxy-retries override
 	fallback_model: str | None = None  # x-openproxy-fallback-model override
 	session_id: str | None = None  # x-openproxy-session-id for trace grouping
+	classification: Classification | None = None
 	stages: StageTimer | None = None
 
 	def __post_init__(self) -> None:
@@ -353,6 +361,8 @@ def _build_request_metadata(ctx: _RequestContext, extra: dict | None = None) -> 
 		metadata = {**metadata, "experiment": ctx.experiment_info}
 	if ctx.session_id:
 		metadata = {**metadata, "session_id": ctx.session_id}
+	if ctx.classification is not None:
+		metadata = {**metadata, "data_class": ctx.classification.as_metadata()}
 	if extra:
 		metadata = {**metadata, **extra}
 	return metadata
@@ -632,6 +642,14 @@ class LLMService:
 		if decision.allowed and taint is not None and taint.forced_sink:
 			decision = policy_service.taint_violation(taint.forced_sink, ctx.policy_config)
 		ctx.policy_metadata = decision.as_metadata()
+		with ctx.stages.stage("classify"):
+			try:
+				ctx.classification = await classify_chat_request(
+					ctx.request, ctx.policy_config,
+					ctx.http_request.headers.get(DATA_CLASS_HEADER) if ctx.http_request is not None else None,
+				)
+			except InvalidDataClass as exc:
+				raise HTTPException(status_code=400, detail={"error": "invalid_data_class", "detail": str(exc)}) from exc
 		if taint is not None and taint.tainted:
 			ctx.policy_metadata["tool_taint"] = {"removed": list(taint.removed), "forced_sink": taint.forced_sink}
 
@@ -707,6 +725,7 @@ class LLMService:
 					policy_config=ctx.policy_config,
 				)
 		)
+		ctx.rl_headers = {**ctx.rl_headers, "X-OpenProxyAI-Data-Class": ctx.classification.data_class}
 		if not ok:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 			ctx.background_tasks.add_task(log_request,
@@ -1407,8 +1426,12 @@ class LLMService:
 
 		timer = timer_for_request(http_request, start)
 
+		classification: Classification | None = None
+
 		def _emb_request_metadata(meta: dict | None) -> dict:
 			out = {**(meta or {})}
+			if classification is not None:
+				out["data_class"] = classification.as_metadata()
 			stages = timer.as_list()
 			if stages:
 				out["stages"] = stages
@@ -1422,6 +1445,14 @@ class LLMService:
 				policy_config = await policy_store.load(user.org_id, db, redis)
 				decision = await policy_service.evaluate_embedding_request(request, policy_config)
 			policy_metadata = decision.as_metadata()
+			with timer.stage("classify"):
+				try:
+					classification = await classify_embedding_request(
+						request, policy_config,
+						http_request.headers.get(DATA_CLASS_HEADER) if http_request is not None else None,
+					)
+				except InvalidDataClass as exc:
+					raise HTTPException(status_code=400, detail={"error": "invalid_data_class", "detail": str(exc)}) from exc
 			if not decision.allowed:
 				latency_ms = int((time.perf_counter() - start) * 1000)
 				background_tasks.add_task(log_request,
@@ -1446,6 +1477,7 @@ class LLMService:
 					team_budget_monthly_usd=team_budget_monthly_usd,
 					model=request.model, policy_config=policy_config,
 				)
+			rl_headers = {**rl_headers, "X-OpenProxyAI-Data-Class": classification.data_class}
 			if not ok:
 				latency_ms = int((time.perf_counter() - start) * 1000)
 				background_tasks.add_task(log_request,
