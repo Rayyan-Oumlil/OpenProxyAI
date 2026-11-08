@@ -39,8 +39,8 @@ upstream_calls() {
 echo "-- governance: allow, cache, policy"
 chat "allowed request"            200 "Summarise our Q3 roadmap in one line."
 chat "identical request (cached)" 200 "Summarise our Q3 roadmap in one line."
-chat "policy: blocked keyword"    403 "What is the status of project-phoenix?"
-chat "policy: PII (SSN)"          403 "Customer SSN is 123-45-6789, draft the email."
+chat "policy: blocked keyword"    446 "What is the status of project-phoenix?"
+chat "policy: PII (SSN)"          446 "Customer SSN is 123-45-6789, draft the email."
 chat "another allowed request"    200 "Translate good morning to French."
 
 echo "-- cost control: the intern key has a \$0.01 daily budget"

@@ -41,7 +41,7 @@ async def test_policy_block_returns_before_log_write(monkeypatch, fake_redis):
         http_request=None,
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 446
     assert not started.is_set(), "log_request ran inline before the response was returned"
     assert len(background_tasks.tasks) == 1
 

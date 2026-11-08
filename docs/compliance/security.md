@@ -262,7 +262,7 @@ PATCH /api/v1/organizations/current/policy
 ### Behavior
 
 - **Log only mode:** PII is logged but the request is allowed
-- **Block mode:** Requests containing PII are rejected with HTTP 403
+- **Block mode:** Requests containing PII are rejected with HTTP 446
 
 ```json
 {

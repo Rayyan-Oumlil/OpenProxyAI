@@ -89,10 +89,10 @@ async def test_llm_service_blocks_before_rate_limit_for_policy_violation(monkeyp
 	)
 	await bg()
 
-	assert response.status_code == 403
+	assert response.status_code == 446
 	assert rate_limit_called is False
 	assert response.headers["x-openproxyai-policy-action"] == "block"
-	assert observed["status_code"] == 403
+	assert observed["status_code"] == 446
 	policy = (observed.get("request_metadata") or {}).get("policy", {})
 	assert policy.get("reason_code") == "blocked_keyword"
 

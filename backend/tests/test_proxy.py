@@ -442,7 +442,7 @@ async def test_team_id_from_api_key_propagates_to_log(monkeypatch, fake_redis):
 	)
 	await bg()
 
-	assert response.status_code == 403
+	assert response.status_code == 446
 	assert len(captured) == 1
 	assert captured[0].get("team_id") == team_id
 
@@ -511,7 +511,7 @@ async def test_team_id_from_header_when_key_has_none(monkeypatch, fake_redis):
 	)
 	await bg()
 
-	assert response.status_code == 403
+	assert response.status_code == 446
 	assert len(captured) == 1
 	assert captured[0].get("team_id") == team_id
 
@@ -581,7 +581,7 @@ async def test_team_id_from_api_key_takes_precedence_over_header(monkeypatch, fa
 	)
 	await bg()
 
-	assert response.status_code == 403
+	assert response.status_code == 446
 	assert len(captured) == 1
 	assert captured[0].get("team_id") == key_team_id
 

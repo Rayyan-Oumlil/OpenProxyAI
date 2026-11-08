@@ -53,7 +53,23 @@ describe('chat.completions.create (non-streaming)', () => {
     expect(result.gateway.provider).toBe('openai');
   });
 
-  it('throws PolicyViolationError on 403 policy_violation', async () => {
+  it('throws PolicyViolationError on 446', async () => {
+    server.use(
+      http.post(`${BASE_URL}/v1/chat/completions`, () =>
+        HttpResponse.json({ error: 'policy_violation', reason_code: 'pii_detected' }, { status: 446 }),
+      ),
+    );
+
+    const client = new OpenProxy({ apiKey: 'opai_test', baseUrl: BASE_URL });
+    const call = client.chat.completions.create({
+      model: 'openai/gpt-4o',
+      messages: [{ role: 'user', content: 'my ssn is 123-45-6789' }],
+    });
+    await expect(call).rejects.toThrow(PolicyViolationError);
+    await expect(call).rejects.toMatchObject({ statusCode: 446 });
+  });
+
+  it('still throws PolicyViolationError on a legacy 403 policy_violation', async () => {
     server.use(
       http.post(`${BASE_URL}/v1/chat/completions`, () =>
         HttpResponse.json(

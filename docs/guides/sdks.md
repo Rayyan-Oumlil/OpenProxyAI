@@ -197,7 +197,7 @@ except ProviderError as e:
 | Class | HTTP Status | Meaning |
 |-------|-------------|---------|
 | `AuthError` | 401 | Invalid or missing API key |
-| `PolicyViolationError` | 403 | Request blocked by organization policy |
+| `PolicyViolationError` | 446 | Request blocked by organization policy |
 | `RateLimitError` | 429 | Rate limit exceeded (requests/min or tokens/min) |
 | `BudgetExceededError` | 429 | Daily budget limit exhausted |
 | `ProviderError` | 502/504 | Upstream LLM provider error |
@@ -348,7 +348,7 @@ try {
 | Class | HTTP Status | Meaning |
 |-------|-------------|---------|
 | `AuthError` | 401 | Invalid or missing API key |
-| `PolicyViolationError` | 403 | Request blocked by organization policy |
+| `PolicyViolationError` | 446 | Request blocked by organization policy |
 | `RateLimitError` | 429 | Rate limit exceeded (requests/min or tokens/min) |
 | `BudgetExceededError` | 429 | Daily budget limit exhausted |
 | `ProviderError` | 502/504 | Upstream LLM provider error |
