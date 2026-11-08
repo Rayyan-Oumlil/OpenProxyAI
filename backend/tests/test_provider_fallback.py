@@ -70,6 +70,8 @@ def _permissive_policy():
 		prompt_injection_detection_enabled=False,
 		response_guardrails_enabled=False,
 		response_pii_redact=False,
+		default_data_class="internal",
+		data_class_map={},
 	)
 
 

@@ -64,6 +64,8 @@ def _make_policy_config(**overrides) -> PolicyConfig:
 		enforcement_mode="enforce",
 		response_guardrails_enabled=True,
 		response_pii_redact=False,
+		default_data_class="internal",
+		data_class_map={},
 	)
 	for key, value in overrides.items():
 		setattr(cfg, key, value)
