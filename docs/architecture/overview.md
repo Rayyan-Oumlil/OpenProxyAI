@@ -27,7 +27,7 @@ Optional context: x-openproxy-team-id (validate membership), x-openproxy-labels,
     ↓
 Experiment resolution (if request model matches an active experiment target_model, may replace with weighted variant)
     ↓
-Policy Evaluation (PII detection, keyword filtering, model allowlist on resolved model) [FAIL → 403]
+Policy Evaluation (PII detection, keyword filtering, model allowlist on resolved model) [FAIL → 446]
     ↓
 Cache Check (L1 in-memory → L2 Redis → L3 pgvector semantic) [HIT → return cached response]
     ↓
@@ -76,7 +76,7 @@ Before forwarding to the LLM provider, the request is evaluated against the orga
 - **PII Detection:** Regex-based PII detection is active; Presidio NLP is available but disabled by default due to image size (+800MB) — uncomment `presidio-analyzer` in `requirements.txt` to enable.
 - **Prompt Injection Detection:** ML model (`protectai/deberta-v3-base-prompt-injection`) classifies injection attempts with a confidence score; regex fallback when model is unavailable. Fail-open: timeouts and inference errors allow the request through. Optional, enabled per-org.
 
-Violations return HTTP 403 with `X-OpenProxyAI-Policy-Action` header. The action can be:
+Violations return HTTP 446 with `X-OpenProxyAI-Policy-Action` header. The action can be:
 - `block` — request is rejected
 - `log_only` — request proceeds but violation is logged
 
@@ -270,7 +270,7 @@ ALLOWED_ORIGINS_JSON=["https://app.example.com"]
          │
          ├─→ llm_service.chat_completion()
          │   ├─ policy_service.evaluate(request, policy_config)
-         │   │  ├─ [BLOCKED] → return 403
+         │   │  ├─ [BLOCKED] → return 446
          │   │  └─ [ALLOWED] → continue
          │   │
          │   ├─ rate_limiter_service.check_limits()

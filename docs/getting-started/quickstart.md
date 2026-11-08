@@ -171,7 +171,7 @@ Response:
 }
 ```
 
-Now, any request containing a blocked keyword will be rejected with HTTP 403:
+Now, any request containing a blocked keyword will be rejected with HTTP 446:
 
 ```bash
 curl -X POST https://your-org.openproxyai.com/v1/chat/completions \
@@ -183,7 +183,7 @@ curl -X POST https://your-org.openproxyai.com/v1/chat/completions \
   }'
 ```
 
-Response (HTTP 403):
+Response (HTTP 446):
 
 ```json
 {

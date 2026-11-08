@@ -41,7 +41,22 @@ def test_chat_completion_success():
 
 
 @respx.mock
-def test_policy_violation_error():
+def test_policy_violation_error_on_446():
+    respx.post("https://api.openproxyai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            446,
+            json={"error": "policy_violation", "detail": "Blocked", "reason_code": "pii_detected", "triggered_rules": ["ssn"]},
+        )
+    )
+    client = OpenProxy(api_key="opai_test")
+    with pytest.raises(PolicyViolationError) as exc_info:
+        client.chat.completions.create(model="openai/gpt-4o", messages=[{"role": "user", "content": "test"}])
+    assert exc_info.value.status_code == 446
+    assert exc_info.value.reason_code == "pii_detected"
+
+
+@respx.mock
+def test_policy_violation_error_from_a_legacy_403():
     respx.post("https://api.openproxyai.com/v1/chat/completions").mock(
         return_value=httpx.Response(
             403,

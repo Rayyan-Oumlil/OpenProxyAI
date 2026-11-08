@@ -60,12 +60,12 @@ test("OpenProxyAI in three minutes", async ({ page }) => {
 
   // 0:40 Policy blocks before the provider
   const pii = await chat(page, KEY, "Customer SSN is 123-45-6789, draft the email.");
-  expect(pii.status).toBe(403);
-  await caption(page, "PII in the prompt: blocked by policy, HTTP 403. The provider never sees it.");
+  expect(pii.status).toBe(446);
+  await caption(page, "PII in the prompt: blocked by policy, HTTP 446. The provider never sees it.");
   await beat(page, 3400);
   const keyword = await chat(page, KEY, "What is the status of project-phoenix?");
-  expect(keyword.status).toBe(403);
-  await caption(page, "A blocked keyword: HTTP 403 as well");
+  expect(keyword.status).toBe(446);
+  await caption(page, "A blocked keyword: HTTP 446 as well");
   await beat(page);
 
   // The audit record

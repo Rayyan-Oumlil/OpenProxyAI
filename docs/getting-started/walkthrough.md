@@ -30,8 +30,8 @@ Open **Request logs**: the request is there with model, tokens, cost and latency
 > "Policy runs before the request leaves your network."
 
 ```bash
-chat $KEY "Customer SSN is 123-45-6789, draft the email."  # -> HTTP 403, policy block
-chat $KEY "What is the status of project-phoenix?"         # -> HTTP 403, blocked keyword
+chat $KEY "Customer SSN is 123-45-6789, draft the email."  # -> HTTP 446, policy block
+chat $KEY "What is the status of project-phoenix?"         # -> HTTP 446, blocked keyword
 ```
 
 In **Request logs** click the blocked row, then **Open full trace**. The waterfall stops after *Policy

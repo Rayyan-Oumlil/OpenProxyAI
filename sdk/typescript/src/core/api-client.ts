@@ -38,13 +38,15 @@ async function parseError(response: Response): Promise<OpenProxyError> {
 
   const status = response.status;
 
+  // 446 is a policy block. Older gateways answered 403 with error=policy_violation, so accept that too.
+  const errorCode = body['error'] as string | undefined;
+  if (status === 446 || (status === 403 && errorCode === 'policy_violation')) {
+    const reason = (body['reason_code'] as string) ?? 'unknown';
+    const rules = (body['triggered_rules'] as string[]) ?? [];
+    return new PolicyViolationError(reason, rules, status);
+  }
+
   if (status === 401 || status === 403) {
-    const errorCode = body['error'] as string | undefined;
-    if (errorCode === 'policy_violation') {
-      const reason = (body['reason_code'] as string) ?? 'unknown';
-      const rules = (body['triggered_rules'] as string[]) ?? [];
-      return new PolicyViolationError(reason, rules);
-    }
     return new AuthError((body['detail'] as string) ?? 'Unauthorized');
   }
 

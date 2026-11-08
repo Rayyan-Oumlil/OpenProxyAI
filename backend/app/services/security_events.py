@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from app.services.policy_service import POLICY_BLOCK_STATUS
+
 VENDOR, PRODUCT = "OpenProxyAI", "Gateway"
 FACILITY_LOCAL0 = 16
 
@@ -143,7 +145,7 @@ def events_for_request(
     """Chat/embedding requests: policy blocks, DLP, injection, budget and rate limits."""
     base = {"org_id": org_id, "user_id": user_id, "api_key_id": api_key_id, "request_id": request_id}
     details = {"model": _clean(model), "provider": _clean(provider)}
-    if status_code == 403 and error_message and error_message.startswith("policy_blocked:"):
+    if status_code == POLICY_BLOCK_STATUS and error_message and error_message.startswith("policy_blocked:"):
         reason = _clean(error_message.split(":", 1)[1])
         name = ("AI-DLP-BLOCK" if reason in DLP_REASONS else "AI-INJECTION-BLOCK" if reason in INJECTION_REASONS
                 else "AI-TAINT-BLOCK" if reason in TAINT_REASONS else "AI-POLICY-BLOCK")

@@ -19,8 +19,8 @@ export class PolicyViolationError extends OpenProxyError {
   readonly reasonCode: string;
   readonly triggeredRules: string[];
 
-  constructor(reasonCode: string, triggeredRules: string[] = []) {
-    super(`Policy violation: ${reasonCode}`, 403);
+  constructor(reasonCode: string, triggeredRules: string[] = [], status = 446) {
+    super(`Policy violation: ${reasonCode}`, status);
     this.name = 'PolicyViolationError';
     this.reasonCode = reasonCode;
     this.triggeredRules = triggeredRules;

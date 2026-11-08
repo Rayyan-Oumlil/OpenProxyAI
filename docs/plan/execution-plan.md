@@ -40,7 +40,7 @@ Strategy in one paragraph: lead with "free SSO/RBAC/audit + compliance evidence 
 | D3 | Licence + pricing | Apache-2.0 core, paid modules in a separate commercial dir; ladder Community free / Team $299 / Business $1,500 / Enterprise from $25k per yr | **AGREED** (owner, 2026-11-08): Apache-2.0 core, paid modules in a separate commercial dir, the pricing ladder above. No spending yet: no domain, no Stripe or pricing changes until the owner says so | Pricing/Stripe constants, LICENSE files |
 | D4 | Start Phase 0 | Yes (safe under every answer above) | **DONE** (Phase 0 and Phase 1 are finished and merged) | Everything |
 | D5 | Scope agreed with Anis | Build his EIAG spec in stages; park the vision paper (voice, "Slack for AI", family/school packages) | **YES** (owner, 2026-11-08): build the EIAG spec in stages; park the vision paper | Phase 2-4 scope |
-| D6 | HTTP status for request-time policy blocks | 446 everywhere (matches ARCHITECTURE_RULES.md and `docs-site/.../errors-and-status-codes.md`); the code currently returns 403 and `docs/architecture/overview.md:79` says 403 [CHECKED] | PENDING | Task P0-6 |
+| D6 | HTTP status for request-time policy blocks | 446 everywhere (matches ARCHITECTURE_RULES.md and `docs-site/.../errors-and-status-codes.md`); the code currently returns 403 and `docs/architecture/overview.md:79` says 403 [CHECKED] | **446 everywhere** (owner delegated the choice, 2026-11-08; done in P1-32) | Task P0-6 |
 
 Phase 0 tasks other than P0-6 are safe regardless of D1-D3 and D5.
 

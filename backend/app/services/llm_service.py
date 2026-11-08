@@ -31,6 +31,7 @@ from app.models.team import Team, team_members
 from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest, Message, _substitute_variables
 from app.services import cache_service
+from app.services.policy_service import POLICY_BLOCK_STATUS
 from app.services.cache_service import CacheOverride
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
@@ -556,7 +557,7 @@ class LLMService:
 	@staticmethod
 	def _policy_block_response(decision: PolicyDecision) -> JSONResponse:
 		return JSONResponse(
-			status_code=403,
+			status_code=POLICY_BLOCK_STATUS,
 			content={
 				"error": "policy_violation",
 				"detail": decision.detail or "Request blocked by policy.",
@@ -661,7 +662,7 @@ class LLMService:
 				cost_usd=Decimal("0"),
 				latency_ms=latency_ms,
 				ttft_ms=None,
-				status_code=403,
+				status_code=POLICY_BLOCK_STATUS,
 				error_message=f"policy_blocked:{decision.reason_code}",
 				request_metadata=_build_request_metadata(ctx),
 				labels=ctx.labels,
@@ -1151,7 +1152,7 @@ class LLMService:
 			if not resp_decision.allowed:
 				if ctx.policy_config.enforcement_mode == "enforce":
 					raise HTTPException(
-						status_code=446,
+						status_code=POLICY_BLOCK_STATUS,
 						detail={"error": {"message": resp_decision.reason_code or "Response blocked by policy", "code": "response_policy_violation"}},
 					)
 				else:
@@ -1405,7 +1406,7 @@ class LLMService:
 					redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
 					api_key_id=api_key.id, model=request.model, provider=provider,
 					prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
-					latency_ms=latency_ms, ttft_ms=None, status_code=403,
+					latency_ms=latency_ms, ttft_ms=None, status_code=POLICY_BLOCK_STATUS,
 					error_message=f"policy_blocked:{decision.reason_code}",
 					request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
 					team_id=team_id,

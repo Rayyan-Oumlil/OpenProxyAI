@@ -30,7 +30,7 @@ from app.models.organization import Organization
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
 from app.services.crypto_service import decrypt
-from app.services.policy_service import policy_service, policy_store
+from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 
 router = APIRouter(prefix="/api/v1", tags=["Playground"])
@@ -393,7 +393,7 @@ async def playground_compare(
         decision = await policy_service.evaluate_chat_request(synth_request, policy_config)
         if not decision.allowed:
             raise HTTPException(
-                status_code=403,
+                status_code=POLICY_BLOCK_STATUS,
                 detail={
                     "error": "policy_violation",
                     "detail": decision.detail or "Blocked by policy.",

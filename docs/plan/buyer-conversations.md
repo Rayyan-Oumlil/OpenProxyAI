@@ -30,7 +30,7 @@ new features until five are logged.
 | 0-2 | Thank, say what you are and are not (no sales pitch, learning call) | Ask permission to take notes |
 | 2-8 | Q1 How do teams call LLMs today, who approved it? Q2 What did security ask for, where did you get stuck? | Listen. Do not mention features yet |
 | 8-11 | Q3 Last time sensitive data went into a prompt, how would you have known? | The pain that PII blocking and audit answer |
-| 11-16 | Q4 Show the demo (video, or live: `docker compose -f docker-compose.demo.yml up`) | Allowed 200, PII 403, audit trace, daily-budget stop, MCP tool drift |
+| 11-16 | Q4 Show the demo (video, or live: `docker compose -f docker-compose.demo.yml up`) | Allowed 200, PII 446, audit trace, daily-budget stop, MCP tool drift |
 | 16-19 | Q5 What would stop you running this next month? | The blockers are the roadmap |
 | 19-20 | Q6 Would you pay, how much, who signs? Ask for a 30-day design-partner pilot | Silence after the ask is fine |
 

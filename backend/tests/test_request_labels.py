@@ -182,7 +182,7 @@ async def test_labels_forwarded_to_log_request_on_policy_block(monkeypatch, fake
 
 	await background_tasks()
 
-	assert response.status_code == 403
+	assert response.status_code == 446
 	assert len(captured) == 1
 	assert captured[0].get("labels") == labels
 
@@ -232,7 +232,7 @@ async def test_labels_absent_no_error_on_policy_block(monkeypatch, fake_redis):
 
 	await background_tasks()
 
-	assert response.status_code == 403
+	assert response.status_code == 446
 	assert len(captured) == 1
 	assert captured[0].get("labels") is None
 
