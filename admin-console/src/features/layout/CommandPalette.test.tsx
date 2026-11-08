@@ -3,6 +3,8 @@ import { useState } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ThemeProvider } from "../../state/ThemeContext";
+import { ThemeToggle } from "../../components/ui/ThemeToggle";
 import { CommandPalette } from "./CommandPalette";
 import { NAV_GROUPS } from "./nav";
 
@@ -30,18 +32,24 @@ function Harness({ startOpen = true }: { startOpen?: boolean }) {
 
 function renderPalette(startOpen = true) {
   return render(
-    <MemoryRouter initialEntries={["/"]}>
-      <Harness startOpen={startOpen} />
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={["/"]}>
+        <Harness startOpen={startOpen} />
+        <ThemeToggle />
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
 const input = () => screen.getByRole("combobox", { name: "Go to page or action" }) as HTMLInputElement;
 const options = () => within(screen.getByRole("listbox", { name: "Results" })).getAllByRole("option");
-const pageCount = NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0);
+const THEME_COMMANDS = 3;
+const pageCount = NAV_GROUPS.reduce((sum, g) => sum + g.items.length, 0) + THEME_COMMANDS;
 
 beforeEach(() => {
   logout.mockReset();
+  window.localStorage.clear();
+  document.documentElement.removeAttribute("data-theme");
 });
 afterEach(cleanup);
 
@@ -118,6 +126,18 @@ describe("CommandPalette", () => {
     fireEvent.keyDown(input(), { key: "Enter" });
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByTestId("where").textContent).toBe("/");
+  });
+
+  it("switches the theme from the keyboard, and the sidebar toggle follows", async () => {
+    renderPalette();
+    await screen.findByRole("dialog");
+    fireEvent.change(input(), { target: { value: "dark" } });
+    expect(options().map((o) => o.textContent)).toEqual(["Theme: DarkAppearance"]);
+    fireEvent.keyDown(input(), { key: "Enter" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(screen.getByRole("radio", { name: "Dark" }).getAttribute("aria-checked")).toBe("true");
+    expect(window.localStorage.getItem("opai-theme")).toBe("dark");
   });
 
   it("closes on Escape and starts fresh when reopened", async () => {

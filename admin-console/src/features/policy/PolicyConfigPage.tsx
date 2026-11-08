@@ -87,6 +87,7 @@ function TagInput({
     <div
       role="group"
       aria-label={label}
+      className="tag-input"
       style={{
         border: "1px solid var(--line)",
         borderRadius: 12,
