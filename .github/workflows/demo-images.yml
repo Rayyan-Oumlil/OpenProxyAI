@@ -1,0 +1,56 @@
+name: Demo images
+
+# Publishes the two images the seeded demo needs, so a first boot pulls them instead of building for minutes.
+# Uses the repo's own GITHUB_TOKEN; nothing is deployed anywhere.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "admin-console/**"
+      - "docker-compose.demo.yml"
+      - ".github/workflows/demo-images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/rayyan-oumlil/openproxyai-demo-backend
+  CONSOLE_IMAGE: ghcr.io/rayyan-oumlil/openproxyai-demo-console
+
+jobs:
+  publish:
+    name: Build & push demo images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Backend (api and fake-llm share it)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./backend
+          build-args: INSTALL_ML=false
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha,scope=demo-backend
+          cache-to: type=gha,scope=demo-backend,mode=max
+      - name: Console
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./admin-console
+          push: true
+          tags: |
+            ${{ env.CONSOLE_IMAGE }}:latest
+            ${{ env.CONSOLE_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha,scope=demo-console
+          cache-to: type=gha,scope=demo-console,mode=max

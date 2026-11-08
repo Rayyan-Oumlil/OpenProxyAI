@@ -1,3 +1,4 @@
+import { THEME_MODES, type ThemeMode } from "../../lib/theme";
 import { NAV_GROUPS } from "./nav";
 
 export interface Command {
@@ -7,6 +8,15 @@ export interface Command {
   group: string;
   /** Route to open. A command without one is an action the palette runs itself. */
   to?: string;
+  /** Theme to switch to. */
+  theme?: ThemeMode;
+}
+
+const THEME_LABELS: Record<ThemeMode, string> = { system: "Match system", dark: "Dark", light: "Light" };
+
+/** One command per theme, so "theme dark" or just "dark" switches without leaving the keyboard. */
+export function themeCommands(): Command[] {
+  return THEME_MODES.map((mode) => ({ id: `theme:${mode}`, label: `Theme: ${THEME_LABELS[mode]}`, group: "Appearance", theme: mode }));
 }
 
 /** Every page in the sidebar, in sidebar order. */

@@ -1,7 +1,8 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 
 import { cn } from "../../lib/utils";
-import { THEME_MODES, useTheme, type ThemeMode } from "../../lib/theme";
+import { THEME_MODES, type ThemeMode } from "../../lib/theme";
+import { useTheme } from "../../state/ThemeContext";
 
 const OPTIONS: Record<ThemeMode, { label: string; Icon: typeof Sun }> = {
   system: { label: "Match system", Icon: Monitor },

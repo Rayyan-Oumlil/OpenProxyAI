@@ -1,12 +1,23 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminLayout } from "./AdminLayout";
+import { ThemeProvider } from "../../state/ThemeContext";
 import { NAV_GROUPS } from "./nav";
 
 vi.mock("../../state/AuthContext", () => ({
-  useAuth: () => ({ user: { name: "Ada Admin", email: "ada@example.com", role: "admin" }, logout: vi.fn() }),
+  useAuth: () => ({
+    user: { name: "Ada Admin", email: "ada@example.com", role: "admin" },
+    logout: vi.fn(),
+  }),
 }));
 
 function setViewport(desktop: boolean) {
@@ -33,16 +44,18 @@ function GoToLogs() {
 
 function renderLayout(path = "/") {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/" element={<AdminLayout />}>
-          <Route index element={<h1>Dashboard page</h1>} />
-          <Route path="logs" element={<h1>Logs page</h1>} />
-          <Route path="audit" element={<h1>Audit page</h1>} />
-        </Route>
-      </Routes>
-      <GoToLogs />
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/" element={<AdminLayout />}>
+            <Route index element={<h1>Dashboard page</h1>} />
+            <Route path="logs" element={<h1>Logs page</h1>} />
+            <Route path="audit" element={<h1>Audit page</h1>} />
+          </Route>
+        </Routes>
+        <GoToLogs />
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
@@ -59,21 +72,40 @@ describe("AdminLayout on a wide screen", () => {
     renderLayout();
     const nav = screen.getByRole("navigation", { name: "Main" });
     for (const group of NAV_GROUPS) {
-      expect(within(nav).getByRole("heading", { name: group.label })).not.toBeNull();
-      for (const item of group.items) expect(within(nav).getByRole("link", { name: item.label })).not.toBeNull();
+      expect(
+        within(nav).getByRole("heading", { name: group.label }),
+      ).not.toBeNull();
+      for (const item of group.items)
+        expect(
+          within(nav).getByRole("link", { name: item.label }),
+        ).not.toBeNull();
     }
-    expect(screen.queryByRole("button", { name: "Open navigation" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Open navigation" }),
+    ).toBeNull();
   });
 
   it("marks the current page for assistive tech", () => {
     renderLayout("/audit");
-    expect(screen.getByRole("link", { name: "Audit log" }).getAttribute("aria-current")).toBe("page");
-    expect(screen.getByRole("link", { name: "Dashboard" }).hasAttribute("aria-current")).toBe(false);
+    expect(
+      screen
+        .getByRole("link", { name: "Audit log" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      screen
+        .getByRole("link", { name: "Dashboard" })
+        .hasAttribute("aria-current"),
+    ).toBe(false);
   });
 
   it("offers a skip link to the main landmark", () => {
     renderLayout();
-    expect(screen.getByRole("link", { name: "Skip to content" }).getAttribute("href")).toBe("#main-content");
+    expect(
+      screen
+        .getByRole("link", { name: "Skip to content" })
+        .getAttribute("href"),
+    ).toBe("#main-content");
     expect(screen.getByRole("main").id).toBe("main-content");
   });
 
@@ -113,8 +145,12 @@ describe("AdminLayout below 1024px", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
     const drawer = screen.getByRole("dialog", { name: "Navigation" });
     expect(drawer.id).toBe("nav-drawer");
-    expect(within(drawer).getAllByRole("link").length).toBe(NAV_GROUPS.flatMap((g) => g.items).length);
-    expect(within(drawer).getByRole("button", { name: "Close navigation" })).not.toBeNull();
+    expect(within(drawer).getAllByRole("link").length).toBe(
+      NAV_GROUPS.flatMap((g) => g.items).length,
+    );
+    expect(
+      within(drawer).getByRole("button", { name: "Close navigation" }),
+    ).not.toBeNull();
   });
 
   it("closes with Escape", () => {
@@ -142,7 +178,11 @@ describe("AdminLayout below 1024px", () => {
   it("closes itself after you pick a page", () => {
     renderLayout();
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
-    fireEvent.click(within(screen.getByRole("dialog")).getByRole("link", { name: "Request logs" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("link", {
+        name: "Request logs",
+      }),
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.getByRole("heading", { name: "Logs page" })).not.toBeNull();
   });
@@ -151,14 +191,18 @@ describe("AdminLayout below 1024px", () => {
     renderLayout();
     fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
     expect(screen.getByRole("dialog")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "go to logs", hidden: true }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "go to logs", hidden: true }),
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("ignores the Ctrl+B shortcut, which only makes sense for the pinned rail", () => {
     const { container } = renderLayout();
     fireEvent.keyDown(window, { key: "b", ctrlKey: true });
-    expect(container.querySelector(".shell")!.getAttribute("data-collapsed")).toBe("false");
+    expect(
+      container.querySelector(".shell")!.getAttribute("data-collapsed"),
+    ).toBe("false");
   });
 });
 
@@ -169,29 +213,49 @@ describe("AdminLayout page bar", () => {
     renderLayout("/audit");
     const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
     expect(within(crumbs).getByText("Observe")).not.toBeNull();
-    expect(within(crumbs).getByText("Audit log").getAttribute("aria-current")).toBe("page");
+    expect(
+      within(crumbs).getByText("Audit log").getAttribute("aria-current"),
+    ).toBe("page");
   });
 
   it("opens the command palette from the Search button and with Ctrl+K, and Ctrl+K again closes it", async () => {
     renderLayout();
-    expect(screen.queryByRole("dialog", { name: "Command palette" })).toBeNull();
+    expect(
+      screen.queryByRole("dialog", { name: "Command palette" }),
+    ).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /^Search/ }));
-    expect(await screen.findByRole("dialog", { name: "Command palette" })).not.toBeNull();
+    expect(
+      await screen.findByRole("dialog", { name: "Command palette" }),
+    ).not.toBeNull();
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Command palette" })).toBeNull());
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Command palette" }),
+      ).toBeNull(),
+    );
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
-    expect(await screen.findByRole("dialog", { name: "Command palette" })).not.toBeNull();
+    expect(
+      await screen.findByRole("dialog", { name: "Command palette" }),
+    ).not.toBeNull();
   });
 
   it("goes to the chosen page from the palette", async () => {
     renderLayout();
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-    const box = await screen.findByRole("combobox", { name: "Go to page or action" });
+    const box = await screen.findByRole("combobox", {
+      name: "Go to page or action",
+    });
     fireEvent.change(box, { target: { value: "request logs" } });
     fireEvent.keyDown(box, { key: "Enter" });
-    expect(await screen.findByRole("heading", { name: "Logs page" })).not.toBeNull();
-    expect(within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText("Request logs")).not.toBeNull();
+    expect(
+      await screen.findByRole("heading", { name: "Logs page" }),
+    ).not.toBeNull();
+    expect(
+      within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText(
+        "Request logs",
+      ),
+    ).not.toBeNull();
   });
 });

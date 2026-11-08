@@ -133,9 +133,10 @@ Multiple provider keys per provider — weighted random rotation in `llm_service
 ## Custom HTTP Status Codes
 | Code | Meaning |
 |---|---|
-| 402 | Budget exceeded |
-| 429 | Rate limit hit |
-| 446 | Guardrail / policy block |
+| 402 | Pre-flight estimate exceeds the remaining daily budget (org or user); plan limit exceeded |
+| 403 | Request blocked by policy (PII, keyword, model allowlist) before the provider is called |
+| 429 | Rate limit hit, or a user's daily budget already spent (`user_budget_daily_usd`) |
+| 446 | A response blocked by response guardrails; also the audit status of refused MCP tool calls |
 
 ## Background Jobs (APScheduler)
 | Job | Interval | Notes |

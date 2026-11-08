@@ -2,7 +2,10 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeToggle } from "../components/ui/ThemeToggle";
-import { THEME_STORAGE_KEY, applyTheme, readStoredTheme, storeTheme, useTheme } from "./theme";
+import { ThemeProvider, useTheme } from "../state/ThemeContext";
+import { THEME_STORAGE_KEY, applyTheme, readStoredTheme, storeTheme } from "./theme";
+
+const wrapper = ThemeProvider;
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -51,7 +54,7 @@ describe("applyTheme", () => {
 
 describe("useTheme", () => {
   it("applies and stores each change", () => {
-    const { result } = renderHook(() => useTheme());
+    const { result } = renderHook(() => useTheme(), { wrapper });
     act(() => result.current.setMode("light"));
     expect(result.current.mode).toBe("light");
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
@@ -60,7 +63,7 @@ describe("useTheme", () => {
 
   it("starts from the saved choice", () => {
     storeTheme("dark");
-    const { result } = renderHook(() => useTheme());
+    const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.mode).toBe("dark");
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
@@ -69,18 +72,23 @@ describe("useTheme", () => {
 describe("ThemeToggle", () => {
   it("is a radio group with the current theme checked", () => {
     storeTheme("dark");
-    render(<ThemeToggle />);
+    render(<ThemeToggle />, { wrapper });
     expect(screen.getByRole("radiogroup", { name: "Color theme" })).not.toBeNull();
     expect(screen.getByRole("radio", { name: "Dark" }).getAttribute("aria-checked")).toBe("true");
     expect(screen.getByRole("radio", { name: "Light" }).getAttribute("aria-checked")).toBe("false");
   });
 
   it("switches theme on click", () => {
-    render(<ThemeToggle />);
+    render(<ThemeToggle />, { wrapper });
     fireEvent.click(screen.getByRole("radio", { name: "Light" }));
     expect(screen.getByRole("radio", { name: "Light" }).getAttribute("aria-checked")).toBe("true");
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     fireEvent.click(screen.getByRole("radio", { name: "Match system" }));
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+  });
+
+  it("throws outside a provider instead of silently using its own state", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(() => renderHook(() => useTheme())).toThrow(/ThemeProvider/);
   });
 });
