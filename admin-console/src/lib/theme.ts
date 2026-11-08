@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
-
 export type ThemeMode = "system" | "dark" | "light";
 
 export const THEME_STORAGE_KEY = "opai-theme";
@@ -32,19 +30,4 @@ export function storeTheme(mode: ThemeMode): void {
   } catch {
     // The choice still applies for this session; it just will not persist.
   }
-}
-
-export function useTheme(): { mode: ThemeMode; setMode: (mode: ThemeMode) => void } {
-  const [mode, setModeState] = useState<ThemeMode>(readStoredTheme);
-
-  useEffect(() => {
-    applyTheme(mode);
-  }, [mode]);
-
-  const setMode = useCallback((next: ThemeMode) => {
-    storeTheme(next);
-    setModeState(next);
-  }, []);
-
-  return { mode, setMode };
 }

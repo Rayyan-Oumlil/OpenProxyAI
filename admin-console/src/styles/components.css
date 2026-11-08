@@ -578,6 +578,12 @@ textarea:focus-visible {
   border-color: var(--accent);
 }
 
+/* The tag input's own <input> has no outline, so the whole field shows keyboard focus. */
+.tag-input:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* MCP servers page */
 .mcp-actions {
   display: flex;

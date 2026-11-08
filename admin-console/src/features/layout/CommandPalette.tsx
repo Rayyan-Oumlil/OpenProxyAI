@@ -1,11 +1,12 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { CornerDownLeft, Search } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
-import { filterCommands, navigationCommands, type Command } from "./commands";
+import { useTheme } from "../../state/ThemeContext";
+import { filterCommands, navigationCommands, themeCommands, type Command } from "./commands";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -19,11 +20,13 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { setMode } = useTheme();
   const listId = useId();
+  const opener = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
 
-  const commands = useMemo<Command[]>(() => [...navigationCommands(), { id: "sign-out", label: "Sign out", group: "Account" }], []);
+  const commands = useMemo<Command[]>(() => [...navigationCommands(), ...themeCommands(), { id: "sign-out", label: "Sign out", group: "Account" }], []);
   const results = useMemo(() => filterCommands(commands, query), [commands, query]);
   const highlighted = Math.min(active, Math.max(results.length - 1, 0));
 
@@ -36,6 +39,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   function run(command: Command) {
     close();
     if (command.to) navigate(command.to);
+    else if (command.theme) setMode(command.theme);
     else if (command.id === "sign-out") logout();
   }
 
@@ -56,7 +60,20 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     <Dialog.Root open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
       <Dialog.Portal>
         <Dialog.Overlay className="drawer-scrim" />
-        <Dialog.Content className="palette" aria-describedby={undefined}>
+        <Dialog.Content
+          className="palette"
+          aria-describedby={undefined}
+          // Ctrl+K has no trigger element for Radix to return focus to, so remember who had it and give it back.
+          onOpenAutoFocus={() => {
+            opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            if (opener.current?.isConnected) {
+              event.preventDefault();
+              opener.current.focus();
+            }
+          }}
+        >
           <Dialog.Title className="sr-only">Command palette</Dialog.Title>
           <div className="palette__field">
             <Search size={16} aria-hidden="true" />
