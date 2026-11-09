@@ -6,6 +6,7 @@ nothing is excluded without a stated reason.
 
 from __future__ import annotations
 
+import itertools
 import uuid
 
 import pytest
@@ -13,7 +14,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from app.services.data_class import DATA_CLASSES, data_class_rank
-from app.services.routing_service import EXCLUSION_ORDER, Candidate, authorize, choose_route, clearance, decide
+from app.services.routing_service import EXCLUSION_ORDER, Candidate, authorize, choose_route, clearance, decide, may_leave_registry
 
 REGIONS = ("us", "eu", "ap", "global")
 RISKS = ("low", "medium", "high")
@@ -204,6 +205,20 @@ def test_a_capability_request_prefers_cheaper_then_lower_risk_then_name():
 	]
 	assert choose_route(run(pool), "cap:VISION").candidate.model_id == "c/safe"
 	assert choose_route(run(pool), "cap:UNKNOWN") is None
+
+
+# ── destinations the registry does not govern ────────────────────────────────
+
+
+@pytest.mark.parametrize("mode", ["off", "log_only"])
+@pytest.mark.parametrize("data_class", DATA_CLASSES)
+def test_nothing_is_withheld_unless_routing_is_enforced(mode, data_class):
+	assert may_leave_registry(mode, data_class, "public") is True
+
+
+@pytest.mark.parametrize("data_class,ceiling", list(itertools.product(DATA_CLASSES, DATA_CLASSES)))
+def test_when_enforcing_content_may_go_to_ungoverned_destinations_only_up_to_the_ceiling(data_class, ceiling):
+	assert may_leave_registry("enforce", data_class, ceiling) is (data_class_rank(data_class) <= data_class_rank(ceiling))
 
 
 # ── the decision, with its mode ──────────────────────────────────────────────

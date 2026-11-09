@@ -32,8 +32,8 @@ from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest, Message, _substitute_variables
 from app.services import cache_service
 from app.services.policy_service import POLICY_BLOCK_STATUS
-from app.services.data_class import data_class_rank
-from app.services.routing_service import CAPABILITY_PREFIX, RoutingDecision, decide, load_candidates
+from app.services.routing_service import CAPABILITY_PREFIX, RoutingDecision, decide, load_candidates, may_leave_registry
+from app.utils.region import org_data_region, region_of
 from app.services.classification_service import (
 	DATA_CLASS_HEADER,
 	Classification,
@@ -377,6 +377,14 @@ def _build_request_metadata(ctx: _RequestContext, extra: dict | None = None) -> 
 	return metadata
 
 
+def route_decision(candidates: list, region: str, config, data_class: str, model: str) -> RoutingDecision | None:
+	"""The routing decision for ``model`` under the org's policy; None when routing is off. One place binds policy to the core."""
+	return decide(
+		candidates, mode=config.routing_mode, data_class=data_class, org_region=region, max_risk=config.max_risk_rating,
+		allows_model=lambda m: policy_service.is_model_on_allowlist(m, config), requested=model,
+	)
+
+
 class LLMService:
 	async def _select_provider_keys(
 		self,
@@ -399,7 +407,7 @@ class LLMService:
 		"""
 		limit = (max_attempts + 1) if max_attempts is not None else (settings.MAX_PROVIDER_FALLBACK_ATTEMPTS + 1)
 		org = await db.get(Organization, org_id)
-		data_region = (org.data_region or "us").strip().lower() if org else "us"
+		data_region = region_of(org)
 		org_settings = (getattr(org, "settings", None) or {}) if org else {}
 		strategy = org_settings.get("router", {}).get("strategy") or getattr(
 			settings, "ROUTER_STRATEGY", "simple_shuffle"
@@ -608,11 +616,30 @@ class LLMService:
 		)
 
 	@staticmethod
-	def _semantic_cache_allowed(ctx: _RequestContext) -> bool:
-		"""With routing enforced, a request above the embedding endpoint's clearance must not be sent to it."""
-		if ctx.routing is None or ctx.routing.mode != "enforce" or ctx.classification is None:
+	def _may_leave_registry(ctx: _RequestContext) -> bool:
+		"""False when routing is enforced and this request is above the ceiling for destinations the registry does not govern."""
+		if ctx.routing is None or ctx.classification is None:
 			return True
-		return data_class_rank(ctx.classification.data_class) <= data_class_rank(settings.SEMANTIC_CACHE_MAX_DATA_CLASS)
+		return may_leave_registry(ctx.routing.mode, ctx.classification.data_class, settings.OFF_REGISTRY_MAX_DATA_CLASS)
+
+	@staticmethod
+	def _schedule_eval(ctx: _RequestContext, response_text: str) -> None:
+		"""Hand an experiment request and its response to the evaluation hook, unless that would send it somewhere ungoverned."""
+		if not (ctx.experiment_info and (settings.EVAL_HOOK_URL or settings.EVAL_LLM_MODEL)):
+			return
+		if not LLMService._may_leave_registry(ctx):
+			return
+		exp_id = ctx.experiment_info.get("experiment_id")
+		var_id = ctx.experiment_info.get("variant_id")
+		ctx.background_tasks.add_task(
+			run_eval_hook,
+			ctx.request_id,
+			ctx.user.org_id,
+			uuid.UUID(exp_id) if exp_id else None,
+			uuid.UUID(var_id) if var_id else None,
+			_extract_prompt_text(ctx.request.messages),
+			response_text,
+		)
 
 	@staticmethod
 	def _route_headers(routing: RoutingDecision | None) -> dict[str, str]:
@@ -641,11 +668,9 @@ class LLMService:
 		)
 
 	@staticmethod
-	async def _routing_inputs(db: AsyncSession, org_id: uuid.UUID) -> tuple[list, str]:
+	async def routing_inputs(db: AsyncSession, org_id: uuid.UUID) -> tuple[list, str]:
 		"""The org's routable registry and its data region (one query each; the session is already org-scoped)."""
-		org = await db.get(Organization, org_id)
-		region = (org.data_region or "us").strip().lower() if org else "us"
-		return await load_candidates(db, org_id), region
+		return await load_candidates(db, org_id), await org_data_region(db, org_id)
 
 	async def _decide_route(self, ctx: _RequestContext, db: AsyncSession) -> None:
 		"""Decide which registry model may serve this request; in enforce mode, also constrain how it is served.
@@ -657,13 +682,10 @@ class LLMService:
 		"""
 		config = ctx.policy_config
 		mode = config.routing_mode
-		candidates, region = await self._routing_inputs(db, ctx.user.org_id)
+		candidates, region = await self.routing_inputs(db, ctx.user.org_id)
 
 		def decide_for(model: str) -> RoutingDecision:
-			return decide(
-				candidates, mode=mode, data_class=ctx.classification.data_class, org_region=region,
-				max_risk=config.max_risk_rating, allows_model=lambda m: policy_service.is_model_on_allowlist(m, config), requested=model,
-			)
+			return route_decision(candidates, region, config, ctx.classification.data_class, model)
 
 		decision = decide_for(ctx.request.model)
 		if mode == "enforce" and decision.model is None and ctx.experiment_info and ctx.requested_model != ctx.request.model:
@@ -1185,20 +1207,7 @@ class LLMService:
 							)
 					except Exception as exc:
 						logger.error("Response guardrail check failed for request %s: %s", ctx.request_id, exc)
-				if ctx.experiment_info and (settings.EVAL_HOOK_URL or settings.EVAL_LLM_MODEL):
-					full_response_text = "".join(collected_chunks)
-					prompt_text = _extract_prompt_text(ctx.request.messages)
-					exp_id = ctx.experiment_info.get("experiment_id")
-					var_id = ctx.experiment_info.get("variant_id")
-					ctx.background_tasks.add_task(
-						run_eval_hook,
-						ctx.request_id,
-						ctx.user.org_id,
-						uuid.UUID(exp_id) if exp_id else None,
-						uuid.UUID(var_id) if var_id else None,
-						prompt_text,
-						full_response_text,
-					)
+				self._schedule_eval(ctx, "".join(collected_chunks))
 			finally:
 				_record_stream()
 
@@ -1240,7 +1249,7 @@ class LLMService:
 					org_id=ctx.user.org_id,
 					db=db,
 					cache_override=cache_override,
-					allow_semantic=self._semantic_cache_allowed(ctx),
+					allow_semantic=self._may_leave_registry(ctx),
 				)
 			if cached_body is not None and cache_tier:
 				cached_usage = cached_body.get("usage", {}) if isinstance(cached_body, dict) else {}
@@ -1255,26 +1264,14 @@ class LLMService:
 					cached_latency, 200, request_metadata=request_metadata, labels=ctx.labels,
 					team_id=ctx.team_id,
 				)
-				if ctx.experiment_info and (settings.EVAL_HOOK_URL or settings.EVAL_LLM_MODEL):
-					cached_content = ""
-					if isinstance(cached_body, dict):
-						for c in cached_body.get("choices", []) or []:
-							msg = c.get("message", {})
-							if isinstance(msg, dict) and msg.get("content"):
-								cached_content = msg["content"]
-								break
-					prompt_text = _extract_prompt_text(ctx.request.messages)
-					exp_id = ctx.experiment_info.get("experiment_id")
-					var_id = ctx.experiment_info.get("variant_id")
-					ctx.background_tasks.add_task(
-						run_eval_hook,
-						ctx.request_id,
-						ctx.user.org_id,
-						uuid.UUID(exp_id) if exp_id else None,
-						uuid.UUID(var_id) if var_id else None,
-						prompt_text,
-						cached_content,
-					)
+				cached_content = ""
+				if isinstance(cached_body, dict):
+					for c in cached_body.get("choices", []) or []:
+						msg = c.get("message", {})
+						if isinstance(msg, dict) and msg.get("content"):
+							cached_content = msg["content"]
+							break
+				self._schedule_eval(ctx, cached_content)
 				return JSONResponse(
 					content=cached_body,
 					headers={
@@ -1371,7 +1368,7 @@ class LLMService:
 					org_id=ctx.user.org_id,
 					db=db,
 					cache_override=cache_override,
-					allow_semantic=self._semantic_cache_allowed(ctx),
+					allow_semantic=self._may_leave_registry(ctx),
 				)
 			)
 
@@ -1383,20 +1380,7 @@ class LLMService:
 			team_id=ctx.team_id, provider_key_id=provider_key_id,
 		)
 
-		if ctx.experiment_info and (settings.EVAL_HOOK_URL or settings.EVAL_LLM_MODEL):
-			prompt_text = _extract_prompt_text(ctx.request.messages)
-			resp_content = response.choices[0].message.content or "" if response.choices else ""
-			exp_id = ctx.experiment_info.get("experiment_id")
-			var_id = ctx.experiment_info.get("variant_id")
-			ctx.background_tasks.add_task(
-				run_eval_hook,
-				ctx.request_id,
-				ctx.user.org_id,
-				uuid.UUID(exp_id) if exp_id else None,
-				uuid.UUID(var_id) if var_id else None,
-				prompt_text,
-				resp_content,
-			)
+		self._schedule_eval(ctx, response.choices[0].message.content or "" if response.choices else "")
 
 		return JSONResponse(
 			content=body,
@@ -1618,12 +1602,8 @@ class LLMService:
 				return self._policy_block_response(decision)
 			if policy_config.routing_mode != "off":
 				with timer.stage("route"):
-					candidates, region = await self._routing_inputs(db, user.org_id)
-					routing = decide(
-						candidates, mode=policy_config.routing_mode, data_class=classification.data_class, org_region=region,
-						max_risk=policy_config.max_risk_rating,
-						allows_model=lambda m: policy_service.is_model_on_allowlist(m, policy_config), requested=request.model,
-					)
+					candidates, region = await self.routing_inputs(db, user.org_id)
+					routing = route_decision(candidates, region, policy_config, classification.data_class, request.model)
 				if routing.blocked:
 					latency_ms = int((time.perf_counter() - start) * 1000)
 					background_tasks.add_task(log_request,

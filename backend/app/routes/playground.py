@@ -1,8 +1,6 @@
 """Prompt Playground — model comparison and saved prompt templates."""
 
 import asyncio
-import fnmatch
-import random
 import time
 import uuid
 from decimal import Decimal
@@ -11,12 +9,11 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from litellm import acompletion
 from redis.asyncio import Redis
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import CurrentUser, get_db, get_redis
-from app.models.llm_provider_key import LLMProviderKey
 from app.models.prompt_template import PromptTemplate
 from app.schemas.playground import (
     PlaygroundCompareRequest,
@@ -26,12 +23,10 @@ from app.schemas.playground import (
     PromptTemplateResponse,
     PromptTemplateUpdate,
 )
-from app.models.organization import Organization
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
-from app.services.crypto_service import decrypt
-from app.services.llm_service import ProviderKeyCandidate
-from app.utils.provider_endpoint import filter_allowed_endpoints
+from app.services.classification_service import classify_chat_request
+from app.services.llm_service import ProviderKeyCandidate, llm_service, route_decision
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 
@@ -51,57 +46,11 @@ async def _select_provider_key(
     org_id: UUID,
     provider: str,
     model: str | None = None,
-    data_region: str = "us",
+    only_key_id: UUID | None = None,
 ) -> ProviderKeyCandidate:
-    """Return the key (and its custom endpoint, if any) for the provider (mirrors LLMService, including the region filter)."""
-    rows = await db.scalars(
-        select(LLMProviderKey).where(
-            LLMProviderKey.org_id == org_id,
-            LLMProviderKey.provider == provider,
-            LLMProviderKey.is_active.is_(True),
-            or_(
-                LLMProviderKey.region == data_region,
-                LLMProviderKey.region == "global",
-            ),
-        )
-    )
-    keys = [row for row in rows if row.weight > 0]
-    keys, endpoints_dropped = await filter_allowed_endpoints(keys)
-    if not keys and endpoints_dropped:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "error": "no_provider_key",
-                "detail": "Every provider endpoint configured for this provider failed validation. Check the keys' api_base values.",
-            },
-        )
-    if keys:
-        if model:
-            matched = [
-                k
-                for k in keys
-                if k.model_patterns
-                and any(fnmatch.fnmatch(model, p) for p in k.model_patterns)
-            ]
-            candidates = matched if matched else keys
-        else:
-            candidates = keys
-        primary = random.choices(candidates, weights=[k.weight for k in candidates], k=1)[0]
-        return ProviderKeyCandidate(primary.id, decrypt(primary.api_key_encrypted), primary.api_base)
-
-    env_map = {
-        "openai": settings.OPENAI_API_KEY,
-        "anthropic": settings.ANTHROPIC_API_KEY,
-        "azure": settings.AZURE_API_KEY,
-    }
-    api_key = env_map.get(provider, "")
-    if api_key:
-        return ProviderKeyCandidate(None, api_key)
-
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail={"error": "no_provider_key", "detail": "No active key for provider"},
-    )
+    """The key (and custom endpoint) a playground call uses: exactly what chat would pick, so the two never drift."""
+    [candidate, *_] = await llm_service._select_provider_keys(db, org_id, provider, model=model, max_attempts=0, only_key_id=only_key_id)
+    return candidate
 
 
 def _split_model(model_name: str) -> tuple[str, str]:
@@ -434,20 +383,40 @@ async def playground_compare(
             },
         )
 
-    # Load org data_region for provider key selection
-    org = await db.get(Organization, current_user.org_id)
-    data_region = (org.data_region or "us").strip().lower() if org else "us"
+    # How sensitive is this prompt, and which of the chosen models may see it? Decided once, in order: the calls
+    # below run concurrently, and a database session cannot be shared between concurrent tasks.
+    classification = await classify_chat_request(_CCR.model_construct(model="", messages=payload.messages), policy_config, None)
+    candidates, region = await llm_service.routing_inputs(db, current_user.org_id) if policy_config.routing_mode != "off" else ([], "us")
+    plan: dict[str, tuple[ProviderKeyCandidate | None, str | None, dict | None]] = {}  # model -> (key, refusal, routing metadata)
+    for model in payload.models:
+        provider, model_name = _split_model(model)
+        routing = route_decision(candidates, region, policy_config, classification.data_class, model)
+        metadata = routing.as_metadata() if routing else None
+        if routing is not None and routing.blocked:
+            plan[model] = (None, f"Not authorized for {classification.data_class} data: {routing.reason}", metadata)
+            continue
+        try:
+            key_id = routing.key_id if routing is not None and routing.mode == "enforce" else None
+            plan[model] = (await _select_provider_key(db, current_user.org_id, provider, model_name, only_key_id=key_id), None, metadata)
+        except HTTPException as exc:
+            plan[model] = (None, str(exc.detail.get("detail") if isinstance(exc.detail, dict) else exc.detail), metadata)
 
     async def _run_one(model: str) -> PlaygroundCompareResult:
         req_id = uuid.uuid4()
         start = time.perf_counter()
-        provider, model_name = _split_model(model)
-        try:
-            candidate = await _select_provider_key(
-                db, current_user.org_id, provider, model_name, data_region=data_region,
+        provider, _ = _split_model(model)
+        candidate, refusal, routing_metadata = plan[model]
+        metadata = {"source": "playground", "data_class": classification.as_metadata(), **({"routing": routing_metadata} if routing_metadata else {})}
+        if candidate is None:
+            background_tasks.add_task(
+                log_request, redis=redis, request_id=req_id, org_id=current_user.org_id, user_id=current_user.id, api_key_id=None,
+                model=model, provider=provider, prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"), latency_ms=0, ttft_ms=None,
+                status_code=POLICY_BLOCK_STATUS if routing_metadata and routing_metadata.get("model") is None else 503,
+                error_message=refusal, request_metadata=metadata, labels=None,
             )
-        except HTTPException:
-            raise
+            return PlaygroundCompareResult(
+                model=model, content="", prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"), latency_ms=0, ttft_ms=None, error=refusal,
+            )
 
         kwargs = {
             "model": model,
@@ -489,7 +458,7 @@ async def playground_compare(
                 latency_ms=latency_ms,
                 ttft_ms=None,
                 status_code=200,
-                request_metadata={"source": "playground"},
+                request_metadata=metadata,
                 labels=None,
             )
 
@@ -522,7 +491,7 @@ async def playground_compare(
                 ttft_ms=None,
                 status_code=502,
                 error_message=err_msg,
-                request_metadata={"source": "playground"},
+                request_metadata=metadata,
                 labels=None,
             )
             return PlaygroundCompareResult(

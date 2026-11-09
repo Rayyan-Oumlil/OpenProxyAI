@@ -318,7 +318,7 @@ async def test_compare_returns_results_for_all_models(client, monkeypatch):
     monkeypatch.setattr(ps.policy_store, "load", fake_policy_load)
 
     # Need provider key for openai and anthropic - mock _select_provider_key
-    async def fake_select_key(db, org_id, provider, model=None, data_region="us"):
+    async def fake_select_key(db, org_id, provider, model=None, only_key_id=None):
         return ProviderKeyCandidate(None, "sk-fake-key")
 
     from app.routes import playground as pg
@@ -402,7 +402,7 @@ def test_compare_handles_model_errors_gracefully(client, monkeypatch):
     monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", fake_check_limits)
     monkeypatch.setattr(ps.policy_store, "load", fake_policy_load)
 
-    async def fake_select_key(db, org_id, provider, model=None, data_region="us"):
+    async def fake_select_key(db, org_id, provider, model=None, only_key_id=None):
         return ProviderKeyCandidate(None, "sk-fake-key")
 
     from app.routes import playground as pg
@@ -468,7 +468,7 @@ def test_compare_sends_the_keys_api_base(client, monkeypatch):
         from app.services.policy_service import PolicyConfig
         return PolicyConfig()
 
-    async def fake_select_key(db, org_id, provider, model=None, data_region="us"):
+    async def fake_select_key(db, org_id, provider, model=None, only_key_id=None):
         return ProviderKeyCandidate(uuid4(), "sk-vllm", "https://8.8.8.8/v1")
 
     async def noop_log(*args, **kwargs):
