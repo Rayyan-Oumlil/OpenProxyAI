@@ -10,7 +10,7 @@ import { PageHeader } from "../../components/ui/PageHeader";
 import { StatusBadge, verdictForPolicyAction } from "../../components/ui/StatusBadge";
 import { formatCost, formatDateTime, formatLatency, formatNumber } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
-import { buildTrace, type Trace } from "./trace";
+import { buildTrace, type Trace, type TraceRouting } from "./trace";
 
 function Waterfall({ trace }: { trace: Trace }) {
   return (
@@ -70,6 +70,44 @@ function dataClassText(trace: Trace): string | null {
   return `${CLASS_NAMES[dc.name] ?? dc.name} (${reason}${dc.entities.length > 0 ? `: ${dc.entities.join(", ")}` : ""})`;
 }
 
+/** Why a registry model was ruled out, in words (the codes come from the routing rules). */
+const EXCLUSION_TEXT: Record<string, string> = {
+  disabled: "the model is disabled",
+  no_key: "no provider key is attached",
+  key_inactive: "its provider key is inactive",
+  class_too_low: "it is not cleared for this data class",
+  region: "it does not run in this organization's region",
+  risk: "it is above the organization's risk ceiling",
+  not_allowed_by_policy: "it is not on the policy allowlist",
+};
+
+function routingOutcome(r: TraceRouting): string {
+  if (r.reason === "authorized") return `Served by ${r.model}`;
+  if (r.reason === "capability") return `Chose ${r.model} for ${r.requested}`;
+  if (r.reason === "not_in_registry") return `${r.requested} is not in the model registry`;
+  if (r.reason === "no_model_with_capability") return `No authorized model has the capability in ${r.requested}`;
+  if (r.reason.startsWith("not_authorized:")) {
+    const code = r.reason.slice("not_authorized:".length);
+    return `${r.requested} is not authorized: ${EXCLUSION_TEXT[code] ?? code}`;
+  }
+  return r.reason;
+}
+
+function RoutingFact({ routing }: { routing: TraceRouting }) {
+  const refused = routing.model === null;
+  return (
+    <Fact label="Routing">
+      {routing.mode === "log_only" ? "Preview, not enforced: " : null}
+      {routingOutcome(routing)}
+      {refused && routing.authorized.length > 0 ? (
+        <span className="trace-fact__detail"> · Authorized for this request: {routing.authorized.slice(0, 5).join(", ")}</span>
+      ) : null}
+      {routing.experimentSkipped ? <span className="trace-fact__detail"> · Experiment skipped: {routing.experimentSkipped}</span> : null}
+      {routing.fallbackRefused ? <span className="trace-fact__detail"> · Fallback model refused: {routing.fallbackRefused}</span> : null}
+    </Fact>
+  );
+}
+
 function Outcome({ detail, trace }: { detail: RequestLogDetail; trace: Trace }) {
   const reachedUpstream = trace.stages.some((s) => s.name === "upstream");
   return (
@@ -84,6 +122,7 @@ function Outcome({ detail, trace }: { detail: RequestLogDetail; trace: Trace }) 
           ) : null}
         </Fact>
         {dataClassText(trace) ? <Fact label="Data class">{dataClassText(trace)}</Fact> : null}
+        {trace.routing ? <RoutingFact routing={trace.routing} /> : null}
         <Fact label="Cache">{cacheText(trace)}</Fact>
         <Fact label="Upstream">
           {reachedUpstream || detail.status === "success"

@@ -36,6 +36,66 @@ async function audit(page: Page) {
   return violations.map((v) => `${v.id} (${v.impact}) x${v.nodes.length}: ${v.nodes[0].target.join(" ")}`);
 }
 
+/**
+ * axe checks text contrast but not icons. An icon-only button whose icon matches its background (a white pencil on a
+ * white page) passes axe and is invisible. This measures every icon inside a control against what is behind it, as
+ * WCAG 1.4.11 (non-text contrast, 3:1) asks.
+ */
+async function lowContrastIcons(page: Page): Promise<string[]> {
+  await page.waitForLoadState("networkidle");
+  return page.evaluate(() => {
+    type Rgba = [number, number, number, number];
+    const canvas = document.createElement("canvas").getContext("2d")!;
+    // The browser resolves any CSS colour (rgb, color-mix, color(srgb ...)) to pixels, so parse by painting one.
+    const parse = (css: string): Rgba | null => {
+      if (!css || css === "none" || css === "transparent") return null;
+      canvas.clearRect(0, 0, 1, 1);
+      canvas.fillStyle = "#000";
+      canvas.fillStyle = css;
+      canvas.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = canvas.getImageData(0, 0, 1, 1).data;
+      return a === 0 ? null : [r, g, b, a / 255];
+    };
+    const over = (top: Rgba, below: Rgba): Rgba => {
+      const a = top[3] + below[3] * (1 - top[3]);
+      const mix = (i: number) => (top[i] * top[3] + below[i] * below[3] * (1 - top[3])) / (a || 1);
+      return [mix(0), mix(1), mix(2), a];
+    };
+    const background = (el: Element): Rgba => {
+      const layers: Rgba[] = [];
+      for (let node: Element | null = el; node; node = node.parentElement) {
+        const c = parse(getComputedStyle(node).backgroundColor);
+        if (c) layers.push(c);
+        if (c && c[3] === 1) break;
+      }
+      return layers.reduceRight((below, layer) => over(layer, below), [255, 255, 255, 1] as Rgba);
+    };
+    const luminance = ([r, g, b]: Rgba) => {
+      const lin = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    };
+    const ratio = (a: Rgba, b: Rgba) => {
+      const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const problems: string[] = [];
+    document.querySelectorAll("button svg, a svg, [role=button] svg").forEach((svg) => {
+      const style = getComputedStyle(svg);
+      const ink = parse(style.stroke) ?? parse(style.fill);
+      if (!ink || svg.getBoundingClientRect().width === 0) return;
+      const bg = background(svg);
+      const drawn = over(ink, bg);
+      const value = ratio(drawn, bg);
+      if (value < 3) {
+        const control = svg.closest("button, a, [role=button]")!;
+        const name = control.getAttribute("aria-label") || control.textContent?.trim() || "(unnamed)";
+        problems.push(`${name}: icon contrast ${value.toFixed(2)}:1`);
+      }
+    });
+    return problems;
+  });
+}
+
 for (const theme of ["light", "dark"] as const) {
   test.describe(`${theme} theme`, () => {
     test.beforeEach(async ({ page }) => {
@@ -68,6 +128,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.goto(route);
         await page.locator("main").first().waitFor();
         expect(await audit(page)).toEqual([]);
+        expect(await lowContrastIcons(page)).toEqual([]);
       });
     }
   });

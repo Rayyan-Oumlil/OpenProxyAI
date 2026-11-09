@@ -72,6 +72,10 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   `_schedule_eval`, four copies of the region lookup became `app/utils/region.py`, three copies of the routing decision became
   `route_decision`, and the playground's duplicated key-selection code is gone (it also ran database calls concurrently on one session).
   Checked and fine: Langfuse, ClickHouse, webhooks and spend reports carry metadata only, never request text.
+  Verified on the real stack, not only in tests: `scripts/smoke_routing.py` (run by `scripts/smoke.sh`, so by CI) walks the registry, `log_only`,
+  `enforce`, capability routing, streaming, embeddings, the audit trail and the playground against the Docker image, and restores the demo.
+  A real-browser pass found three bugs no test had: two invisible icon buttons (one older, on the MCP page) and a trace that showed
+  "Policy: Allowed" beside a routing refusal. The trace now has a "Routing" line, and the Playwright audit measures icon contrast.
 
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with

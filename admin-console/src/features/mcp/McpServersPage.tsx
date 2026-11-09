@@ -153,7 +153,7 @@ export function McpServersPage() {
               confirmDelete(server);
             }}
           >
-            <Trash2 size={15} aria-hidden />
+            <Trash2 size={15} className="text-accent-rose" aria-hidden />
           </button>
         </div>
       ),
