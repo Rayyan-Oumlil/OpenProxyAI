@@ -10,6 +10,10 @@ Helicone comes up constantly in the same breath as OpenProxyAI, and it should �
 
 {/* truncate */}
 
+:::note Updated November 9, 2026
+In March 2026 Helicone [joined Mintlify](https://www.mintlify.com/blog/mintlify-acquires-helicone) and went into maintenance mode. The announcement lists security updates, bug fixes and new models as what keeps shipping, says nothing about new features, and says Mintlify will help customers migrate to another platform. This post was published after that and read as if Helicone's roadmap were still moving. It isn't, so weigh Helicone as a stable tool, not a changing one.
+:::
+
 ## What Helicone actually is
 
 Helicone started as — and is still primarily — an observability platform for LLM calls. You point your traffic through it (via proxy or async logging), and you get request/response logs, latency and cost dashboards, prompt experimentation tooling, and session tracing. It's a genuinely good product at that job: if your question is "what is my LLM traffic actually doing right now," Helicone answers it well, with a lighter integration lift than most alternatives.
@@ -34,11 +38,11 @@ flowchart LR
 
 - **Enforcement vs. visibility.** Helicone will show you that a request contained something it shouldn't have — after the fact. OpenProxyAI can block, redact, or route around it before the provider ever sees it. If your compliance requirement is "we need to know," Helicone covers it. If it's "we need to prevent it," it doesn't, by design.
 - **Budgets.** OpenProxyAI enforces per-team, per-model, per-dollar-per-day budgets as a hard gate (HTTP 402 when exceeded). Helicone's cost tooling is reporting-oriented — you see the spend, but stopping it requires building that logic yourself.
-- **Deployment model.** Helicone offers both a cloud SaaS and self-hosted option. OpenProxyAI is self-hosted-first — it assumes your provider keys and request bodies stay inside your VPC by default, not as an enterprise upgrade.
+- **Deployment model.** Helicone has been offered as a cloud SaaS and as open source you can self-host; Mintlify's announcement does not say how self-hosting is handled from here. OpenProxyAI is self-hosted-first — it assumes your provider keys and request bodies stay inside your VPC by default, not as an enterprise upgrade.
 - **Compliance templates.** Healthcare, Finance, and Government policy templates are native to OpenProxyAI's policy engine. Helicone doesn't have an equivalent, because policy enforcement isn't the product surface it's built around.
 
 ## Where Helicone is the better call
 
-If you already have your own routing, rate limiting, and guardrails — or you genuinely don't need them yet — and what's missing is *visibility*, Helicone's prompt experimentation and session-replay tooling is more mature than anything OpenProxyAI ships for that specific job. Plenty of teams run Helicone in front of a homegrown router purely for the observability layer, and that's a completely reasonable setup.
+If you already have your own routing, rate limiting, and guardrails — or you genuinely don't need them yet — and what's missing is *visibility*, Helicone's prompt experimentation and session-replay tooling is more mature than anything OpenProxyAI ships for that specific job, though it is no longer on an announced feature roadmap. Plenty of teams run Helicone in front of a homegrown router purely for the observability layer, and that's a completely reasonable setup.
 
 The honest split: Helicone if you need to see what's happening. OpenProxyAI if you need something with the authority to say no.
