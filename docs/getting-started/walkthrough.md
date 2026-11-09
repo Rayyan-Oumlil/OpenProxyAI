@@ -75,6 +75,20 @@ Press **Approve** on `create_issue` to show the review flow.
 Back on the **Dashboard**: requests, cost with change against the previous period, success rate, policy
 blocks and the month's budget burn-down. Then **Provider health** for the routing side.
 
+## Optional, 3 more minutes: route by data class
+
+> "Which model may see which data? Decide it once, see the answer before it matters."
+
+The demo org starts with an empty model registry and routing off, so nothing above changes. To show routing:
+
+1. **Provider keys > Add key**: provider `openai`, API base `http://fake-llm:9090/v1`, tick *Internal endpoint*, most sensitive data it may receive `Confidential`. (The demo stack allows internal endpoints; production leaves that off.)
+2. **Model registry**: register `openai/gpt-4o-mini` cleared for `Internal` and `openai/gpt-4o` cleared for `Confidential`, both through that key.
+3. **Policy > Data and routing**: set routing to *Preview (log only)* and save.
+4. In **Preview a request**, enter model `openai/gpt-4o-mini` and a prompt containing `123-45-6789`. The answer: class *Confidential (detected: ssn)*, refused because the model is not cleared for it, with the reason. Nothing was sent, logged or counted. Try `openai/gpt-4o`: it would be served.
+5. Switch routing to *Enforce*, save, and send the same request with curl: **HTTP 446**, and the row in **Request logs** shows the routing decision.
+
+`scripts/smoke_routing.py` runs these same steps against the real stack (it needs the empty registry, and puts it back), so this section cannot drift.
+
 > Honest notes for the presenter: provider health shows "Not checked" until health checks are enabled
 > (`PROVIDER_HEALTH_CHECK_ENABLED`); the `github` server URL is a placeholder, so **Sync now** fails by
 > design; the demo uses a fake LLM, so answers are echoes.
