@@ -1,0 +1,47 @@
+name: I'd use this for...
+description: Tell us what you would use OpenProxyAI for, or what is blocking you. This is not a bug report.
+title: "Use case: "
+labels: ["use-case"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for telling us. A few honest lines are more useful than a polished one.
+        Please do not paste secrets, customer data or anything confidential.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: For example, "keep health data away from non-approved models" or "give each team its own budget and audit trail".
+    validations:
+      required: true
+  - type: textarea
+    id: blocker
+    attributes:
+      label: What is in the way today?
+      description: A security review, a missing feature, a tool that did not fit, a cost you cannot attribute.
+  - type: dropdown
+    id: today
+    attributes:
+      label: What do you use now?
+      options:
+        - Nothing yet
+        - LiteLLM
+        - Portkey
+        - Kong AI Gateway
+        - Cloudflare AI Gateway
+        - Calling providers directly
+        - Something else
+  - type: dropdown
+    id: size
+    attributes:
+      label: Roughly how many people would use it?
+      options:
+        - Just me
+        - A small team (2 to 20)
+        - A company (20 to 500)
+        - A larger organization
+  - type: textarea
+    id: needs
+    attributes:
+      label: Anything it must do before you could try it?
