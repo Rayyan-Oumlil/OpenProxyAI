@@ -167,3 +167,17 @@ async def test_database_rejects_rows_for_another_org_and_bad_enums(tenants):
 		async with org_scoped_session(tenants.a) as db:
 			db.add(ModelRegistryEntry(org_id=tenants.a, model_id="openai/z", provider="openai", regions=["us"], max_data_class="nope"))
 			await db.commit()
+
+
+async def test_the_database_itself_refuses_a_link_to_another_orgs_key(tenants):
+	"""Not only the API check: row-level security does not apply to foreign keys, so the constraint must name the org."""
+	foreign_key = await make_key(tenants.b)
+	with pytest.raises(DBAPIError):
+		async with org_scoped_session(tenants.a) as db:
+			db.add(ModelRegistryEntry(org_id=tenants.a, model_id="openai/x", provider="openai", provider_key_id=foreign_key, regions=["us"]))
+			await db.commit()
+
+	own_key = await make_key(tenants.a)
+	async with org_scoped_session(tenants.a) as db:  # the same org's key is fine
+		db.add(ModelRegistryEntry(org_id=tenants.a, model_id="openai/y", provider="openai", provider_key_id=own_key, regions=["us"]))
+		await db.commit()

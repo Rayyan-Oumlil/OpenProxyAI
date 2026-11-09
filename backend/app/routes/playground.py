@@ -26,7 +26,8 @@ from app.schemas.playground import (
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
 from app.services.classification_service import classify_chat_request
-from app.services.llm_service import ProviderKeyCandidate, llm_service, route_decision
+from app.services.llm_service import ProviderKeyCandidate, llm_service, route_decision, with_endpoint
+from app.services.provider_client import ProviderEndpoint
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 
@@ -425,8 +426,9 @@ async def playground_compare(
             "timeout": 30,
             "request_timeout": 30,
         }
-        if candidate.api_base:
-            kwargs["api_base"] = candidate.api_base
+        kwargs = with_endpoint(
+            kwargs, candidate.api_key, ProviderEndpoint(candidate.api_base, candidate.is_internal) if candidate.api_base else None,
+        )
         if payload.temperature is not None:
             kwargs["temperature"] = payload.temperature
         if payload.max_tokens is not None:

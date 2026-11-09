@@ -178,7 +178,7 @@ async def test_env_key_fallback_allowed_for_shared_region(monkeypatch):
 	db = DataResidencyFakeDB(FakeOrg(org_id, data_region="us"), keys=[])
 
 	keys = await LLMService()._select_provider_keys(db, org_id, "openai", model=None)
-	assert [tuple(k) for k in keys] == [(None, "sk-env-openai", None)]
+	assert [tuple(k) for k in keys] == [(None, "sk-env-openai", None, False)]
 
 
 @pytest.mark.asyncio

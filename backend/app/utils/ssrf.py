@@ -15,6 +15,39 @@ _EXTRA_BLOCKED_NETWORKS = [
 ]
 
 
+_NEVER_ALLOWED_NETWORKS = [
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local, incl. the cloud metadata address
+    ipaddress.ip_network("fe80::/10"),
+    ipaddress.ip_network("fd00:ec2::/32"),  # AWS IPv6 metadata
+]
+
+
+def _parse_ip(ip_str: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """An address, with an IPv4-mapped IPv6 address (``::ffff:10.0.0.5``) judged as the IPv4 address inside it."""
+    try:
+        ip = ipaddress.ip_address(ip_str.split("%", 1)[0])
+    except ValueError:
+        return None
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    return ip
+
+
+def never_allowed_ip(ip_str: str) -> bool:
+    """Addresses nothing may reach, not even a private endpoint the operator enabled: cloud metadata and its kin."""
+    ip = _parse_ip(ip_str)
+    if ip is None:
+        return True
+    return ip.is_unspecified or ip.is_multicast or ip.is_link_local or any(ip in net for net in _NEVER_ALLOWED_NETWORKS)
+
+
+def ip_allowed(ip_str: str, *, internal: bool) -> bool:
+    """May the gateway connect to this address? Public ones always; private ones only for an internal endpoint."""
+    if never_allowed_ip(ip_str):
+        return False
+    return internal or not is_private_or_local_ip(ip_str)
+
+
 def is_private_or_local_ip(ip_str: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_str)

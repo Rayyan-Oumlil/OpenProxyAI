@@ -86,11 +86,29 @@ describe("ProviderKeysPage", () => {
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "Add provider key" }));
     fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test-12345" } });
-    fireEvent.change(screen.getByLabelText("Custom endpoint (optional)"), { target: { value: "https://vllm.example.com/v1" } });
+    fireEvent.change(screen.getByLabelText(/^Custom endpoint \(optional\)/), { target: { value: "https://vllm.example.com/v1" } });
     fireEvent.change(screen.getByLabelText("Most sensitive data this endpoint may receive"), { target: { value: "confidential" } });
     fireEvent.click(screen.getByRole("button", { name: "Add Key" }));
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(post.mock.calls[0][1]).toMatchObject({ api_base: "https://vllm.example.com/v1", max_data_class: "confidential", is_internal: false });
+  });
+
+  it("offers a custom endpoint only for the openai provider, and never sends one for another provider", async () => {
+    get.mockResolvedValue([]);
+    post.mockResolvedValue(key());
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Add provider key" }));
+    expect(screen.getByLabelText(/^Custom endpoint \(optional\)/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^Custom endpoint \(optional\)/), { target: { value: "https://vllm.example.com/v1" } });
+    fireEvent.change(screen.getByLabelText("Provider"), { target: { value: "anthropic" } });
+    expect(screen.queryByLabelText(/^Custom endpoint \(optional\)/)).toBeNull();
+    expect(screen.queryByLabelText("The endpoint is inside my own network")).toBeNull();
+    fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-test-12345" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Key" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    const body = post.mock.calls[0][1] as Record<string, unknown>;
+    expect("api_base" in body).toBe(false);  // the endpoint typed earlier is not sent for anthropic
+    expect(body.is_internal).toBe(false);
   });
 
   it("leaves api_base out when no custom endpoint is given", async () => {

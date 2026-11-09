@@ -7,7 +7,7 @@ request path.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, CheckConstraint, ForeignKey, ForeignKeyConstraint, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -24,6 +24,12 @@ class ModelRegistryEntry(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "model_registry"
     __table_args__ = (
         UniqueConstraint("org_id", "model_id", name="uq_model_registry_org_model"),
+        # Names the org too, so the database refuses a link to another org's key (row-level security does not apply to
+        # foreign keys). Deleting the key detaches the entry without touching its org_id (PostgreSQL 15+).
+        ForeignKeyConstraint(
+            ["org_id", "provider_key_id"], ["llm_provider_keys.org_id", "llm_provider_keys.id"],
+            ondelete="SET NULL (provider_key_id)", name="fk_model_registry_key_same_org",
+        ),
         CheckConstraint("max_data_class IN ('public', 'internal', 'confidential', 'secret')", name="ck_model_registry_data_class"),
         CheckConstraint("risk_rating IN ('low', 'medium', 'high')", name="ck_model_registry_risk"),
         CheckConstraint("cost_tier IS NULL OR cost_tier IN ('low', 'medium', 'high')", name="ck_model_registry_cost_tier"),
@@ -33,7 +39,7 @@ class ModelRegistryEntry(UUIDPrimaryKeyMixin, Base):
     org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     model_id: Mapped[str] = mapped_column(String(200), nullable=False)
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
-    provider_key_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("llm_provider_keys.id", ondelete="SET NULL"), nullable=True)
+    provider_key_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     max_data_class: Mapped[str] = mapped_column(String(20), nullable=False, server_default="internal")
     regions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
     risk_rating: Mapped[str] = mapped_column(String(10), nullable=False, server_default="medium")

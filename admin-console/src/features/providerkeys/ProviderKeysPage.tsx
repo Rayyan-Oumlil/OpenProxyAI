@@ -44,6 +44,9 @@ const REGIONS = [
   { value: "global", label: "Global" },
 ] as const;
 
+/** Custom endpoints go through a connection guard that only wraps OpenAI-compatible servers, so only this provider offers one. */
+const CUSTOM_ENDPOINT_PROVIDER = "openai";
+
 const DATA_CLASSES: { value: DataClass; label: string }[] = [
   { value: "public", label: "Public" },
   { value: "internal", label: "Internal" },
@@ -80,6 +83,8 @@ function AddKeyModal({
   const [maxDataClass, setMaxDataClass] = useState<DataClass>("internal");
   const [isInternal, setIsInternal] = useState(false);
 
+  const supportsEndpoint = provider === CUSTOM_ENDPOINT_PROVIDER;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!apiKey.trim()) {
@@ -92,9 +97,9 @@ function AddKeyModal({
       api_key: apiKey.trim(),
       weight: parseFloat(weight) || 1.0,
       region,
-      ...(apiBase.trim() ? { api_base: apiBase.trim() } : {}),
+      ...(supportsEndpoint && apiBase.trim() ? { api_base: apiBase.trim() } : {}),
       max_data_class: maxDataClass,
-      is_internal: isInternal,
+      is_internal: supportsEndpoint && isInternal,
     });
   }
 
@@ -161,16 +166,18 @@ function AddKeyModal({
               ))}
             </select>
           </label>
-          <label className="inline-control">
-            Custom endpoint (optional)
-            <input
-              type="url"
-              value={apiBase}
-              onChange={(e) => setApiBase(e.target.value)}
-              placeholder="https://vllm.example.com/v1"
-              autoComplete="off"
-            />
-          </label>
+          {supportsEndpoint ? (
+            <label className="inline-control">
+              Custom endpoint (optional): any OpenAI-compatible server, such as vLLM or Ollama's /v1
+              <input
+                type="url"
+                value={apiBase}
+                onChange={(e) => setApiBase(e.target.value)}
+                placeholder="https://vllm.example.com/v1"
+                autoComplete="off"
+              />
+            </label>
+          ) : null}
           <label className="inline-control">
             Most sensitive data this endpoint may receive
             <select value={maxDataClass} onChange={(e) => setMaxDataClass(e.target.value as DataClass)}>
@@ -181,11 +188,13 @@ function AddKeyModal({
               ))}
             </select>
           </label>
-          <label className="inline-control">
-            <span>
-              <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} /> The endpoint is inside my own network
-            </span>
-          </label>
+          {supportsEndpoint ? (
+            <label className="inline-control">
+              <span>
+                <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} /> The endpoint is inside my own network
+              </span>
+            </label>
+          ) : null}
           <DialogFooter>
             <button type="button" onClick={onClose} className="btn-outline">
               Cancel

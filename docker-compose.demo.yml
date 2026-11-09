@@ -18,6 +18,9 @@ x-backend-env: &backend-env
   CACHE_ENABLED: "true"
   # LiteLLM sends openai/* models here instead of api.openai.com.
   OPENAI_API_BASE: http://fake-llm:9090/v1
+  # The demo is one org on your machine, so a provider key may point at a private endpoint (the fake LLM above).
+  # Leave this off anywhere an org admin is not also the operator.
+  ALLOW_INTERNAL_PROVIDER_ENDPOINTS: "true"
 
 # api and fake-llm share one image; the second build is a layer-cache hit.
 x-backend-build: &backend-build
