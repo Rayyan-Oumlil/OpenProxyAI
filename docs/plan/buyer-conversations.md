@@ -4,6 +4,8 @@ Goal: five 20-minute conversations with the people who say yes or no to an AI ga
 Phase 2 scope together with D2 and D5 (`execution-plan.md`). Question list: `research-brief.md`. Stop building
 new features until five are logged.
 
+Cold calls are the hard part. The no-outreach alternatives (public issues, a use-case template, writing that attracts the right people) are in `demand-signal.md`; use both.
+
 ## Who to talk to
 - Heads of security, platform engineering or IT at **health-tech, fintech or credit unions, 100-1,000 people**,
   who already tried LiteLLM, ChatGPT Enterprise or a similar tool and hit a security review.
