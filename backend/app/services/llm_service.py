@@ -93,17 +93,18 @@ def _is_retryable(exc: Exception) -> bool:
 	return isinstance(status_code, int) and status_code in _RETRYABLE_STATUS_CODES
 
 
-def _split_model(model_name: str) -> tuple[str, str]:
+def split_model(model_name: str) -> tuple[str, str]:
+	"""``provider/name`` into its two parts; anything else is a 400, here and in the playground and policy preview."""
 	if "/" not in model_name:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail={"error": "invalid_model", "detail": "Model not supported"},
+			detail={"error": "invalid_model", "detail": "Model must be provider/model (e.g. openai/gpt-4o)"},
 		)
 	provider, model = model_name.split("/", 1)
 	if not provider or not model:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail={"error": "invalid_model", "detail": "Model not supported"},
+			detail={"error": "invalid_model", "detail": "Model must be provider/model (e.g. openai/gpt-4o)"},
 		)
 	return provider, model
 
@@ -697,7 +698,7 @@ class LLMService:
 			if original.model is not None:
 				ctx.routing_notes["experiment_skipped"] = f"variant {ctx.request.model} is not authorized"
 				ctx.request = ctx.request.model_copy(update={"model": ctx.requested_model})
-				ctx.provider, ctx.model_name = _split_model(ctx.requested_model)
+				ctx.provider, ctx.model_name = split_model(ctx.requested_model)
 				ctx.experiment_info = None
 				decision = original
 		ctx.routing = decision
@@ -707,7 +708,7 @@ class LLMService:
 		if decision.model is not None:
 			if decision.model != ctx.request.model:  # a cap:NAME request, now a concrete model
 				ctx.request = ctx.request.model_copy(update={"model": decision.model})
-				ctx.provider, ctx.model_name = _split_model(decision.model)
+				ctx.provider, ctx.model_name = split_model(decision.model)
 			ctx.route_key_id = decision.key_id
 		if ctx.fallback_model:
 			fallback = decide_for(ctx.fallback_model)
@@ -765,13 +766,13 @@ class LLMService:
 			ctx.provider, ctx.model_name = "unknown", ""  # a "cap:NAME" request is resolved to a concrete model by routing
 			resolved_model, experiment_info = ctx.request.model, None
 		else:
-			ctx.provider, ctx.model_name = _split_model(ctx.request.model)
+			ctx.provider, ctx.model_name = split_model(ctx.request.model)
 			resolved_model, experiment_info = await self._resolve_experiment(
 				db, ctx.user.org_id, ctx.request.model
 			)
 		if experiment_info:
 			ctx.request = ctx.request.model_copy(update={"model": resolved_model})
-			ctx.provider, ctx.model_name = _split_model(resolved_model)
+			ctx.provider, ctx.model_name = split_model(resolved_model)
 			ctx.experiment_info = experiment_info
 
 		with ctx.stages.stage("policy"):
@@ -1062,7 +1063,7 @@ class LLMService:
 			# Retry with x-openproxy-fallback-model when primary keys all fail
 			if _is_retryable(exc) and ctx.fallback_model and not getattr(ctx, "_used_fallback_model", False):
 				ctx._used_fallback_model = True
-				fb_provider, fb_model_name = _split_model(ctx.fallback_model)
+				fb_provider, fb_model_name = split_model(ctx.fallback_model)
 				ctx.request = ctx.request.model_copy(update={"model": ctx.fallback_model})
 				ctx.provider, ctx.model_name = fb_provider, fb_model_name
 				ctx.candidate_keys = await self._select_provider_keys(
@@ -1307,7 +1308,7 @@ class LLMService:
 			# Retry with x-openproxy-fallback-model when primary keys all fail
 			if _is_retryable(exc) and ctx.fallback_model and not getattr(ctx, "_used_fallback_model", False):
 				ctx._used_fallback_model = True
-				fb_provider, fb_model_name = _split_model(ctx.fallback_model)
+				fb_provider, fb_model_name = split_model(ctx.fallback_model)
 				ctx.request = ctx.request.model_copy(update={"model": ctx.fallback_model})
 				ctx.provider, ctx.model_name = fb_provider, fb_model_name
 				ctx.candidate_keys = await self._select_provider_keys(
@@ -1580,7 +1581,7 @@ class LLMService:
 			return out
 
 		try:
-			provider, model_name = _split_model(request.model)
+			provider, model_name = split_model(request.model)
 			with timer.stage("policy"):
 				policy_config = await policy_store.load(user.org_id, db, redis)
 				decision = await policy_service.evaluate_embedding_request(request, policy_config)

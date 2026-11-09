@@ -14,6 +14,7 @@ Exits 1 if any outcome differs from what routing should produce.
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -49,6 +50,18 @@ def check(label, ok, detail=""):
     if not ok:
         failures += 1
     print(f"{'ok  ' if ok else 'FAIL'} {label}" + ("" if ok else f"   [{str(detail)[:200]}]"))
+
+
+def settled_log_total(admin):
+    """The audit-log count once background writes from earlier requests have landed (two equal readings in a row)."""
+    previous = None
+    for _ in range(40):
+        _, _, logs = call("GET", "/api/v1/analytics/logs?limit=1", token=admin)
+        if logs["total"] == previous:
+            return previous
+        previous = logs["total"]
+        time.sleep(0.5)
+    return previous
 
 
 def main():
@@ -136,6 +149,26 @@ def main():
         check("cap:VISION with internal data routes to the cheaper model", headers.get("x-openproxyai-route-model") == "openai/gpt-4o-mini", headers)
         check("streaming is served", chat(stream=True)[0] == 200)
         check("an unregistered embedding model is refused", call("POST", "/v1/embeddings", token=CLIENT_KEY, body={"model": "openai/text-embedding-3-small", "input": "hi"})[0] == 446)
+
+        print("-- the policy preview agrees with reality and leaves no trace")
+        scenarios = (("openai/gpt-4o-mini", None), ("openai/gpt-4o-mini", "confidential"), ("openai/gpt-4o", "confidential"),
+                     ("openai/gpt-4o", "secret"), ("openai/gpt-4o-mini-2024-07-18", None), ("cap:VISION", "confidential"), ("cap:AUDIO", None))
+        total_before = settled_log_total(admin)
+        previews = []
+        for model, data_class in scenarios:
+            status, _, preview = call("POST", "/api/v1/policy/preview", token=admin, body={
+                "model": model, "messages": [{"role": "user", "content": "preview check"}], **({"data_class": data_class} if data_class else {})})
+            previews.append((model, data_class, preview))
+            check(f"preview answers for {model} / {data_class or 'default class'}", status == 200, preview)
+        total_after = settled_log_total(admin)
+        check("previews wrote no audit rows", total_after == total_before, (total_before, total_after))
+        for model, data_class, preview in previews:
+            actual_status, actual_headers, actual_body = chat("preview check", model=model, data_class=data_class)
+            if preview["verdict"] == "allowed":
+                agrees = actual_status == 200 and actual_headers.get("x-openproxyai-route-model") == preview["routing"]["model"]
+            else:
+                agrees = preview["verdict"] == "blocked_by_routing" and actual_status == 446 and actual_body.get("route_reason") == preview["routing"]["reason"]
+            check(f"the real request did what the preview said: {model} / {data_class or 'default class'} ({preview['verdict']})", agrees, (actual_status, actual_body))
 
         print("-- the audit trail and the playground")
         status, _, logs = call("GET", "/api/v1/analytics/logs?limit=50", token=admin)

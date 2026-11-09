@@ -6,6 +6,7 @@ tests skip, unless E2E_TESTS_REQUIRED is set (CI), in which case a missing servi
 
 import asyncio
 import os
+import secrets
 import uuid
 from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
@@ -46,6 +47,8 @@ class Tenant:
     org_id: uuid.UUID
     api_key: str
     headers: dict[str, str] = field(default_factory=dict)
+    admin_email: str = ""
+    admin_password: str = ""
 
 
 @pytest.fixture(scope="session")
@@ -108,12 +111,13 @@ def make_tenant() -> Callable[..., Tenant]:
     ) -> Tenant:
         full_key, key_hash, key_prefix = generate_api_key()
         suffix = uuid.uuid4().hex[:10]
+        admin_password = f"E2e-{secrets.token_urlsafe(12)}-1!"
 
         async def seed(session: AsyncSession) -> uuid.UUID:
             org = Organization(name=f"e2e-{suffix}", slug=f"e2e-{suffix}", settings=org_settings or {}, data_region=data_region)
             session.add(org)
             await session.flush()
-            user = User(org_id=org.id, email=f"{suffix}@e2e.local", password_hash=hash_password("E2ePass1!"), role="admin", is_active=True)
+            user = User(org_id=org.id, email=f"{suffix}@e2e.example.com", password_hash=hash_password(admin_password), role="admin", is_active=True)
             session.add(user)
             await session.flush()
             api_key_row = ApiKey(user_id=user.id, org_id=org.id, key_hash=key_hash, key_prefix=key_prefix, is_active=True)
@@ -139,9 +143,16 @@ def make_tenant() -> Callable[..., Tenant]:
             await session.commit()
             return org.id
 
-        return Tenant(org_id=_run(seed), api_key=full_key, headers={"Authorization": f"Bearer {full_key}"})
+        return Tenant(org_id=_run(seed), api_key=full_key, headers={"Authorization": f"Bearer {full_key}"}, admin_email=f"{suffix}@e2e.example.com", admin_password=admin_password)
 
     return factory
+
+
+def admin_headers(client, tenant: Tenant) -> dict[str, str]:
+    """Log in as the tenant's admin user (a console session, not a gateway key)."""
+    response = client.post("/api/v1/auth/login", json={"email": tenant.admin_email, "password": tenant.admin_password})
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def fetch_request_logs(org_id: uuid.UUID) -> list[dict[str, Any]]:
