@@ -536,6 +536,27 @@ Update your organization's policy configuration. Merge-updates the existing poli
 
 ---
 
+### POST /api/v1/policy/preview
+
+Admins only (console session, not a gateway key). Asks "what would happen to this request?" and answers without sending anything:
+no provider call, no audit row, nothing counted against rate limits or budgets, nothing cached, and the text is not stored. It runs
+the same classification, policy check and routing decision the gateway runs before calling a provider.
+
+```json
+{
+  "model": "openai/gpt-4o-mini",                 // provider/name, or cap:NAME
+  "messages": [{"role": "user", "content": "..."}],
+  "data_class": "confidential",                  // optional: what a caller would send in x-openproxy-data-class
+  "fallback_model": "openai/gpt-4o"              // optional: what a caller would send in x-openproxy-fallback-model
+}
+```
+
+Response: `verdict` is `allowed`, `blocked_by_policy`, `blocked_by_routing` (routing is enforced now) or `would_block_if_enforced`
+(routing is `off` or `log_only` now, but enforce would refuse it). `data_class` gives the class, what set it and the kinds of PII found
+(never the text). `routing` is always the decision enforce would make: the model that would serve it, why, which models are authorized and
+why each other one was ruled out, and which provider key would be used (alias only). `fallback` judges the fallback model by the same rules.
+`not_evaluated` lists what a real request also goes through that a preview skips (rate limits, budget, cache, experiments, tool taint, the upstream call).
+
 ### GET /api/v1/analytics/logs
 
 List all requests for your organization. Paginated and filterable.
