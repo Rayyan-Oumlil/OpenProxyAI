@@ -17,14 +17,9 @@ import { useConfirm } from "../../components/ui/ConfirmDialog";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { PageHeader } from "../../components/ui/PageHeader";
+import { DATA_CLASSES, dataClassLabel } from "../../lib/dataClasses";
 import { useAuth } from "../../state/AuthContext";
 
-const DATA_CLASSES: { value: DataClass; label: string }[] = [
-  { value: "public", label: "Public" },
-  { value: "internal", label: "Internal" },
-  { value: "confidential", label: "Confidential" },
-  { value: "secret", label: "Secret" },
-];
 const REGIONS = [
   { value: "us", label: "US" },
   { value: "eu", label: "EU" },
@@ -33,7 +28,6 @@ const REGIONS = [
 ];
 const RATINGS: Rating[] = ["low", "medium", "high"];
 
-const CLASS_LABEL = Object.fromEntries(DATA_CLASSES.map((c) => [c.value, c.label]));
 const REGION_LABEL = Object.fromEntries(REGIONS.map((r) => [r.value, r.label]));
 const RISK_VARIANT: Record<Rating, "success" | "warning" | "error"> = { low: "success", medium: "warning", high: "error" };
 
@@ -305,7 +299,7 @@ export function ModelRegistryPage() {
       header: "Max data class",
       cell: (e) => (
         <Badge variant="muted" className="text-xs">
-          {CLASS_LABEL[e.max_data_class] ?? e.max_data_class}
+          {dataClassLabel(e.max_data_class)}
         </Badge>
       ),
     },
