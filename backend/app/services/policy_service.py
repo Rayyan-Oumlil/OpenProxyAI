@@ -32,6 +32,8 @@ _POLICY_CACHE_KEY = "policy:config:{org_id}"
 
 # ── Policy config (per-org, loaded from DB / Redis) ──────────────────────────
 
+_ROUTING_MODES = ("off", "log_only", "enforce")
+_RISK_LEVELS = ("low", "medium", "high")
 _ENTITY_NAME = re.compile(r"^[A-Za-z0-9_]{1,50}$")
 
 
@@ -69,6 +71,10 @@ class PolicyConfig:
 	# class each detected entity (e.g. "ssn", "US_SSN") raises it to. The org's map overrides the built-in defaults.
 	default_data_class: str = DEFAULT_DATA_CLASS
 	data_class_map: dict[str, str] = field(default_factory=dict)
+	# Classification-aware routing (Phase 2): off = today's behavior; log_only = decide and record, never refuse;
+	# enforce = only models authorized for the request's data class may serve it.
+	routing_mode: str = "off"
+	max_risk_rating: str = "high"  # models rated above this are never authorized
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -99,6 +105,8 @@ class PolicyConfig:
 			mcp_blocked_tools=list(data.get("mcp_blocked_tools") or []),
 			default_data_class=_valid_class(data.get("default_data_class"), DEFAULT_DATA_CLASS),
 			data_class_map=_clean_class_map(data.get("data_class_map")),
+			routing_mode=data.get("routing_mode") if data.get("routing_mode") in _ROUTING_MODES else "off",
+			max_risk_rating=data.get("max_risk_rating") if data.get("max_risk_rating") in _RISK_LEVELS else "high",
 		)
 
 	def to_dict(self) -> dict:
@@ -118,6 +126,8 @@ class PolicyConfig:
 			"mcp_blocked_tools": self.mcp_blocked_tools,
 			"default_data_class": self.default_data_class,
 			"data_class_map": self.data_class_map,
+			"routing_mode": self.routing_mode,
+			"max_risk_rating": self.max_risk_rating,
 		}
 
 

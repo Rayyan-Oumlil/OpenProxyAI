@@ -148,6 +148,19 @@ def test_stored_garbage_in_the_class_fields_falls_back_to_safe_values():
 	assert config.data_class_map == {"ok": "secret"}
 
 
+def test_routing_fields_default_off_and_round_trip_and_reject_garbage():
+	assert PolicyConfig().routing_mode == "off" and PolicyConfig().max_risk_rating == "high"
+	again = PolicyConfig.from_dict(PolicyConfig(routing_mode="enforce", max_risk_rating="medium").to_dict())
+	assert (again.routing_mode, again.max_risk_rating) == ("enforce", "medium")
+	bad = PolicyConfig.from_dict({"routing_mode": "sometimes", "max_risk_rating": "extreme"})
+	assert (bad.routing_mode, bad.max_risk_rating) == ("off", "high")  # the API rejects bad values; this only guards hand-edited stored data
+	assert PolicyConfigRequest(routing_mode="log_only", max_risk_rating="low").routing_mode == "log_only"
+	for field in ("routing_mode", "max_risk_rating"):
+		for value in ("sometimes", None):
+			with pytest.raises(ValidationError):
+				PolicyConfigRequest(**{field: value})
+
+
 def test_policy_request_validates_the_class_fields():
 	assert PolicyConfigRequest(default_data_class="public", data_class_map={"US_SSN": "secret"}).data_class_map == {"US_SSN": "secret"}
 	for bad in ({"default_data_class": "nope"}, {"data_class_map": {"ssn": "nope"}}, {"data_class_map": {"bad key": "secret"}}, {"data_class_map": {f"E{i}": "secret" for i in range(51)}}):
