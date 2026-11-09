@@ -18,6 +18,8 @@ import urllib.error
 import urllib.request
 
 BASE = os.environ.get("BASE_URL", "http://localhost:8000").rstrip("/")
+FAKE_URL = os.environ.get("FAKE_URL", "http://localhost:9090").rstrip("/")  # the demo's fake upstream, which records who called it
+CUSTOM_KEY = "sk-smoke-custom-endpoint"
 ADMIN = (os.environ.get("ADMIN_EMAIL", "admin@example.com"), os.environ.get("ADMIN_PASSWORD", "DemoPass123!"))
 CLIENT_KEY = os.environ.get("API_KEY", "opai_dev_demo0001_00000000000000000000000000demo01fea5")
 
@@ -65,26 +67,40 @@ def main():
     if existing:
         sys.exit("The model registry is not empty. This script is for the seeded demo and needs an empty registry "
                  "(docker compose -f docker-compose.demo.yml down -v resets it).")
-    _, _, keys = call("GET", "/api/v1/provider-keys", token=admin)
-    key = keys[0]
-    original_class = key["max_data_class"]
     created = []
+    custom_key_id = None
     try:
-        print("-- provider keys and the registry")
+        print("-- custom endpoints: validated when saved, guarded when used")
+        base = {"provider": "openai", "api_key": CUSTOM_KEY, "key_alias": "smoke-custom-endpoint"}
+        for label, extra in (
+            ("cloud metadata address", {"api_base": "http://169.254.169.254/latest", "is_internal": True}),
+            ("a public endpoint over http", {"api_base": "http://8.8.8.8/v1"}),
+            ("a private endpoint not marked internal", {"api_base": "https://10.0.0.5/v1"}),
+            ("credentials in the URL", {"api_base": "https://user:pw@8.8.8.8/v1"}),
+            ("a provider that cannot be guarded", {"provider": "anthropic", "api_base": "https://8.8.8.8/v1"}),
+        ):
+            status, _, body = call("POST", "/api/v1/provider-keys", token=admin, body={**base, **extra})
+            check(f"refused at save: {label} (422)", status == 422 and body["detail"]["error"] == "invalid_api_base", body)
+
+        status, _, key = call("POST", "/api/v1/provider-keys", token=admin, body={
+            **base, "api_base": "http://fake-llm:9090/v1", "is_internal": True, "max_data_class": "confidential", "weight": 1})
+        check("an internal OpenAI-compatible endpoint is accepted", status == 201 and key["api_base"] == "http://fake-llm:9090/v1", key)
+        custom_key_id = key["id"]
+
+        print("-- the registry")
         check("provider keys expose api_base, max_data_class, is_internal", {"api_base", "max_data_class", "is_internal"} <= set(key), key)
-        call("PATCH", f"/api/v1/provider-keys/{key['id']}", token=admin, body={"max_data_class": "confidential"})
         status, _, body = policy(routing_mode="enforce")
         check("enforcing with an empty registry is refused (409)", status == 409 and body["detail"]["error"] == "empty_registry", body)
 
         for model, data_class, cost in (("openai/gpt-4o-mini", "internal", "low"), ("openai/gpt-4o", "confidential", "high")):
             status, _, body = call("POST", "/api/v1/model-registry", token=admin, body={
-                "model_id": model, "provider_key_id": key["id"], "max_data_class": data_class, "regions": ["us"],
+                "model_id": model, "provider_key_id": custom_key_id, "max_data_class": data_class, "regions": ["us"],
                 "capabilities": ["VISION"], "cost_tier": cost})
             check(f"register {model} ({data_class})", status == 201, body)
             if status == 201:
                 created.append(body["id"])
         status, _, body = call("POST", "/api/v1/model-registry", token=admin, body={
-            "model_id": "openai/gpt-4.1", "provider_key_id": key["id"], "max_data_class": "secret", "regions": ["us"]})
+            "model_id": "openai/gpt-4.1", "provider_key_id": custom_key_id, "max_data_class": "secret", "regions": ["us"]})
         check("a model cannot be cleared above its key (422)", status == 422, body)
 
         print("-- log_only records and never refuses")
@@ -97,6 +113,11 @@ def main():
         check("enforce accepted", policy(routing_mode="enforce")[0] == 200)
         status, headers, body = chat()
         check("an authorized request is served", status == 200 and headers.get("x-openproxyai-route-model") == "openai/gpt-4o-mini", body)
+        try:
+            calls = json.loads(urllib.request.urlopen(f"{FAKE_URL}/__calls", timeout=10).read())
+            check("it reached the endpoint through the key's own credentials, not the demo key", calls[-1]["authorization"] == f"Bearer {CUSTOM_KEY}", calls[-1:])
+        except OSError as error:
+            print(f"skip (fake upstream not reachable at {FAKE_URL}: {error})")
         status, _, body = chat(data_class="confidential")
         check("too sensitive for the model: 446 routing_blocked", status == 446 and body.get("error") == "routing_blocked", body)
         status, _, body = chat(model="openai/gpt-4o", data_class="confidential")
@@ -129,7 +150,8 @@ def main():
         policy(routing_mode="off")
         for entry_id in created:
             call("DELETE", f"/api/v1/model-registry/{entry_id}", token=admin)
-        call("PATCH", f"/api/v1/provider-keys/{key['id']}", token=admin, body={"max_data_class": original_class})
+        if custom_key_id:
+            call("DELETE", f"/api/v1/provider-keys/{custom_key_id}", token=admin)
         check("restored: routing off, the unregistered model works again", chat(model="openai/gpt-4o-mini")[0] == 200)
 
     if failures:

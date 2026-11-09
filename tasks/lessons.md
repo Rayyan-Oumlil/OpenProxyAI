@@ -22,3 +22,10 @@ understand what exists. Passing tests are necessary, not sufficient.
    restore state in `finally` so the script is repeatable.
 6. **Use the same colour tokens as sibling components.** Icon-only buttons inherit the button's white text colour; always set
    `text-muted` / `text-accent-*` on the icon. `e2e/a11y.spec.ts` now measures icon contrast (WCAG 1.4.11), which axe does not.
+
+## 2026-11-09: measure a gap before and after you close it
+7. When a risk is written down as "known limit", test it for real instead of leaving it as a note. Pointing LiteLLM at a server
+   that answers `307` showed the request, prompt included, really was re-sent elsewhere. The same probe, turned into a test with
+   real sockets, is what proved the fix. Do the measurement first; it also tells you whether the gap is real at all.
+8. A check at save time is advice; enforcement belongs on the connection (per request, to the address you validated).
+9. Row-level security does not apply to foreign-key checks. If a link must stay inside one org, make the foreign key name the org.
