@@ -110,6 +110,8 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   `scripts/smoke_routing.py` needs an empty one and checks that enforcing with none is refused; the routed-by-class example is an optional walkthrough
   section that the same script checks. **The Phase 2 MVP (S1 to S7) is complete.** Next is scoped by buyer feedback (see below).
 
+Getting real demand signal without cold calls (public issues, a use-case issue template, a post on the fallback-closure claim): `demand-signal.md`.
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.
