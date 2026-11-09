@@ -27,9 +27,20 @@ Not found: anyone asking to buy this. Reddit and Hacker News returned nothing us
 | D4 | Comparison pages already exist (`docs-site/blog/*vs*`). Re-check their claims against current docs before sharing them | me | todo |
 | D5 | Deeper public-issue sweep: Bifrost, Helicone, Langfuse, OpenRouter and more themes (audit logs behind a paywall, per-team model access, residency). The first attempt hit GitHub's secondary rate limit; run it slowly, with a pause between searches | me | todo |
 | D6 | Drafts, not sent: a reply to the #22966 thread, a Show HN, a Reddit post, a LinkedIn post (kept out of the repo, because they name real people) | me | todo |
-| D7 | Publish anything: comment on an issue, post anywhere, email anyone | **owner says yes first** | blocked |
+| D7 | Publish anything: comment on an issue, post anywhere, email anyone | **owner says yes first** | done for the items in the log; Hacker News, Reddit, LinkedIn and X are the owner's to paste |
 | D8 | Hosted public demo (the biggest conversion lever; deployment is parked) | **owner** | parked |
 | D9 | Turn on GitHub Discussions for the repo | **owner** (repo setting) | todo |
+
+## Log (real signals and what was sent)
+| Date | What | Link |
+|---|---|---|
+| 2026-11-09 | Merged the Apache-2.0 LICENSE (the repo was public with none) and the fallback-closure post; set the repo description and topics | #58, #59 |
+| 2026-11-09 | Commented on the matching LiteLLM issue (public, from the owner's account, approved) | [comment](https://github.com/BerriAI/litellm/issues/22966#issuecomment-6748772669) |
+| 2026-11-09 | Opened a PR adding OpenProxyAI to a large LLMOps list (approved) | [PR](https://github.com/tensorchord/Awesome-LLMOps/pull/1139) |
+| 2026-11-09 | Six email drafts saved in Gmail with no recipients (no published addresses found); not sent | |
+| | Held back on purpose: replies to unrelated LiteLLM threads (would read as spam), and a reply on audit-log paywalls (no matching thread found yet) | |
+
+Real signals so far: none (no replies yet). Add each reply, star, issue or call here with a date.
 
 ## Rules
 - Nothing is posted, commented or emailed without the owner's yes in that conversation, each time.
