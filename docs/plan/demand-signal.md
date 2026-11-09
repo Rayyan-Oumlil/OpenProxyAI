@@ -38,7 +38,12 @@ Not found: anyone asking to buy this. Reddit and Hacker News returned nothing us
 | 2026-11-09 | Commented on the matching LiteLLM issue (public, from the owner's account, approved) | [comment](https://github.com/BerriAI/litellm/issues/22966#issuecomment-6748772669) |
 | 2026-11-09 | Opened a PR adding OpenProxyAI to a large LLMOps list (approved) | [PR](https://github.com/tensorchord/Awesome-LLMOps/pull/1139) |
 | 2026-11-09 | Six email drafts saved in Gmail with no recipients (no published addresses found); not sent | |
+| 2026-11-09 | Three more list PRs (approved): [MCP gateways](https://github.com/e2b-dev/awesome-mcp-gateways/pull/128), [AI governance](https://github.com/agentrust-io/awesome-ai-governance/pull/211), [LLMOps](https://github.com/InftyAI/Awesome-LLMOps/pull/698). Skipped lists that need 10+ stars (we have 2) or are tiny or stale |  |
+| 2026-11-09 | Recipient search for the email drafts found no verified published addresses (only company blogs, funding news and competitors). Nothing sent; drafts wait for recipients the owner supplies |  |
 | | Held back on purpose: replies to unrelated LiteLLM threads (would read as spam), and a reply on audit-log paywalls (no matching thread found yet) | |
+
+Public forks created for those PRs (GitHub cannot make a fork of a public repo private; delete each one after its PR is merged or closed): 
+`Awesome-LLMOps`, `awesome-mcp-gateways`, `awesome-ai-governance`, `Awesome-LLMOps-1` under the owner's account.
 
 Real signals so far: none (no replies yet). Add each reply, star, issue or call here with a date.
 
