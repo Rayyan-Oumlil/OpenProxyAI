@@ -12,41 +12,41 @@ from app.services.llm_service import (
 	_parse_labels,
 	_parse_retries_header,
 	_parse_session_id_header,
-	_split_model,
+	split_model,
 	_to_jsonable,
 )
 
 
-# ── _split_model ────────────────────────────────────────────────────────
+# ── split_model ────────────────────────────────────────────────────────
 
 
 class TestSplitModel:
     def test_valid_model_splits_correctly(self):
-        assert _split_model("openai/gpt-4") == ("openai", "gpt-4")
+        assert split_model("openai/gpt-4") == ("openai", "gpt-4")
 
     def test_valid_model_with_multiple_slashes(self):
-        provider, model = _split_model("azure/gpt-4/turbo")
+        provider, model = split_model("azure/gpt-4/turbo")
         assert provider == "azure"
         assert model == "gpt-4/turbo"
 
     def test_no_slash_raises_400(self):
         with pytest.raises(HTTPException) as exc_info:
-            _split_model("invalid")
+            split_model("invalid")
         assert exc_info.value.status_code == 400
 
     def test_only_slash_raises_400(self):
         with pytest.raises(HTTPException) as exc_info:
-            _split_model("/")
+            split_model("/")
         assert exc_info.value.status_code == 400
 
     def test_empty_provider_raises_400(self):
         with pytest.raises(HTTPException) as exc_info:
-            _split_model("/gpt-4")
+            split_model("/gpt-4")
         assert exc_info.value.status_code == 400
 
     def test_empty_model_raises_400(self):
         with pytest.raises(HTTPException) as exc_info:
-            _split_model("openai/")
+            split_model("openai/")
         assert exc_info.value.status_code == 400
 
 

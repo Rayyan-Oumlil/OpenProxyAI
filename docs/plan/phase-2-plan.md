@@ -92,6 +92,13 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   tested behavior). Known and documented: `data_class_map` names only fire for entities the detector can report (`email`, `ssn`,
   `payment_card`, or Presidio's types); bare nine-digit numbers, spelled-out emails and phone numbers are deliberately not detected.
 
+- **S5 done.** `POST /api/v1/policy/preview` (admin, console session) = classify + policy + route for a hypothetical request, always showing what
+  `enforce` would do, with no upstream call, audit row, rate-limit or budget use. Deviation from §B: the path is `/api/v1/policy/preview`
+  (an admin console API, not a proxy-key endpoint), and "shadow rules" are not a separate feature: there are no routing rules yet (CEL is
+  post-MVP) and `routing_mode: log_only` already is the shadow mode (decide, record, never refuse). The guarantee is that the preview never
+  disagrees with the real pipeline: an e2e table of nine scenarios asks the preview and then sends the real request, and the live smoke does
+  the same on the Docker image. `split_model` is now one public function (the playground had its own copy).
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.
