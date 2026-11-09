@@ -33,10 +33,12 @@ class PolicyConfigRequest(BaseModel):
 	mcp_blocked_tools: list[ToolPattern] | None = None
 	default_data_class: DataClass | None = None
 	data_class_map: dict[EntityName, DataClass] | None = None
+	routing_mode: Literal["off", "log_only", "enforce"] | None = None
+	max_risk_rating: Literal["low", "medium", "high"] | None = None
 
-	@field_validator("default_data_class", mode="before")
+	@field_validator("default_data_class", "routing_mode", "max_risk_rating", mode="before")
 	@classmethod
-	def _default_class_not_null(cls, value):
+	def _not_null(cls, value):
 		if value is None:
 			raise ValueError("cannot be null; omit the field to leave it unchanged")
 		return value
@@ -65,6 +67,8 @@ class PolicyConfigResponse(BaseModel):
 	mcp_blocked_tools: list[str] = []
 	default_data_class: str = "internal"
 	data_class_map: dict[str, str] = {}
+	routing_mode: str = "off"
+	max_risk_rating: str = "high"
 
 
 class ApplyTemplateRequest(BaseModel):
