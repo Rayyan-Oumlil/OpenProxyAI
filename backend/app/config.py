@@ -119,6 +119,9 @@ class Settings(BaseSettings):
     SEMANTIC_CACHE_EMBEDDING_API_KEY: str = ""
     SEMANTIC_CACHE_EMBEDDING_API_BASE: str = ""
     SEMANTIC_CACHE_MAX_ENTRIES_PER_ORG: int = 10000
+    # The most sensitive data class the semantic cache's embedding endpoint may receive. With routing enforced, a request
+    # above this class skips the semantic cache (its prompt would be sent to the embedding endpoint).
+    SEMANTIC_CACHE_MAX_DATA_CLASS: str = "internal"
     SEMANTIC_CACHE_L1_MAX_SIZE: int = 1000
     SEMANTIC_CACHE_L1_TTL_SECONDS: int = 300
     SEMANTIC_CACHE_COST_PER_TOKEN_ESTIMATE_USD: float = 0.00003

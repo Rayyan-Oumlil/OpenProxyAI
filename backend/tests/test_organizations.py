@@ -338,6 +338,57 @@ def test_get_policy_config_requires_auth(client):
 # ---------------------------------------------------------------------------
 
 
+def _patch_routing_mode(client, monkeypatch, mode, routable):
+	from app.routes import organizations as orgs_route
+	from app.services.routing_service import Candidate
+
+	candidates = [
+		Candidate(model_id="openai/gpt-4o", provider="openai", enabled=True, key_id=uuid4(), key_active=True, key_class="internal",
+		          entry_class="internal", regions=("us",), risk="medium")
+	] if routable else [
+		Candidate(model_id="openai/gpt-4o", provider="openai", enabled=False, key_id=None, key_active=False, key_class=None,
+		          entry_class="internal", regions=("us",), risk="medium")
+	]
+
+	async def fake_candidates(db, org_id):
+		return candidates
+
+	async def fake_load(org_id_arg, db, redis):
+		return PolicyConfig(updated_at=datetime.now(UTC))
+
+	saved = {}
+
+	async def fake_save(org_id_arg, new_config, db, redis):
+		saved["config"] = new_config
+
+	monkeypatch.setattr(orgs_route, "load_candidates", fake_candidates)
+	monkeypatch.setattr(policy_store, "load", fake_load)
+	monkeypatch.setattr(policy_store, "save", fake_save)
+	_noop_audit(monkeypatch)
+	_override_auth(_make_user(uuid4(), role="admin"))
+	_override_db(FakeDB())
+	_override_redis()
+	response = client.patch("/api/v1/organizations/current/policy", json={"routing_mode": mode}, headers={"Authorization": "Bearer test"})
+	return response, saved
+
+
+def test_enforcing_routing_needs_at_least_one_routable_model(client, monkeypatch):
+	response, saved = _patch_routing_mode(client, monkeypatch, "enforce", routable=False)
+	assert response.status_code == 409
+	assert response.json()["detail"]["error"] == "empty_registry"
+	assert "config" not in saved  # nothing was saved
+
+
+def test_enforcing_routing_is_allowed_once_a_model_is_routable(client, monkeypatch):
+	response, saved = _patch_routing_mode(client, monkeypatch, "enforce", routable=True)
+	assert response.status_code == 200 and saved["config"].routing_mode == "enforce"
+
+
+def test_log_only_routing_can_be_turned_on_with_an_empty_registry_to_preview(client, monkeypatch):
+	response, saved = _patch_routing_mode(client, monkeypatch, "log_only", routable=False)
+	assert response.status_code == 200 and saved["config"].routing_mode == "log_only"
+
+
 def test_update_policy_config_success(client, monkeypatch):
 	org_id = uuid4()
 	user = _make_user(org_id, role="admin")
