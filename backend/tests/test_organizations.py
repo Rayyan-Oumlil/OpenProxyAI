@@ -395,6 +395,41 @@ def test_log_only_routing_can_be_turned_on_with_an_empty_registry_to_preview(cli
 	assert response.status_code == 200 and saved["config"].routing_mode == "log_only"
 
 
+def _patch_pii(client, monkeypatch, *, plan, pii_now, body):
+	"""PATCH the policy for an org on `plan` whose stored policy has PII detection `pii_now`.
+
+	The console sends only the fields an admin changed (see policyDiff.ts), so the plan rule below can stay strict:
+	an explicit `pii_detection_enabled: true` on a plan without it is refused."""
+	from types import SimpleNamespace
+
+	async def fake_load(org_id_arg, db, redis):
+		return PolicyConfig(updated_at=datetime.now(UTC), pii_detection_enabled=pii_now)
+
+	saved = {}
+
+	async def fake_save(org_id_arg, new_config, db, redis):
+		saved["config"] = new_config
+
+	monkeypatch.setattr(policy_store, "load", fake_load)
+	monkeypatch.setattr(policy_store, "save", fake_save)
+	_noop_audit(monkeypatch)
+	_override_auth(_make_user(uuid4(), role="admin"))
+	_override_db(FakeDB(get_result=SimpleNamespace(plan=plan)))
+	_override_redis()
+	response = client.patch("/api/v1/organizations/current/policy", json=body, headers={"Authorization": "Bearer test"})
+	return response, saved
+
+
+def test_turning_pii_detection_on_still_needs_a_plan_that_has_it(client, monkeypatch):
+	response, saved = _patch_pii(client, monkeypatch, plan="free", pii_now=False, body={"pii_detection_enabled": True})
+	assert response.status_code == 402 and response.json()["detail"]["error"] == "plan_limit_exceeded" and "config" not in saved
+
+
+def test_a_paid_plan_can_turn_pii_detection_on(client, monkeypatch):
+	response, saved = _patch_pii(client, monkeypatch, plan="starter", pii_now=False, body={"pii_detection_enabled": True})
+	assert response.status_code == 200 and saved["config"].pii_detection_enabled is True
+
+
 def test_update_policy_config_success(client, monkeypatch):
 	org_id = uuid4()
 	user = _make_user(org_id, role="admin")
