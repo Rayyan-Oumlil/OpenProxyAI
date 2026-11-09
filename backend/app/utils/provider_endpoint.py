@@ -4,16 +4,15 @@ External endpoints follow the same rule as webhooks (https, public address). Int
 a private gateway) may be private or plain http, but only when the operator enabled them, and never link-local,
 multicast or unspecified addresses (cloud metadata lives there).
 
-``validate_api_base`` runs at save time. ``filter_allowed_endpoints`` repeats it at call time (cached for a short
-while), so a hostname that later resolves to a private address, or an operator who turns the internal switch off,
-stops a key from being used. It cannot close the gap between that check and LiteLLM's own DNS lookup, nor stop
-redirects: that needs egress control (see docs/plan/phase-2-plan.md).
+``validate_api_base`` runs at save time and gives the admin a clear error. ``filter_allowed_endpoints`` repeats it
+before a call (cached for a short while) so a key whose endpoint stopped validating is skipped cleanly instead of failing
+mid-request. Neither is the enforcement: the connection itself is checked on every request, redirects are never
+followed and TLS is verified against the hostname by ``app/services/provider_client.py``.
 """
 
 from __future__ import annotations
 
 import asyncio
-import ipaddress
 import logging
 import socket
 import time
@@ -22,24 +21,10 @@ from typing import Protocol, TypeVar
 from urllib.parse import urlparse
 
 from app.config import settings
-from app.utils.ssrf import resolve_public_ip
+from app.services.provider_client import CUSTOM_ENDPOINT_PROVIDER
+from app.utils.ssrf import never_allowed_ip, resolve_public_ip
 
 logger = logging.getLogger(__name__)
-
-_ALWAYS_BLOCKED_NETWORKS = [
-	ipaddress.ip_network("169.254.0.0/16"),  # link-local, incl. the cloud metadata address
-	ipaddress.ip_network("fe80::/10"),
-	ipaddress.ip_network("fd00:ec2::/32"),  # AWS IPv6 metadata
-]
-
-
-def _never_allowed(ip_str: str) -> bool:
-	ip = ipaddress.ip_address(ip_str.split("%", 1)[0])
-	# ::ffff:169.254.169.254 is the metadata address in IPv6 clothing: judge the IPv4 address inside it.
-	if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-		ip = ip.ipv4_mapped
-	return ip.is_unspecified or ip.is_multicast or ip.is_link_local or any(ip in net for net in _ALWAYS_BLOCKED_NETWORKS)
-
 
 def _resolve(host: str, port: int) -> list[str]:
 	try:
@@ -48,8 +33,13 @@ def _resolve(host: str, port: int) -> list[str]:
 		return []
 
 
-async def validate_api_base(api_base: str, *, is_internal: bool) -> str | None:
+async def validate_api_base(api_base: str, *, is_internal: bool, provider: str) -> str | None:
 	"""Return a human-readable reason the endpoint is not allowed, or None when it is."""
+	if provider != CUSTOM_ENDPOINT_PROVIDER:
+		return (
+			f"Custom endpoints are supported for the {CUSTOM_ENDPOINT_PROVIDER!r} provider (any OpenAI-compatible server such as vLLM "
+			f"or Ollama's /v1), not {provider!r}"
+		)
 	try:
 		parsed = urlparse(api_base)
 		port = parsed.port
@@ -68,7 +58,7 @@ async def validate_api_base(api_base: str, *, is_internal: bool) -> str | None:
 		ips = await asyncio.to_thread(_resolve, parsed.hostname, port or (443 if parsed.scheme == "https" else 80))
 		if not ips:
 			return "api_base host does not resolve"
-		if any(_never_allowed(ip) for ip in ips):
+		if any(never_allowed_ip(ip) for ip in ips):
 			return "api_base must not point at a link-local, multicast or unspecified address"
 		return None
 
@@ -85,12 +75,13 @@ async def validate_api_base(api_base: str, *, is_internal: bool) -> str | None:
 
 _RUNTIME_TTL_SECONDS = 30.0
 _RUNTIME_CACHE_MAX = 1024
-_runtime_cache: dict[tuple[str, bool], tuple[float, bool]] = {}
+_runtime_cache: dict[tuple[str, bool, str], tuple[float, bool]] = {}
 
 
 class _HasEndpoint(Protocol):
 	api_base: str | None
 	is_internal: bool
+	provider: str
 
 
 K = TypeVar("K", bound=_HasEndpoint)
@@ -100,20 +91,20 @@ def clear_runtime_cache() -> None:
 	_runtime_cache.clear()
 
 
-async def _still_allowed(api_base: str, is_internal: bool) -> bool:
+async def _still_allowed(api_base: str, is_internal: bool, provider: str) -> bool:
 	now = time.monotonic()
-	cached = _runtime_cache.get((api_base, is_internal))
+	cached = _runtime_cache.get((api_base, is_internal, provider))
 	if cached is not None and now - cached[0] < _RUNTIME_TTL_SECONDS:
 		return cached[1]
-	allowed = await validate_api_base(api_base, is_internal=is_internal) is None
+	allowed = await validate_api_base(api_base, is_internal=is_internal, provider=provider) is None
 	if len(_runtime_cache) >= _RUNTIME_CACHE_MAX:
 		_runtime_cache.clear()
-	_runtime_cache[(api_base, is_internal)] = (now, allowed)
+	_runtime_cache[(api_base, is_internal, provider)] = (now, allowed)
 	return allowed
 
 
-async def api_base_still_allowed(api_base: str, *, is_internal: bool) -> bool:
-	return await _still_allowed(api_base, is_internal)
+async def api_base_still_allowed(api_base: str, *, is_internal: bool, provider: str) -> bool:
+	return await _still_allowed(api_base, is_internal, provider)
 
 
 async def filter_allowed_endpoints(keys: Sequence[K]) -> tuple[list[K], int]:
@@ -125,7 +116,7 @@ async def filter_allowed_endpoints(keys: Sequence[K]) -> tuple[list[K], int]:
 	kept: list[K] = []
 	dropped = 0
 	for key in keys:
-		if key.api_base and not await _still_allowed(key.api_base, key.is_internal):
+		if key.api_base and not await _still_allowed(key.api_base, key.is_internal, key.provider):
 			logger.warning("provider key skipped: its api_base no longer passes validation (key=%s)", getattr(key, "id", "?"))
 			dropped += 1
 			continue

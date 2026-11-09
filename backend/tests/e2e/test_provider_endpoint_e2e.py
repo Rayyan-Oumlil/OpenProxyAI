@@ -111,3 +111,45 @@ def test_with_the_operator_switch_off_the_key_is_refused_and_nothing_falls_back(
     assert response.json()["error"] == "no_provider_key"
     assert upstream_calls(upstream) == []  # not even the gateway's default endpoint
     assert upstream_calls(custom_endpoint) == []
+
+
+# ── the connection guard, through the real pipeline ──────────────────────────
+
+
+@pytest.fixture
+def redirecting(internal_endpoints_enabled):
+    """A configured endpoint that answers 307 to a second server, and the second server."""
+    from tests.fakes.redirecting_openai import Servers
+
+    servers = Servers()
+    yield servers
+    servers.close()
+
+
+def test_a_redirect_from_a_configured_endpoint_is_never_followed(e2e_client, upstream, custom_endpoint, make_tenant, redirecting):
+    tenant = make_tenant()
+    _point_keys_at(tenant.org_id, redirecting.redirector_base)
+
+    response = e2e_client.post(CHAT, json=_body("secret prompt"), headers=tenant.headers)
+
+    assert response.status_code != 200  # a redirect is an error, not a route
+    assert redirecting.hits == {"target": 0, "redirector": 1}  # the prompt was sent once, to the endpoint that was configured
+    assert upstream_calls(upstream) == [] and upstream_calls(custom_endpoint) == []
+
+
+def test_streaming_does_not_follow_a_redirect_either(e2e_client, make_tenant, redirecting):
+    tenant = make_tenant()
+    _point_keys_at(tenant.org_id, redirecting.redirector_base)
+
+    response = e2e_client.post(CHAT, json=_body("secret prompt", stream=True), headers=tenant.headers)
+
+    assert response.status_code != 200 and redirecting.hits["target"] == 0
+
+
+def test_embeddings_do_not_follow_a_redirect_either(e2e_client, make_tenant, redirecting):
+    tenant = make_tenant()
+    _point_keys_at(tenant.org_id, redirecting.redirector_base)
+
+    response = e2e_client.post(EMBED, json={"model": "openai/text-embedding-3-small", "input": "secret"}, headers=tenant.headers)
+
+    assert response.status_code != 200 and redirecting.hits["target"] == 0

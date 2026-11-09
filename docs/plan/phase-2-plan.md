@@ -27,12 +27,9 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
 ## Slice status
 - **S1 done.** Provider keys have `api_base`, `max_data_class`, `is_internal`. Chat, streaming, embeddings, playground compare and
   the health check honor `api_base`. Private or http endpoints need the operator setting `ALLOW_INTERNAL_PROVIDER_ENDPOINTS`
-  (off by default; leave it off on multi-tenant). The endpoint is validated at save time and again on every use
-  (30 s cache); a key that stops validating is skipped, and if all are skipped the request fails with 503 rather than
-  falling back to the gateway's own key. Known limits, to close before offering this to untrusted tenants: the gap
-  between that check and LiteLLM's own DNS lookup (DNS rebinding), and LiteLLM's HTTP client possibly following
-  redirects from a validated host. The fix for both is egress control (network policy or an egress proxy), not more
-  application checks.
+  (off by default; leave it off on multi-tenant). The endpoint is validated when saved, checked again before each call (a key that
+  stops validating is skipped; if all are skipped the request fails with 503 rather than using another credential), and **enforced on
+  every connection** (`provider_client.py`, added in the egress pass below).
 
 - **S2 done.** `model_registry` table (RLS forced, audited), admin-only CRUD. Deviations from §B, on purpose: the endpoint comes
   from the linked provider key (no `api_base` or `internal` columns to drift apart), `regions` is required (no permissive
@@ -76,6 +73,16 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   `enforce`, capability routing, streaming, embeddings, the audit trail and the playground against the Docker image, and restores the demo.
   A real-browser pass found three bugs no test had: two invisible icon buttons (one older, on the MCP page) and a trace that showed
   "Policy: Allowed" beside a routing refusal. The trace now has a "Routing" line, and the Playwright audit measures icon contrast.
+
+- **Egress pass on S1/S2** (the gap I had documented as "needs egress control" is closed). I first measured it: LiteLLM followed a
+  `307` from a configured endpoint and re-sent the request, prompt included, to a different server. Now calls to a custom endpoint use
+  a guarded client: redirects are never followed, the host is resolved per request and every answer must be an allowed address, the
+  connection goes to that validated address (no gap between check and connect), TLS is verified against the hostname (tested with a
+  real local CA), and the operator switch is re-read each request. Mutation-checked (follow redirects, drop the hostname check,
+  connect without pinning, don't pass the client): each breaks tests. Consequences: custom endpoints are for the `openai` provider
+  only (the only one whose client LiteLLM lets us supply), the demo compose enables `ALLOW_INTERNAL_PROVIDER_ENDPOINTS`, and the one
+  IP rule now lives in `app/utils/ssrf.py` (save-time validation used its own copy). S2: a registry entry's key link is now a
+  composite foreign key `(org_id, provider_key_id)`, so the database itself refuses a link to another org's key.
 
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with

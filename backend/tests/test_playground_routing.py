@@ -135,6 +135,21 @@ def test_a_model_missing_from_the_registry_is_refused_when_enforcing_but_only_no
 	assert all(r["error"] is None for r in results.values()) and len(harness.called) == 2  # log_only never refuses
 
 
+def test_a_custom_endpoint_is_called_through_the_connection_guard_in_the_playground_too(harness, monkeypatch):
+	harness.configure(mode="off")
+
+	async def with_endpoint_key(db, org_id, provider, model=None, only_key_id=None):
+		return ProviderKeyCandidate(None, "sk-vllm", "https://8.8.8.8/v1", False)
+
+	monkeypatch.setattr(pg, "_select_provider_key", with_endpoint_key)
+	harness.compare()
+
+	assert len(harness.called) == 2
+	for kwargs in harness.called:
+		assert kwargs["api_base"] == "https://8.8.8.8/v1"
+		assert type(kwargs["client"]._client._transport).__name__ == "GuardedTransport"
+
+
 def test_keys_are_chosen_one_after_another_before_any_model_is_called(harness):
 	"""The model calls run concurrently, and a database session cannot be shared by concurrent tasks."""
 	harness.configure(mode="off")

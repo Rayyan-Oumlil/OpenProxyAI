@@ -59,10 +59,10 @@ def _to_response(
 	)
 
 
-async def _check_api_base(api_base: str | None, is_internal: bool) -> None:
+async def _check_api_base(api_base: str | None, is_internal: bool, provider: str) -> None:
 	if api_base is None:
 		return
-	error = await validate_api_base(api_base, is_internal=is_internal)
+	error = await validate_api_base(api_base, is_internal=is_internal, provider=provider)
 	if error:
 		raise HTTPException(
 			status_code=422,
@@ -144,7 +144,7 @@ async def create_provider_key(
 	if current_user.role != "admin":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
 
-	await _check_api_base(payload.api_base, payload.is_internal)
+	await _check_api_base(payload.api_base, payload.is_internal, payload.provider)
 
 	key = LLMProviderKey(
 		org_id=current_user.org_id,
@@ -206,6 +206,7 @@ async def update_provider_key(
 		await _check_api_base(
 			updates.get("api_base", key.api_base),
 			updates.get("is_internal", key.is_internal),
+			key.provider,
 		)
 	for field_name, field_value in updates.items():
 		setattr(key, field_name, field_value)

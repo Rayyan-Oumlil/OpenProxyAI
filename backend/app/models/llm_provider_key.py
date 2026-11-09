@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 class LLMProviderKey(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "llm_provider_keys"
+    # Lets other tables reference a key together with its org, so a link cannot cross organizations.
+    __table_args__ = (UniqueConstraint("org_id", "id", name="uq_llm_provider_keys_org_id_id"),)
 
     org_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False

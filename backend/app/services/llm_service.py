@@ -41,6 +41,7 @@ from app.services.classification_service import (
 	classify_chat_request,
 	classify_embedding_request,
 )
+from app.services.provider_client import ProviderEndpoint, openai_client_for
 from app.utils.provider_endpoint import filter_allowed_endpoints
 from app.services.cache_service import CacheOverride
 from app.services.audit_logger import log_request
@@ -76,11 +77,14 @@ class ProviderKeyCandidate(NamedTuple):
 	key_id: uuid.UUID | None
 	api_key: str
 	api_base: str | None = None
+	is_internal: bool = False
 
 
-def _with_api_base(call_kwargs: dict[str, Any], api_base: str | None) -> dict[str, Any]:
-	"""Add LiteLLM's api_base only for a key that has one, so default calls are byte-for-byte unchanged."""
-	return {**call_kwargs, "api_base": api_base} if api_base else call_kwargs
+def with_endpoint(call_kwargs: dict[str, Any], api_key: str, endpoint: ProviderEndpoint | None) -> dict[str, Any]:
+	"""For a key with a custom endpoint, call it through the connection guard; otherwise leave the call exactly as it was."""
+	if endpoint is None:
+		return call_kwargs
+	return {**call_kwargs, "api_base": endpoint.api_base, "client": openai_client_for(api_key, endpoint)}
 
 
 def _is_retryable(exc: Exception) -> bool:
@@ -511,7 +515,7 @@ class LLMService:
 				reverse=True,
 			)
 			ordered = [primary, *fallbacks][: limit]
-			return [ProviderKeyCandidate(k.id, decrypt(k.api_key_encrypted), k.api_base) for k in ordered]
+			return [ProviderKeyCandidate(k.id, decrypt(k.api_key_encrypted), k.api_base, k.is_internal) for k in ordered]
 
 		env_map = {
 			"openai": settings.OPENAI_API_KEY,
@@ -948,7 +952,7 @@ class LLMService:
 		tag: str = "",
 		redis: Redis | None = None,
 	) -> tuple[Any, int, uuid.UUID | None]:
-		"""Iterate candidate keys, calling *call_fn(api_key)* for each (plus ``api_base=`` for a key that has one).
+		"""Iterate candidate keys, calling *call_fn(api_key)* for each (plus ``endpoint=`` for a key with a custom endpoint).
 
 		Returns (response, fallback_count, winning_key_id). winning_key_id is None for env keys.
 		Retryable exceptions cause fallback to the next key; non-retryable propagate.
@@ -966,11 +970,12 @@ class LLMService:
 		for idx, candidate in enumerate(candidates):
 			key_id, api_key = candidate[0], candidate[1]
 			api_base = candidate[2] if len(candidate) > 2 else None
+			endpoint = ProviderEndpoint(api_base, bool(candidate[3]) if len(candidate) > 3 else False) if api_base else None
 			if idx > 0:
 				fallback_count += 1
 				logger.warning("provider fallback%s attempt=%d model=%s", tag, idx + 1, model_label)
 			try:
-				response = await (call_fn(api_key, api_base=api_base) if api_base else call_fn(api_key))
+				response = await (call_fn(api_key, endpoint=endpoint) if endpoint else call_fn(api_key))
 				winning_key_id = key_id
 				await circuit_record_success(redis, key_id)
 				break
@@ -1035,9 +1040,9 @@ class LLMService:
 		client_wants_usage = bool((ctx.kwargs.get("stream_options") or {}).get("include_usage"))
 		ctx.kwargs["stream"] = True
 
-		async def _stream_call(key: str, api_base: str | None = None) -> tuple[Any, Any]:
+		async def _stream_call(key: str, endpoint: ProviderEndpoint | None = None) -> tuple[Any, Any]:
 			stream_options = {**(ctx.kwargs.get("stream_options") or {}), "include_usage": True}
-			call_kwargs = _with_api_base({**ctx.kwargs, "api_key": key, "stream_options": stream_options}, api_base)
+			call_kwargs = with_endpoint({**ctx.kwargs, "api_key": key, "stream_options": stream_options}, key, endpoint)
 			stream = await acompletion(**call_kwargs)
 			first = await stream.__anext__()
 			if getattr(first, "error", None) is not None:
@@ -1288,8 +1293,8 @@ class LLMService:
 		except Exception as exc:
 			logger.warning("Cache check failed (continuing): %s", exc)
 
-		async def _call(key: str, api_base: str | None = None) -> Any:
-			call_kwargs = _with_api_base({**ctx.kwargs, "api_key": key}, api_base)
+		async def _call(key: str, endpoint: ProviderEndpoint | None = None) -> Any:
+			call_kwargs = with_endpoint({**ctx.kwargs, "api_key": key}, key, endpoint)
 			return await acompletion(**call_kwargs)
 
 		response, fb_count, provider_key_id = None, 0, None
@@ -1659,12 +1664,12 @@ class LLMService:
 					headers={**rl_headers, **(exc.headers or {})},
 				) from exc
 
-			async def _emb_call(key: str, api_base: str | None = None) -> Any:
+			async def _emb_call(key: str, endpoint: ProviderEndpoint | None = None) -> Any:
 				return await aembedding(
-					**_with_api_base(
+					**with_endpoint(
 						{"model": request.model, "input": request.input, "api_key": key,
 						 "encoding_format": request.encoding_format, "timeout": 30},
-						api_base,
+						key, endpoint,
 					),
 				)
 

@@ -12,6 +12,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal, SystemSessionLocal, set_session_org_id
 from app.models.llm_provider_key import LLMProviderKey
 from app.services.crypto_service import decrypt
+from app.services.provider_client import guarded_http_client
 from app.utils.provider_endpoint import api_base_still_allowed
 
 logger = logging.getLogger(__name__)
@@ -62,10 +63,10 @@ async def _ping_anthropic(api_key: str) -> bool:
         return False
 
 
-async def _ping_custom_endpoint(api_base: str, api_key: str) -> bool:
-    """A key with its own endpoint is checked there, not against the provider's public API."""
+async def _ping_custom_endpoint(api_base: str, api_key: str, is_internal: bool) -> bool:
+    """A key with its own endpoint is checked there, not against the provider's public API, through the connection guard."""
     try:
-        async with httpx.AsyncClient(timeout=HEALTH_TIMEOUT, follow_redirects=False) as client:
+        async with guarded_http_client(internal=is_internal) as client:
             r = await client.get(
                 f"{api_base.rstrip('/')}/models",
                 headers={"Authorization": f"Bearer {api_key}"},
@@ -76,9 +77,9 @@ async def _ping_custom_endpoint(api_base: str, api_key: str) -> bool:
         return False
 
 
-async def _ping_provider(provider: str, api_key: str, api_base: str | None = None) -> bool:
+async def _ping_provider(provider: str, api_key: str, api_base: str | None = None, is_internal: bool = False) -> bool:
     if api_base:
-        return await _ping_custom_endpoint(api_base, api_key)
+        return await _ping_custom_endpoint(api_base, api_key, is_internal)
     if provider == "openai":
         return await _ping_openai(api_key)
     if provider == "anthropic":
@@ -114,10 +115,10 @@ async def run_provider_health_check() -> None:
             if not plaintext:
                 continue
 
-            if key.api_base and not await api_base_still_allowed(key.api_base, is_internal=key.is_internal):
+            if key.api_base and not await api_base_still_allowed(key.api_base, is_internal=key.is_internal, provider=key.provider):
                 ok = False  # never probe an endpoint that no longer validates
             else:
-                ok = await _ping_provider(key.provider, plaintext, key.api_base)
+                ok = await _ping_provider(key.provider, plaintext, key.api_base, key.is_internal)
             now = datetime.now(UTC)
 
             async with AsyncSessionLocal() as db:

@@ -117,7 +117,7 @@ def test_non_admin_cannot_set_api_base(client):
 
 def _row(api_base):
 	key = MagicMock()
-	key.id, key.weight, key.model_patterns, key.api_base, key.is_internal = uuid4(), 1, None, api_base, False
+	key.id, key.weight, key.model_patterns, key.api_base, key.is_internal, key.provider = uuid4(), 1, None, api_base, False, "openai"
 	key.api_key_encrypted = encrypt("sk-only-key-123456")
 	return key
 
@@ -170,18 +170,20 @@ async def test_selection_never_falls_back_to_the_gateways_own_key_when_every_end
 	assert exc.value.detail["error"] == "no_provider_key"
 
 
-async def test_execute_with_fallback_passes_api_base_only_when_set():
+async def test_execute_with_fallback_passes_an_endpoint_only_when_the_key_has_one():
+	from app.services.provider_client import ProviderEndpoint
+
 	seen = []
 
-	async def call(key, api_base=None):
-		seen.append((key, api_base))
+	async def call(key, endpoint=None):
+		seen.append((key, endpoint))
 		return "ok"
 
 	await LLMService._execute_with_fallback([(None, "env-key")], call, "m")
 	assert seen == [("env-key", None)]  # legacy 2-tuples still work
 	seen.clear()
-	await LLMService._execute_with_fallback([(uuid4(), "k2", "https://8.8.8.8/v1")], call, "m")
-	assert seen == [("k2", "https://8.8.8.8/v1")]
+	await LLMService._execute_with_fallback([(uuid4(), "k2", "https://8.8.8.8/v1", True)], call, "m")
+	assert seen == [("k2", ProviderEndpoint("https://8.8.8.8/v1", True))]  # and it knows whether the endpoint is internal
 
 
 async def test_one_argument_call_functions_still_work_without_api_base():
@@ -204,6 +206,10 @@ async def test_chat_completion_sends_api_base_to_litellm(monkeypatch, fake_redis
 	await _call(monkeypatch, fake_redis, [(uuid4(), "sk-1", "https://8.8.8.8/v1")], fake_acompletion)
 	assert captured["api_base"] == "https://8.8.8.8/v1"
 	assert captured["api_key"] == "sk-1"
+	# The call goes through the connection guard: a client that never follows redirects and pins what it validated.
+	client = captured["client"]
+	assert str(client.base_url).startswith("https://8.8.8.8/v1") and client.max_retries == 0
+	assert type(client._client._transport).__name__ == "GuardedTransport" and client._client.follow_redirects is False
 
 
 async def test_chat_completion_without_api_base_does_not_send_the_kwarg(monkeypatch, fake_redis):
@@ -216,13 +222,13 @@ async def test_chat_completion_without_api_base_does_not_send_the_kwarg(monkeypa
 		return _make_litellm_response()
 
 	await _call(monkeypatch, fake_redis, [(uuid4(), "sk-1")], fake_acompletion)
-	assert "api_base" not in captured
+	assert "api_base" not in captured and "client" not in captured  # the provider's own endpoint: nothing changes
 
 
 # ── health check ─────────────────────────────────────────────────────────────
 
 
-async def test_health_check_uses_the_keys_own_endpoint(monkeypatch):
+async def test_health_check_uses_the_keys_own_endpoint_through_the_connection_guard(monkeypatch):
 	from app.services import provider_health_service as health
 
 	calls = []
@@ -243,3 +249,19 @@ async def test_health_check_uses_the_keys_own_endpoint(monkeypatch):
 	monkeypatch.setattr(health.httpx, "AsyncClient", _Client)
 	assert await health._ping_provider("openai", "sk-1", "https://8.8.8.8/v1/") is True
 	assert calls == ["https://8.8.8.8/v1/models"]  # not api.openai.com
+
+
+async def test_health_check_refuses_an_endpoint_that_now_resolves_to_a_private_address(monkeypatch):
+	"""Not mocked: the real guard, with DNS that has started pointing at the private network."""
+	from app.services import provider_client
+	from app.services import provider_health_service as health
+
+	lookups = []
+
+	async def private(host, port):
+		lookups.append(host)
+		return ["10.0.0.5"]
+
+	monkeypatch.setattr(provider_client, "_system_resolver", private)
+	assert await health._ping_custom_endpoint("https://models.example.com/v1", "sk-1", is_internal=False) is False
+	assert lookups == ["models.example.com"]  # it looked, it refused, it never connected

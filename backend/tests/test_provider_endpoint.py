@@ -16,7 +16,7 @@ def _defaults(monkeypatch):
 
 
 async def test_public_https_endpoint_is_accepted():
-	assert await validate_api_base("https://8.8.8.8/v1", is_internal=False) is None
+	assert await validate_api_base("https://8.8.8.8/v1", is_internal=False, provider="openai") is None
 
 
 @pytest.mark.parametrize(
@@ -35,12 +35,12 @@ async def test_public_https_endpoint_is_accepted():
 	],
 )
 async def test_unsafe_external_endpoints_are_rejected(url):
-	assert await validate_api_base(url, is_internal=False) is not None
+	assert await validate_api_base(url, is_internal=False, provider="openai") is not None
 
 
 async def test_external_endpoint_is_refused_in_airgap_mode(monkeypatch):
 	monkeypatch.setattr(settings, "AIRGAP_MODE", True)
-	error = await validate_api_base("https://8.8.8.8/v1", is_internal=False)
+	error = await validate_api_base("https://8.8.8.8/v1", is_internal=False, provider="openai")
 	assert error and "air-gapped" in error
 
 
@@ -48,14 +48,14 @@ async def test_external_endpoint_is_refused_in_airgap_mode(monkeypatch):
 
 
 async def test_internal_endpoints_are_off_unless_the_operator_enables_them():
-	error = await validate_api_base("http://10.0.0.5:8000/v1", is_internal=True)
+	error = await validate_api_base("http://10.0.0.5:8000/v1", is_internal=True, provider="openai")
 	assert error and "ALLOW_INTERNAL_PROVIDER_ENDPOINTS" in error
 
 
 async def test_internal_private_http_endpoint_is_accepted_when_enabled(monkeypatch):
 	monkeypatch.setattr(settings, "ALLOW_INTERNAL_PROVIDER_ENDPOINTS", True)
-	assert await validate_api_base("http://10.0.0.5:8000/v1", is_internal=True) is None
-	assert await validate_api_base("http://127.0.0.1:11434/v1", is_internal=True) is None
+	assert await validate_api_base("http://10.0.0.5:8000/v1", is_internal=True, provider="openai") is None
+	assert await validate_api_base("http://127.0.0.1:11434/v1", is_internal=True, provider="openai") is None
 
 
 @pytest.mark.parametrize(
@@ -73,17 +73,17 @@ async def test_internal_private_http_endpoint_is_accepted_when_enabled(monkeypat
 )
 async def test_internal_endpoints_can_never_reach_metadata_or_link_local(monkeypatch, url):
 	monkeypatch.setattr(settings, "ALLOW_INTERNAL_PROVIDER_ENDPOINTS", True)
-	assert await validate_api_base(url, is_internal=True) is not None
+	assert await validate_api_base(url, is_internal=True, provider="openai") is not None
 
 
 async def test_internal_endpoint_still_rejects_credentials_in_the_url(monkeypatch):
 	monkeypatch.setattr(settings, "ALLOW_INTERNAL_PROVIDER_ENDPOINTS", True)
-	assert await validate_api_base("http://u:p@10.0.0.5/v1", is_internal=True) is not None
+	assert await validate_api_base("http://u:p@10.0.0.5/v1", is_internal=True, provider="openai") is not None
 
 
 async def test_unresolvable_host_is_rejected(monkeypatch):
 	monkeypatch.setattr(settings, "ALLOW_INTERNAL_PROVIDER_ENDPOINTS", True)
-	assert await validate_api_base("http://no-such-host.invalid/v1", is_internal=True) is not None
+	assert await validate_api_base("http://no-such-host.invalid/v1", is_internal=True, provider="openai") is not None
 
 
 # ── call-time re-check (a hostname can start resolving somewhere else after it was saved) ──
@@ -100,8 +100,8 @@ def _fresh_cache():
 	provider_endpoint.clear_runtime_cache()
 
 
-def _key(api_base, is_internal=False):
-	return SimpleNamespace(id=object(), api_base=api_base, is_internal=is_internal)
+def _key(api_base, is_internal=False, provider="openai"):
+	return SimpleNamespace(id=object(), api_base=api_base, is_internal=is_internal, provider=provider)
 
 
 async def test_keys_without_a_custom_endpoint_are_never_checked():
@@ -148,3 +148,17 @@ async def test_results_are_cached_so_every_request_does_not_resolve_dns(monkeypa
 	for _ in range(5):
 		await filter_allowed_endpoints([key])
 	assert len(calls) == 1
+
+
+# ── only OpenAI-compatible endpoints can be guarded ──────────────────────────
+
+
+@pytest.mark.parametrize("provider", ["anthropic", "azure", "ollama", "gemini", "other"])
+async def test_custom_endpoints_are_only_allowed_for_the_openai_provider(provider):
+	error = await validate_api_base("https://8.8.8.8/v1", is_internal=False, provider=provider)
+	assert error and "openai" in error
+
+
+async def test_a_stored_custom_endpoint_on_another_provider_is_skipped_at_call_time():
+	kept, dropped = await filter_allowed_endpoints([_key("https://8.8.8.8/v1", provider="anthropic")])
+	assert kept == [] and dropped == 1
