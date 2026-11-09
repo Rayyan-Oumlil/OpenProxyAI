@@ -8,6 +8,7 @@ import type { ApplyTemplateRequest, OrganizationResponse, PolicyConfigRequest, P
 import { LoadingState } from "../../components/LoadingState";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/Tabs";
+import { DataRoutingTab } from "./DataRoutingTab";
 import { ErrorState } from "../../components/ErrorState";
 import {
   Dialog,
@@ -53,6 +54,10 @@ const DEFAULT_POLICY: PolicyConfigRequest = {
   prompt_injection_detection_enabled: false,
   response_guardrails_enabled: false,
   response_pii_redact: false,
+  default_data_class: "internal",
+  data_class_map: {},
+  routing_mode: "off",
+  max_risk_rating: "high",
 };
 
 function TagInput({
@@ -173,6 +178,10 @@ function extractPolicy(org: OrganizationResponse): PolicyConfigRequest {
     prompt_injection_detection_enabled: raw.prompt_injection_detection_enabled ?? false,
     response_guardrails_enabled: raw.response_guardrails_enabled ?? false,
     response_pii_redact: raw.response_pii_redact ?? false,
+    default_data_class: raw.default_data_class ?? "internal",
+    data_class_map: raw.data_class_map ?? {},
+    routing_mode: raw.routing_mode ?? "off",
+    max_risk_rating: raw.max_risk_rating ?? "high",
   };
 }
 
@@ -512,6 +521,7 @@ export function PolicyConfigPage() {
           <TabsList aria-label="Policy sections">
             <TabsTrigger value="enforcement">Enforcement</TabsTrigger>
             <TabsTrigger value="data">Data protection</TabsTrigger>
+            <TabsTrigger value="routing">Data and routing</TabsTrigger>
             <TabsTrigger value="limits">Rate limits</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
@@ -669,6 +679,10 @@ export function PolicyConfigPage() {
                 </label>
               )}
             </section>
+          </TabsContent>
+
+          <TabsContent value="routing" className="stack-form">
+            <DataRoutingTab form={form} setForm={(update) => setForm(update)} isAdmin={isAdmin} unsaved={dirty} token={token!} />
           </TabsContent>
 
           <TabsContent value="limits" className="stack-form">

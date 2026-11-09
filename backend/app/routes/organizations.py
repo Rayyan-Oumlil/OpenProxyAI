@@ -177,9 +177,12 @@ async def update_policy_config(
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 	updates = payload.model_dump(exclude_unset=True)
+	current = await policy_store.load(current_user.org_id, db, redis)
 
-	if updates.get("routing_mode") == "enforce":
-		# An empty registry would refuse every request. log_only exists to preview before enforcing.
+	if updates.get("routing_mode") == "enforce" and current.routing_mode != "enforce":
+		# Switching to enforce with an empty registry would refuse every request. log_only exists to preview first.
+		# Only the switch is checked: the console sends every field on each save, so staying in enforce must not
+		# make an unrelated change fail because the registry was emptied since.
 		if not any(c.enabled and c.key_id is not None and c.key_active for c in await load_candidates(db, current_user.org_id)):
 			raise HTTPException(
 				status_code=status.HTTP_409_CONFLICT,
@@ -194,7 +197,6 @@ async def update_policy_config(
 		org = await db.get(Organization, current_user.org_id)
 		assert_plan_allows(org, "pii_detection")
 
-	current = await policy_store.load(current_user.org_id, db, redis)
 	before_data = current.to_dict()
 
 	# replace() keeps every field the request did not mention, including ones added later.
