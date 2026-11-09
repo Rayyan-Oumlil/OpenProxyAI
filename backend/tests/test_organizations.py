@@ -338,7 +338,7 @@ def test_get_policy_config_requires_auth(client):
 # ---------------------------------------------------------------------------
 
 
-def _patch_routing_mode(client, monkeypatch, mode, routable):
+def _patch_routing_mode(client, monkeypatch, mode, routable, current="off", extra=None):
 	from app.routes import organizations as orgs_route
 	from app.services.routing_service import Candidate
 
@@ -354,7 +354,7 @@ def _patch_routing_mode(client, monkeypatch, mode, routable):
 		return candidates
 
 	async def fake_load(org_id_arg, db, redis):
-		return PolicyConfig(updated_at=datetime.now(UTC))
+		return PolicyConfig(updated_at=datetime.now(UTC), routing_mode=current)
 
 	saved = {}
 
@@ -368,7 +368,7 @@ def _patch_routing_mode(client, monkeypatch, mode, routable):
 	_override_auth(_make_user(uuid4(), role="admin"))
 	_override_db(FakeDB())
 	_override_redis()
-	response = client.patch("/api/v1/organizations/current/policy", json={"routing_mode": mode}, headers={"Authorization": "Bearer test"})
+	response = client.patch("/api/v1/organizations/current/policy", json={"routing_mode": mode, **(extra or {})}, headers={"Authorization": "Bearer test"})
 	return response, saved
 
 
@@ -382,6 +382,12 @@ def test_enforcing_routing_needs_at_least_one_routable_model(client, monkeypatch
 def test_enforcing_routing_is_allowed_once_a_model_is_routable(client, monkeypatch):
 	response, saved = _patch_routing_mode(client, monkeypatch, "enforce", routable=True)
 	assert response.status_code == 200 and saved["config"].routing_mode == "enforce"
+
+
+def test_saving_an_unrelated_change_while_already_enforcing_is_not_blocked_by_an_emptied_registry(client, monkeypatch):
+	"""The console sends every field on each save: only switching *into* enforce is checked, not staying in it."""
+	response, saved = _patch_routing_mode(client, monkeypatch, "enforce", routable=False, current="enforce", extra={"blocked_keywords": ["x"]})
+	assert response.status_code == 200 and saved["config"].routing_mode == "enforce" and saved["config"].blocked_keywords == ["x"]
 
 
 def test_log_only_routing_can_be_turned_on_with_an_empty_registry_to_preview(client, monkeypatch):

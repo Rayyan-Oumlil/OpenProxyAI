@@ -14,6 +14,7 @@ import { Badge } from "../../components/ui/badge";
 import { DataTable, type Column } from "../../components/ui/DataTable";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { useConfirm } from "../../components/ui/ConfirmDialog";
+import { DATA_CLASSES, dataClassLabel } from "../../lib/dataClasses";
 import { formatDate } from "../../lib/utils";
 import {
   Dialog,
@@ -46,13 +47,6 @@ const REGIONS = [
 
 /** Custom endpoints go through a connection guard that only wraps OpenAI-compatible servers, so only this provider offers one. */
 const CUSTOM_ENDPOINT_PROVIDER = "openai";
-
-const DATA_CLASSES: { value: DataClass; label: string }[] = [
-  { value: "public", label: "Public" },
-  { value: "internal", label: "Internal" },
-  { value: "confidential", label: "Confidential" },
-  { value: "secret", label: "Secret" },
-];
 
 /** The host is enough to recognise an endpoint in a table; the full URL stays in the tooltip. */
 function endpointHost(apiBase: string): string {
@@ -323,7 +317,7 @@ export function ProviderKeysPage() {
       header: "Max data class",
       cell: (k) => (
         <Badge variant="muted" className="text-xs">
-          {DATA_CLASSES.find((c) => c.value === (k.max_data_class ?? "internal"))?.label ?? k.max_data_class}
+          {dataClassLabel(k.max_data_class ?? "internal")}
         </Badge>
       ),
     },

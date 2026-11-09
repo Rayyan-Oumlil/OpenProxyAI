@@ -73,7 +73,7 @@ describe("PolicyConfigPage", () => {
     mockApi();
     renderPage();
     await screen.findByRole("tablist", { name: "Policy sections" });
-    expect(["Enforcement", "Data protection", "Rate limits", "Templates"].map((n) => tab(n).getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false"]);
+    expect(["Enforcement", "Data protection", "Data and routing", "Rate limits", "Templates"].map((n) => tab(n).getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false", "false"]);
     expect(screen.getByRole("heading", { name: "Model Allowlist" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "PII Detection" })).toBeNull();
   });
@@ -87,7 +87,60 @@ describe("PolicyConfigPage", () => {
 
     tab("Data protection").focus();
     fireEvent.keyDown(tab("Data protection"), { key: "ArrowRight" });
-    expect(await screen.findByRole("heading", { name: "Per-Model Rate Limits" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Routing" })).toBeTruthy();
+  });
+
+  it("edits data classes and routing on their tab and saves them with the rest of the policy", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Data and routing"), { button: 0 });
+    await screen.findByRole("heading", { name: "Data classes" });
+
+    fireEvent.click(screen.getByRole("radio", { name: /^Preview \(log only\)/ }));
+    fireEvent.change(screen.getByLabelText("Detected kind"), { target: { value: "US_SSN" } });
+    fireEvent.change(screen.getByLabelText("Class"), { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add class for detected kind" }));
+    expect(await screen.findByText("US_SSN")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0][1]).toMatchObject({ routing_mode: "log_only", data_class_map: { US_SSN: "secret" }, default_data_class: "internal" });
+  });
+
+  it("Enter in the detected-kind field adds a row and does not save the policy", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Data and routing"), { button: 0 });
+    const field = await screen.findByLabelText("Detected kind");
+    fireEvent.change(field, { target: { value: "email" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(await screen.findByText("email")).toBeTruthy();
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed detected-kind name", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Data and routing"), { button: 0 });
+    fireEvent.change(await screen.findByLabelText("Detected kind"), { target: { value: "bad name!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add class for detected kind" }));
+    expect(screen.queryByRole("list", { name: "Classes for detected data" })).toBeNull();
+    expect(screen.getByText("All changes saved.")).toBeTruthy();
+  });
+
+  it("hides the preview panel and the editing controls from a non-admin", async () => {
+    auth.role = "viewer";
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Data and routing"), { button: 0 });
+    await screen.findByRole("heading", { name: "Routing" });
+    expect(screen.queryByRole("heading", { name: "Preview a request" })).toBeNull();
+    expect(screen.queryByLabelText("Detected kind")).toBeNull();
+    expect((screen.getByRole("radio", { name: /^Enforce/ }) as HTMLInputElement).disabled).toBe(true);
   });
 
   it("keeps an edit made on one tab while visiting others, and saves everything in one request", async () => {

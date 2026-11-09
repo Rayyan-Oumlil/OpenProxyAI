@@ -10,6 +10,9 @@ import { PageHeader } from "../../components/ui/PageHeader";
 import { StatusBadge, verdictForPolicyAction } from "../../components/ui/StatusBadge";
 import { formatCost, formatDateTime, formatLatency, formatNumber } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
+import { Fact } from "../../components/ui/Fact";
+import { describeDataClass } from "../../lib/dataClasses";
+import { routingOutcome } from "../../lib/routing";
 import { buildTrace, type Trace, type TraceRouting } from "./trace";
 
 function Waterfall({ trace }: { trace: Trace }) {
@@ -46,51 +49,14 @@ function Waterfall({ trace }: { trace: Trace }) {
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="trace-fact">
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
-
 function cacheText(trace: Trace): string {
   if (!trace.stages.some((s) => s.name === "cache")) return "Not consulted";
   return trace.cacheTier === "miss" || trace.cacheTier === null ? "Miss" : `Hit (${trace.cacheTier})`;
 }
 
-const CLASS_NAMES: Record<string, string> = { public: "Public", internal: "Internal", confidential: "Confidential", secret: "Secret" };
-const CLASS_REASON: Record<string, string> = { default: "org default", header: "set by the caller", detected: "detected" };
-
 function dataClassText(trace: Trace): string | null {
   const dc = trace.dataClass;
-  if (!dc) return null;
-  const reason = CLASS_REASON[dc.source] ?? dc.source;
-  return `${CLASS_NAMES[dc.name] ?? dc.name} (${reason}${dc.entities.length > 0 ? `: ${dc.entities.join(", ")}` : ""})`;
-}
-
-/** Why a registry model was ruled out, in words (the codes come from the routing rules). */
-const EXCLUSION_TEXT: Record<string, string> = {
-  disabled: "the model is disabled",
-  no_key: "no provider key is attached",
-  key_inactive: "its provider key is inactive",
-  class_too_low: "it is not cleared for this data class",
-  region: "it does not run in this organization's region",
-  risk: "it is above the organization's risk ceiling",
-  not_allowed_by_policy: "it is not on the policy allowlist",
-};
-
-function routingOutcome(r: TraceRouting): string {
-  if (r.reason === "authorized") return `Served by ${r.model}`;
-  if (r.reason === "capability") return `Chose ${r.model} for ${r.requested}`;
-  if (r.reason === "not_in_registry") return `${r.requested} is not in the model registry`;
-  if (r.reason === "no_model_with_capability") return `No authorized model has the capability in ${r.requested}`;
-  if (r.reason.startsWith("not_authorized:")) {
-    const code = r.reason.slice("not_authorized:".length);
-    return `${r.requested} is not authorized: ${EXCLUSION_TEXT[code] ?? code}`;
-  }
-  return r.reason;
+  return dc ? describeDataClass(dc.name, dc.source, dc.entities) : null;
 }
 
 function RoutingFact({ routing }: { routing: TraceRouting }) {

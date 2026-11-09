@@ -317,6 +317,43 @@ export type PolicyConfigRequest = {
   prompt_injection_detection_enabled?: boolean;
   response_guardrails_enabled?: boolean;
   response_pii_redact?: boolean;
+  /** The class of a request that shows no sign of being more sensitive */
+  default_data_class?: DataClass;
+  /** Kind of PII found (e.g. "ssn") to the class it raises a request to; overrides the built-in defaults */
+  data_class_map?: Record<string, DataClass>;
+  /** off: nothing changes; log_only: decide and record, never refuse; enforce: only authorized registry models may serve */
+  routing_mode?: RoutingMode;
+  /** Registry models rated above this are never authorized */
+  max_risk_rating?: Rating;
+};
+
+export type RoutingMode = "off" | "log_only" | "enforce";
+
+export type PolicyPreviewRequest = {
+  model: string;
+  messages: { role: "user"; content: string }[];
+  data_class?: DataClass;
+  fallback_model?: string;
+};
+
+export type PolicyPreviewVerdict = "allowed" | "blocked_by_policy" | "blocked_by_routing" | "would_block_if_enforced";
+
+export type PolicyPreviewResponse = {
+  verdict: PolicyPreviewVerdict;
+  data_class: { class: DataClass; source: string; entities: string[] };
+  policy: { mode: string; allowed: boolean; action: string; reason_code: string | null; detail: string | null; triggered_rules: string[] };
+  routing: {
+    current_mode: RoutingMode;
+    requested: string;
+    model: string | null;
+    reason: string;
+    authorized: string[];
+    excluded: Record<string, string>;
+    key_alias: string | null;
+  };
+  fallback: { model: string; authorized: boolean; reason: string } | null;
+  /** What a real request also goes through that a preview skips */
+  not_evaluated: string[];
 };
 
 export type PolicyConfigResponse = {
