@@ -131,6 +131,24 @@ export const MODEL_REGISTRY = [
   },
 ];
 
+/** A refusal with everything the preview can show: a class, what was ruled out, a refused fallback. */
+export const POLICY_PREVIEW = {
+  verdict: "blocked_by_routing",
+  data_class: { class: "confidential", source: "detected", entities: ["ssn"] },
+  policy: { mode: "enforce", allowed: true, action: "allow", reason_code: null, detail: null, triggered_rules: [] },
+  routing: {
+    current_mode: "log_only",
+    requested: "openai/gpt-4o-mini",
+    model: null,
+    reason: "not_authorized:class_too_low",
+    authorized: ["openai/gpt-4o"],
+    excluded: { "openai/gpt-4o-mini": "class_too_low" },
+    key_alias: null,
+  },
+  fallback: { model: "openai/gpt-4o-mini", authorized: false, reason: "class_too_low" },
+  not_evaluated: ["rate_limit", "budget", "cache", "upstream"],
+};
+
 export const POLICY_TEMPLATES = [
   { name: "healthcare_hipaa", description: "PII and PHI guardrails for healthcare workloads.", configures: ["PII detection on", "Response guardrails on"] },
 ];
@@ -190,6 +208,7 @@ export async function mockApi(page: Page) {
     if (pathname === "/api/v1/analytics/overview") return json(overview(Number(new URL(route.request().url()).searchParams.get("period_days"))));
     if (pathname === "/api/v1/organizations/current") return json(ORG);
     if (pathname === "/api/v1/organizations/current/policy/templates") return json(POLICY_TEMPLATES);
+    if (pathname === "/api/v1/policy/preview" && method === "POST") return json(POLICY_PREVIEW);
     if (pathname === "/api/v1/teams") return json([]);
     if (pathname === "/api/v1/mcp-servers") return json([SERVER]);
     if (pathname === "/api/v1/analytics/logs") return json({ items: [LOG_ITEM], total: 1, page: 1, page_size: 50, total_pages: 1 });
