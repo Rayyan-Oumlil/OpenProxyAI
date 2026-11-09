@@ -105,7 +105,7 @@ describe("PolicyConfigPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
-    expect(patch.mock.calls[0][1]).toMatchObject({ routing_mode: "log_only", data_class_map: { US_SSN: "secret" }, default_data_class: "internal" });
+    expect(patch.mock.calls[0][1]).toEqual({ routing_mode: "log_only", data_class_map: { US_SSN: "secret" } });
   });
 
   it("Enter in the detected-kind field adds a row and does not save the policy", async () => {
@@ -143,7 +143,7 @@ describe("PolicyConfigPage", () => {
     expect((screen.getByRole("radio", { name: /^Enforce/ }) as HTMLInputElement).disabled).toBe(true);
   });
 
-  it("keeps an edit made on one tab while visiting others, and saves everything in one request", async () => {
+  it("keeps an edit made on one tab while visiting others, and saves them all in one request, sending only what changed", async () => {
     mockApi();
     renderPage();
     await screen.findByRole("tablist");
@@ -160,7 +160,7 @@ describe("PolicyConfigPage", () => {
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
     const [path, body] = patch.mock.calls[0];
     expect(path).toBe("/api/v1/organizations/current/policy");
-    expect(body).toMatchObject({ enforcement_mode: "log_only", prompt_injection_detection_enabled: true, allowed_models: ["gpt-4o"] });
+    expect(body).toEqual({ enforcement_mode: "log_only", prompt_injection_detection_enabled: true });
   });
 
   it("adds a blocked keyword on Enter and removes one with its named button", async () => {
@@ -177,7 +177,20 @@ describe("PolicyConfigPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
-    expect(patch.mock.calls[0][1]).toMatchObject({ blocked_keywords: ["secret-roadmap"], allowed_models: ["gpt-4o"] });
+    expect(patch.mock.calls[0][1]).toEqual({ blocked_keywords: ["secret-roadmap"] });
+  });
+
+  it("does not resend a switch the admin did not touch: PII detection, already on, is left out of the save", async () => {
+    // A free-plan organization has PII detection on by default; the server refuses an explicit "true" on that plan,
+    // so resending it would make every save fail with a 402.
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.click(mode("Observe"));
+    fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0][1]).toEqual({ enforcement_mode: "observe" });
+    expect(patch.mock.calls[0][1]).not.toHaveProperty("pii_detection_enabled");
   });
 
   it("ignores a duplicate tag", async () => {
