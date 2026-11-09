@@ -26,7 +26,7 @@ from app.schemas.playground import (
 from app.services.audit_logger import log_request
 from app.services.cost_tracker import cost_tracker_service
 from app.services.classification_service import classify_chat_request
-from app.services.llm_service import ProviderKeyCandidate, llm_service, route_decision, with_endpoint
+from app.services.llm_service import ProviderKeyCandidate, llm_service, route_decision, split_model, with_endpoint
 from app.services.provider_client import ProviderEndpoint
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
@@ -52,22 +52,6 @@ async def _select_provider_key(
     """The key (and custom endpoint) a playground call uses: exactly what chat would pick, so the two never drift."""
     [candidate, *_] = await llm_service._select_provider_keys(db, org_id, provider, model=model, max_attempts=0, only_key_id=only_key_id)
     return candidate
-
-
-def _split_model(model_name: str) -> tuple[str, str]:
-    if "/" not in model_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "invalid_model", "detail": "Model must be provider/model (e.g. openai/gpt-4)"},
-        )
-    provider, model = model_name.split("/", 1)
-    if not provider or not model:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "invalid_model", "detail": "Model not supported"},
-        )
-    return provider, model
-
 
 # ── Prompt Templates CRUD ────────────────────────────────────────────────
 
@@ -390,7 +374,7 @@ async def playground_compare(
     candidates, region = await llm_service.routing_inputs(db, current_user.org_id) if policy_config.routing_mode != "off" else ([], "us")
     plan: dict[str, tuple[ProviderKeyCandidate | None, str | None, dict | None]] = {}  # model -> (key, refusal, routing metadata)
     for model in payload.models:
-        provider, model_name = _split_model(model)
+        provider, model_name = split_model(model)
         routing = route_decision(candidates, region, policy_config, classification.data_class, model)
         metadata = routing.as_metadata() if routing else None
         if routing is not None and routing.blocked:
@@ -405,7 +389,7 @@ async def playground_compare(
     async def _run_one(model: str) -> PlaygroundCompareResult:
         req_id = uuid.uuid4()
         start = time.perf_counter()
-        provider, _ = _split_model(model)
+        provider, _ = split_model(model)
         candidate, refusal, routing_metadata = plan[model]
         metadata = {"source": "playground", "data_class": classification.as_metadata(), **({"routing": routing_metadata} if routing_metadata else {})}
         if candidate is None:
@@ -514,7 +498,7 @@ async def playground_compare(
     for i, r in enumerate(results):
         if isinstance(r, Exception):
             model = payload.models[i]
-            provider, _ = _split_model(model)
+            provider, _ = split_model(model)
             out.append(
                 PlaygroundCompareResult(
                     model=model,
