@@ -94,6 +94,15 @@ class RoutingDecision:
 		}
 
 
+def may_leave_registry(mode: str, data_class: str, ceiling: str) -> bool:
+	"""May request content go to a destination the model registry does not govern?
+
+	Such destinations are things the operator configures: the semantic cache's embedding endpoint and the evaluation
+	hook or judge model. Only an enforcing org withholds content, and only above the operator's ceiling.
+	"""
+	return mode != "enforce" or data_class_rank(data_class) <= data_class_rank(ceiling)
+
+
 def clearance(candidate: Candidate) -> int:
 	"""The highest data class the model may receive, as a rank: the lower of its own and its key's."""
 	return min(data_class_rank(candidate.entry_class), data_class_rank(candidate.key_class or "public"))

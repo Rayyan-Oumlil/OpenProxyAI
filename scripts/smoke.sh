@@ -37,5 +37,9 @@ curl -s "$API/api/v1/mcp-servers" -H "Authorization: Bearer $token" | grep -q '"
 
 BASE_URL="$API" FAKE_URL="http://localhost:9090" sh scripts/demo_traffic.sh; check "pipeline: allow, cache, policy blocks" $?
 
+# Classification-aware routing on the real image: registry, log_only, enforce, capability routing, playground.
+PYTHON=$(command -v python3 || command -v python)
+BASE_URL="$API" "$PYTHON" scripts/smoke_routing.py; check "routing: registry, modes, refusals, audit, playground" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"

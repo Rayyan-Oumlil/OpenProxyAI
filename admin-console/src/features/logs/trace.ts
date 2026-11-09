@@ -21,12 +21,28 @@ export interface Trace {
   taintRemoved: string[];
   /** How sensitive the request was judged to be, and why; null for rows logged before classification existed. */
   dataClass: { name: string; source: string; entities: string[] } | null;
+  /** Which registry model was authorized to serve the request, and why; null when routing was off or the row is older. */
+  routing: TraceRouting | null;
+}
+
+export interface TraceRouting {
+  mode: string;
+  requested: string;
+  /** The model chosen, or null when none was authorized. */
+  model: string | null;
+  reason: string;
+  authorized: string[];
+  /** Why each other registry model was ruled out. */
+  excluded: Record<string, string>;
+  experimentSkipped: string | null;
+  fallbackRefused: string | null;
 }
 
 const LABELS: Record<string, string> = {
   auth: "Authentication",
   policy: "Policy checks",
   classify: "Data classification",
+  route: "Routing",
   rate_limit: "Rate limit and budget",
   cache: "Cache lookup",
   upstream: "Upstream call",
@@ -83,6 +99,22 @@ export function buildTrace(detail: RequestLogDetail): Trace {
           entities: Array.isArray(dc.entities) ? dc.entities.filter((e): e is string => typeof e === "string") : [],
         }
       : null;
+  const rt = isRecord(metadata.routing) ? metadata.routing : null;
+  const routing: TraceRouting | null =
+    rt && typeof rt.reason === "string"
+      ? {
+          mode: typeof rt.mode === "string" ? rt.mode : "enforce",
+          requested: typeof rt.requested === "string" ? rt.requested : "",
+          model: typeof rt.model === "string" ? rt.model : null,
+          reason: rt.reason,
+          authorized: Array.isArray(rt.authorized) ? rt.authorized.filter((m): m is string => typeof m === "string") : [],
+          excluded: isRecord(rt.excluded)
+            ? Object.fromEntries(Object.entries(rt.excluded).filter((e): e is [string, string] => typeof e[1] === "string"))
+            : {},
+          experimentSkipped: typeof rt.experiment_skipped === "string" ? rt.experiment_skipped : null,
+          fallbackRefused: typeof rt.fallback_model_refused === "string" ? rt.fallback_model_refused : null,
+        }
+      : null;
   return {
     totalMs,
     stages,
@@ -92,5 +124,6 @@ export function buildTrace(detail: RequestLogDetail): Trace {
     fallbackModel: typeof metadata.fallback_model_used === "string" ? metadata.fallback_model_used : null,
     taintRemoved: Array.isArray(taint.removed) ? taint.removed.filter((t): t is string => typeof t === "string") : [],
     dataClass,
+    routing,
   };
 }

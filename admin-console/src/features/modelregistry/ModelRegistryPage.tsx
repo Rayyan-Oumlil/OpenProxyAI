@@ -338,7 +338,7 @@ export function ModelRegistryPage() {
             {e.enabled ? <ToggleRight size={18} className="text-accent-teal" aria-hidden /> : <ToggleLeft size={18} className="text-muted" aria-hidden />}
           </button>
           <button type="button" className="btn-icon-only" onClick={() => setDialog({ entry: e })} aria-label={`Edit ${e.model_id}`}>
-            <Pencil size={14} aria-hidden />
+            <Pencil size={14} className="text-muted" aria-hidden />
           </button>
           <button type="button" className="btn-icon-only" onClick={() => void handleDelete(e)} aria-label={`Remove ${e.model_id}`}>
             <Trash2 size={14} className="text-accent-rose" aria-hidden />
