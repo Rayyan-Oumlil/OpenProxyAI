@@ -96,6 +96,27 @@ async function lowContrastIcons(page: Page): Promise<string[]> {
   });
 }
 
+/** A page wider than its viewport (WCAG 1.4.10 reflow) also pushes controls under each other, so clicks miss. */
+test.describe("reflow", () => {
+  test.beforeEach(async ({ page }) => {
+    await prepare(page);
+  });
+
+  for (const route of ROUTES) {
+    test(`screen ${route} fits the viewport width`, async ({ page }) => {
+      await signIn(page);
+      await page.goto(route);
+      await page.locator("main").first().waitFor();
+      await page.waitForLoadState("networkidle");
+      const { clientWidth, scrollWidth } = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+    });
+  }
+});
+
 for (const theme of ["light", "dark"] as const) {
   test.describe(`${theme} theme`, () => {
     test.beforeEach(async ({ page }) => {
@@ -120,6 +141,18 @@ for (const theme of ["light", "dark"] as const) {
       await page.getByRole("button", { name: /^Search/ }).click();
       await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
       expect(await audit(page)).toEqual([]);
+    });
+
+    test("policy: Data and routing tab with a preview result on screen", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/policy");
+      await page.getByRole("tab", { name: "Data and routing" }).click();
+      await page.getByLabel("Model", { exact: true }).fill("openai/gpt-4o-mini");
+      await page.getByLabel("Prompt").fill("my ssn is 123-45-6789");
+      await page.getByRole("button", { name: "Preview", exact: true }).click();
+      await expect(page.getByText("Refused by routing")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
     });
 
     for (const route of ROUTES) {
