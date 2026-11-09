@@ -471,6 +471,8 @@ class PolicyService:
 		)
 
 	def _model_is_blocked(self, model: str, config: PolicyConfig) -> bool:
+		if config.routing_mode == "enforce" and model.startswith("cap:"):
+			return False  # a capability request names no model yet; routing checks the allowlist on the one it picks
 		allowlist = {item.strip() for item in config.allowed_models if item.strip()}
 		if not allowlist:
 			return False

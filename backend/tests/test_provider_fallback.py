@@ -72,6 +72,8 @@ def _permissive_policy():
 		response_pii_redact=False,
 		default_data_class="internal",
 		data_class_map={},
+		routing_mode="off",
+		max_risk_rating="high",
 	)
 
 
@@ -449,7 +451,7 @@ async def test_fallback_model_header_on_all_keys_fail(monkeypatch, fake_redis):
 		# openai/gpt-4o-mini succeeds
 		return ok_resp
 
-	def select_keys(db, org_id, provider, model=None, redis=None, max_attempts=None):
+	def select_keys(db, org_id, provider, model=None, redis=None, max_attempts=None, only_key_id=None):
 		if model == "gpt-4o-mini":
 			return ["sk-fallback-key"]
 		return ["sk-primary-1", "sk-primary-2"]
