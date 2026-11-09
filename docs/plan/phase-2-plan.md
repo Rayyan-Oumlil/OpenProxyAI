@@ -62,6 +62,9 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   cache keys are not class-aware, on purpose: routing runs before the cache and the model is already in the key, so a hit is always a model
   authorized for this request now. Mutation-tested: removing the registry-key restriction fails 4 of the 13 e2e routing tests. **S4c**: embeddings.
 
+- **S4c done** (embeddings). Same decision, 446 refusal, registry-key-only serving, headers and `route` stage as chat; embeddings have no
+  fallback header, experiments or `cap:` routing. **S4 is complete.** Remaining MVP slices: S5 (preview and shadow) and S6 (console).
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.
