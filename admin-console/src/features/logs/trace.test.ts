@@ -125,6 +125,30 @@ describe("buildTrace", () => {
     expect(buildTrace(detail({ request_metadata: { data_class: [] } })).dataClass).toBeNull();
   });
 
+  it("reads the routing decision, ignoring malformed parts, and labels the route stage", () => {
+    const trace = buildTrace(
+      detail({
+        request_metadata: {
+          stages: [{ name: "route", start_ms: 0, ms: 2 }],
+          routing: {
+            mode: "enforce", requested: "openai/gpt-4o-mini", model: null, reason: "not_authorized:class_too_low",
+            authorized: ["openai/gpt-4o", 7], excluded: { "openai/gpt-4o-mini": "class_too_low", bad: 3 },
+            experiment_skipped: "variant x is not authorized", fallback_model_refused: "not_in_registry",
+          },
+        },
+      }),
+    );
+    expect(trace.stages[0].label).toBe("Routing");
+    expect(trace.routing).toEqual({
+      mode: "enforce", requested: "openai/gpt-4o-mini", model: null, reason: "not_authorized:class_too_low",
+      authorized: ["openai/gpt-4o"], excluded: { "openai/gpt-4o-mini": "class_too_low" },
+      experimentSkipped: "variant x is not authorized", fallbackRefused: "not_in_registry",
+    });
+    expect(buildTrace(detail({ request_metadata: {} })).routing).toBeNull();
+    expect(buildTrace(detail({ request_metadata: { routing: { reason: 3 } } })).routing).toBeNull();
+    expect(buildTrace(detail({ request_metadata: { routing: [] } })).routing).toBeNull();
+  });
+
   it("has no total when neither latency nor stages exist", () => {
     expect(buildTrace(detail({ latency_ms: null })).totalMs).toBeNull();
   });

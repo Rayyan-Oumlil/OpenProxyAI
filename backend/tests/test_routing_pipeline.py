@@ -146,7 +146,7 @@ def test_the_policy_allowlist_does_not_reject_the_literal_cap_name_only_when_rou
 	assert policy_service.is_model_on_allowlist("cap:VISION", PolicyConfig(routing_mode="log_only", allowed_models=allowlist)) is False
 
 
-# ── semantic cache gate ──────────────────────────────────────────────────────
+# ── destinations the registry does not govern (semantic cache embeddings, evaluation) ──
 
 
 @pytest.mark.parametrize(
@@ -154,18 +154,18 @@ def test_the_policy_allowlist_does_not_reject_the_literal_cap_name_only_when_rou
 	[("off", "secret", True), ("log_only", "secret", True), ("enforce", "public", True), ("enforce", "internal", True),
 	 ("enforce", "confidential", False), ("enforce", "secret", False)],
 )
-def test_semantic_cache_is_skipped_for_requests_above_the_embedding_endpoints_clearance(mode, data_class, expected):
+def test_content_stays_away_from_ungoverned_destinations_above_the_ceiling(mode, data_class, expected):
 	ctx = SimpleNamespace(
 		routing=None if mode == "off" else SimpleNamespace(mode=mode),
 		classification=Classification(data_class, "default", ()),
 	)
-	assert LLMService._semantic_cache_allowed(ctx) is expected
+	assert LLMService._may_leave_registry(ctx) is expected
 
 
-def test_the_operator_can_raise_the_embedding_endpoints_clearance(monkeypatch):
-	monkeypatch.setattr(settings, "SEMANTIC_CACHE_MAX_DATA_CLASS", "confidential")
+def test_the_operator_can_raise_the_ceiling_for_ungoverned_destinations(monkeypatch):
+	monkeypatch.setattr(settings, "OFF_REGISTRY_MAX_DATA_CLASS", "confidential")
 	ctx = SimpleNamespace(routing=SimpleNamespace(mode="enforce"), classification=Classification("confidential", "default", ()))
-	assert LLMService._semantic_cache_allowed(ctx) is True
+	assert LLMService._may_leave_registry(ctx) is True
 
 
 # ── the registry key is the only key ─────────────────────────────────────────
@@ -187,3 +187,50 @@ async def test_with_a_registry_key_there_is_no_fallback_to_an_environment_key(mo
 	db.scalars = AsyncMock(return_value=iter([]))
 	[env_candidate] = await LLMService()._select_provider_keys(db, uuid.uuid4(), "openai")
 	assert env_candidate.api_key == "sk-gateway-env-key"
+
+
+# ── evaluation hook: one scheduler, same gate ────────────────────────────────
+
+
+def eval_ctx(*, mode="enforce", data_class="internal", experiment=True):
+	return SimpleNamespace(
+		experiment_info={"experiment_id": str(uuid.uuid4()), "variant_id": str(uuid.uuid4())} if experiment else None,
+		background_tasks=MagicMock(),
+		request_id=uuid.uuid4(),
+		user=SimpleNamespace(org_id=uuid.uuid4()),
+		request=ChatCompletionRequest(model="openai/gpt-4o", messages=[{"role": "user", "content": "the prompt"}]),
+		routing=None if mode == "off" else SimpleNamespace(mode=mode),
+		classification=Classification(data_class, "default", ()),
+	)
+
+
+@pytest.fixture
+def eval_configured(monkeypatch):
+	monkeypatch.setattr(settings, "EVAL_HOOK_URL", "https://eval.example/hook")
+
+
+def test_an_experiment_request_is_handed_to_the_evaluator_with_its_prompt_and_response(eval_configured):
+	ctx = eval_ctx(mode="off")
+	LLMService._schedule_eval(ctx, "the answer")
+	[call] = ctx.background_tasks.add_task.call_args_list
+	assert call.args[0] is llm_module.run_eval_hook
+	assert call.args[5:] == ("the prompt", "the answer")
+
+
+@pytest.mark.parametrize("mode,data_class,scheduled", [("enforce", "internal", True), ("enforce", "confidential", False), ("log_only", "secret", True)])
+def test_enforcing_orgs_do_not_send_sensitive_requests_to_the_evaluator(eval_configured, mode, data_class, scheduled):
+	ctx = eval_ctx(mode=mode, data_class=data_class)
+	LLMService._schedule_eval(ctx, "the answer")
+	assert ctx.background_tasks.add_task.called is scheduled
+
+
+def test_nothing_is_scheduled_without_an_experiment_or_without_an_evaluator(eval_configured, monkeypatch):
+	ctx = eval_ctx(experiment=False)
+	LLMService._schedule_eval(ctx, "x")
+	assert not ctx.background_tasks.add_task.called
+
+	monkeypatch.setattr(settings, "EVAL_HOOK_URL", "")
+	monkeypatch.setattr(settings, "EVAL_LLM_MODEL", "")
+	ctx = eval_ctx()
+	LLMService._schedule_eval(ctx, "x")
+	assert not ctx.background_tasks.add_task.called

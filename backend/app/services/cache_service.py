@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.utils.region import org_data_region
 
 logger = logging.getLogger(__name__)
 
@@ -78,15 +79,6 @@ def _cache_key_text(messages: list) -> str:
 
 def _shared_key_regions() -> set[str]:
     return {r.strip().lower() for r in settings.SHARED_KEY_REGIONS.split(",") if r.strip()}
-
-
-async def _org_region(db: AsyncSession, org_id: UUID | str) -> str:
-    from app.models.organization import Organization
-
-    org_uuid = org_id if isinstance(org_id, UUID) else UUID(str(org_id))
-    org = await db.get(Organization, org_uuid)
-    region = getattr(org, "data_region", None)
-    return region.strip().lower() if isinstance(region, str) and region.strip() else "us"
 
 
 def _embedding_kwargs(region: str) -> dict[str, Any] | None:
@@ -230,7 +222,7 @@ async def get(
             from app.models.semantic_cache import SemanticCacheEntry
             from litellm import aembedding
 
-            emb_kwargs = _embedding_kwargs(await _org_region(db, org_id))
+            emb_kwargs = _embedding_kwargs(await org_data_region(db, org_id))
             query_embedding = None
             if emb_kwargs is not None:
                 emb_result = await aembedding(input=cache_key_text, **emb_kwargs)
@@ -364,7 +356,7 @@ async def _set_l3_semantic(
 
         scoped_org = org_id if isinstance(org_id, UUID) else UUID(str(org_id))
         async with org_scoped_session(scoped_org) as session:
-            region = await _org_region(session, scoped_org)
+            region = await org_data_region(session, scoped_org)
         emb_kwargs = _embedding_kwargs(region)
         if emb_kwargs is None:
             return

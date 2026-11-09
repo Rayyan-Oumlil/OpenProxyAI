@@ -58,12 +58,24 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   and a `route` trace stage and changes nothing; `enforce` refuses with 446 `no_authorized_model` before rate limiting and any upstream
   call, serves the model only through its registry key (`only_key_id`, no other key, never an env key), drops an unauthorized experiment
   variant for the model the caller asked for, ignores an unauthorized `x-openproxy-fallback-model`, resolves `cap:NAME`, and skips the
-  semantic cache above `SEMANTIC_CACHE_MAX_DATA_CLASS`. Turning on `enforce` needs a routable model (409 otherwise). Deviations: exact-match
+  semantic cache above `OFF_REGISTRY_MAX_DATA_CLASS`. Turning on `enforce` needs a routable model (409 otherwise). Deviations: exact-match
   cache keys are not class-aware, on purpose: routing runs before the cache and the model is already in the key, so a hit is always a model
   authorized for this request now. Mutation-tested: removing the registry-key restriction fails 4 of the 13 e2e routing tests. **S4c**: embeddings.
 
 - **S4c done** (embeddings). Same decision, 446 refusal, registry-key-only serving, headers and `route` stage as chat; embeddings have no
   fallback header, experiments or `cap:` routing. **S4 is complete.** Remaining MVP slices: S5 (preview and shadow) and S6 (console).
+
+- **Hardening pass after S4** (audit of every place request content can leave the gateway). Found and closed two bypasses: the
+  playground compare endpoint had its own copy of key selection and no routing, and the evaluation hook sent prompt and response
+  to an external endpoint regardless of data class. Both now follow the same rules. Redundancy removed: `SEMANTIC_CACHE_MAX_DATA_CLASS`
+  became the single `OFF_REGISTRY_MAX_DATA_CLASS` rule (`may_leave_registry`), three copies of the evaluation scheduling became
+  `_schedule_eval`, four copies of the region lookup became `app/utils/region.py`, three copies of the routing decision became
+  `route_decision`, and the playground's duplicated key-selection code is gone (it also ran database calls concurrently on one session).
+  Checked and fine: Langfuse, ClickHouse, webhooks and spend reports carry metadata only, never request text.
+  Verified on the real stack, not only in tests: `scripts/smoke_routing.py` (run by `scripts/smoke.sh`, so by CI) walks the registry, `log_only`,
+  `enforce`, capability routing, streaming, embeddings, the audit trail and the playground against the Docker image, and restores the demo.
+  A real-browser pass found three bugs no test had: two invisible icon buttons (one older, on the MCP page) and a trace that showed
+  "Policy: Allowed" beside a routing refusal. The trace now has a "Routing" line, and the Playwright audit measures icon contrast.
 
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
