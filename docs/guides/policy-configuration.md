@@ -82,7 +82,7 @@ curl -X PATCH https://api.openproxy.ai/api/v1/organizations/current/policy \
 | `blocked_keywords` | array[string] | `[]` | Words/phrases that trigger a violation (case-insensitive substring match) |
 | `pii_detection_enabled` | boolean | `true` | Enable PII detection (requires Presidio service) |
 | `default_data_class` | string | `internal` | Class of a request with no sign of being more sensitive: `public`, `internal`, `confidential` or `secret` |
-| `data_class_map` | object | `{}` | Entity kind to class, e.g. `{"US_SSN": "secret"}`; overrides the built-in defaults (SSN and payment card are `confidential`) |
+| `data_class_map` | object | `{}` | Entity kind to class, e.g. `{"ssn": "secret"}`; overrides the built-in defaults (SSN and payment card are `confidential`). A name only has an effect if the detector can report it: `email`, `ssn` and `payment_card` out of the box, or Presidio's entity types (`US_SSN`, `PERSON`, ...) when Presidio is installed. Any other name is stored but never matches |
 | `routing_mode` | string | `off` | `off`: nothing changes. `log_only`: decide and record which registry models are authorized, never refuse. `enforce`: only models in the model registry that are cleared for the request's class may serve it (see Model registry). Turning on `enforce` needs at least one enabled model with an active provider key |
 | `max_risk_rating` | string | `high` | Registry models rated above this (`low`, `medium`, `high`) are never authorized |
 | `pii_entities` | array[string] | `[]` | Entity types to detect (e.g., `["EMAIL", "CREDIT_CARD", "PERSON"]`) |

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.utils.logging import get_logger
-from app.services import presidio_service
+from app.services import pii_detection, presidio_service
 from app.services.data_class import DATA_CLASSES, DEFAULT_DATA_CLASS
 
 logger = get_logger(__name__)
@@ -263,9 +263,6 @@ _INJECTION_PATTERNS = [
 
 
 class PolicyService:
-	_EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
-	_SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
-	_CC_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
 
 	async def evaluate_chat_request(
 		self,
@@ -322,10 +319,7 @@ class PolicyService:
 				if result.score >= settings.PRESIDIO_SCORE_THRESHOLD and result.entity_type not in found:
 					found.append(result.entity_type)
 			return found
-		for name, pattern in (("email", self._EMAIL_RE), ("ssn", self._SSN_RE), ("payment_card", self._CC_RE)):
-			if pattern.search(text):
-				found.append(name)
-		return found
+		return pii_detection.entities(text)
 
 	async def evaluate_embedding_request(
 		self,
@@ -503,14 +497,8 @@ class PolicyService:
 				if result.score >= settings.PRESIDIO_SCORE_THRESHOLD:
 					return result.entity_type
 			return None
-		# Fallback: regex-based detection
-		if self._EMAIL_RE.search(text):
-			return "email"
-		if self._SSN_RE.search(text):
-			return "ssn"
-		if self._CC_RE.search(text):
-			return "payment_card"
-		return None
+		kinds = pii_detection.entities(text)
+		return kinds[0] if kinds else None
 
 	@staticmethod
 	def _injection_hit(text: str) -> Optional[str]:
@@ -530,11 +518,7 @@ class PolicyService:
 			for hit in hits_sorted:
 				redacted = redacted[:hit.start] + "[REDACTED]" + redacted[hit.end:]
 			return redacted
-		# Fallback: regex substitutions
-		redacted = self._EMAIL_RE.sub("[REDACTED]", text)
-		redacted = self._SSN_RE.sub("[REDACTED]", redacted)
-		redacted = self._CC_RE.sub("[REDACTED]", redacted)
-		return redacted
+		return pii_detection.redact(text)
 
 	def evaluate_response(self, response_text: str, config: "PolicyConfig") -> "PolicyDecision":
 		"""
