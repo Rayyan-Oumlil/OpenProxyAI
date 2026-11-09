@@ -46,6 +46,14 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   classes (needs buyer input on who sets them), and a console form for the two policy fields. Presidio scans now run in a
   worker thread, for classification and for the existing policy check.
 
+- **S4a done** (core, not yet on the request path). `routing_service`: authorized set = registry entries that are enabled, have an
+  active key, are cleared for the request's class (the lower of the model's and its key's class), serve the org's region
+  (`global` = any), are within the org's `max_risk_rating` and pass the policy allowlist; each exclusion has a reason in a fixed order.
+  `choose_route` returns the requested model if authorized, otherwise nothing (never a substitute); `cap:NAME` picks the cheapest, then
+  lowest-risk, then alphabetical authorized model with that capability. Hypothesis property tests (300 examples each) cover the
+  invariants, and I checked they fail when the code is deliberately broken. New policy fields: `routing_mode` (`off` default,
+  `log_only`, `enforce`) and `max_risk_rating`. **S4b** wires this into chat (fallback closure, cache, streaming) and **S4c** into embeddings.
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.
