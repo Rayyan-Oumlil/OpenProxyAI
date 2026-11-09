@@ -615,14 +615,13 @@ class LLMService:
 		return data_class_rank(ctx.classification.data_class) <= data_class_rank(settings.SEMANTIC_CACHE_MAX_DATA_CLASS)
 
 	@staticmethod
-	def _route_headers(ctx: _RequestContext) -> dict[str, str]:
-		if ctx.routing is None:
+	def _route_headers(routing: RoutingDecision | None) -> dict[str, str]:
+		if routing is None:
 			return {}
-		return {"X-OpenProxyAI-Route-Model": ctx.routing.model or "none", "X-OpenProxyAI-Route-Reason": ctx.routing.reason}
+		return {"X-OpenProxyAI-Route-Model": routing.model or "none", "X-OpenProxyAI-Route-Reason": routing.reason}
 
 	@staticmethod
-	def _routing_block_response(ctx: _RequestContext) -> JSONResponse:
-		routing = ctx.routing
+	def _routing_block_response(routing: RoutingDecision) -> JSONResponse:
 		return JSONResponse(
 			status_code=POLICY_BLOCK_STATUS,
 			content={
@@ -637,9 +636,16 @@ class LLMService:
 				"X-OpenProxyAI-Gateway-Error": "true",
 				"X-OpenProxyAI-Policy-Action": "block",
 				"X-OpenProxyAI-Data-Class": routing.data_class,
-				**LLMService._route_headers(ctx),
+				**LLMService._route_headers(routing),
 			},
 		)
+
+	@staticmethod
+	async def _routing_inputs(db: AsyncSession, org_id: uuid.UUID) -> tuple[list, str]:
+		"""The org's routable registry and its data region (one query each; the session is already org-scoped)."""
+		org = await db.get(Organization, org_id)
+		region = (org.data_region or "us").strip().lower() if org else "us"
+		return await load_candidates(db, org_id), region
 
 	async def _decide_route(self, ctx: _RequestContext, db: AsyncSession) -> None:
 		"""Decide which registry model may serve this request; in enforce mode, also constrain how it is served.
@@ -651,9 +657,7 @@ class LLMService:
 		"""
 		config = ctx.policy_config
 		mode = config.routing_mode
-		org = await db.get(Organization, ctx.user.org_id)
-		region = (org.data_region or "us").strip().lower() if org else "us"
-		candidates = await load_candidates(db, ctx.user.org_id)
+		candidates, region = await self._routing_inputs(db, ctx.user.org_id)
 
 		def decide_for(model: str) -> RoutingDecision:
 			return decide(
@@ -846,7 +850,7 @@ class LLMService:
 				labels=ctx.labels,
 				team_id=ctx.team_id,
 			)
-			return self._routing_block_response(ctx)
+			return self._routing_block_response(ctx.routing)
 
 		with ctx.stages.stage("rate_limit"):
 			ok, ctx.rl_headers, limit_type, limit_detail, retry_after = (
@@ -865,7 +869,7 @@ class LLMService:
 					policy_config=ctx.policy_config,
 				)
 		)
-		ctx.rl_headers = {**ctx.rl_headers, "X-OpenProxyAI-Data-Class": ctx.classification.data_class, **self._route_headers(ctx)}
+		ctx.rl_headers = {**ctx.rl_headers, "X-OpenProxyAI-Data-Class": ctx.classification.data_class, **self._route_headers(ctx.routing)}
 		if not ok:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 			ctx.background_tasks.add_task(log_request,
@@ -1571,11 +1575,14 @@ class LLMService:
 		timer = timer_for_request(http_request, start)
 
 		classification: Classification | None = None
+		routing: RoutingDecision | None = None
 
 		def _emb_request_metadata(meta: dict | None) -> dict:
 			out = {**(meta or {})}
 			if classification is not None:
 				out["data_class"] = classification.as_metadata()
+			if routing is not None:
+				out["routing"] = routing.as_metadata()
 			stages = timer.as_list()
 			if stages:
 				out["stages"] = stages
@@ -1609,6 +1616,26 @@ class LLMService:
 					team_id=team_id,
 				)
 				return self._policy_block_response(decision)
+			if policy_config.routing_mode != "off":
+				with timer.stage("route"):
+					candidates, region = await self._routing_inputs(db, user.org_id)
+					routing = decide(
+						candidates, mode=policy_config.routing_mode, data_class=classification.data_class, org_region=region,
+						max_risk=policy_config.max_risk_rating,
+						allows_model=lambda m: policy_service.is_model_on_allowlist(m, policy_config), requested=request.model,
+					)
+				if routing.blocked:
+					latency_ms = int((time.perf_counter() - start) * 1000)
+					background_tasks.add_task(log_request,
+						redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
+						api_key_id=api_key.id, model=request.model, provider=provider,
+						prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
+						latency_ms=latency_ms, ttft_ms=None, status_code=POLICY_BLOCK_STATUS,
+						error_message="policy_blocked:no_authorized_model",
+						request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
+						team_id=team_id,
+					)
+					return self._routing_block_response(routing)
 			size = len(request.input) if isinstance(request.input, list) else len(request.input)
 			with timer.stage("rate_limit"):
 				ok, rl_headers, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
@@ -1621,7 +1648,7 @@ class LLMService:
 					team_budget_monthly_usd=team_budget_monthly_usd,
 					model=request.model, policy_config=policy_config,
 				)
-			rl_headers = {**rl_headers, "X-OpenProxyAI-Data-Class": classification.data_class}
+			rl_headers = {**rl_headers, "X-OpenProxyAI-Data-Class": classification.data_class, **self._route_headers(routing)}
 			if not ok:
 				latency_ms = int((time.perf_counter() - start) * 1000)
 				background_tasks.add_task(log_request,
@@ -1644,6 +1671,7 @@ class LLMService:
 				candidate_keys = await self._select_provider_keys(
 					db, user.org_id, provider, model=model_name, redis=redis,
 					max_attempts=retries_override,
+					only_key_id=routing.key_id if routing is not None and routing.mode == "enforce" else None,
 				)
 			except HTTPException as exc:
 				raise HTTPException(

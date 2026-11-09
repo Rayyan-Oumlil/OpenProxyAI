@@ -252,3 +252,55 @@ def test_streaming_uses_the_registry_key_and_a_refusal_is_a_plain_446(e2e_client
     refused = e2e_client.post(CHAT, json=_body(SSN_TEXT, stream=True), headers=tenant.headers)
     assert refused.status_code == 446 and refused.json()["error"] == "routing_blocked"
     assert len(upstream_calls(upstream)) == 1
+
+
+# ── embeddings (S4c) ─────────────────────────────────────────────────────────
+
+EMBED = "/v1/embeddings"
+EMBED_MODEL = "openai/text-embedding-3-small"
+
+
+def _embed(content: str = "hello", model: str = EMBED_MODEL):
+    return {"model": model, "input": content}
+
+
+def test_embeddings_are_served_only_by_the_models_registry_key(e2e_client, upstream, make_tenant):
+    tenant = _tenant(make_tenant, "enforce")
+    add_key(tenant.org_id, "sk-public-heavy", weight=100, max_class="public")
+    registered = add_key(tenant.org_id, "sk-registered", max_class="internal")
+    add_model(tenant.org_id, EMBED_MODEL, registered, max_class="internal")
+
+    for i in range(6):
+        response = e2e_client.post(EMBED, json=_embed(f"text {i}"), headers=tenant.headers)
+        assert response.status_code == 200, response.text
+        assert response.headers[ROUTE_MODEL] == EMBED_MODEL and response.headers[ROUTE_REASON] == "authorized"
+
+    assert {call["authorization"] for call in upstream_calls(upstream)} == {"Bearer sk-registered"}
+    assert "route" in [stage["name"] for stage in logged_rows(tenant.org_id, 6)[0]["request_metadata"]["stages"]]
+
+
+def test_an_embedding_request_too_sensitive_for_the_model_is_refused_before_any_upstream_call(e2e_client, upstream, make_tenant):
+    tenant = _tenant(make_tenant, "enforce")
+    key = add_key(tenant.org_id, "sk-registered", max_class="internal")
+    add_model(tenant.org_id, EMBED_MODEL, key, max_class="internal")
+
+    response = e2e_client.post(EMBED, json=_embed(SSN_TEXT), headers=tenant.headers)
+
+    assert response.status_code == 446
+    assert response.json()["error"] == "routing_blocked" and response.json()["route_reason"] == "not_authorized:class_too_low"
+    assert upstream_calls(upstream) == []
+    [row] = logged_rows(tenant.org_id)
+    assert row["status_code"] == 446 and row["request_metadata"]["routing"]["mode"] == "enforce"
+
+
+def test_an_unregistered_embedding_model_is_refused_when_enforcing_and_only_logged_otherwise(e2e_client, upstream, make_tenant):
+    enforcing = _tenant(make_tenant, "enforce")
+    add_key(enforcing.org_id, "sk-any")
+    assert e2e_client.post(EMBED, json=_embed(), headers=enforcing.headers).status_code == 446
+    assert upstream_calls(upstream) == []
+
+    previewing = _tenant(make_tenant, "log_only")
+    add_key(previewing.org_id, "sk-any")
+    response = e2e_client.post(EMBED, json=_embed(), headers=previewing.headers)
+    assert response.status_code == 200 and response.headers[ROUTE_REASON] == "not_in_registry"
+    assert len(upstream_calls(upstream)) == 1
