@@ -9,6 +9,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/Tabs";
 import { DataRoutingTab } from "./DataRoutingTab";
+import { changedPolicyFields } from "./policyDiff";
 import { ErrorState } from "../../components/ErrorState";
 import {
   Dialog,
@@ -450,7 +451,8 @@ export function PolicyConfigPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    saveMutation.mutate(form);
+    if (!serverPolicy) return; // nothing loaded yet: the save button is disabled, so this cannot happen from the UI
+    saveMutation.mutate(changedPolicyFields(serverPolicy, form));
   }
 
   const [tab, setTab] = useState("enforcement");
