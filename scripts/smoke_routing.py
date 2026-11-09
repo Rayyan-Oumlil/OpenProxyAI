@@ -111,11 +111,15 @@ def main():
 
         print("-- enforce")
         check("enforce accepted", policy(routing_mode="enforce")[0] == 200)
-        status, headers, body = chat()
+        # A prompt nobody has sent before, so the answer cannot come from the cache and the upstream must be called.
+        prompt = f"credential check {os.getpid()}-{os.urandom(4).hex()}"
+        status, headers, body = chat(prompt)
         check("an authorized request is served", status == 200 and headers.get("x-openproxyai-route-model") == "openai/gpt-4o-mini", body)
         try:
             calls = json.loads(urllib.request.urlopen(f"{FAKE_URL}/__calls", timeout=10).read())
-            check("it reached the endpoint through the key's own credentials, not the demo key", calls[-1]["authorization"] == f"Bearer {CUSTOM_KEY}", calls[-1:])
+            mine = [c for c in calls if c["body"]["messages"][-1]["content"] == prompt]
+            check("it reached the endpoint through the key's own credentials, not the demo key",
+                  len(mine) == 1 and mine[0]["authorization"] == f"Bearer {CUSTOM_KEY}", mine)
         except OSError as error:
             print(f"skip (fake upstream not reachable at {FAKE_URL}: {error})")
         status, _, body = chat(data_class="confidential")

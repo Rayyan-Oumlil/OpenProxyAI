@@ -84,6 +84,14 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   IP rule now lives in `app/utils/ssrf.py` (save-time validation used its own copy). S2: a registry entry's key link is now a
   composite foreign key `(org_id, provider_key_id)`, so the database itself refuses a link to another org's key.
 
+- **Classification coverage pass (S3).** Classification only describes what the detector can see, and routing trusts it. Checked first: text
+  extraction already covers tool-call arguments, JSON nested in strings and unicode escapes, and fails closed on oversized input.
+  Measured the detector with realistic variations and found it missed an SSN written with spaces, dots or a zero-width character, and
+  called any 13-19 digit number a card (no Luhn check), so order numbers were treated as confidential. Blocking, redaction and
+  classification each had their own regexes; they now share `app/services/pii_detection.py` (normalize, Luhn, issuable SSNs, one
+  tested behavior). Known and documented: `data_class_map` names only fire for entities the detector can report (`email`, `ssn`,
+  `payment_card`, or Presidio's types); bare nine-digit numbers, spelled-out emails and phone numbers are deliberately not detected.
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.
