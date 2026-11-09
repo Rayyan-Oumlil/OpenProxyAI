@@ -105,3 +105,19 @@ def test_pii_detection_off_means_no_scanning_for_classification(e2e_client, make
     tenant = _tenant(make_tenant, pii_detection_enabled=False)
     response = e2e_client.post(CHAT, json=_body(SSN_TEXT), headers=tenant.headers)
     assert response.headers[CLASS_HEADER] == "internal"
+
+
+@pytest.mark.parametrize(
+    "content,expected",
+    [
+        ("my ssn is 123 45 6789", "confidential"),  # spaces instead of dashes
+        ("my ssn is 123-45-\u200b6789", "confidential"),  # a zero-width character in the middle
+        ("card 4111 1111 1111 1111", "confidential"),
+        ("order number 1234 5678 9012 3456", "internal"),  # 16 digits, but not a card: no false alarm
+        ("ticket 000-12-3456", "internal"),  # not an SSN anyone could hold
+    ],
+)
+def test_detection_sees_formatted_pii_and_ignores_lookalikes(e2e_client, make_tenant, content, expected):
+    tenant = _tenant(make_tenant)
+    response = e2e_client.post(CHAT, json=_body(content), headers=tenant.headers)
+    assert response.headers[CLASS_HEADER] == expected
