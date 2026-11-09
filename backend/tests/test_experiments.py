@@ -34,6 +34,8 @@ def _permissive_policy(allowed_models=None):
 		response_pii_redact=False,
 		default_data_class="internal",
 		data_class_map={},
+		routing_mode="off",
+		max_risk_rating="high",
 	)
 
 

@@ -32,6 +32,8 @@ from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest, Message, _substitute_variables
 from app.services import cache_service
 from app.services.policy_service import POLICY_BLOCK_STATUS
+from app.services.data_class import data_class_rank
+from app.services.routing_service import CAPABILITY_PREFIX, RoutingDecision, decide, load_candidates
 from app.services.classification_service import (
 	DATA_CLASS_HEADER,
 	Classification,
@@ -344,6 +346,11 @@ class _RequestContext:
 	fallback_model: str | None = None  # x-openproxy-fallback-model override
 	session_id: str | None = None  # x-openproxy-session-id for trace grouping
 	classification: Classification | None = None
+	routing: RoutingDecision | None = None
+	routing_notes: dict = field(default_factory=dict)  # why routing changed something (experiment skipped, fallback refused)
+	requested_model: str = ""  # what the caller asked for, before any experiment variant replaced it
+	route_key_id: uuid.UUID | None = None  # enforce: the registry key that serves the model, and the only key used
+	fallback_key_id: uuid.UUID | None = None  # enforce: the same, for an authorized x-openproxy-fallback-model
 	stages: StageTimer | None = None
 
 	def __post_init__(self) -> None:
@@ -363,6 +370,8 @@ def _build_request_metadata(ctx: _RequestContext, extra: dict | None = None) -> 
 		metadata = {**metadata, "session_id": ctx.session_id}
 	if ctx.classification is not None:
 		metadata = {**metadata, "data_class": ctx.classification.as_metadata()}
+	if ctx.routing is not None:
+		metadata = {**metadata, "routing": {**ctx.routing.as_metadata(), **ctx.routing_notes}}
 	if extra:
 		metadata = {**metadata, **extra}
 	return metadata
@@ -377,8 +386,12 @@ class LLMService:
 		model: str | None = None,
 		redis: Redis | None = None,
 		max_attempts: int | None = None,
+		only_key_id: uuid.UUID | None = None,
 	) -> list[ProviderKeyCandidate]:
 		"""Return ordered list of (key_id, decrypted_key) tuples: [primary, fallback1, ...].
+
+		With ``only_key_id`` (routing enforced) the model's registry key is the only candidate: no other key of the
+		provider and never an environment key, because either could be cleared for less sensitive data.
 
 		key_id is None for env-provided keys. Strategy: simple_shuffle (weighted random),
 		round_robin, or lowest_latency. Fallbacks sorted by weight descending.
@@ -401,6 +414,8 @@ class LLMService:
 				LLMProviderKey.region == "global",
 			),
 		]
+		if only_key_id is not None:
+			conditions.append(LLMProviderKey.id == only_key_id)
 		if settings.PROVIDER_HEALTH_CHECK_ENABLED:
 			conditions.append(LLMProviderKey.health_status != "unhealthy")
 		rows = await db.scalars(select(LLMProviderKey).where(*conditions))
@@ -413,6 +428,14 @@ class LLMService:
 				detail={
 					"error": "no_provider_key",
 					"detail": "Every provider endpoint configured for this provider failed validation. Check the keys' api_base values.",
+				},
+			)
+		if only_key_id is not None and not keys:
+			raise HTTPException(
+				status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+				detail={
+					"error": "no_provider_key",
+					"detail": "The provider key assigned to this model in the registry is not available. No other key is used.",
 				},
 			)
 		# Filter out keys with open circuit (CIRCUIT_BREAKER_ENABLED)
@@ -585,6 +608,86 @@ class LLMService:
 		)
 
 	@staticmethod
+	def _semantic_cache_allowed(ctx: _RequestContext) -> bool:
+		"""With routing enforced, a request above the embedding endpoint's clearance must not be sent to it."""
+		if ctx.routing is None or ctx.routing.mode != "enforce" or ctx.classification is None:
+			return True
+		return data_class_rank(ctx.classification.data_class) <= data_class_rank(settings.SEMANTIC_CACHE_MAX_DATA_CLASS)
+
+	@staticmethod
+	def _route_headers(ctx: _RequestContext) -> dict[str, str]:
+		if ctx.routing is None:
+			return {}
+		return {"X-OpenProxyAI-Route-Model": ctx.routing.model or "none", "X-OpenProxyAI-Route-Reason": ctx.routing.reason}
+
+	@staticmethod
+	def _routing_block_response(ctx: _RequestContext) -> JSONResponse:
+		routing = ctx.routing
+		return JSONResponse(
+			status_code=POLICY_BLOCK_STATUS,
+			content={
+				"error": "routing_blocked",
+				"reason_code": "no_authorized_model",
+				"detail": "No model authorized for this request's data class can serve it.",
+				"route_reason": routing.reason,
+				"data_class": routing.data_class,
+				"requested_model": routing.requested,
+			},
+			headers={
+				"X-OpenProxyAI-Gateway-Error": "true",
+				"X-OpenProxyAI-Policy-Action": "block",
+				"X-OpenProxyAI-Data-Class": routing.data_class,
+				**LLMService._route_headers(ctx),
+			},
+		)
+
+	async def _decide_route(self, ctx: _RequestContext, db: AsyncSession) -> None:
+		"""Decide which registry model may serve this request; in enforce mode, also constrain how it is served.
+
+		``log_only`` records the same decision but changes nothing. ``enforce`` makes the decision binding:
+		the model must be authorized, it is served only by its registry key, an experiment variant that is not
+		authorized is dropped in favor of the model the caller asked for, and an x-openproxy-fallback-model that
+		is not authorized is ignored. Nothing is ever swapped for a different model than the caller asked for.
+		"""
+		config = ctx.policy_config
+		mode = config.routing_mode
+		org = await db.get(Organization, ctx.user.org_id)
+		region = (org.data_region or "us").strip().lower() if org else "us"
+		candidates = await load_candidates(db, ctx.user.org_id)
+
+		def decide_for(model: str) -> RoutingDecision:
+			return decide(
+				candidates, mode=mode, data_class=ctx.classification.data_class, org_region=region,
+				max_risk=config.max_risk_rating, allows_model=lambda m: policy_service.is_model_on_allowlist(m, config), requested=model,
+			)
+
+		decision = decide_for(ctx.request.model)
+		if mode == "enforce" and decision.model is None and ctx.experiment_info and ctx.requested_model != ctx.request.model:
+			original = decide_for(ctx.requested_model)
+			if original.model is not None:
+				ctx.routing_notes["experiment_skipped"] = f"variant {ctx.request.model} is not authorized"
+				ctx.request = ctx.request.model_copy(update={"model": ctx.requested_model})
+				ctx.provider, ctx.model_name = _split_model(ctx.requested_model)
+				ctx.experiment_info = None
+				decision = original
+		ctx.routing = decision
+
+		if mode != "enforce":
+			return
+		if decision.model is not None:
+			if decision.model != ctx.request.model:  # a cap:NAME request, now a concrete model
+				ctx.request = ctx.request.model_copy(update={"model": decision.model})
+				ctx.provider, ctx.model_name = _split_model(decision.model)
+			ctx.route_key_id = decision.key_id
+		if ctx.fallback_model:
+			fallback = decide_for(ctx.fallback_model)
+			if fallback.model is None:
+				ctx.routing_notes["fallback_model_refused"] = fallback.reason
+				ctx.fallback_model = None
+			else:
+				ctx.fallback_model, ctx.fallback_key_id = fallback.model, fallback.key_id
+
+	@staticmethod
 	def _policy_block_response(decision: PolicyDecision) -> JSONResponse:
 		return JSONResponse(
 			status_code=POLICY_BLOCK_STATUS,
@@ -626,10 +729,16 @@ class LLMService:
 		Returns a JSONResponse when the request should be short-circuited
 		(policy block or rate limit), otherwise None.
 		"""
-		ctx.provider, ctx.model_name = _split_model(ctx.request.model)
-		resolved_model, experiment_info = await self._resolve_experiment(
-			db, ctx.user.org_id, ctx.request.model
-		)
+		ctx.requested_model = ctx.request.model
+		is_capability_request = ctx.request.model.startswith(CAPABILITY_PREFIX)
+		if is_capability_request:
+			ctx.provider, ctx.model_name = "unknown", ""  # a "cap:NAME" request is resolved to a concrete model by routing
+			resolved_model, experiment_info = ctx.request.model, None
+		else:
+			ctx.provider, ctx.model_name = _split_model(ctx.request.model)
+			resolved_model, experiment_info = await self._resolve_experiment(
+				db, ctx.user.org_id, ctx.request.model
+			)
 		if experiment_info:
 			ctx.request = ctx.request.model_copy(update={"model": resolved_model})
 			ctx.provider, ctx.model_name = _split_model(resolved_model)
@@ -652,6 +761,14 @@ class LLMService:
 				raise HTTPException(status_code=400, detail={"error": "invalid_data_class", "detail": str(exc)}) from exc
 		if taint is not None and taint.tainted:
 			ctx.policy_metadata["tool_taint"] = {"removed": list(taint.removed), "forced_sink": taint.forced_sink}
+		if is_capability_request and ctx.policy_config.routing_mode != "enforce":
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail={"error": "invalid_model", "detail": "Capability routing (cap:NAME) needs routing_mode=enforce in the organization's policy"},
+			)
+		if ctx.policy_config.routing_mode != "off":
+			with ctx.stages.stage("route"):
+				await self._decide_route(ctx, db)
 
 		# Validate x-openproxy-fallback-model against policy allowlist when present
 		if ctx.fallback_model and ctx.policy_config.allowed_models:
@@ -708,6 +825,29 @@ class LLMService:
 			)
 			return self._policy_block_response(decision)
 
+		if ctx.routing is not None and ctx.routing.blocked:
+			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
+			ctx.background_tasks.add_task(log_request,
+				redis=ctx.redis,
+				request_id=ctx.request_id,
+				org_id=ctx.user.org_id,
+				user_id=ctx.user.id,
+				api_key_id=ctx.api_key.id,
+				model=ctx.request.model,
+				provider=ctx.provider,
+				prompt_tokens=0,
+				completion_tokens=0,
+				cost_usd=Decimal("0"),
+				latency_ms=latency_ms,
+				ttft_ms=None,
+				status_code=POLICY_BLOCK_STATUS,
+				error_message="policy_blocked:no_authorized_model",
+				request_metadata=_build_request_metadata(ctx),
+				labels=ctx.labels,
+				team_id=ctx.team_id,
+			)
+			return self._routing_block_response(ctx)
+
 		with ctx.stages.stage("rate_limit"):
 			ok, ctx.rl_headers, limit_type, limit_detail, retry_after = (
 				await rate_limiter_service.check_limits(
@@ -725,7 +865,7 @@ class LLMService:
 					policy_config=ctx.policy_config,
 				)
 		)
-		ctx.rl_headers = {**ctx.rl_headers, "X-OpenProxyAI-Data-Class": ctx.classification.data_class}
+		ctx.rl_headers = {**ctx.rl_headers, "X-OpenProxyAI-Data-Class": ctx.classification.data_class, **self._route_headers(ctx)}
 		if not ok:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 			ctx.background_tasks.add_task(log_request,
@@ -761,7 +901,7 @@ class LLMService:
 		try:
 			ctx.candidate_keys = await self._select_provider_keys(
 				db, ctx.user.org_id, ctx.provider, model=ctx.model_name, redis=ctx.redis,
-				max_attempts=ctx.max_fallback_attempts,
+				max_attempts=ctx.max_fallback_attempts, only_key_id=ctx.route_key_id,
 			)
 		except HTTPException as exc:
 			raise HTTPException(
@@ -897,6 +1037,7 @@ class LLMService:
 				ctx.candidate_keys = await self._select_provider_keys(
 					db, ctx.user.org_id, ctx.provider, model=fb_model_name,
 					redis=ctx.redis, max_attempts=ctx.max_fallback_attempts,
+					only_key_id=ctx.fallback_key_id,
 				)
 				ctx.kwargs = ctx.request.model_dump(exclude_none=True)
 				ctx.kwargs.update({"model": ctx.fallback_model, "timeout": 30, "request_timeout": 30, "stream": True})
@@ -1095,6 +1236,7 @@ class LLMService:
 					org_id=ctx.user.org_id,
 					db=db,
 					cache_override=cache_override,
+					allow_semantic=self._semantic_cache_allowed(ctx),
 				)
 			if cached_body is not None and cache_tier:
 				cached_usage = cached_body.get("usage", {}) if isinstance(cached_body, dict) else {}
@@ -1165,6 +1307,7 @@ class LLMService:
 				ctx.candidate_keys = await self._select_provider_keys(
 					db, ctx.user.org_id, ctx.provider, model=fb_model_name,
 					redis=ctx.redis, max_attempts=ctx.max_fallback_attempts,
+					only_key_id=ctx.fallback_key_id,
 				)
 				ctx.kwargs = ctx.request.model_dump(exclude_none=True)
 				ctx.kwargs.update({"model": ctx.fallback_model, "timeout": 30, "request_timeout": 30})
@@ -1224,6 +1367,7 @@ class LLMService:
 					org_id=ctx.user.org_id,
 					db=db,
 					cache_override=cache_override,
+					allow_semantic=self._semantic_cache_allowed(ctx),
 				)
 			)
 

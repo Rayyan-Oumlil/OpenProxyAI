@@ -15,6 +15,7 @@ from app.models.organization import Organization
 from app.models.webhook_delivery import WebhookDelivery
 from app.schemas.logs import Page
 from app.schemas.organization import OrganizationResponse, OrganizationUpdateRequest
+from app.services.routing_service import load_candidates
 from app.schemas.policy import ApplyTemplateRequest, PolicyConfigRequest, PolicyConfigResponse, TemplateListItem
 from app.schemas.webhook import (
     WebhookConfigRequest,
@@ -176,6 +177,17 @@ async def update_policy_config(
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 	updates = payload.model_dump(exclude_unset=True)
+
+	if updates.get("routing_mode") == "enforce":
+		# An empty registry would refuse every request. log_only exists to preview before enforcing.
+		if not any(c.enabled and c.key_id is not None and c.key_active for c in await load_candidates(db, current_user.org_id)):
+			raise HTTPException(
+				status_code=status.HTTP_409_CONFLICT,
+				detail={
+					"error": "empty_registry",
+					"detail": "Register at least one enabled model with an active provider key before enforcing routing (use log_only to preview).",
+				},
+			)
 
 	# Enforce plan gate: pii_detection requires a plan that supports it
 	if updates.get("pii_detection_enabled") is True:
