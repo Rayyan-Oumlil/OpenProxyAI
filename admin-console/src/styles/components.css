@@ -1062,6 +1062,8 @@ textarea:focus-visible {
 
 .policy-form {
   display: grid;
+  /* A single track that can shrink: otherwise the tab strip's full width sets the page width on a phone. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 

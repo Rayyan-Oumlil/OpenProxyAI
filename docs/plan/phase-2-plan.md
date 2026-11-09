@@ -99,6 +99,17 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   disagrees with the real pipeline: an e2e table of nine scenarios asks the preview and then sends the real request, and the live smoke does
   the same on the Docker image. `split_model` is now one public function (the playground had its own copy).
 
+- **S6 done.** Console: Policy > Data and routing tab (default class, classes for detected kinds, routing mode, risk ceiling) and a Preview panel on
+  `POST /api/v1/policy/preview`; the request trace shows the routing decision; shared wording in `lib/dataClasses.ts` and `lib/routing.ts`. Fixed on the way:
+  the S4 "enforce needs a registry model" guard now only runs when switching into enforce (the page resends every field, so it blocked unrelated saves).
+
+- **S7 done (MVP close-out, not in the original table).** Keyboard e2e and axe cover the Data and routing tab with a preview result on screen; a reflow
+  test checks every console screen for horizontal page scroll. It found a real bug: the policy page's tab strip (now five tabs) set the page width on a
+  phone, so controls sat under each other and the Preview button could not be clicked (fixed: single `minmax(0, 1fr)` track on `.page-wrap` and
+  `.policy-form`). Docs brought in line (`features.md` no longer says routing is not wired). Deviation: the demo seed is **not** given a registry, because
+  `scripts/smoke_routing.py` needs an empty one and checks that enforcing with none is refused; the routed-by-class example is an optional walkthrough
+  section that the same script checks. **The Phase 2 MVP (S1 to S7) is complete.** Next is scoped by buyer feedback (see below).
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.

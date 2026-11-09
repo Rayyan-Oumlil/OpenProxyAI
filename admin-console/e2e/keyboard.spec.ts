@@ -97,6 +97,32 @@ for (const route of ROUTES) {
   });
 }
 
+test("policy, Data and routing: reachable by keyboard, Enter runs the preview and does not save the policy", async ({ page }) => {
+  let saved = false;
+  page.on("request", (r) => {
+    if (r.method() === "PATCH" && new URL(r.url()).pathname.endsWith("/policy")) saved = true;
+  });
+  await signIn(page);
+  await page.goto("/policy");
+  await page.locator("main").first().waitFor();
+
+  // Radix tabs: focus the selected tab, then move with the arrow keys.
+  await page.getByRole("tab", { name: "Enforcement" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Data and routing" })).toHaveAttribute("aria-selected", "true");
+
+  await page.getByLabel("Model", { exact: true }).fill("openai/gpt-4o-mini");
+  await page.getByLabel("Prompt").fill("my ssn is 123-45-6789");
+  await page.getByLabel("Model", { exact: true }).press("Enter");
+  await expect(page.getByText("Refused by routing")).toBeVisible();
+  expect(saved).toBe(false);
+
+  const stops = await tabThrough(page);
+  expect(stops.length).toBeGreaterThan(5);
+  expect(stops.filter((s) => !s.visible).map((s) => s.name)).toEqual([]);
+});
+
 test("command palette: Ctrl+K moves focus in, Escape returns it where it was", async ({ page }) => {
   await signIn(page);
   await page.getByRole("link", { name: "Skip to content" }).focus();
