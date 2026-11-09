@@ -10,6 +10,10 @@ Kong AI Gateway is a genuinely capable product, and the comparison with OpenProx
 
 {/* truncate */}
 
+:::note Updated November 9, 2026
+The enterprise-gating bullet below was vague when this was published in April. It now names the plugins, from Kong's current plugin docs.
+:::
+
 ## What Kong AI Gateway actually is
 
 Kong AI Gateway is a set of AI-focused plugins (multi-LLM routing, semantic caching, prompt guarding, token-based rate limiting) built on top of Kong Gateway — the general-purpose API gateway a lot of platform teams already run for their regular REST/GraphQL API traffic. If Kong is already your organization's API gateway of choice, AI Gateway lets you manage LLM traffic through the same declarative config, the same plugin ecosystem, and the same operational tooling your team already knows.
@@ -22,7 +26,7 @@ OpenProxyAI wasn't extended into an AI use case — it's built for exactly this 
 
 - **Plugin architecture vs. built-in pipeline.** Kong's AI capabilities are plugins within a broader plugin system built for general API management — powerful and flexible, but that flexibility means assembling and configuring the right plugin stack for your specific AI governance needs, rather than a pipeline that's already opinionated about what an LLM request needs to pass through.
 - **Existing Kong investment.** If your platform team already operates Kong Gateway at scale — Kubernetes-native via the Kong Ingress Controller, existing observability integrations, existing team expertise — adding AI Gateway plugins is genuinely the path of least resistance, and standing up separate AI-specific infrastructure alongside it is often the worse trade for that team specifically.
-- **Enterprise feature gating.** Kong's more advanced governance and enterprise features are commonly gated behind Kong Enterprise licensing, on top of whatever AI Gateway plugin costs apply — worth pricing out concretely rather than assuming, since the total cost of a plugin-based extension to an enterprise product can compound in ways a single-purpose product's pricing doesn't.
+- **Enterprise feature gating.** Kong's own docs mark the two plugins that matter most for governance as AI Gateway Enterprise only: the [AI PII Sanitizer](https://developer.konghq.com/plugins/ai-sanitizer/) and [AI Proxy Advanced](https://developer.konghq.com/plugins/ai-proxy-advanced/), which carries semantic routing and tiered failover. The sanitizer also depends on a separate PII Anonymizer service you run as a container (Kong's docs say it needs at least 600MB of free memory). Price that out concretely rather than assuming, since the total cost of a plugin-based extension to an enterprise product can compound in ways a single-purpose product's pricing doesn't.
 - **Compliance templates and audit-by-default.** OpenProxyAI's Healthcare/Finance/Government policy templates and immutable audit trail are native to the core product, not a plugin to configure and maintain — for a team without existing Kong expertise, that's less assembly required to get to a compliance-reviewable state.
 
 ## The honest split
