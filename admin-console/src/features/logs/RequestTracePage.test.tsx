@@ -107,6 +107,33 @@ describe("RequestTracePage", () => {
     expect(screen.queryByText("Data class")).toBeNull();
   });
 
+  it.each([
+    [{ mode: "enforce", requested: "openai/gpt-4o", model: "openai/gpt-4o", reason: "authorized", authorized: ["openai/gpt-4o"], excluded: {} }, "Served by openai/gpt-4o"],
+    [{ mode: "enforce", requested: "cap:VISION", model: "openai/gpt-4o-mini", reason: "capability", authorized: [], excluded: {} }, "Chose openai/gpt-4o-mini for cap:VISION"],
+    [{ mode: "enforce", requested: "openai/x", model: null, reason: "not_in_registry", authorized: [], excluded: {} }, "openai/x is not in the model registry"],
+    [{ mode: "enforce", requested: "openai/x", model: null, reason: "not_authorized:class_too_low", authorized: ["openai/gpt-4o"], excluded: {} },
+      "openai/x is not authorized: it is not cleared for this data class"],
+    [{ mode: "log_only", requested: "openai/x", model: null, reason: "not_in_registry", authorized: [], excluded: {} }, "Preview, not enforced: openai/x is not in the model registry"],
+  ])("explains the routing decision in words (%#)", async (routing, expected) => {
+    get.mockResolvedValue(detail({ request_metadata: { routing } }));
+    renderPage();
+    expect(await screen.findByText("Routing")).toBeTruthy();
+    expect(screen.getByText(expected)).toBeTruthy();
+  });
+
+  it("lists what was authorized when routing refused, and says nothing about routing for older rows", async () => {
+    get.mockResolvedValue(
+      detail({ request_metadata: { routing: { mode: "enforce", requested: "openai/x", model: null, reason: "not_in_registry", authorized: ["openai/a", "openai/b"], excluded: {} } } }),
+    );
+    renderPage();
+    expect(await screen.findByText(/Authorized for this request: openai\/a, openai\/b/)).toBeTruthy();
+    cleanup();
+    get.mockResolvedValue(detail({ request_metadata: {} }));
+    renderPage();
+    await screen.findByText("What happened");
+    expect(screen.queryByText("Routing")).toBeNull();
+  });
+
   it("shows a policy block as blocked, with its reason, and says the upstream was not reached", async () => {
     get.mockResolvedValue(
       detail({
