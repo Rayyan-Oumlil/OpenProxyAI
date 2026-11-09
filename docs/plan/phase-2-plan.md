@@ -54,6 +54,14 @@ prerequisites). **Pause after S2 and review the call notes before S3.**
   invariants, and I checked they fail when the code is deliberately broken. New policy fields: `routing_mode` (`off` default,
   `log_only`, `enforce`) and `max_risk_rating`. **S4b** wires this into chat (fallback closure, cache, streaming) and **S4c** into embeddings.
 
+- **S4b done** (chat). `_decide_route` runs after classification when `routing_mode` is not `off`: `log_only` records the decision, headers
+  and a `route` trace stage and changes nothing; `enforce` refuses with 446 `no_authorized_model` before rate limiting and any upstream
+  call, serves the model only through its registry key (`only_key_id`, no other key, never an env key), drops an unauthorized experiment
+  variant for the model the caller asked for, ignores an unauthorized `x-openproxy-fallback-model`, resolves `cap:NAME`, and skips the
+  semantic cache above `SEMANTIC_CACHE_MAX_DATA_CLASS`. Turning on `enforce` needs a routable model (409 otherwise). Deviations: exact-match
+  cache keys are not class-aware, on purpose: routing runs before the cache and the model is already in the key, so a hit is always a model
+  authorized for this request now. Mutation-tested: removing the registry-key restriction fails 4 of the 13 e2e routing tests. **S4c**: embeddings.
+
 ## After the MVP (not in these 17 days)
 Guardrail plugin runner with manifests, CEL rules (Rust binding behind an `ExprEngine` interface), bindings with
 `locked`, external adapters (signed webhook, Bedrock, Azure Content Safety). Scope them from buyer feedback.

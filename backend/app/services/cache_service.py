@@ -166,6 +166,7 @@ async def get(
     org_id: Optional[UUID | str] = None,
     db: Optional[AsyncSession] = None,
     cache_override: Optional[CacheOverride] = None,
+    allow_semantic: bool = True,
 ) -> tuple[Optional[dict[str, Any]], Optional[str]]:
     """
     Return (cached_response, cache_tier) or (None, None) on miss.
@@ -219,7 +220,8 @@ async def get(
 
     # L3 pgvector semantic
     if (
-        getattr(settings, "SEMANTIC_CACHE_ENABLED", False)
+        allow_semantic
+        and getattr(settings, "SEMANTIC_CACHE_ENABLED", False)
         and db is not None
         and org_id is not None
         and cache_key_text.strip()
@@ -285,6 +287,7 @@ async def set(
     db: Optional[AsyncSession] = None,
     ttl: Optional[int] = None,
     cache_override: Optional[CacheOverride] = None,
+    allow_semantic: bool = True,
 ) -> None:
     """Store response in cache. Fire-and-forget (swallows exceptions)."""
     if cache_override == "skip" or cache_override == "no-store":
@@ -325,7 +328,8 @@ async def set(
 
     # L3 pgvector — fire-and-forget
     if (
-        getattr(settings, "SEMANTIC_CACHE_ENABLED", False)
+        allow_semantic
+        and getattr(settings, "SEMANTIC_CACHE_ENABLED", False)
         and db is not None
         and org_id is not None
     ):

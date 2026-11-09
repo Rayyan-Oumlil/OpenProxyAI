@@ -66,6 +66,8 @@ def _make_policy_config(**overrides) -> PolicyConfig:
 		response_pii_redact=False,
 		default_data_class="internal",
 		data_class_map={},
+		routing_mode="off",
+		max_risk_rating="high",
 	)
 	for key, value in overrides.items():
 		setattr(cfg, key, value)

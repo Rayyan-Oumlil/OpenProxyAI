@@ -136,7 +136,7 @@ Multiple provider keys per provider — weighted random rotation in `llm_service
 | 402 | Pre-flight estimate exceeds the remaining daily budget (org or user); plan limit exceeded |
 | 403 | Real authorization failure (admin required, not a team member, missing permission). Never a policy block |
 | 429 | Rate limit hit, or a user's daily budget already spent (`user_budget_daily_usd`) |
-| 446 | Blocked by policy: request guardrails (PII, keyword, model allowlist) and response guardrails; also the audit status of refused MCP tool calls. Constant: `POLICY_BLOCK_STATUS` |
+| 446 | Blocked by policy (including `no_authorized_model` when routing is enforced): request guardrails (PII, keyword, model allowlist) and response guardrails; also the audit status of refused MCP tool calls. Constant: `POLICY_BLOCK_STATUS` |
 
 ## Background Jobs (APScheduler)
 | Job | Interval | Notes |
