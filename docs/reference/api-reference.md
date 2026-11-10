@@ -430,7 +430,7 @@ Traffic routing happens on **`POST /v1/chat/completions`** when the request `mod
 
 ## Request Scores API
 
-Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request for experiment evaluation (LLM-as-judge, external evals).
+Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request for experiment evaluation (LLM-as-judge, external evals). An application with only an API key uses `POST /v1/feedback` instead (see below).
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -458,6 +458,10 @@ Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request 
 ```json
 {"submitted": 2}
 ```
+
+### Feedback (API key)
+
+`POST /v1/feedback`, authenticated like chat with an API key that has `proxy:llm`. Body: `{request_id, thumbs: "up"|"down"}` or `{request_id, score_name, value, comment?}`; thumbs up is stored as 1, down as 0 under the score name `thumbs`. The comment (max 2000 chars) is PII-redacted before storage. Same upsert as above; 404 for an unknown or other-org request (identical answers). Full reference: docs-site `api-reference/feedback`.
 
 ---
 

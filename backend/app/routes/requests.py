@@ -4,14 +4,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import set_session_org_id
 from app.dependencies import CurrentUser, get_db
 from app.models.request_log import RequestLog
-from app.models.request_score import RequestScore
 from app.schemas.request_score import RequestScoresSubmit, RequestScoresSubmitResponse
+from app.services.score_service import ScoreWrite, record_scores
 
 router = APIRouter(prefix="/api/v1/requests", tags=["Requests"])
 
@@ -39,36 +38,13 @@ async def submit_request_scores(
 			detail="Request not found",
 		)
 
-	experiment_id = None
-	variant_id = None
-	exp = log.request_metadata.get("experiment") if log.request_metadata else None
-	if exp:
-		exp_id = exp.get("experiment_id")
-		var_id = exp.get("variant_id")
-		if exp_id:
-			experiment_id = UUID(exp_id)
-		if var_id:
-			variant_id = UUID(var_id)
-
-	submitted = 0
-	for item in payload.scores:
-		stmt = insert(RequestScore).values(
-			request_id=request_id,
-			org_id=current_user.org_id,
-			experiment_id=experiment_id,
-			variant_id=variant_id,
-			score_name=item.name,
-			value=item.value,
-		).on_conflict_do_update(
-			index_elements=["org_id", "request_id", "score_name"],
-			set_={
-				RequestScore.value: item.value,
-				RequestScore.experiment_id: experiment_id,
-				RequestScore.variant_id: variant_id,
-			},
-		)
-		await db.execute(stmt)
-		submitted += 1
-
-	await db.commit()
+	submitted = await record_scores(
+		db,
+		org_id=current_user.org_id,
+		request_id=request_id,
+		request_log=log,
+		scores=[ScoreWrite(item.name, item.value) for item in payload.scores],
+		source="console",
+		user_id=current_user.id,
+	)
 	return RequestScoresSubmitResponse(submitted=submitted)

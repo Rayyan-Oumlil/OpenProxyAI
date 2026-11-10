@@ -80,6 +80,7 @@ const sidebars: SidebarsConfig = {
         'api-reference/errors-and-status-codes',
         'api-reference/chat-completions',
         'api-reference/embeddings',
+        'api-reference/feedback',
         'api-reference/models',
         'api-reference/api-keys',
         'api-reference/provider-keys',
