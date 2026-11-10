@@ -56,5 +56,8 @@ BASE_URL="$API" "$PYTHON" scripts/smoke_evals.py; check "evals: exact, regex, ju
 # Adaptive A/B: real traffic is split, feedback is linked to its variant, and the real job names a winner.
 BASE_URL="$API" "$PYTHON" scripts/smoke_adaptive.py; check "adaptive: split, linked feedback, no early move, winner and stop" $?
 
+# Prompt promotion gate with a real eval run: draft, refusal without a run, promotion, override, stale run.
+BASE_URL="$API" "$PYTHON" scripts/smoke_promotion.py; check "promotion gate: draft, refusal, run, promote, override, stale run" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"

@@ -50,6 +50,7 @@ const sidebars: SidebarsConfig = {
         'guides/data-residency',
         'guides/payload-capture',
         'guides/adaptive-experiments',
+        'guides/prompt-promotion',
       ],
     },
     {
