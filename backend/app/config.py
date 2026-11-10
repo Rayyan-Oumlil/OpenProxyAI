@@ -123,6 +123,9 @@ class Settings(BaseSettings):
     # embedding endpoint and the evaluation hook or judge model. With routing enforced, a request above this class is kept
     # away from them (no semantic cache, no evaluation).
     OFF_REGISTRY_MAX_DATA_CLASS: str = "internal"
+    # The most sensitive data class whose prompts and answers may be stored for evaluation (payload capture), whatever
+    # sample rate an org sets. Raising it is an operator decision.
+    PAYLOAD_CAPTURE_MAX_DATA_CLASS: str = "internal"
     SEMANTIC_CACHE_L1_MAX_SIZE: int = 1000
     SEMANTIC_CACHE_L1_TTL_SECONDS: int = 300
     SEMANTIC_CACHE_COST_PER_TOKEN_ESTIMATE_USD: float = 0.00003

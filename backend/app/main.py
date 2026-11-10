@@ -48,6 +48,7 @@ from app.services.metering_service import run_hourly_metered_sync
 from app.services.provider_health_service import run_provider_health_check
 from app.services.spend_batch_service import run_flush_request_logs_batch
 from app.services.key_rotation_scheduler import run_key_rotation
+from app.services.payload_capture import purge_expired_payloads
 from app.services.adaptive_sampling_service import run_adaptive_sampling_job
 from app.services.mcp_tool_sync import run_mcp_tool_sync
 from app.services.telemetry import telemetry
@@ -245,6 +246,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         "interval",
         hours=1,
         id="archive_old_logs",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        purge_expired_payloads,
+        "interval",
+        hours=6,
+        id="purge_expired_payloads",
         max_instances=1,
         coalesce=True,
     )
