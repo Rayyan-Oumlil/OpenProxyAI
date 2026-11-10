@@ -78,7 +78,7 @@ async def test_creating_importing_and_deleting_are_in_the_admin_audit_log(tenant
 		await api.http.post(f"{PATH}/{dataset_id}/import", json={})
 		await api.http.delete(f"{PATH}/{dataset_id}")
 	async with org_scoped_session(tenants.a) as db:
-		actions = set(await db.scalars(select(AdminAuditLog.action).where(AdminAuditLog.resource_type == "dataset")))
+		actions = set(await db.scalars(select(AdminAuditLog.action).where(AdminAuditLog.org_id == tenants.a, AdminAuditLog.resource_type == "dataset")))
 	assert actions == {"dataset.created", "dataset.imported", "dataset.deleted"}
 
 

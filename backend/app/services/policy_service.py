@@ -49,6 +49,19 @@ def _valid_rate(value: object) -> float:
 	return float(value)
 
 
+def _valid_threshold(value: object, fallback: float) -> float:
+	"""A pass rate in (0, 1]. Anything else stored means the default: a corrupt value must not make the gate easier."""
+	if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 < value <= 1:
+		return fallback
+	return float(value)
+
+
+def _valid_count(value: object, fallback: int) -> int:
+	if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 100_000:
+		return fallback
+	return value
+
+
 def _clean_class_map(raw: object) -> dict[str, str]:
 	"""Stored data is validated by the API; if something invalid got in anyway, drop it rather than guess."""
 	if not isinstance(raw, dict):
@@ -86,6 +99,11 @@ class PolicyConfig:
 	# Evaluation (Phase 3): the share of eligible requests whose redacted prompt and answer are kept for evaluation.
 	# 0 (the default) stores nothing.
 	payload_capture_sample_rate: float = 0.0
+	# Prompt promotion gate (Phase 3, slice 6): when on, editing a prompt template creates a draft, and a draft goes live only
+	# with a passing eval run (or an admin override with a reason, audited). Off keeps the original behavior: edits go live.
+	prompt_promotion_gate: bool = False
+	prompt_gate_min_pass_rate: float = 0.8  # share of scored items that must pass
+	prompt_gate_min_items: int = 10  # scored items the run must have, so a run of two cannot promote a prompt
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -119,6 +137,9 @@ class PolicyConfig:
 			routing_mode=data.get("routing_mode") if data.get("routing_mode") in _ROUTING_MODES else "off",
 			max_risk_rating=data.get("max_risk_rating") if data.get("max_risk_rating") in _RISK_LEVELS else "high",
 			payload_capture_sample_rate=_valid_rate(data.get("payload_capture_sample_rate")),
+			prompt_promotion_gate=data.get("prompt_promotion_gate") is True,
+			prompt_gate_min_pass_rate=_valid_threshold(data.get("prompt_gate_min_pass_rate"), 0.8),
+			prompt_gate_min_items=_valid_count(data.get("prompt_gate_min_items"), 10),
 		)
 
 	def to_dict(self) -> dict:
@@ -141,6 +162,9 @@ class PolicyConfig:
 			"routing_mode": self.routing_mode,
 			"max_risk_rating": self.max_risk_rating,
 			"payload_capture_sample_rate": self.payload_capture_sample_rate,
+			"prompt_promotion_gate": self.prompt_promotion_gate,
+			"prompt_gate_min_pass_rate": self.prompt_gate_min_pass_rate,
+			"prompt_gate_min_items": self.prompt_gate_min_items,
 		}
 
 

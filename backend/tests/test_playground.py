@@ -24,6 +24,7 @@ class FakePromptTemplate:
         variables_schema=None,
         version=1,
         is_active=True,
+        status="active",
         created_by=None,
         created_at=None,
         updated_at=None,
@@ -37,6 +38,7 @@ class FakePromptTemplate:
         self.variables_schema = variables_schema or []
         self.version = version
         self.is_active = is_active
+        self.status = status
         self.created_by = created_by
         self.created_at = created_at or datetime.now(UTC)
         self.updated_at = updated_at or datetime.now(UTC)
@@ -226,8 +228,12 @@ def test_create_template(client):
     async def fake_db():
         yield db
 
+    async def fake_redis():
+        return FakeRedis()  # the create route reads the org's policy to know whether the promotion gate is on
+
     app.dependency_overrides[get_current_user_from_jwt] = fake_user
     app.dependency_overrides[get_db] = fake_db
+    app.dependency_overrides[get_redis] = fake_redis
 
     response = client.post(
         "/api/v1/prompt-templates",

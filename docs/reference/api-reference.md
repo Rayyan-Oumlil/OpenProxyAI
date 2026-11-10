@@ -475,6 +475,10 @@ Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request 
 
 `POST/PATCH /api/v1/experiments` accept `mode` (`static` | `adaptive`), `metric` (a feedback score name with values 0 to 1), `min_samples_per_variant` (default 30, min 20), `delta` (default 0.01, 0.001 to 0.2) and `weight_floor` (default 5, 1 to 20). A job every 5 minutes shifts traffic toward the better variant once every variant has enough ratings and stops the test, recording `winner_variant_id`, when one is best with probability at least `1 - delta`; it never switches production traffic. `GET /{id}/results` is keyed by variant (`variant_id`, `traffic_weight`, `probability_best`) and includes an `adaptive` block. Guide: docs-site `guides/adaptive-experiments`.
 
+### Prompt promotion gate
+
+Policy: `prompt_promotion_gate` (default false), `prompt_gate_min_pass_rate` (default 0.8), `prompt_gate_min_items` (default 10). With the gate on, `POST/PUT /api/v1/prompt-templates` create `draft` versions that clients cannot call by `prompt_id`. `GET /api/v1/prompt-templates/{id}/promotion` reports whether a draft passes and what is missing; `POST /api/v1/prompt-templates/{id}/promote` (admin) makes it live if a completed eval run of that exact prompt (`prompt_template_id` on the run) scored enough items at the required pass rate with few errors, else 409 `promotion_gate_failed`; `{"override": true, "reason": "..."}` (reason of at least 10 characters) promotes anyway and is audited. Guide: docs-site `guides/prompt-promotion`.
+
 ### Feedback (API key)
 
 `POST /v1/feedback`, authenticated like chat with an API key that has `proxy:llm`. Body: `{request_id, thumbs: "up"|"down"}` or `{request_id, score_name, value, comment?}`; thumbs up is stored as 1, down as 0 under the score name `thumbs`. The comment (max 2000 chars) is PII-redacted before storage. Same upsert as above; 404 for an unknown or other-org request (identical answers). Full reference: docs-site `api-reference/feedback`.

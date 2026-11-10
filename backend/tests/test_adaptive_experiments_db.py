@@ -136,7 +136,7 @@ async def test_a_clear_winner_stops_the_test_and_is_recorded_but_not_deployed(te
 	assert after["winner_variant_id"] == experiment["variants"][1]["id"]
 	assert after["target_model"] == "openai/gpt-4o"  # the model production traffic goes to is untouched
 	async with org_scoped_session(tenants.a) as db:
-		entry = await db.scalar(select(AdminAuditLog).where(AdminAuditLog.resource_id == experiment["id"], AdminAuditLog.action == "experiment.winner_found"))
+		entry = await db.scalar(select(AdminAuditLog).where(AdminAuditLog.org_id == tenants.a, AdminAuditLog.resource_id == experiment["id"], AdminAuditLog.action == "experiment.winner_found"))
 	assert entry is not None and entry.actor_email == SYSTEM_ACTOR and entry.actor_id is None
 
 
@@ -152,7 +152,7 @@ async def test_a_close_race_shifts_traffic_but_keeps_testing(tenants):
 	assert after["is_active"] is True and after["winner_variant_id"] is None
 	assert sum(by_id.values()) == 100 and all(w >= 5 for w in by_id.values()) and by_id[strong] > by_id[weak]
 	async with org_scoped_session(tenants.a) as db:
-		actions = set(await db.scalars(select(AdminAuditLog.action).where(AdminAuditLog.resource_id == experiment["id"])))
+		actions = set(await db.scalars(select(AdminAuditLog.action).where(AdminAuditLog.org_id == tenants.a, AdminAuditLog.resource_id == experiment["id"])))
 	assert "experiment.weights_adapted" in actions
 
 

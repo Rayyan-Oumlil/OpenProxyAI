@@ -38,6 +38,7 @@ class PromptTemplateResponse(BaseModel):
     variables_schema: list[dict[str, Any]]
     version: int
     is_active: bool
+    status: str = "active"  # draft (awaiting promotion), active (live) or retired
     created_by: str | None
     created_at: str
     updated_at: str
