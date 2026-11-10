@@ -46,4 +46,4 @@ Capture runs in the background after the response is built. If it fails, the fai
 
 ## Who can see it
 
-Captured rows are protected by the same row-level security as the rest of your data: one organization cannot read another's. The next slices of the evaluation loop (datasets and evaluators) will be the only readers.
+Captured rows are protected by the same row-level security as the rest of your data: one organization cannot read another's. Today the only readers are [datasets](/api-reference/datasets), which an admin builds from captured traffic. Evaluators are next.
