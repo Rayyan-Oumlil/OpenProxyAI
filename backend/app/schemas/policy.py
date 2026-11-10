@@ -36,8 +36,11 @@ class PolicyConfigRequest(BaseModel):
 	routing_mode: Literal["off", "log_only", "enforce"] | None = None
 	max_risk_rating: Literal["low", "medium", "high"] | None = None
 	payload_capture_sample_rate: float | None = Field(default=None, ge=0, le=1)
+	prompt_promotion_gate: bool | None = None
+	prompt_gate_min_pass_rate: float | None = Field(default=None, gt=0, le=1)
+	prompt_gate_min_items: int | None = Field(default=None, ge=1, le=100_000)
 
-	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "payload_capture_sample_rate", mode="before")
+	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "payload_capture_sample_rate", "prompt_promotion_gate", "prompt_gate_min_pass_rate", "prompt_gate_min_items", mode="before")
 	@classmethod
 	def _not_null(cls, value):
 		if value is None:
@@ -71,6 +74,9 @@ class PolicyConfigResponse(BaseModel):
 	routing_mode: str = "off"
 	max_risk_rating: str = "high"
 	payload_capture_sample_rate: float = 0.0
+	prompt_promotion_gate: bool = False
+	prompt_gate_min_pass_rate: float = 0.8
+	prompt_gate_min_items: int = 10
 
 
 class ApplyTemplateRequest(BaseModel):

@@ -30,6 +30,7 @@ from app.schemas.evaluation import (
 from app.services import eval_runner
 from app.services.admin_audit_service import get_ip, log_admin_action
 from app.services.evaluators import validate_config
+from app.services.prompt_gate import fingerprint
 from app.services.policy_service import policy_service, policy_store
 
 evaluators_router = APIRouter(prefix="/api/v1/evaluators", tags=["Evaluators"])
@@ -146,11 +147,14 @@ async def create_run(
 	evaluator = await _load_evaluator(db, org_id, payload.evaluator_id)
 
 	system_prompt = payload.system_prompt
+	prompt_fingerprint = None
 	if payload.prompt_template_id is not None:
 		template = await db.get(PromptTemplate, payload.prompt_template_id)
 		if template is None or template.org_id != org_id:
 			raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prompt template not found")
 		system_prompt = system_prompt if system_prompt is not None else template.system_message
+		if system_prompt == template.system_message:  # only a run of the template's own prompt vouches for the template
+			prompt_fingerprint = fingerprint(template)
 
 	policy_config = await policy_store.load(org_id, db, redis)
 	models = [payload.candidate_model] + ([evaluator.config["model"]] if evaluator.type == "llm_judge" else [])
@@ -168,7 +172,7 @@ async def create_run(
 	run = EvalRun(
 		org_id=org_id, dataset_id=dataset.id, evaluator_id=evaluator.id,
 		evaluator_snapshot={"name": evaluator.name, "type": evaluator.type, "config": evaluator.config},
-		prompt_template_id=payload.prompt_template_id, candidate_model=payload.candidate_model, system_prompt=system_prompt,
+		prompt_template_id=payload.prompt_template_id, prompt_fingerprint=prompt_fingerprint, candidate_model=payload.candidate_model, system_prompt=system_prompt,
 		status="queued", total_items=min(payload.max_items, available), max_cost_usd=Decimal(str(payload.max_cost_usd)), created_by=current_user.id,
 	)
 	db.add(run)
