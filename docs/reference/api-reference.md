@@ -467,6 +467,10 @@ Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request 
 
 `/api/v1/datasets` (JWT, admins only): create, list, get, delete; `POST /{id}/import` copies captured payloads (filters: model, since, until, score name with min/max, limit, order) and never imports rows that had PII; `POST /{id}/items` adds a text item, refusing PII with 422 `pii_in_item`; `GET /{id}/items` pages items. Max 10,000 items per dataset. Items are copies and do not expire. Full reference: docs-site `api-reference/datasets`.
 
+### Evaluators and eval runs (admin)
+
+`/api/v1/evaluators` (exact, regex, llm_judge; config validated on create) and `/api/v1/eval-runs` (`POST` starts a background run of a candidate model over a dataset, 202; `GET` list/one/items, `POST /{id}/cancel`). Runs have `max_cost_usd` (default 1, max 50) and `max_items` (default 100, max 500), at most 2 active per org. Candidate and judge calls use the gateway's policy, routing and metering (request logs `source` = `eval_run` / `eval_judge`). Items that could not be scored are errors, left out of the mean and pass rate. Full reference: docs-site `api-reference/eval-runs`.
+
 ### Feedback (API key)
 
 `POST /v1/feedback`, authenticated like chat with an API key that has `proxy:llm`. Body: `{request_id, thumbs: "up"|"down"}` or `{request_id, score_name, value, comment?}`; thumbs up is stored as 1, down as 0 under the score name `thumbs`. The comment (max 2000 chars) is PII-redacted before storage. Same upsert as above; 404 for an unknown or other-org request (identical answers). Full reference: docs-site `api-reference/feedback`.

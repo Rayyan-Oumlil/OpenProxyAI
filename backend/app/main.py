@@ -37,6 +37,7 @@ from app.routes.policy_preview import router as policy_preview_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.experiments import router as experiments_router
 from app.routes.datasets import router as datasets_router
+from app.routes.evaluation import evaluators_router, runs_router as eval_runs_router
 from app.routes.feedback import router as feedback_router
 from app.routes.requests import router as requests_router
 from app.routes.teams import router as teams_router
@@ -49,6 +50,7 @@ from app.services.metering_service import run_hourly_metered_sync
 from app.services.provider_health_service import run_provider_health_check
 from app.services.spend_batch_service import run_flush_request_logs_batch
 from app.services.key_rotation_scheduler import run_key_rotation
+from app.services.eval_runner import fail_stale_runs
 from app.services.payload_capture import purge_expired_payloads
 from app.services.adaptive_sampling_service import run_adaptive_sampling_job
 from app.services.mcp_tool_sync import run_mcp_tool_sync
@@ -251,6 +253,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         coalesce=True,
     )
     scheduler.add_job(
+        fail_stale_runs,
+        "interval",
+        hours=1,
+        id="fail_stale_eval_runs",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
         purge_expired_payloads,
         "interval",
         hours=6,
@@ -405,6 +415,8 @@ app.include_router(experiments_router)
 app.include_router(requests_router)
 app.include_router(feedback_router)
 app.include_router(datasets_router)
+app.include_router(evaluators_router)
+app.include_router(eval_runs_router)
 app.include_router(teams_router)
 app.include_router(proxy_router)
 app.include_router(analytics_router)
