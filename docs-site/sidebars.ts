@@ -82,6 +82,7 @@ const sidebars: SidebarsConfig = {
         'api-reference/chat-completions',
         'api-reference/embeddings',
         'api-reference/feedback',
+        'api-reference/datasets',
         'api-reference/models',
         'api-reference/api-keys',
         'api-reference/provider-keys',
