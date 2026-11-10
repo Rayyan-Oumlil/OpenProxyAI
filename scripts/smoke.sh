@@ -53,5 +53,8 @@ BASE_URL="$API" "$PYTHON" scripts/smoke_datasets.py; check "datasets: capture ->
 # Evaluators and eval runs with the real executor: exact, regex and judge runs, spending cap, cancel, active-run limit.
 BASE_URL="$API" "$PYTHON" scripts/smoke_evals.py; check "evals: exact, regex, judge, spending cap, cancel, run limit" $?
 
+# Adaptive A/B: real traffic is split, feedback is linked to its variant, and the real job names a winner.
+BASE_URL="$API" "$PYTHON" scripts/smoke_adaptive.py; check "adaptive: split, linked feedback, no early move, winner and stop" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"

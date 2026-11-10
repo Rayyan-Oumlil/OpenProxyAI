@@ -471,6 +471,10 @@ Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request 
 
 `/api/v1/evaluators` (exact, regex, llm_judge; config validated on create) and `/api/v1/eval-runs` (`POST` starts a background run of a candidate model over a dataset, 202; `GET` list/one/items, `POST /{id}/cancel`). Runs have `max_cost_usd` (default 1, max 50) and `max_items` (default 100, max 500), at most 2 active per org. Candidate and judge calls use the gateway's policy, routing and metering (request logs `source` = `eval_run` / `eval_judge`). Items that could not be scored are errors, left out of the mean and pass rate. Full reference: docs-site `api-reference/eval-runs`.
 
+### Adaptive experiments
+
+`POST/PATCH /api/v1/experiments` accept `mode` (`static` | `adaptive`), `metric` (a feedback score name with values 0 to 1), `min_samples_per_variant` (default 30, min 20), `delta` (default 0.01, 0.001 to 0.2) and `weight_floor` (default 5, 1 to 20). A job every 5 minutes shifts traffic toward the better variant once every variant has enough ratings and stops the test, recording `winner_variant_id`, when one is best with probability at least `1 - delta`; it never switches production traffic. `GET /{id}/results` is keyed by variant (`variant_id`, `traffic_weight`, `probability_best`) and includes an `adaptive` block. Guide: docs-site `guides/adaptive-experiments`.
+
 ### Feedback (API key)
 
 `POST /v1/feedback`, authenticated like chat with an API key that has `proxy:llm`. Body: `{request_id, thumbs: "up"|"down"}` or `{request_id, score_name, value, comment?}`; thumbs up is stored as 1, down as 0 under the score name `thumbs`. The comment (max 2000 chars) is PII-redacted before storage. Same upsert as above; 404 for an unknown or other-org request (identical answers). Full reference: docs-site `api-reference/feedback`.
