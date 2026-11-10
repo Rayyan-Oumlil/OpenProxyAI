@@ -4,87 +4,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 
-from app.database import AsyncSessionLocal, SystemSessionLocal, org_scoped_session
-from app.dependencies import get_current_user_from_jwt, get_db
-from app.main import app
+from app.database import org_scoped_session
 from app.models.admin_audit_log import AdminAuditLog
 from app.models.dataset import Dataset, DatasetItem
-from app.models.request_log import RequestLog
-from app.models.request_payload import RequestPayload
-from app.models.request_score import RequestScore
-from app.models.user import User
-from app.utils.crypto import hash_password
+from tests.db_helpers import Api, make_user, remove_seeded_logs, seed  # noqa: F401  (an autouse fixture: removes seeded request_logs)
 from tests.test_mcp_pinning_db import _dispose_app_engines, pytestmark  # noqa: F401  (shared DB test setup)
 
 PATH = "/api/v1/datasets"
-
-
-@pytest.fixture(autouse=True)
-async def _remove_seeded_logs(tenants):
-	"""request_logs.org_id does not cascade, so the shared tenants fixture cannot delete an org that has log rows.
-
-	Depending on ``tenants`` makes this tear down first.
-	"""
-	yield
-	async with SystemSessionLocal() as session:
-		await session.execute(text("DELETE FROM request_logs WHERE org_id IN (:a, :b)"), {"a": tenants.a, "b": tenants.b})
-		await session.commit()
-
-
-class Api:
-	"""The app with the caller pinned to an org, user and role, talking to the real database."""
-
-	def __init__(self, org_id, user, role="admin"):
-		self.org = org_id
-		self.user = SimpleNamespace(id=user.id, org_id=org_id, email=user.email, role=role, is_active=True)
-
-	async def __aenter__(self):
-		async def fake_user():
-			return self.user
-
-		async def scoped_db():
-			async with org_scoped_session(self.org) as session:
-				yield session
-
-		app.dependency_overrides[get_current_user_from_jwt] = fake_user
-		app.dependency_overrides[get_db] = scoped_db
-		self.http = AsyncClient(transport=ASGITransport(app=app), base_url="http://gateway.test")
-		return self
-
-	async def __aexit__(self, *exc):
-		await self.http.aclose()
-		app.dependency_overrides.clear()
-
-
-async def make_user(org_id) -> SimpleNamespace:
-	async with AsyncSessionLocal() as session:
-		user = User(org_id=org_id, email=f"ds-{uuid.uuid4().hex[:8]}@test.local", password_hash=hash_password("TestPass1!"), role="admin", is_active=True)
-		session.add(user)
-		await session.commit()
-		return SimpleNamespace(id=user.id, email=user.email)
-
-
-async def seed(org_id, user_id, *, model="openai/gpt-4o-mini", redacted=False, content="Summarise Q3.", output="Revenue grew.",
-               age_days=0, score=None, request_id=None) -> uuid.UUID:
-	"""One captured request: its log row, its payload and optionally a score."""
-	request_id = request_id or uuid.uuid4()
-	created = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=age_days)
-	async with org_scoped_session(org_id) as db:
-		db.add(RequestLog(request_id=request_id, org_id=org_id, user_id=user_id, model=model, provider="openai", status_code=200))
-		db.add(RequestPayload(
-			request_id=request_id, org_id=org_id, messages=[{"role": "user", "content": content}], output=output,
-			redacted=redacted, expires_at=datetime.now(UTC) + timedelta(days=7), created_at=created,
-		))
-		if score:
-			db.add(RequestScore(request_id=request_id, org_id=org_id, score_name=score[0], value=score[1]))
-		await db.commit()
-	return request_id
 
 
 async def make_dataset(api, name="regression") -> str:

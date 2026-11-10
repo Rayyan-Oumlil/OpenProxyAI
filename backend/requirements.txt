@@ -6,6 +6,8 @@ python-multipart>=0.0.9
 # LLM
 # Pinned to the minor line the suite is verified against; bump deliberately (see tests/test_litellm_contract.py).
 litellm>=1.106,<1.107
+# Evaluator patterns run with a timeout (the stdlib re cannot be interrupted); also a dependency of tiktoken.
+regex>=2024.0
 # litellm imports mcp when a request carries tools; without it every tool-calling request 502s.
 mcp>=2,<3
 

@@ -10,6 +10,7 @@ A summary of what's shipped, grouped by build phase. This tracks major capabilit
 
 ## Unreleased — November 2026
 
+- **Evaluators and eval runs** — `/api/v1/evaluators` and `/api/v1/eval-runs` (admins only): score a candidate model on a dataset with exact match, a regex (run with a timeout) or an LLM judge. Judge and candidate calls go through the gateway's own policy, routing and metering, a run has a spending cap, and an item that could not be scored is an error with a reason, never a zero. Fourth slice of the eval loop.
 - **Datasets** — `/api/v1/datasets` (admins only): build a named set of prompts from captured traffic, filtered by model, date and feedback score, or add items by hand. Rows with personal data are never imported and hand-written items containing it are refused. Third slice of the eval loop.
 - **Payload capture (opt-in)** — set `payload_capture_sample_rate` in the policy to keep a redacted sample of prompts and answers for evaluation. Off at 0 (the default). PII is replaced before storage, requests above the data-class ceiling (default `internal`) are never kept, and rows expire with the plan's audit retention. Second slice of the eval loop.
 - **Feedback endpoint** — `POST /v1/feedback` lets an application rate an answer (thumbs or a named score, with an optional comment stripped of PII) using its API key. Stored as a request score and linked to the experiment variant when there is one. First slice of the eval loop; see `docs/plan/phase-3-plan.md`.
