@@ -39,6 +39,7 @@ class EvalRun(UUIDPrimaryKeyMixin, Base):
 	evaluator_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("evaluators.id", ondelete="SET NULL"), nullable=True)
 	evaluator_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
 	prompt_template_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("prompt_templates.id", ondelete="SET NULL"), nullable=True)
+	prompt_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)  # set when the run tested the template's own prompt
 	candidate_model: Mapped[str] = mapped_column(String(100), nullable=False)
 	system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 	status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="queued")

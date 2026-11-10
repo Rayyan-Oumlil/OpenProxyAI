@@ -20,7 +20,7 @@ Each slice ships alone, behind its own PR, with tests through the real pipeline 
 | 3 | Datasets from logged traffic; rows that had PII detected are never imported | done (PR open) |
 | 4 | Evaluators (exact, regex, LLM judge) and offline eval runs; the judge is metered and policy-checked | done (PR open) |
 | 5 | Adaptive A/B: variants keyed by `variant_id`, stops with a confidence bound, never below a minimum sample | done (PR open) |
-| 6 | Promotion gate: a prompt cannot go live without a passing eval run unless an admin overrides (audited) | todo |
+| 6 | Promotion gate: a prompt cannot go live without a passing eval run unless an admin overrides (audited) | done (PR open) |
 
 Cut from this phase unless asked: the read-only SQL view, `/v1/responses` and `/v1/rerank` (they need a pipeline refactor
 and are a separate decision).
@@ -78,3 +78,15 @@ and are a separate decision).
 - **Audit:** weight changes and the winner are written by `system:adaptive-ab` (no human actor).
 - **Not done:** a console view, more than a rate as the metric (for example a 1 to 5 score would need normalizing), and a sequential test that corrects for repeated looks properly (the measured default is the pragmatic answer for now).
 - **Tested:** 24 unit tests of the statistics including a property test and simulations, and 26 real-Postgres tests of the API, the job and the results. Ten mutations are caught. `scripts/smoke_adaptive.py` runs the real job inside the API container on a real stack.
+
+## Slice 6 decisions
+- **Opt-in, off by default** (`prompt_promotion_gate` in the policy). Turning it on by default would change what every existing org's edits do. With it off, behavior is exactly as before (a regression test pins that).
+- **Lifecycle without breaking `is_active`:** a new `status` (draft, active, retired). `is_active` still means "the live version" and is true exactly for `active`, so `prompt_id` resolution is unchanged and a draft is simply not live. Existing rows are backfilled from `is_active`. The design spec's third state, `candidate`, is derived (a draft that currently passes the gate) instead of stored, so it can never be stale.
+- **A run vouches for exactly the content it tested.** A run of a template records a fingerprint (hash of system message and user template). The gate counts only runs whose fingerprint still matches, so editing a draft after its run invalidates it, and a run with its own overriding `system_prompt` never counts.
+- **What "passing" means** (all for one run): completed; at least `prompt_gate_min_items` scored (default 10); pass rate at least `prompt_gate_min_pass_rate` (default 0.8); no more than a tenth of items unscorable (errors cannot hide behind the few that worked). Every shortfall is reported, not just the first.
+- **Override** is admin-only, needs a reason of at least 10 characters, and is audited as `prompt_template.promoted_with_override` with the reason and what was unmet. Asking for one when the gate passes is not recorded as one.
+- **Settings cannot be weakened by corruption or null:** a corrupt stored threshold falls back to the default (never an easier gate), only a real `true` turns the gate on, and a PATCH with `null` is refused because null would otherwise store as "off".
+- **Promotion locks every version of the prompt** (`FOR UPDATE`) so two promotions cannot both leave a live version. A unique partial index was rejected: it could fail a migration on dirty legacy data.
+- **One draft per prompt;** editing a draft edits it in place.
+- **Known limits (in the guide):** the gate tests the system message (a run's dataset supplies each item's own messages), so a template with no system message needs an override; the gate checks that a run passed, not that the dataset is representative; the 60-second policy cache applies to the gate.
+- **Tested:** 25 real-Postgres tests plus unit tests of the rules; fifteen mutations. `scripts/smoke_promotion.py` runs the full flow on a real stack with a real eval run.

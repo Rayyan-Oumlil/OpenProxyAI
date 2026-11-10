@@ -384,7 +384,7 @@ async def test_creating_and_cancelling_runs_and_evaluators_are_in_the_admin_audi
 		await api.http.post(f"{RUNS}/{run_id}/cancel")
 		await api.http.delete(f"{EVALUATORS}/{evaluator_id}")
 	async with org_scoped_session(tenants.a) as db:
-		actions = set(await db.scalars(select(AdminAuditLog.action).where(AdminAuditLog.resource_type.in_(("evaluator", "eval_run")))))
+		actions = set(await db.scalars(select(AdminAuditLog.action).where(AdminAuditLog.org_id == tenants.a, AdminAuditLog.resource_type.in_(("evaluator", "eval_run")))))
 	assert actions == {"evaluator.created", "evaluator.deleted", "eval_run.created", "eval_run.cancelled"}
 
 

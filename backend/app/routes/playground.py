@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from litellm import acompletion
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -61,6 +61,7 @@ async def create_prompt_template(
     payload: PromptTemplateCreate,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ) -> PromptTemplateResponse:
     if current_user.role not in _PLAYGROUND_WRITE_ROLES:
         raise HTTPException(
@@ -68,6 +69,8 @@ async def create_prompt_template(
             detail="Admin or developer role required",
         )
 
+    # With the org's promotion gate on, nothing goes live without a passing eval run: a new template starts as a draft.
+    gated = (await policy_store.load(current_user.org_id, db, redis)).prompt_promotion_gate
     template = PromptTemplate(
         org_id=current_user.org_id,
         name=payload.name,
@@ -76,7 +79,8 @@ async def create_prompt_template(
         user_template=payload.user_template,
         variables_schema=[v.model_dump() for v in payload.variables_schema],
         version=1,
-        is_active=True,
+        is_active=not gated,
+        status="draft" if gated else "active",
         created_by=current_user.id,
     )
     db.add(template)
@@ -93,6 +97,7 @@ async def create_prompt_template(
         variables_schema=template.variables_schema or [],
         version=template.version,
         is_active=template.is_active,
+        status=template.status,
         created_by=str(template.created_by) if template.created_by else None,
         created_at=template.created_at.isoformat(),
         updated_at=template.updated_at.isoformat(),
@@ -111,7 +116,7 @@ async def list_prompt_templates(
         select(PromptTemplate)
         .where(
             PromptTemplate.org_id == current_user.org_id,
-            PromptTemplate.is_active.is_(True),
+            PromptTemplate.status.in_(("active", "draft")),
         )
         .order_by(PromptTemplate.updated_at.desc())
         .offset(offset)
@@ -128,6 +133,7 @@ async def list_prompt_templates(
             variables_schema=t.variables_schema or [],
             version=t.version,
             is_active=t.is_active,
+            status=t.status,
             created_by=str(t.created_by) if t.created_by else None,
             created_at=t.created_at.isoformat(),
             updated_at=t.updated_at.isoformat(),
@@ -161,9 +167,28 @@ async def get_prompt_template(
         variables_schema=template.variables_schema or [],
         version=template.version,
         is_active=template.is_active,
+        status=template.status,
         created_by=str(template.created_by) if template.created_by else None,
         created_at=template.created_at.isoformat(),
         updated_at=template.updated_at.isoformat(),
+    )
+
+
+def _as_response(t: PromptTemplate) -> PromptTemplateResponse:
+    return PromptTemplateResponse(
+        id=str(t.id),
+        org_id=str(t.org_id),
+        name=t.name,
+        description=t.description,
+        system_message=t.system_message,
+        user_template=t.user_template,
+        variables_schema=t.variables_schema or [],
+        version=t.version,
+        is_active=t.is_active,
+        status=t.status,
+        created_by=str(t.created_by) if t.created_by else None,
+        created_at=t.created_at.isoformat(),
+        updated_at=t.updated_at.isoformat(),
     )
 
 
@@ -173,6 +198,7 @@ async def update_prompt_template(
     payload: PromptTemplateUpdate,
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ) -> PromptTemplateResponse:
     if current_user.role not in _PLAYGROUND_WRITE_ROLES:
         raise HTTPException(
@@ -184,7 +210,7 @@ async def update_prompt_template(
         select(PromptTemplate).where(
             PromptTemplate.id == template_id,
             PromptTemplate.org_id == current_user.org_id,
-            PromptTemplate.is_active.is_(True),
+            PromptTemplate.status.in_(("active", "draft")),
         )
     )
     if template is None:
@@ -203,12 +229,36 @@ async def update_prompt_template(
             variables_schema=template.variables_schema or [],
             version=template.version,
             is_active=template.is_active,
+            status=template.status,
             created_by=str(template.created_by) if template.created_by else None,
             created_at=template.created_at.isoformat(),
             updated_at=template.updated_at.isoformat(),
         )
 
-    new_version = template.version + 1
+    if template.status == "draft":
+        # A draft is edited in place: it is not live and has no history to keep. Any eval run of its old content no longer
+        # counts toward promotion, because runs vouch for a fingerprint of the content they tested.
+        for field in ("name", "description", "system_message", "user_template"):
+            if field in updates:
+                setattr(template, field, updates[field])
+        await db.commit()
+        await db.refresh(template)
+        return _as_response(template)
+
+    gated = (await policy_store.load(current_user.org_id, db, redis)).prompt_promotion_gate
+    if gated and await db.scalar(
+        select(PromptTemplate.id).where(
+            PromptTemplate.org_id == template.org_id, PromptTemplate.name == template.name, PromptTemplate.status == "draft"
+        )
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "draft_exists", "detail": "This prompt already has a draft waiting to be promoted. Edit that one or promote it first."},
+        )
+    highest = await db.scalar(
+        select(func.max(PromptTemplate.version)).where(PromptTemplate.org_id == template.org_id, PromptTemplate.name == template.name)
+    )
+    new_version = (highest or template.version) + 1
     new_template = PromptTemplate(
         org_id=template.org_id,
         name=updates.get("name", template.name),
@@ -217,10 +267,13 @@ async def update_prompt_template(
         user_template=updates.get("user_template", template.user_template),
         variables_schema=template.variables_schema or [],
         version=new_version,
-        is_active=True,
+        is_active=not gated,
+        status="draft" if gated else "active",
         created_by=current_user.id,
     )
-    template.is_active = False
+    if not gated:
+        template.is_active = False
+        template.status = "retired"
     db.add(new_template)
     await db.commit()
     await db.refresh(new_template)
@@ -235,6 +288,7 @@ async def update_prompt_template(
         variables_schema=new_template.variables_schema or [],
         version=new_template.version,
         is_active=new_template.is_active,
+        status=new_template.status,
         created_by=str(new_template.created_by) if new_template.created_by else None,
         created_at=new_template.created_at.isoformat(),
         updated_at=new_template.updated_at.isoformat(),
@@ -263,6 +317,7 @@ async def delete_prompt_template(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     template.is_active = False
+    template.status = "retired"
     await db.commit()
 
 
@@ -300,6 +355,7 @@ async def list_template_versions(
             variables_schema=t.variables_schema or [],
             version=t.version,
             is_active=t.is_active,
+            status=t.status,
             created_by=str(t.created_by) if t.created_by else None,
             created_at=t.created_at.isoformat(),
             updated_at=t.updated_at.isoformat(),

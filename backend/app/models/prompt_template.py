@@ -30,7 +30,10 @@ class PromptTemplate(UUIDPrimaryKeyMixin, Base):
         JSONB, nullable=False, server_default="[]"
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")  # the live version
+    # draft: a new version waiting to be promoted (not live). active: the live version (is_active is true exactly for these).
+    # retired: replaced or deleted. With the org's promotion gate on, an edit creates a draft and a human promotes it.
+    status: Mapped[str] = mapped_column(String(10), nullable=False, server_default="active")
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

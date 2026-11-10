@@ -36,3 +36,5 @@ POST /api/v1/experiments
 POST /api/v1/experiments/{experiment_id}/start
 GET  /api/v1/experiments/{experiment_id}/results
 ```
+
+To make an edited prompt prove itself before it goes live, see [Promoting prompts safely](/guides/prompt-promotion).
