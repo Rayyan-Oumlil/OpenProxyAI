@@ -18,7 +18,7 @@ Each slice ships alone, behind its own PR, with tests through the real pipeline 
 | 1 | `POST /v1/feedback` usable with an API key: idempotent, org-checked, comment redacted of PII | done (PR open) |
 | 2 | Opt-in payload capture: sample rate 0 by default, stored only after redaction, expires with audit retention | done (PR open) |
 | 3 | Datasets from logged traffic; rows that had PII detected are never imported | done (PR open) |
-| 4 | Evaluators (exact, regex, LLM judge) and offline eval runs; the judge is metered and policy-checked | todo |
+| 4 | Evaluators (exact, regex, LLM judge) and offline eval runs; the judge is metered and policy-checked | done (PR open) |
 | 5 | Adaptive A/B: variants keyed by `variant_id`, stops with a confidence bound, never below a minimum sample | todo |
 | 6 | Promotion gate: a prompt cannot go live without a passing eval run unless an admin overrides (audited) | todo |
 
@@ -54,3 +54,15 @@ and are a separate decision).
 - **Capped at 10,000 items per dataset** to bound storage.
 - **Tested against real Postgres** (`tests/test_datasets_db.py`, 29 tests) because the feature is SQL: joins, EXISTS filters, uniqueness, row-level security. Six mutations of the import rules are caught. Dropping the app-level org filter is *not* caught, by design: row-level security is the second wall and still holds.
 - **Not in this slice:** a console page for datasets, importing by score ranges across several score names, and exporting a dataset.
+
+## Slice 4 decisions
+- **Model calls go through one runner** (`app/services/model_runner.py`): policy first, then routing, then the same key selection chat uses, then an audit-log row with tokens and cost tagged `source=eval_run` or `eval_judge`. A refusal is an outcome, not an exception, so one bad item cannot abort a run. **Follow-up debt:** the playground still has its own copy of this sequence (`routes/playground.py`); moving it onto the runner is worth doing but is a refactor of tested, differently shaped code, so it is not part of this slice.
+- **A run is background work with a spending cap.** `max_cost_usd` (default $1, max $50) covers candidate and judge calls together; reaching it ends the run `budget_exceeded` and no new item starts (the few in flight finish, so it can overshoot by about four items). At most 2 active runs per org, 500 items per run, 4 items at a time.
+- **An item that could not be scored is an error with a reason, never a zero,** and is left out of the mean and pass rate (`scored_items` vs `failed_items`). A judge that refuses, fails or answers badly is the same. Treating errors as zeros would punish a candidate for a broken evaluator.
+- **Regex evaluators are the one place an admin's text runs against model output,** so they use the `regex` package with a 1 s timeout in a worker thread. Stdlib `re` cannot be interrupted. A test uses `^(a|aa)+$`, which is genuinely catastrophic in this engine (the usual `(a+)+$` is optimized away and would not prove anything).
+- **The judge prompt treats everything as data:** criteria, question, reference and answer sit in delimited sections, closing tags inside them are defused, and the judge is told never to obey them. Judge replies must be a clean whole-number score in range.
+- **A run keeps a copy of its evaluator** so deleting or changing the evaluator later does not make an old result unreadable.
+- **Cancel is a status change** that each item checks before it starts; a cancel that arrives first is never overwritten by completion.
+- **A sweeper** ends runs stuck active for over three hours (the process that held them died).
+- **Not done:** rate limiting a run against the org's daily budget (the per-run cap is the guard for now), a console page, and comparing two runs side by side.
+- **Tested** with the model calls scripted and everything else real on Postgres (`tests/test_eval_runs_db.py`, 32 tests, plus unit tests for the runner and evaluators). Eight mutations of the run rules are caught. `scripts/smoke_evals.py` runs the whole thing on a real stack, including a deterministic fake judge.

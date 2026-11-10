@@ -83,6 +83,7 @@ const sidebars: SidebarsConfig = {
         'api-reference/embeddings',
         'api-reference/feedback',
         'api-reference/datasets',
+        'api-reference/eval-runs',
         'api-reference/models',
         'api-reference/api-keys',
         'api-reference/provider-keys',

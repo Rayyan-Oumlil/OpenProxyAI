@@ -58,9 +58,11 @@ Every field is optional. `model` keeps requests answered by that model. `since` 
 }
 ```
 
-`messages` is 1 to 50 messages with role `system`, `user` or `assistant` and text content. `expected` is optional and is what exact-match and regex evaluators compare against.
+`messages` is 1 to 50 messages with role `system`, `user` or `assistant` and text content. `expected` is optional. The exact-match evaluator compares answers to it, and an LLM judge is shown it as a reference answer.
 
 An item that contains personal data is **refused with a 422 `pii_in_item`**, naming the kinds found. It is not silently rewritten, because changing an expected answer would quietly change what the test checks. Remove or replace the data and send it again.
+
+Run a [candidate model against a dataset](/api-reference/eval-runs) to score it.
 
 ## Retention
 
