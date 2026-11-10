@@ -50,5 +50,8 @@ BASE_URL="$API" "$PYTHON" scripts/smoke_capture.py; check "capture: opt-in, reda
 # The eval loop's data path with the real login: capture, feedback, dataset, filtered import, PII refusal, delete.
 BASE_URL="$API" "$PYTHON" scripts/smoke_datasets.py; check "datasets: capture -> feedback -> import with filters -> delete" $?
 
+# Evaluators and eval runs with the real executor: exact, regex and judge runs, spending cap, cancel, active-run limit.
+BASE_URL="$API" "$PYTHON" scripts/smoke_evals.py; check "evals: exact, regex, judge, spending cap, cancel, run limit" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"

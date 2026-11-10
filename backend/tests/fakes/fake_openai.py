@@ -7,6 +7,7 @@ the model name sent upstream (LiteLLM strips the ``openai/`` prefix) or by the b
     slow                  -> responds after 1 s
     bad-json              -> 200 with a body that is not JSON
     pii-response          -> completion text containing an SSN
+    [judge-score=N] in the last user message -> a judge's JSON reply {"score": N, "reason": ...}
     mid-stream-error      -> SSE that is cut after the first content chunk
     key "sk-bad"          -> 429 for any model (to exercise key fallback)
 
@@ -16,6 +17,7 @@ Every request is recorded; read them with GET /__calls and clear with POST /__re
 import asyncio
 import hashlib
 import json
+import re
 import socket
 import threading
 import time
@@ -31,10 +33,16 @@ COMPLETION_TOKENS = 5
 PII_TEXT = "Your SSN is 123-45-6789."
 
 
+JUDGE_MARKER = re.compile(r"\[judge-score=(\d+)\]")
+
+
 def _completion_text(body: dict[str, Any]) -> str:
     if body.get("model") == "pii-response":
         return PII_TEXT
     last = next((m for m in reversed(body.get("messages", [])) if m.get("role") == "user"), {})
+    judged = JUDGE_MARKER.search(str(last.get("content")))
+    if judged:
+        return json.dumps({"score": int(judged.group(1)), "reason": "fake judge"})
     return f"echo: {last.get('content')}"
 
 
