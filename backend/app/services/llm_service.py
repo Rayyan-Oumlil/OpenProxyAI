@@ -45,6 +45,7 @@ from app.services.provider_client import ProviderEndpoint, openai_client_for
 from app.utils.provider_endpoint import filter_allowed_endpoints
 from app.services.cache_service import CacheOverride
 from app.services.audit_logger import log_request
+from app.services.payload_capture import capture_payload, should_capture
 from app.services.cost_tracker import cost_tracker_service
 from app.services.circuit_breaker_service import (
 	is_circuit_open,
@@ -647,6 +648,23 @@ class LLMService:
 		)
 
 	@staticmethod
+	def _schedule_capture(ctx: _RequestContext, response_text: str) -> None:
+		"""Keep the redacted prompt and answer for evaluation, only if the org opted in and this request was sampled.
+
+		Off at the default rate of 0, never above the operator's data-class ceiling, and run in the background after
+		the response is built, so it cannot change what the caller receives.
+		"""
+		if not response_text or ctx.classification is None:
+			return
+		if not should_capture(
+			sample_rate=getattr(ctx.policy_config, "payload_capture_sample_rate", 0.0),
+			data_class=ctx.classification.data_class,
+			ceiling=settings.PAYLOAD_CAPTURE_MAX_DATA_CLASS,
+		):
+			return
+		ctx.background_tasks.add_task(capture_payload, ctx.user.org_id, ctx.request_id, ctx.request.messages, response_text)
+
+	@staticmethod
 	def _route_headers(routing: RoutingDecision | None) -> dict[str, str]:
 		if routing is None:
 			return {}
@@ -1214,6 +1232,7 @@ class LLMService:
 					except Exception as exc:
 						logger.error("Response guardrail check failed for request %s: %s", ctx.request_id, exc)
 				self._schedule_eval(ctx, "".join(collected_chunks))
+				self._schedule_capture(ctx, "".join(collected_chunks))
 			finally:
 				_record_stream()
 
@@ -1278,6 +1297,7 @@ class LLMService:
 							cached_content = msg["content"]
 							break
 				self._schedule_eval(ctx, cached_content)
+				self._schedule_capture(ctx, cached_content)
 				return JSONResponse(
 					content=cached_body,
 					headers={
@@ -1386,7 +1406,9 @@ class LLMService:
 			team_id=ctx.team_id, provider_key_id=provider_key_id,
 		)
 
-		self._schedule_eval(ctx, response.choices[0].message.content or "" if response.choices else "")
+		answer = response.choices[0].message.content or "" if response.choices else ""
+		self._schedule_eval(ctx, answer)
+		self._schedule_capture(ctx, answer)
 
 		return JSONResponse(
 			content=body,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, StringConstraints, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from app.services.data_class import DataClass
 
@@ -35,8 +35,9 @@ class PolicyConfigRequest(BaseModel):
 	data_class_map: dict[EntityName, DataClass] | None = None
 	routing_mode: Literal["off", "log_only", "enforce"] | None = None
 	max_risk_rating: Literal["low", "medium", "high"] | None = None
+	payload_capture_sample_rate: float | None = Field(default=None, ge=0, le=1)
 
-	@field_validator("default_data_class", "routing_mode", "max_risk_rating", mode="before")
+	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "payload_capture_sample_rate", mode="before")
 	@classmethod
 	def _not_null(cls, value):
 		if value is None:
@@ -69,6 +70,7 @@ class PolicyConfigResponse(BaseModel):
 	data_class_map: dict[str, str] = {}
 	routing_mode: str = "off"
 	max_risk_rating: str = "high"
+	payload_capture_sample_rate: float = 0.0
 
 
 class ApplyTemplateRequest(BaseModel):

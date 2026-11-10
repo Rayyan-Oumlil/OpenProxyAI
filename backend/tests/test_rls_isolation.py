@@ -56,6 +56,7 @@ RLS_TABLES = [
     "mcp_bundle_tools",
     "api_key_mcp_bundles",
     "request_scores",
+    "request_payloads",
 ]
 
 
@@ -290,3 +291,24 @@ async def test_request_scores_are_org_isolated(two_orgs):
     async with org_scoped_session(org_b_id) as session:
         row = await session.scalar(select(RequestScore).where(RequestScore.request_id == request_id))
         assert row is not None and float(row.value) == 1.0
+
+
+@pytest.mark.asyncio
+async def test_request_payloads_are_org_isolated(two_orgs):
+    """Captured text written for org B cannot be read by org A, and org A cannot overwrite it by reusing the request id."""
+    from app.database import org_scoped_session
+    from app.models.request_payload import RequestPayload
+    from app.services.payload_capture import capture_payload
+
+    org_a_id, org_b_id = two_orgs
+    request_id = uuid.uuid4()
+
+    assert await capture_payload(org_b_id, request_id, [{"role": "user", "content": "hello"}], "org B answer") is True
+    assert await capture_payload(org_a_id, request_id, [{"role": "user", "content": "hi"}], "org A answer") is True
+
+    async with org_scoped_session(org_a_id) as session:
+        row = await session.scalar(select(RequestPayload).where(RequestPayload.request_id == request_id))
+        assert row is not None and row.output == "org A answer"
+    async with org_scoped_session(org_b_id) as session:
+        row = await session.scalar(select(RequestPayload).where(RequestPayload.request_id == request_id))
+        assert row is not None and row.output == "org B answer"

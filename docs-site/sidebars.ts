@@ -48,6 +48,7 @@ const sidebars: SidebarsConfig = {
         'guides/prompt-playground',
         'guides/semantic-cache-tuning',
         'guides/data-residency',
+        'guides/payload-capture',
       ],
     },
     {
