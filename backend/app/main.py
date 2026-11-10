@@ -36,6 +36,7 @@ from app.routes.model_registry import router as model_registry_router
 from app.routes.policy_preview import router as policy_preview_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.experiments import router as experiments_router
+from app.routes.feedback import router as feedback_router
 from app.routes.requests import router as requests_router
 from app.routes.teams import router as teams_router
 from app.routes.proxy import router as proxy_router
@@ -392,6 +393,7 @@ app.include_router(organizations_router)
 app.include_router(provider_keys_router)
 app.include_router(experiments_router)
 app.include_router(requests_router)
+app.include_router(feedback_router)
 app.include_router(teams_router)
 app.include_router(proxy_router)
 app.include_router(analytics_router)
