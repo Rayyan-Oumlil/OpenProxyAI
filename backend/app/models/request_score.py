@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -28,6 +28,10 @@ class RequestScore(UUIDPrimaryKeyMixin, Base):
 	)
 	score_name: Mapped[str] = mapped_column(String(100), nullable=False)
 	value: Mapped[float] = mapped_column(Numeric(10, 4), nullable=False)
+	# Where the score came from: "console" (a signed-in user), "api" (an application with an API key); later "evaluator".
+	source: Mapped[str] = mapped_column(String(20), nullable=False, server_default="console")
+	comment: Mapped[str | None] = mapped_column(Text, nullable=True)  # PII-redacted before it is stored
+	user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 	created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
 	def __repr__(self) -> str:
