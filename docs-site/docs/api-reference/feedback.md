@@ -9,7 +9,7 @@ description: POST /v1/feedback — tell the gateway whether an answer was good, 
 POST /v1/feedback
 ```
 
-Rate one answer. Your application sends this with the same API key it uses for chat, so no console login is needed. Ratings are stored as request scores, and for a request that ran in an experiment they are attached to its variant, which is what the experiment results and the evaluation features that follow it read.
+Rate one answer. Your application sends this with the same API key it uses for chat, so no console login is needed. Ratings are stored as request scores, and for a request that ran in an experiment they are attached to its variant, which is what the experiment results and [adaptive experiments](/guides/adaptive-experiments) read.
 
 ## Which id to send
 
