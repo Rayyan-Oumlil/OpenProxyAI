@@ -17,7 +17,7 @@ Each slice ships alone, behind its own PR, with tests through the real pipeline 
 |---|---|---|
 | 1 | `POST /v1/feedback` usable with an API key: idempotent, org-checked, comment redacted of PII | done (PR open) |
 | 2 | Opt-in payload capture: sample rate 0 by default, stored only after redaction, expires with audit retention | done (PR open) |
-| 3 | Datasets from logged traffic; rows that had PII detected are never imported | todo |
+| 3 | Datasets from logged traffic; rows that had PII detected are never imported | done (PR open) |
 | 4 | Evaluators (exact, regex, LLM judge) and offline eval runs; the judge is metered and policy-checked | todo |
 | 5 | Adaptive A/B: variants keyed by `variant_id`, stops with a confidence bound, never below a minimum sample | todo |
 | 6 | Promotion gate: a prompt cannot go live without a passing eval run unless an admin overrides (audited) | todo |
@@ -45,3 +45,12 @@ and are a separate decision).
 - **Expiry follows the plan's `audit_retention_days`;** a job every six hours deletes expired rows, one organization at a time because row-level security is forced.
 - **Found while verifying on the real stack:** the purge job returned 0 in a bare process because `PromptTemplate` was never registered in `app/models/__init__.py`. The app process hid it because `main.py` imports everything. Fixed at the root and pinned by a test that imports only `app.models`.
 - **Not in this slice:** a console control for the rate (set it through the policy API for now), and reading captured rows (slice 3).
+
+## Slice 3 decisions
+- **Admin only, audited.** Datasets hold copies of prompts, so every route needs an admin and writes to the admin audit log (`dataset.created`, `.imported`, `.deleted`).
+- **A copy does not expire.** An item outlives the captured payload it came from, because a test set that vanishes after seven days is useless. It goes when an admin deletes it. This is a retention decision and is written in the API docs.
+- **PII is refused twice on import:** rows flagged at capture time are skipped, and every row is scanned again, so a better detector later still catches old rows. Items added by hand that contain PII get a 422 rather than being silently rewritten (rewriting an expected answer would change what the test checks).
+- **Already-imported rows are excluded before the limit applies,** so a repeated limited import moves on. A mutation test found this was untested: the database's own uniqueness hid it.
+- **Capped at 10,000 items per dataset** to bound storage.
+- **Tested against real Postgres** (`tests/test_datasets_db.py`, 29 tests) because the feature is SQL: joins, EXISTS filters, uniqueness, row-level security. Six mutations of the import rules are caught. Dropping the app-level org filter is *not* caught, by design: row-level security is the second wall and still holds.
+- **Not in this slice:** a console page for datasets, importing by score ranges across several score names, and exporting a dataset.

@@ -10,44 +10,12 @@ It sends one real chat request, rates it with the id from the response header, a
 Postgres through `docker compose exec` (the demo stack's database). Exits 1 if any outcome differs from the contract.
 """
 
-import json
-import os
-import subprocess
 import sys
 import time
 import uuid
-import urllib.error
-import urllib.request
 
-BASE = os.environ.get("BASE_URL", "http://localhost:8000").rstrip("/")
-CLIENT_KEY = os.environ.get("API_KEY", "opai_dev_demo0001_00000000000000000000000000demo01fea5")
-COMPOSE = ["docker", "compose", "-f", "docker-compose.demo.yml"]
-
-failures = 0
-
-
-def call(method, path, *, token=None, body=None):
-    request = urllib.request.Request(
-        BASE + path, method=method, data=None if body is None else json.dumps(body).encode(),
-        headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {token}"} if token else {})},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            status, raw, got = response.status, response.read().decode(), dict(response.headers)
-    except urllib.error.HTTPError as error:
-        status, raw, got = error.code, error.read().decode(), dict(error.headers)
-    try:
-        parsed = json.loads(raw)
-    except ValueError:
-        parsed = raw
-    return status, {k.lower(): v for k, v in got.items()}, parsed
-
-
-def check(label, ok, detail=""):
-    global failures
-    if not ok:
-        failures += 1
-    print(f"{'ok  ' if ok else 'FAIL'} {label}" + ("" if ok else f"   [{str(detail)[:200]}]"))
+import smoke_lib as lib
+from smoke_lib import CLIENT_KEY, call, check, sql
 
 
 def second_org_key():
@@ -73,15 +41,10 @@ def is_uuid(text):
 
 def stored_rows(request_id):
     """(score_name, value, source, comment) rows for one request, straight from the database."""
-    sql = (
+    return [tuple(row) for row in sql(
         "SELECT score_name, value::float8, source, coalesce(comment, '<none>') FROM request_scores "
         f"WHERE request_id = '{request_id}' ORDER BY score_name"
-    )
-    out = subprocess.run(
-        [*COMPOSE, "exec", "-T", "postgres", "psql", "-U", "openproxyai", "-d", "openproxyai", "-tA", "-F", "|", "-c", sql],
-        capture_output=True, text=True, check=True,
-    ).stdout
-    return [tuple(line.split("|")) for line in out.splitlines() if line.strip()]
+    )]
 
 
 def rate(request_id, body):
@@ -134,8 +97,8 @@ def main():
     status, _, _ = call("POST", "/v1/feedback", token=CLIENT_KEY, body={"request_id": request_id, "value": 1})
     check("a numeric value without a score_name is a 422", status == 422, status)
 
-    if failures:
-        print(f"{failures} feedback check(s) failed")
+    if lib.failures:
+        print(f"{lib.failures} feedback check(s) failed")
         sys.exit(1)
     print("feedback smoke passed")
 

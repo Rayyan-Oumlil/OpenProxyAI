@@ -47,5 +47,8 @@ BASE_URL="$API" "$PYTHON" scripts/smoke_feedback.py; check "feedback: rate an an
 # Opt-in payload capture on the real image and database: redaction, the data-class ceiling, expiry and the purge job.
 BASE_URL="$API" "$PYTHON" scripts/smoke_capture.py; check "capture: opt-in, redaction, ceiling, streaming, expiry, purge" $?
 
+# The eval loop's data path with the real login: capture, feedback, dataset, filtered import, PII refusal, delete.
+BASE_URL="$API" "$PYTHON" scripts/smoke_datasets.py; check "datasets: capture -> feedback -> import with filters -> delete" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"
