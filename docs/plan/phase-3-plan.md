@@ -19,7 +19,7 @@ Each slice ships alone, behind its own PR, with tests through the real pipeline 
 | 2 | Opt-in payload capture: sample rate 0 by default, stored only after redaction, expires with audit retention | done (PR open) |
 | 3 | Datasets from logged traffic; rows that had PII detected are never imported | done (PR open) |
 | 4 | Evaluators (exact, regex, LLM judge) and offline eval runs; the judge is metered and policy-checked | done (PR open) |
-| 5 | Adaptive A/B: variants keyed by `variant_id`, stops with a confidence bound, never below a minimum sample | todo |
+| 5 | Adaptive A/B: variants keyed by `variant_id`, stops with a confidence bound, never below a minimum sample | done (PR open) |
 | 6 | Promotion gate: a prompt cannot go live without a passing eval run unless an admin overrides (audited) | todo |
 
 Cut from this phase unless asked: the read-only SQL view, `/v1/responses` and `/v1/rerank` (they need a pipeline refactor
@@ -66,3 +66,15 @@ and are a separate decision).
 - **A sweeper** ends runs stuck active for over three hours (the process that held them died).
 - **Not done:** rate limiting a run against the org's daily budget (the per-run cap is the guard for now), a console page, and comparing two runs side by side.
 - **Tested** with the model calls scripted and everything else real on Postgres (`tests/test_eval_runs_db.py`, 32 tests, plus unit tests for the runner and evaluators). Eight mutations of the run rules are caught. `scripts/smoke_evals.py` runs the whole thing on a real stack, including a deterministic fake judge.
+
+## Slice 5 decisions
+- **Method:** each variant's rate (thumbs, or any score in 0 to 1) has a Beta posterior; the chance each is best comes from sampling it (10,000 draws, seeded so a decision can be reproduced). Traffic follows that chance, never below a floor (default 5%). It stops, naming a winner, when one is best with probability at least `1 - delta`.
+- **Nothing is decided early:** weights are untouched and no winner is named until every variant has `min_samples_per_variant` ratings (default 30, hard floor 20, enforced in the statistics, in the API and in a database check constraint).
+- **The default `delta` is 0.01, not the textbook 0.05, because of a measurement.** The rule is looked at repeatedly as ratings arrive, which inflates false stops. Simulated (a look every 10 ratings, up to 400 per variant, 120 trials): for two *equal* variants, delta 0.05 names a "winner" in 38% to 43% of trials; delta 0.01 in about 13%. For a real 0.7 vs 0.5 gap both pick the better one 119 of 120 times. The docs say this plainly. A false winner between equal variants costs nothing (either is as good), but it is stated, not hidden.
+- **A winner is recorded, never deployed.** Stopping ends the split (requests return to the target model) and sets `winner_variant_id`. The model serving production traffic is changed only by a human.
+- **A metric that is not a rate is an error, not a guess:** values outside 0 to 1 leave the experiment untouched and set `adaptive_error`, which the results endpoint shows.
+- **Results are keyed by variant id, not model name.** Two variants on the same model used to collapse into one row. Rows logged before variants carried ids are matched by model only when that is unambiguous.
+- **Variants now have a stable order** (by id). Before, the API listed them in whatever order Postgres returned; the flaky test that exposed this had been comparing list positions.
+- **Audit:** weight changes and the winner are written by `system:adaptive-ab` (no human actor).
+- **Not done:** a console view, more than a rate as the metric (for example a 1 to 5 score would need normalizing), and a sequential test that corrects for repeated looks properly (the measured default is the pragmatic answer for now).
+- **Tested:** 24 unit tests of the statistics including a property test and simulations, and 26 real-Postgres tests of the API, the job and the results. Ten mutations are caught. `scripts/smoke_adaptive.py` runs the real job inside the API container on a real stack.

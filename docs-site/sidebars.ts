@@ -49,6 +49,7 @@ const sidebars: SidebarsConfig = {
         'guides/semantic-cache-tuning',
         'guides/data-residency',
         'guides/payload-capture',
+        'guides/adaptive-experiments',
       ],
     },
     {
