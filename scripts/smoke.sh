@@ -44,5 +44,8 @@ BASE_URL="$API" FAKE_URL="http://localhost:9090" "$PYTHON" scripts/smoke_routing
 # Feedback endpoint on the real image and database: rate an answer with an API key, read the row back.
 BASE_URL="$API" "$PYTHON" scripts/smoke_feedback.py; check "feedback: rate an answer, upsert, redaction, refusals" $?
 
+# Opt-in payload capture on the real image and database: redaction, the data-class ceiling, expiry and the purge job.
+BASE_URL="$API" "$PYTHON" scripts/smoke_capture.py; check "capture: opt-in, redaction, ceiling, streaming, expiry, purge" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"

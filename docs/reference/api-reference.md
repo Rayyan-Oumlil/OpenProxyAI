@@ -459,6 +459,10 @@ Prefix: `/api/v1/requests`. **JWT required.** Submit quality scores per request 
 {"submitted": 2}
 ```
 
+### Payload capture setting
+
+`PATCH /api/v1/organizations/current/policy` accepts `payload_capture_sample_rate` (0 to 1, default 0). At 0 nothing is stored; above 0, that share of delivered answers is kept with its prompt, PII-redacted, in `request_payloads` until the plan's audit retention passes. Never stored above `PAYLOAD_CAPTURE_MAX_DATA_CLASS` (default `internal`). See the docs-site guide *Capturing traffic for evaluation*.
+
 ### Feedback (API key)
 
 `POST /v1/feedback`, authenticated like chat with an API key that has `proxy:llm`. Body: `{request_id, thumbs: "up"|"down"}` or `{request_id, score_name, value, comment?}`; thumbs up is stored as 1, down as 0 under the score name `thumbs`. The comment (max 2000 chars) is PII-redacted before storage. Same upsert as above; 404 for an unknown or other-org request (identical answers). Full reference: docs-site `api-reference/feedback`.

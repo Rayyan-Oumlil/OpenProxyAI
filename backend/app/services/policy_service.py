@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import json
+import math
 import re
 import re as _re
 import uuid
@@ -41,6 +42,13 @@ def _valid_class(value: object, fallback: str) -> str:
 	return value if isinstance(value, str) and value in DATA_CLASSES else fallback
 
 
+def _valid_rate(value: object) -> float:
+	"""A sample rate in [0, 1]. Anything else stored (a corrupt value, NaN, a string) means off, never 'capture everything'."""
+	if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1:
+		return 0.0
+	return float(value)
+
+
 def _clean_class_map(raw: object) -> dict[str, str]:
 	"""Stored data is validated by the API; if something invalid got in anyway, drop it rather than guess."""
 	if not isinstance(raw, dict):
@@ -75,6 +83,9 @@ class PolicyConfig:
 	# enforce = only models authorized for the request's data class may serve it.
 	routing_mode: str = "off"
 	max_risk_rating: str = "high"  # models rated above this are never authorized
+	# Evaluation (Phase 3): the share of eligible requests whose redacted prompt and answer are kept for evaluation.
+	# 0 (the default) stores nothing.
+	payload_capture_sample_rate: float = 0.0
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -107,6 +118,7 @@ class PolicyConfig:
 			data_class_map=_clean_class_map(data.get("data_class_map")),
 			routing_mode=data.get("routing_mode") if data.get("routing_mode") in _ROUTING_MODES else "off",
 			max_risk_rating=data.get("max_risk_rating") if data.get("max_risk_rating") in _RISK_LEVELS else "high",
+			payload_capture_sample_rate=_valid_rate(data.get("payload_capture_sample_rate")),
 		)
 
 	def to_dict(self) -> dict:
@@ -128,6 +140,7 @@ class PolicyConfig:
 			"data_class_map": self.data_class_map,
 			"routing_mode": self.routing_mode,
 			"max_risk_rating": self.max_risk_rating,
+			"payload_capture_sample_rate": self.payload_capture_sample_rate,
 		}
 
 
