@@ -37,6 +37,7 @@ from app.routes.policy_preview import router as policy_preview_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.experiments import router as experiments_router
 from app.routes.datasets import router as datasets_router
+from app.routes.scores import router as scores_router
 from app.routes.conversations import router as conversations_router
 from app.routes.evaluation import evaluators_router, runs_router as eval_runs_router
 from app.routes.prompt_promotion import router as prompt_promotion_router
@@ -426,6 +427,7 @@ app.include_router(experiments_router)
 app.include_router(requests_router)
 app.include_router(feedback_router)
 app.include_router(datasets_router)
+app.include_router(scores_router)
 app.include_router(conversations_router)
 app.include_router(evaluators_router)
 app.include_router(eval_runs_router)
