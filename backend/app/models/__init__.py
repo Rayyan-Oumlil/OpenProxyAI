@@ -26,6 +26,7 @@ from app.models.model_registry import ModelRegistryEntry
 from app.models.prompt_template import PromptTemplate
 from app.models.conversation import Conversation, ConversationContextPackage, ConversationTurn
 from app.models.policy_plugin import PolicyPlugin
+from app.models.batch import BatchFile, BatchJob, BatchResult
 
 __all__ = [
     "Base",
@@ -35,6 +36,9 @@ __all__ = [
     "ConversationTurn",
     "ConversationContextPackage",
     "PolicyPlugin",
+    "BatchFile",
+    "BatchJob",
+    "BatchResult",
     "Organization",
     "User",
     "ApiKey",
