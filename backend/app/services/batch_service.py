@@ -24,12 +24,14 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Final
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.config import settings
-from app.database import AsyncSessionLocal, org_scoped_session, set_session_org_id
+from app.database import AsyncSessionLocal, org_scoped_session
 from app.models.batch import BatchFile, BatchJob, BatchResult
 from app.models.organization import Organization
+from app.models.user import User
+from app.services.cost_tracker import cost_tracker_service
 from app.services.model_runner import run_prompt
 from app.services.policy_service import policy_store
 
@@ -158,12 +160,33 @@ async def _finish(org_id: uuid.UUID, job_id: uuid.UUID, status: str, error: str 
 		await db.commit()
 
 
-async def _run_line(line: Line, job_id: uuid.UUID, org_id: uuid.UUID, user_id: uuid.UUID, redis: Any, policy_config: Any, state: dict[str, Any]) -> None:
-	"""One line through the model runner and its recorded result. Never raises."""
+async def _daily_budget_spent(redis: Any, org_id: uuid.UUID, user_id: uuid.UUID, user_budget: Decimal | None) -> str | None:
+	"""Why no more lines may run today, or None. A batch must not be a way around the daily budgets live requests are held to."""
+	if await cost_tracker_service.get_org_spend_today(redis, org_id) >= Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)):
+		return "the organization's daily budget is used up"
+	if user_budget is not None and not await cost_tracker_service.check_user_budget(redis, user_id, user_budget):
+		return "your daily budget is used up"
+	return None
+
+
+async def _run_line(line: Line, job_id: uuid.UUID, org_id: uuid.UUID, user_id: uuid.UUID, redis: Any, state: dict[str, Any]) -> None:
+	"""One line through the model runner and its recorded result. Never raises.
+
+	The policy is read afresh for every line (it is cached for a minute), and the owner must still be active, so a policy change or
+	a deactivated user takes effect mid-batch instead of after it. The org's and the user's daily budgets are checked first."""
 	async with org_scoped_session(org_id) as db:
 		status = await db.scalar(select(BatchJob.status).where(BatchJob.id == job_id))
 		if state["stop"] or status != "in_progress":
 			return
+		owner = await db.get(User, user_id)
+		if owner is None or not owner.is_active:
+			state["stop"], state["error"] = "failed", "the owner of this batch is no longer active"
+			return
+		over = await _daily_budget_spent(redis, org_id, user_id, getattr(owner, "budget_daily_usd", None))
+		if over:
+			state["stop"], state["error"] = "budget_exceeded", over
+			return
+		policy_config = await policy_store.load(org_id, db, redis)
 		outcome = await run_prompt(
 			db=db, redis=redis, org_id=org_id, user_id=user_id, model=line.model, messages=line.messages, policy_config=policy_config,
 			source="batch", extra_metadata={"batch_id": str(job_id), "batch_custom_id": line.custom_id},
@@ -203,16 +226,15 @@ async def execute_job(job_id: uuid.UUID, org_id: uuid.UUID, user_id: uuid.UUID, 
 			lines = parse_input(source.content)  # validated at upload; checked again because the content is what is about to be sent
 			job.status, job.started_at = "in_progress", _now()
 			await db.commit()
-			policy_config = await policy_store.load(org_id, db, redis)
-		state: dict[str, Any] = {"stop": None}
+		state: dict[str, Any] = {"stop": None, "error": None}
 		gate = asyncio.Semaphore(CONCURRENCY)
 
 		async def one(line: Line) -> None:
 			async with gate:
-				await _run_line(line, job_id, org_id, user_id, redis, policy_config, state)
+				await _run_line(line, job_id, org_id, user_id, redis, state)
 
 		await asyncio.gather(*(one(line) for line in lines))
-		await _finish(org_id, job_id, state["stop"] or "completed")
+		await _finish(org_id, job_id, state["stop"] or "completed", state["error"])
 	except Exception as exc:
 		logger.exception("batch %s failed", job_id)
 		try:
@@ -222,23 +244,32 @@ async def execute_job(job_id: uuid.UUID, org_id: uuid.UUID, user_id: uuid.UUID, 
 
 
 async def maintain() -> tuple[int, int]:
-	"""The janitor: end jobs stuck in progress (the process that held them died) and delete files past their retention.
+	"""The janitor: end jobs stuck in progress (the process that held them died), clear results nothing will collect, and delete files
+	past their retention.
 
-	One organization at a time, because row-level security is forced. Returns (jobs ended, files deleted).
+	A job is stalled when it has not *started* within ``STALE_AFTER`` (or was created that long ago and never started); ending it goes
+	through ``_finish`` so the lines that did complete still become an output file that expires like any other. One organization at a
+	time, because row-level security is forced. Returns (jobs ended, files deleted).
 	"""
 	ended = deleted = 0
 	try:
 		async with AsyncSessionLocal() as session:
-			for org_id in list(await session.scalars(select(Organization.id))):
-				await set_session_org_id(session, org_id)
-				result = await session.execute(
-					update(BatchJob).where(BatchJob.org_id == org_id, BatchJob.status.in_(ACTIVE), BatchJob.created_at < _now() - STALE_AFTER)
-					.values(status="failed", error="interrupted: the service stopped before this batch finished", finished_at=_now())
-				)
-				ended += result.rowcount or 0
-				gone = await session.execute(delete(BatchFile).where(BatchFile.org_id == org_id, BatchFile.expires_at < _now()))
+			orgs = list(await session.scalars(select(Organization.id)))
+		for org_id in orgs:
+			async with org_scoped_session(org_id) as db:
+				cutoff = _now() - STALE_AFTER
+				stalled = list(await db.scalars(
+					select(BatchJob.id).where(BatchJob.status.in_(ACTIVE), func.coalesce(BatchJob.started_at, BatchJob.created_at) < cutoff)
+				))
+			for job_id in stalled:
+				await _finish(org_id, job_id, "failed", "interrupted: the service stopped before this batch finished")
+				ended += 1
+			async with org_scoped_session(org_id) as db:
+				finished = select(BatchJob.id).where(BatchJob.status.notin_(ACTIVE))
+				await db.execute(delete(BatchResult).where(BatchResult.job_id.in_(finished), BatchResult.org_id == org_id))
+				gone = await db.execute(delete(BatchFile).where(BatchFile.org_id == org_id, BatchFile.expires_at < _now()))
 				deleted += gone.rowcount or 0
-			await session.commit()
+				await db.commit()
 	except Exception:
 		logger.exception("batch maintenance failed")
 	return ended, deleted

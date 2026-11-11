@@ -266,10 +266,17 @@ export function ThreadView({
                   <Users size={12} aria-hidden="true" />
                   &nbsp;Shared with a team
                 </>
+              ) : c.visibility === "org" ? (
+                "Shared with the organization"
               ) : (
                 "Private"
               )}
             </Badge>
+            {c.system_prompt ? (
+              <Badge variant="default" title={c.system_prompt}>
+                Has a standing instruction
+              </Badge>
+            ) : null}
             {c.tags.map((t) => (
               <Badge key={t} variant="default">
                 {t}

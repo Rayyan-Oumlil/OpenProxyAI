@@ -68,12 +68,13 @@ class Client:
 @pytest.fixture
 def provider(monkeypatch):
 	"""The model runner replaced: records every call and answers from a script by custom id."""
-	seen = SimpleNamespace(calls=[], refuse=set(), fail=set(), cost="0.01", delay=0.0, in_flight=0, peak=0)
+	seen = SimpleNamespace(calls=[], refuse=set(), fail=set(), cost="0.01", delay=0.0, in_flight=0, peak=0, policies=[])
 
 	async def run_prompt(*, db, redis, org_id, user_id, model, messages, policy_config, source, extra_metadata=None, temperature=None, max_tokens=None):
 		seen.in_flight += 1
 		seen.peak = max(seen.peak, seen.in_flight)
 		try:
+			seen.policies.append(policy_config)
 			seen.calls.append({"model": model, "messages": messages, "source": source, "meta": extra_metadata, "temperature": temperature, "max_tokens": max_tokens})
 			await asyncio.sleep(seen.delay)
 			cid = (extra_metadata or {}).get("batch_custom_id")
@@ -266,15 +267,19 @@ async def test_expired_files_are_deleted_and_stalled_jobs_are_ended(tenants, pro
 		old_input = (await c.upload(line("z"))).json()["id"]
 	async with SystemSessionLocal() as session:
 		await session.execute(update(BatchFile).where(BatchFile.id == uuid.UUID(old_input)).values(expires_at=bs._now() - timedelta(days=1)))
-		stuck = BatchJob(org_id=tenants.a, user_id=tenants.user_a.id, endpoint=bs.ENDPOINT, status="in_progress", total=1, max_cost_usd=1, created_at=bs._now() - timedelta(days=2))
+		stuck = BatchJob(org_id=tenants.a, user_id=tenants.user_a.id, endpoint=bs.ENDPOINT, status="in_progress", total=2, max_cost_usd=1, created_at=bs._now() - timedelta(days=2), started_at=bs._now() - timedelta(days=2))
 		session.add(stuck)
+		await session.flush()
+		session.add(BatchResult(org_id=tenants.a, job_id=stuck.id, idx=0, custom_id="done-before-the-crash", status_code=200, body={"x": 1}))
 		await session.commit()
 		stuck_id = stuck.id
 	ended, deleted = await bs.maintain()
 	assert ended >= 1 and deleted >= 1
 	async with org_scoped_session(tenants.a) as db:
 		assert await db.get(BatchFile, uuid.UUID(old_input)) is None
-		assert (await db.get(BatchJob, stuck_id)).status == "failed"
+		ended_job = await db.get(BatchJob, stuck_id)
+		assert ended_job.status == "failed" and ended_job.output_file_id is not None  # the line that finished is still delivered, and expires
+		assert (await db.scalar(select(func.count()).select_from(BatchResult).where(BatchResult.job_id == stuck_id))) == 0
 		assert await db.get(BatchJob, uuid.UUID(job["id"])) is not None  # a finished job and its unexpired output are kept
 
 
@@ -290,3 +295,71 @@ async def test_deleting_a_file_removes_its_content(tenants, provider):
 		file_id = (await c.upload(line("a"))).json()["id"]
 		assert (await c.http.delete(f"/v1/files/{file_id}")).json()["deleted"] is True
 		assert (await c.http.get(f"/v1/files/{file_id}")).status_code == 404
+
+
+# -- found by the security review ---------------------------------------------------------------------------
+
+
+async def test_a_batch_stops_when_the_orgs_daily_budget_is_used_up(tenants, provider, monkeypatch):
+	from app.config import settings
+
+	monkeypatch.setattr(settings, "DEFAULT_BUDGET_DAILY_USD", 0.0)
+	async with Client(tenants.a, tenants.user_a) as c:
+		job = await run(c, *[line(f"l{i}") for i in range(5)])
+		assert job["status"] == "budget_exceeded" and "daily budget" in job["error"] and job["request_counts"]["completed"] == 0
+	assert provider.calls == []  # nothing was sent once the budget was gone
+
+
+async def test_a_batch_stops_when_the_users_own_daily_budget_is_used_up(tenants, provider):
+	async with SystemSessionLocal() as session:
+		from app.models.user import User
+
+		await session.execute(update(User).where(User.id == tenants.user_a.id).values(budget_daily_usd=Decimal("1.00")))
+		await session.commit()
+	async with Client(tenants.a, tenants.user_a) as c:
+		await c.redis.set(f"rl:usd:user:{tenants.user_a.id}:{__import__('datetime').datetime.now(__import__('datetime').UTC).strftime('%Y-%m-%d')}", "5.00")
+		job = await run(c, line("a"))
+		assert job["status"] == "budget_exceeded" and "your daily budget" in job["error"]
+	assert provider.calls == []
+
+
+async def test_a_batch_stops_when_its_owner_is_deactivated_mid_run(tenants, provider):
+	provider.delay = 0.2
+	async with Client(tenants.a, tenants.user_a) as c:
+		file_id = (await c.upload(*[line(f"l{i}") for i in range(20)])).json()["id"]
+		batch_id = (await c.start(file_id)).json()["id"]
+		await asyncio.sleep(0.5)
+		async with SystemSessionLocal() as session:
+			from app.models.user import User
+
+			await session.execute(update(User).where(User.id == tenants.user_a.id).values(is_active=False))
+			await session.commit()
+		job = await wait_done(c, batch_id, timeout=30)
+		assert job["status"] == "failed" and "no longer active" in job["error"] and job["request_counts"]["completed"] < 20
+
+
+async def test_the_policy_is_read_afresh_for_every_line(tenants, provider, monkeypatch):
+	loads = []
+	real = bs.policy_store.load
+
+	async def counting(org_id, db, redis):
+		loads.append(1)
+		return await real(org_id, db, redis)
+
+	monkeypatch.setattr(bs.policy_store, "load", counting)
+	async with Client(tenants.a, tenants.user_a) as c:
+		await run(c, *[line(f"l{i}") for i in range(6)])
+	assert len(loads) >= 6
+
+
+async def test_results_left_behind_by_a_finished_job_are_cleared_by_the_janitor(tenants, provider):
+	async with SystemSessionLocal() as session:
+		done = BatchJob(org_id=tenants.a, user_id=tenants.user_a.id, endpoint=bs.ENDPOINT, status="failed", total=1, max_cost_usd=1)
+		session.add(done)
+		await session.flush()
+		session.add(BatchResult(org_id=tenants.a, job_id=done.id, idx=0, custom_id="orphan", status_code=200, body={"secret": "answer"}))
+		await session.commit()
+		done_id = done.id
+	await bs.maintain()
+	async with org_scoped_session(tenants.a) as db:
+		assert (await db.scalar(select(func.count()).select_from(BatchResult).where(BatchResult.job_id == done_id))) == 0
