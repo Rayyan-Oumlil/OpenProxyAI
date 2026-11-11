@@ -107,8 +107,11 @@ test("policy, Data and routing: reachable by keyboard, Enter runs the preview an
   await page.locator("main").first().waitFor();
 
   // Radix tabs: focus the selected tab, then move with the arrow keys.
+  // One key at a time, waiting for each to take effect: two presses in a row can arrive before the first re-render settles.
   await page.getByRole("tab", { name: "Enforcement" }).focus();
+  await expect(page.getByRole("tab", { name: "Enforcement" })).toBeFocused();
   await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Data protection" })).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tab", { name: "Data and routing" })).toHaveAttribute("aria-selected", "true");
 
@@ -159,4 +162,21 @@ test("command palette: switching theme from the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
+});
+
+test("eval runs: the start dialog traps focus, Escape closes it and focus returns to the button", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/eval-runs");
+  const opener = page.getByRole("button", { name: /Start a run/ });
+  await opener.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Start an eval run" });
+  await expect(dialog).toBeVisible();
+
+  for (let i = 0; i < 14; i += 1) await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))).toBe(true);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
 });

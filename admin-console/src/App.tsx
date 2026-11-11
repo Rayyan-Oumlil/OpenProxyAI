@@ -23,6 +23,9 @@ const ProviderHealthPage = lazy(() => import("./features/providers/ProviderHealt
 const ModelRegistryPage = lazy(() => import("./features/modelregistry/ModelRegistryPage").then((m) => ({ default: m.ModelRegistryPage })));
 const ProviderKeysPage = lazy(() => import("./features/providerkeys/ProviderKeysPage").then((m) => ({ default: m.ProviderKeysPage })));
 const ExperimentsPage = lazy(() => import("./features/experiments/ExperimentsPage").then((m) => ({ default: m.ExperimentsPage })));
+const DatasetsPage = lazy(() => import("./features/evaluation/DatasetsPage").then((m) => ({ default: m.DatasetsPage })));
+const EvaluatorsPage = lazy(() => import("./features/evaluation/EvaluatorsPage").then((m) => ({ default: m.EvaluatorsPage })));
+const EvalRunsPage = lazy(() => import("./features/evaluation/EvalRunsPage").then((m) => ({ default: m.EvalRunsPage })));
 const PolicyConfigPage = lazy(() => import("./features/policy/PolicyConfigPage").then((m) => ({ default: m.PolicyConfigPage })));
 const AuditLogPage = lazy(() => import("./features/audit/AuditLogPage").then((m) => ({ default: m.AuditLogPage })));
 const BillingPage = lazy(() => import("./features/billing/BillingPage").then((m) => ({ default: m.BillingPage })));
@@ -76,6 +79,9 @@ export function App() {
             <Route path="provider-health" element={<ProviderHealthPage />} />
             <Route path="mcp-servers" element={<McpServersPage />} />
             <Route path="experiments" element={<ExperimentsPage />} />
+            <Route path="datasets" element={<DatasetsPage />} />
+            <Route path="evaluators" element={<EvaluatorsPage />} />
+            <Route path="eval-runs" element={<EvalRunsPage />} />
             <Route path="policy" element={<PolicyConfigPage />} />
             <Route path="teams" element={<TeamsPage />} />
             <Route path="users-roles" element={<UsersRolesPage />} />

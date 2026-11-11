@@ -26,13 +26,31 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  // Most dialogs here are opened by a plain button, not a Radix trigger, and Radix only gives focus back to a trigger.
+  // Remember what had focus as the dialog opened and return it there, so a keyboard user is not dropped at the page top.
+  const opener = React.useRef<HTMLElement | null>(null);
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      onOpenAutoFocus={(event) => {
+        opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        onOpenAutoFocus?.(event);
+      }}
+      onCloseAutoFocus={(event) => {
+        onCloseAutoFocus?.(event);
+        if (!event.defaultPrevented && opener.current?.isConnected) {
+          event.preventDefault();
+          opener.current.focus();
+        }
+      }}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 w-full max-w-lg max-h-[90vh] overflow-y-auto translate-x-[-50%] translate-y-[-50%]",
+        // Centered with a plain transform. Tailwind's translate-x/y utilities read --tw-translate-* variables that only its "base"
+        // layer defines, and this app does not load that layer, so they produced an invalid transform and left every dialog
+        // pinned by its top-left corner to the middle of the screen (a tall dialog ran off the bottom).
+        "fixed left-[50%] top-[50%] z-50 w-full max-w-lg max-h-[90vh] overflow-y-auto [transform:translate(-50%,-50%)]",
         "rounded-2xl border border-border bg-surface p-6 shadow-card",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
@@ -50,7 +68,8 @@ const DialogContent = React.forwardRef<
       </DialogClose>
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

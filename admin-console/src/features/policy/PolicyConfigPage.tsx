@@ -9,6 +9,7 @@ import { LoadingState } from "../../components/LoadingState";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/Tabs";
 import { DataRoutingTab } from "./DataRoutingTab";
+import { EvaluationTab } from "./EvaluationTab";
 import { changedPolicyFields } from "./policyDiff";
 import { ErrorState } from "../../components/ErrorState";
 import {
@@ -59,6 +60,10 @@ const DEFAULT_POLICY: PolicyConfigRequest = {
   data_class_map: {},
   routing_mode: "off",
   max_risk_rating: "high",
+  payload_capture_sample_rate: 0,
+  prompt_promotion_gate: false,
+  prompt_gate_min_pass_rate: 0.8,
+  prompt_gate_min_items: 10,
 };
 
 function TagInput({
@@ -183,6 +188,10 @@ function extractPolicy(org: OrganizationResponse): PolicyConfigRequest {
     data_class_map: raw.data_class_map ?? {},
     routing_mode: raw.routing_mode ?? "off",
     max_risk_rating: raw.max_risk_rating ?? "high",
+    payload_capture_sample_rate: raw.payload_capture_sample_rate ?? 0,
+    prompt_promotion_gate: raw.prompt_promotion_gate ?? false,
+    prompt_gate_min_pass_rate: raw.prompt_gate_min_pass_rate ?? 0.8,
+    prompt_gate_min_items: raw.prompt_gate_min_items ?? 10,
   };
 }
 
@@ -524,6 +533,7 @@ export function PolicyConfigPage() {
             <TabsTrigger value="enforcement">Enforcement</TabsTrigger>
             <TabsTrigger value="data">Data protection</TabsTrigger>
             <TabsTrigger value="routing">Data and routing</TabsTrigger>
+            <TabsTrigger value="evaluation">Evaluation</TabsTrigger>
             <TabsTrigger value="limits">Rate limits</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
@@ -685,6 +695,10 @@ export function PolicyConfigPage() {
 
           <TabsContent value="routing" className="stack-form">
             <DataRoutingTab form={form} setForm={(update) => setForm(update)} isAdmin={isAdmin} unsaved={dirty} token={token!} />
+          </TabsContent>
+
+          <TabsContent value="evaluation" className="stack-form">
+            <EvaluationTab form={form} setForm={(update) => setForm(update)} isAdmin={isAdmin} />
           </TabsContent>
 
           <TabsContent value="limits" className="stack-form">

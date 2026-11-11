@@ -20,6 +20,9 @@ const ROUTES = [
   "/provider-health",
   "/mcp-servers",
   "/experiments",
+  "/datasets",
+  "/evaluators",
+  "/eval-runs",
   "/teams",
   "/users-roles",
   "/organization-settings",
@@ -117,6 +120,37 @@ test.describe("reflow", () => {
   }
 });
 
+/** A dialog pinned by its corner instead of centred runs off the screen and strands its buttons (it did, for every dialog). */
+test.describe("dialogs", () => {
+  test.beforeEach(async ({ page }) => {
+    await prepare(page);
+  });
+
+  for (const [route, open] of [
+    ["/evaluators", async (page: Page) => { await page.getByRole("button", { name: /New evaluator/ }).click(); await page.getByLabel("Type").selectOption("llm_judge"); }],
+    ["/eval-runs", async (page: Page) => { await page.getByRole("button", { name: /Start a run/ }).click(); }],
+  ] as const) {
+    test(`the tallest dialog on ${route} stays inside the window with its buttons reachable`, async ({ page }) => {
+      await signIn(page);
+      await page.goto(route);
+      await page.locator("main").first().waitFor();
+      await open(page);
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      const { box, viewport } = await page.evaluate(() => {
+        const r = document.querySelector("[role=dialog]")!.getBoundingClientRect();
+        return { box: { top: r.top, bottom: r.bottom, left: r.left, right: r.right }, viewport: { w: innerWidth, h: innerHeight } };
+      });
+      expect(box.top).toBeGreaterThanOrEqual(0);
+      expect(box.bottom).toBeLessThanOrEqual(viewport.h + 1);
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.right).toBeLessThanOrEqual(viewport.w + 1);
+      await dialog.getByRole("button", { name: /Create evaluator|Start run/ }).scrollIntoViewIfNeeded();
+      await expect(dialog.getByRole("button", { name: /Create evaluator|Start run/ })).toBeInViewport();
+    });
+  }
+});
+
 for (const theme of ["light", "dark"] as const) {
   test.describe(`${theme} theme`, () => {
     test.beforeEach(async ({ page }) => {
@@ -153,6 +187,69 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByText("Refused by routing")).toBeVisible();
       expect(await audit(page)).toEqual([]);
       expect(await lowContrastIcons(page)).toEqual([]);
+    });
+
+    test("datasets: an open dataset with the import dialog", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/datasets");
+      await page.getByText("support-regressions").click();
+      await expect(page.getByText("How do I reset my password?")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+      await page.getByRole("button", { name: /Import from traffic/ }).click();
+      await expect(page.getByRole("dialog", { name: /Import into/ })).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
+    test("evaluators: the new-evaluator dialog for a judge", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/evaluators");
+      await page.getByRole("button", { name: /New evaluator/ }).click();
+      await page.getByLabel("Type").selectOption("llm_judge");
+      await expect(page.getByLabel("Judge model")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
+    test("eval runs: an open run and the start dialog", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/eval-runs");
+      await page.getByText("openai/gpt-4o-mini").first().click();
+      await expect(page.getByText("Blocked by policy.")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+      await page.getByRole("button", { name: /Start a run/ }).click();
+      await expect(page.getByRole("dialog", { name: "Start an eval run" })).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
+    test("policy: the Evaluation tab with capture and the gate on", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/policy");
+      await page.getByRole("tab", { name: "Evaluation" }).click();
+      await page.getByLabel("Keep a sample of delivered requests").check();
+      await page.getByLabel("Require a passing eval run before a prompt goes live").check();
+      await expect(page.getByLabel("Pass rate required (%)")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
+    test("experiments: an adaptive test with its results open", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/experiments");
+      await expect(page.getByText("Adaptive", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: /Show details for mini vs full results/ }).click();
+      await expect(page.getByText("Chance best")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+    });
+
+    test("playground: the promotion dialog for a draft prompt", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/playground");
+      await page.getByRole("button", { name: "Templates", exact: true }).click();
+      await page.getByRole("button", { name: "Promote support-agent v2" }).click();
+      await expect(page.getByText(/Not ready/)).toBeVisible();
+      await page.getByLabel(/Promote anyway/).check();
+      expect(await audit(page)).toEqual([]);
     });
 
     for (const route of ROUTES) {
