@@ -316,7 +316,7 @@ async def test_compare_returns_results_for_all_models(client, monkeypatch):
     from app.services import rate_limiter
     from app.services import policy_service as ps
 
-    monkeypatch.setattr("app.routes.playground.acompletion", fake_acompletion)
+    monkeypatch.setattr("app.services.model_runner.acompletion", fake_acompletion)
     app.dependency_overrides[get_current_user_from_jwt] = fake_user
     app.dependency_overrides[get_db] = fake_db
     app.dependency_overrides[get_redis] = fake_redis
@@ -324,17 +324,17 @@ async def test_compare_returns_results_for_all_models(client, monkeypatch):
     monkeypatch.setattr(ps.policy_store, "load", fake_policy_load)
 
     # Need provider key for openai and anthropic - mock _select_provider_key
-    async def fake_select_key(db, org_id, provider, model=None, only_key_id=None):
-        return ProviderKeyCandidate(None, "sk-fake-key")
+    async def fake_select_key(db, org_id, provider, model=None, redis=None, max_attempts=None, only_key_id=None):
+        return [ProviderKeyCandidate(None, "sk-fake-key")]
 
     from app.routes import playground as pg
-    monkeypatch.setattr(pg, "_select_provider_key", fake_select_key)
+    monkeypatch.setattr(pg.llm_service, "_select_provider_keys", fake_select_key)
 
     # Mock log_request to avoid DB/Redis in background task
     async def noop_log(*args, **kwargs):
         pass
 
-    monkeypatch.setattr("app.routes.playground.log_request", noop_log)
+    monkeypatch.setattr("app.services.model_runner.log_request", noop_log)
 
     response = client.post(
         "/api/v1/playground/compare",
@@ -401,23 +401,23 @@ def test_compare_handles_model_errors_gracefully(client, monkeypatch):
     from app.services import rate_limiter
     from app.services import policy_service as ps
 
-    monkeypatch.setattr("app.routes.playground.acompletion", fake_acompletion)
+    monkeypatch.setattr("app.services.model_runner.acompletion", fake_acompletion)
     app.dependency_overrides[get_current_user_from_jwt] = fake_user
     app.dependency_overrides[get_db] = fake_db
     app.dependency_overrides[get_redis] = fake_redis
     monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", fake_check_limits)
     monkeypatch.setattr(ps.policy_store, "load", fake_policy_load)
 
-    async def fake_select_key(db, org_id, provider, model=None, only_key_id=None):
-        return ProviderKeyCandidate(None, "sk-fake-key")
+    async def fake_select_key(db, org_id, provider, model=None, redis=None, max_attempts=None, only_key_id=None):
+        return [ProviderKeyCandidate(None, "sk-fake-key")]
 
     from app.routes import playground as pg
-    monkeypatch.setattr(pg, "_select_provider_key", fake_select_key)
+    monkeypatch.setattr(pg.llm_service, "_select_provider_keys", fake_select_key)
 
     async def noop_log(*args, **kwargs):
         pass
 
-    monkeypatch.setattr("app.routes.playground.log_request", noop_log)
+    monkeypatch.setattr("app.services.model_runner.log_request", noop_log)
 
     # Mock cost_tracker to avoid litellm completion_cost model format issues
     def fake_calculate_cost(_response):
@@ -474,8 +474,8 @@ def test_compare_sends_the_keys_api_base(client, monkeypatch):
         from app.services.policy_service import PolicyConfig
         return PolicyConfig()
 
-    async def fake_select_key(db, org_id, provider, model=None, only_key_id=None):
-        return ProviderKeyCandidate(uuid4(), "sk-vllm", "https://8.8.8.8/v1")
+    async def fake_select_key(db, org_id, provider, model=None, redis=None, max_attempts=None, only_key_id=None):
+        return [ProviderKeyCandidate(uuid4(), "sk-vllm", "https://8.8.8.8/v1")]
 
     async def noop_log(*args, **kwargs):
         pass
@@ -484,9 +484,9 @@ def test_compare_sends_the_keys_api_base(client, monkeypatch):
     from app.services import policy_service as ps
     from app.services import rate_limiter
 
-    monkeypatch.setattr(pg, "acompletion", fake_acompletion)
-    monkeypatch.setattr(pg, "_select_provider_key", fake_select_key)
-    monkeypatch.setattr(pg, "log_request", noop_log)
+    monkeypatch.setattr("app.services.model_runner.acompletion", fake_acompletion)
+    monkeypatch.setattr(pg.llm_service, "_select_provider_keys", fake_select_key)
+    monkeypatch.setattr("app.services.model_runner.log_request", noop_log)
     monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", fake_check_limits)
     monkeypatch.setattr(ps.policy_store, "load", fake_policy_load)
     app.dependency_overrides[get_current_user_from_jwt] = fake_user
