@@ -11,6 +11,7 @@ import {
   Key,
   LayoutDashboard,
   List,
+  MessagesSquare,
   Plug2,
   Server,
   ShieldCheck,
@@ -44,6 +45,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Request logs", to: "/logs", icon: List },
       { label: "Audit log", to: "/audit", icon: ShieldCheck },
       { label: "Playground", to: "/playground", icon: FlaskConical },
+      { label: "Conversations", to: "/conversations", icon: MessagesSquare },
     ],
   },
   {
