@@ -38,6 +38,7 @@ from app.routes.provider_keys import router as provider_keys_router
 from app.routes.experiments import router as experiments_router
 from app.routes.datasets import router as datasets_router
 from app.routes.scores import router as scores_router
+from app.routes.batches import router as batches_router
 from app.routes.policy_plugins import router as policy_plugins_router
 from app.routes.analytics_query import router as analytics_query_router
 from app.routes.conversations import router as conversations_router
@@ -57,7 +58,9 @@ from app.services.spend_batch_service import run_flush_request_logs_batch
 from app.services.key_rotation_scheduler import run_key_rotation
 from app.services.adaptive_experiments import update_adaptive_experiments
 from app.services.eval_runner import fail_stale_runs
+from app.services.batch_service import maintain as maintain_batches
 from app.services.payload_capture import purge_expired_payloads
+from app.services.conversation_retention import purge_expired_conversations
 from app.services.adaptive_sampling_service import run_adaptive_sampling_job
 from app.services.mcp_tool_sync import run_mcp_tool_sync
 from app.services.telemetry import telemetry
@@ -267,6 +270,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         coalesce=True,
     )
     scheduler.add_job(
+        purge_expired_conversations,
+        "interval",
+        hours=6,
+        id="purge_expired_conversations",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        maintain_batches,
+        "interval",
+        hours=1,
+        id="maintain_batches",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
         fail_stale_runs,
         "interval",
         hours=1,
@@ -430,6 +449,7 @@ app.include_router(requests_router)
 app.include_router(feedback_router)
 app.include_router(datasets_router)
 app.include_router(scores_router)
+app.include_router(batches_router)
 app.include_router(policy_plugins_router)
 app.include_router(analytics_query_router)
 app.include_router(conversations_router)

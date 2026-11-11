@@ -65,5 +65,8 @@ BASE_URL="$API" FAKE_URL="http://localhost:9090" "$PYTHON" scripts/smoke_convers
 # The non-chat endpoints (images, audio, responses) through the shared pipeline: what the provider received, and policy/routing on each.
 BASE_URL="$API" FAKE_URL="http://localhost:9090" "$PYTHON" scripts/smoke_modalities.py; check "modalities: images, speech, transcription, responses; policy and routing on each" $?
 
+# Files and batches: upload validation, per-line policy, cap, cancel, cleanup.
+BASE_URL="$API" FAKE_URL="http://localhost:9090" "$PYTHON" scripts/smoke_batches.py; check "batches: validate, run per line under policy, cancel, cleanup" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"

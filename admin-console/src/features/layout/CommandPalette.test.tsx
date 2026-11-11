@@ -71,7 +71,7 @@ describe("CommandPalette", () => {
   it("filters as you type, and says when nothing matches", async () => {
     renderPalette();
     await screen.findByRole("dialog");
-    fireEvent.change(input(), { target: { value: "policy" } });
+    expect(options().map((o) => o.textContent)).toEqual(["PolicyGovern", "Policy pluginsGovern"]);
     expect(options().map((o) => o.textContent)).toEqual(["PolicyGovern"]);
 
     fireEvent.change(input(), { target: { value: "zzz" } });
