@@ -23,6 +23,8 @@ const ROUTES = [
   "/datasets",
   "/evaluators",
   "/eval-runs",
+  "/conversations",
+  "/conversations/c1",
   "/teams",
   "/users-roles",
   "/organization-settings",
@@ -129,6 +131,7 @@ test.describe("dialogs", () => {
   for (const [route, open] of [
     ["/evaluators", async (page: Page) => { await page.getByRole("button", { name: /New evaluator/ }).click(); await page.getByLabel("Type").selectOption("llm_judge"); }],
     ["/eval-runs", async (page: Page) => { await page.getByRole("button", { name: /Start a run/ }).click(); }],
+    ["/conversations", async (page: Page) => { await page.getByRole("button", { name: /New conversation/ }).click(); }],
   ] as const) {
     test(`the tallest dialog on ${route} stays inside the window with its buttons reachable`, async ({ page }) => {
       await signIn(page);
@@ -145,8 +148,8 @@ test.describe("dialogs", () => {
       expect(box.bottom).toBeLessThanOrEqual(viewport.h + 1);
       expect(box.left).toBeGreaterThanOrEqual(0);
       expect(box.right).toBeLessThanOrEqual(viewport.w + 1);
-      await dialog.getByRole("button", { name: /Create evaluator|Start run/ }).scrollIntoViewIfNeeded();
-      await expect(dialog.getByRole("button", { name: /Create evaluator|Start run/ })).toBeInViewport();
+      await dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation/ }).scrollIntoViewIfNeeded();
+      await expect(dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation/ })).toBeInViewport();
     });
   }
 });
@@ -198,6 +201,21 @@ for (const theme of ["light", "dark"] as const) {
       expect(await lowContrastIcons(page)).toEqual([]);
       await page.getByRole("button", { name: /Import from traffic/ }).click();
       await expect(page.getByRole("dialog", { name: /Import into/ })).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
+    test("conversations: a thread, the context drawer and the new-conversation dialog", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/conversations/c1");
+      await expect(page.getByRole("article", { name: "Assistant, message 2" })).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+      await page.getByRole("button", { name: "Context sent" }).click();
+      await expect(page.getByText("Earlier messages held back")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: /New conversation/ }).click();
+      await expect(page.getByRole("dialog", { name: "New conversation" })).toBeVisible();
       expect(await audit(page)).toEqual([]);
     });
 

@@ -15,7 +15,7 @@ function clampPercent(text: string, min: number, max: number): number {
 }
 
 export function EvaluationTab({ form, setForm, isAdmin }: { form: PolicyConfigRequest; setForm: SetForm; isAdmin: boolean }) {
-  const ids = { rate: useId(), gate: useId(), pass: useId(), items: useId() };
+  const ids = { rate: useId(), gate: useId(), pass: useId(), items: useId(), conv: useId() };
   const rate = form.payload_capture_sample_rate ?? 0;
   const capturing = rate > 0;
   const gate = form.prompt_promotion_gate ?? false;
@@ -104,6 +104,25 @@ export function EvaluationTab({ form, setForm, isAdmin }: { form: PolicyConfigRe
         <p className="text-muted text-sm">
           A run counts only if it completed, tested this exact prompt (editing the draft afterwards invalidates it), scored enough items, passed at the required rate, and no more than a tenth of its items errored.
         </p>
+      </section>
+
+      <section className="stack-form" aria-labelledby={`${ids.conv}-h`}>
+        <h2 id={`${ids.conv}-h`}>Conversations</h2>
+        <p className="text-muted text-sm">
+          Lets users keep a conversation in the gateway and switch models mid-way. Before each message the gateway decides which earlier messages the chosen model may see: anything above that model's data class is held back and listed. It is{" "}
+          <strong>off by default</strong>, because it stores what users said (redacted).
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            id={ids.conv}
+            type="checkbox"
+            checked={form.conversations_enabled ?? false}
+            disabled={!isAdmin}
+            onChange={(e) => setForm((f) => ({ ...f, conversations_enabled: e.target.checked }))}
+          />
+          Allow conversations in this organization
+        </label>
+        <p className="text-muted text-sm">Turning it off stops new conversations and messages. Existing conversations stay readable and can be deleted.</p>
       </section>
     </>
   );

@@ -180,3 +180,38 @@ test("eval runs: the start dialog traps focus, Escape closes it and focus return
   await expect(dialog).toBeHidden();
   await expect(opener).toBeFocused();
 });
+
+test("conversations: the context drawer opens from the keyboard, traps focus, and Escape returns focus to its button", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/conversations/c1");
+  const opener = page.getByRole("button", { name: "Context sent" });
+  await opener.focus();
+  await page.keyboard.press("Enter");
+  const drawer = page.getByRole("dialog", { name: "Context sent to the model" });
+  await expect(drawer).toBeVisible();
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
+test("conversations: a message can be written and sent without the mouse", async ({ page }) => {
+  let sent: unknown = null;
+  await page.route("**/api/v1/conversations/c1/turns", async (route) => {
+    if (route.request().method() === "POST") {
+      sent = route.request().postDataJSON();
+      return route.fulfill({ status: 446, contentType: "application/json", body: JSON.stringify({ detail: { error: "refused", detail: "Not authorized for confidential data: not_authorized:class_too_low" } }) });
+    }
+    return route.fallback();
+  });
+  await signIn(page);
+  await page.goto("/conversations/c1");
+  await page.getByRole("textbox", { name: "Message", exact: true }).focus();
+  await page.keyboard.type("Summarise it");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: /Send/ })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("alert")).toContainText("Not authorized for confidential data");
+  expect(sent).toMatchObject({ content: "Summarise it", model: "openai/gpt-4o" });
+});
