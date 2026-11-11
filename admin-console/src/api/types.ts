@@ -325,6 +325,12 @@ export type PolicyConfigRequest = {
   routing_mode?: RoutingMode;
   /** Registry models rated above this are never authorized */
   max_risk_rating?: Rating;
+  /** Share (0 to 1) of delivered requests whose redacted prompt and answer are kept for evaluation. 0 stores nothing. */
+  payload_capture_sample_rate?: number;
+  /** An edited prompt template becomes a draft that needs a passing eval run (or an audited override) to go live */
+  prompt_promotion_gate?: boolean;
+  prompt_gate_min_pass_rate?: number;
+  prompt_gate_min_items?: number;
 };
 
 export type RoutingMode = "off" | "log_only" | "enforce";
@@ -389,6 +395,8 @@ export type PromptTemplate = {
   variables_schema: Array<{ name: string; type?: string; default?: string; required?: boolean }>;
   version: number;
   is_active: boolean;
+  /** draft (waiting for promotion), active (live) or retired. Absent on gateways older than the promotion gate. */
+  status?: "draft" | "active" | "retired";
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -486,17 +494,35 @@ export type ExperimentResponse = {
   is_active: boolean;
   variants: ExperimentVariantResponse[];
   created_at: string;
+  /** static: the weights are whatever an admin set. adaptive: a job moves them and stops the test with a winner. */
+  mode?: "static" | "adaptive";
+  metric?: string | null;
+  min_samples_per_variant?: number;
+  delta?: number;
+  weight_floor?: number;
+  winner_variant_id?: string | null;
+  stopped_reason?: "winner" | "manual" | null;
+  adaptive_error?: string | null;
 };
 
-export type CreateExperimentRequest = {
+export type AdaptiveSettings = {
+  mode?: "static" | "adaptive";
+  metric?: string;
+  min_samples_per_variant?: number;
+  delta?: number;
+  weight_floor?: number;
+};
+
+export type CreateExperimentRequest = AdaptiveSettings & {
   name: string;
   target_model: string;
   variants: Array<{ model: string; traffic_weight: number }>;
 };
 
-export type UpdateExperimentRequest = {
+export type UpdateExperimentRequest = AdaptiveSettings & {
   name?: string;
   is_active?: boolean;
+  /** Replaces every variant, which also detaches the ratings collected so far: send it only when it changed. */
   variants?: Array<{ model: string; traffic_weight: number }>;
 };
 
@@ -507,6 +533,10 @@ export type ScoreAggregate = {
 };
 
 export type VariantMetrics = {
+  variant_id?: string | null;
+  traffic_weight?: number | null;
+  /** Adaptive tests only: the chance this variant is the best one */
+  probability_best?: number | null;
   model: string;
   request_count: number;
   avg_latency_ms: number | null;
@@ -517,6 +547,18 @@ export type VariantMetrics = {
   scores?: ScoreAggregate[];
 };
 
+export type AdaptiveStatus = {
+  metric: string;
+  ready: boolean;
+  min_samples_per_variant: number;
+  delta: number;
+  samples: Record<string, number>;
+  winner_variant_id: string | null;
+  stopped_reason: string | null;
+  error: string | null;
+};
+
 export type ExperimentResultsResponse = {
   variants: VariantMetrics[];
+  adaptive?: AdaptiveStatus | null;
 };
