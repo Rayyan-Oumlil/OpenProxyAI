@@ -42,7 +42,7 @@ REGISTRY = [entry(GPT, "confidential"), entry(CLAUDE, "internal"), entry(MISTRAL
 @pytest.fixture
 def upstream(monkeypatch):
 	"""The provider: records every call, answers from a script. Also stands in for key choice, cost and the audit log."""
-	seen = SimpleNamespace(calls=[], logs=[], reply="Sure.", error=None, registry=REGISTRY)
+	seen = SimpleNamespace(calls=[], logs=[], limit_checks=[], reply="Sure.", error=None, registry=REGISTRY)
 
 	async def acompletion(**kwargs):
 		seen.calls.append(kwargs)
@@ -62,7 +62,8 @@ def upstream(monkeypatch):
 	async def routing_inputs(db, org_id):
 		return list(seen.registry), "us"
 
-	async def allow(*_a, **_k):
+	async def allow(*_a, **kwargs):
+		seen.limit_checks.append(kwargs)
 		return (True, {}, None, None, None)
 
 	monkeypatch.setattr(mr, "acompletion", acompletion)
@@ -397,3 +398,23 @@ async def test_a_stored_turn_with_an_unreadable_class_is_assumed_secret_and_neve
 		assert low.json()["context"]["included_turn_ids"] == [] and len(low.json()["context"]["withheld"]) == 1
 		high = await say(api, conversation, "hi again", model="local/vault")
 	assert high.json()["context"]["data_class"] == "secret"  # the audit record says what it was treated as
+
+
+async def test_a_sensitive_system_prompt_counts_toward_the_class_the_model_must_be_cleared_for(org, upstream):
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		refused = await say(api, conversation, "summarise", model=CLAUDE, system_prompt="The customer's SSN is 123-45-6789.")
+		assert refused.status_code == 446
+		assert upstream.calls == []
+		allowed = await say(api, conversation, "summarise", model=GPT, system_prompt="The customer's SSN is 123-45-6789.")
+		assert allowed.status_code == 201 and allowed.json()["context"]["data_class"] == "confidential"
+		assert [cls for _, _, cls, _ in await stored(org.id, conversation)][-1] == "confidential"  # and so is the answer
+
+
+async def test_the_rate_limit_is_checked_on_everything_that_is_sent_not_just_the_new_message(org, upstream):
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		await say(api, conversation, "a" * 4000)
+		upstream.limit_checks.clear()
+		await say(api, conversation, "hi", system_prompt="b" * 400)
+	assert upstream.limit_checks[0]["request_tokens_estimate"] >= 1000 + 100  # the earlier exchange and the system prompt count
