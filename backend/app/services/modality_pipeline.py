@@ -176,7 +176,12 @@ async def run_modality(
 		body = ls._to_jsonable(response)
 		reported = modality.usage(body if isinstance(body, dict) else {})
 		prompt_tokens, completion_tokens = reported if reported is not None else (max(modality.estimate_tokens(request), 0), 0)
-		cost = cost_tracker_service.calculate_cost_usd(response)
+		try:
+			cost = cost_tracker_service.calculate_cost_usd(response)
+		except Exception as exc:  # an unpriced model must not turn a call that already succeeded (and was paid for) into an error
+			logger.warning("Could not price %s call to %s: %s", modality.name, model, exc)
+			cost = Decimal("0")
+			policy_metadata = {**(policy_metadata or {}), "cost_unknown": True}
 		latency_ms = int((time.perf_counter() - start) * 1000)
 		ls.LLMService._schedule_log(
 			background_tasks, redis, request_id, user, api_key, model, provider, prompt_tokens, completion_tokens, cost, latency_ms, 200,

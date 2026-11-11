@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
@@ -43,3 +43,23 @@ class RerankRequest(BaseModel):
 
 	def texts(self) -> list[str]:
 		return [d if isinstance(d, str) else d["text"] for d in self.documents]
+
+
+MAX_IMAGE_PROMPT_CHARS = 4_000
+MAX_IMAGES_PER_REQUEST = 4
+ImageSize = Literal["auto", "256x256", "512x512", "1024x1024", "1024x1536", "1536x1024", "1024x1792", "1792x1024"]
+
+
+class ImageRequest(BaseModel):
+	"""OpenAI-style image generation. The prompt is the only text, and it is scanned like any prompt."""
+
+	model_config = ConfigDict(extra="forbid")
+
+	model: Model
+	prompt: str = Field(min_length=1, max_length=MAX_IMAGE_PROMPT_CHARS)
+	n: int = Field(default=1, ge=1, le=MAX_IMAGES_PER_REQUEST)
+	size: ImageSize | None = None
+	quality: Literal["standard", "hd", "low", "medium", "high", "auto"] | None = None
+	style: Literal["vivid", "natural"] | None = None
+	response_format: Literal["url", "b64_json"] | None = None
+	user: str | None = Field(default=None, max_length=200)

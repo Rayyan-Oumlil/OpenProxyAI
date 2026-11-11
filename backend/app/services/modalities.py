@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.schemas.chat import EmbeddingRequest
-from app.schemas.modalities import RerankRequest
+from app.schemas.modalities import ImageRequest, RerankRequest
 from app.services import llm_service as ls
 from app.services.llm_service import with_endpoint
 from app.services.modality_pipeline import Modality
@@ -73,4 +73,29 @@ RERANK = Modality(
 	estimate_tokens=lambda request: len(_rerank_text(request)) // 4,
 	call=_rerank,
 	usage=_rerank_usage,
+)
+
+
+# -- images ----------------------------------------------------------------------------------------
+
+IMAGE_TIMEOUT_SECONDS = 120
+IMAGE_RATE_COST_TOKENS = 1_000  # an image is far heavier than its prompt: each one counts as this many tokens against the TPM limit
+
+
+async def _generate_image(request: ImageRequest, api_key: str, endpoint: ProviderEndpoint | None) -> Any:
+	kwargs: dict[str, Any] = {"model": request.model, "prompt": request.prompt, "n": request.n, "api_key": api_key, "timeout": IMAGE_TIMEOUT_SECONDS}
+	for field in ("size", "quality", "style", "response_format", "user"):
+		value = getattr(request, field)
+		if value is not None:
+			kwargs[field] = value
+	return await ls.aimage_generation(**with_endpoint(kwargs, api_key, endpoint))
+
+
+IMAGES = Modality(
+	name="image",
+	fallback_tag=" (image)",
+	text_of=lambda request: request.prompt,
+	estimate_tokens=lambda request: len(request.prompt) // 4 + request.n * IMAGE_RATE_COST_TOKENS,
+	call=_generate_image,
+	usage=lambda body: None,  # image generation reports no tokens; the audit row records the prompt's estimated size
 )
