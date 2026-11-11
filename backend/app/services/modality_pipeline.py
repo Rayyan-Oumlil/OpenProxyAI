@@ -129,7 +129,7 @@ async def run_modality(
 	routing: RoutingDecision | None = None
 
 	def metadata(meta: dict | None) -> dict:
-		out = {**(meta or {})}
+		out = {**(meta or {}), "modality": modality.name}
 		if classification is not None:
 			out["data_class"] = classification.as_metadata()
 		if routing is not None:

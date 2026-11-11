@@ -158,8 +158,14 @@ class ResponsesRequest(BaseModel):
                 raise ValueError("input cannot be blank")
             if len(value) > 500_000:
                 raise ValueError("input is longer than 500000 characters")
-        elif not value or len(value) > MAX_RESPONSES_INPUT_ITEMS:
-            raise ValueError(f"input must have between 1 and {MAX_RESPONSES_INPUT_ITEMS} items")
+        else:
+            if not value or len(value) > MAX_RESPONSES_INPUT_ITEMS:
+                raise ValueError(f"input must have between 1 and {MAX_RESPONSES_INPUT_ITEMS} items")
+            scan = _walk_input(value)
+            if scan.too_large:
+                raise ValueError(f"input has more than {MAX_INPUT_NODES} fields")  # refused here so the walker's cap cannot be reached later
+            if scan.malformed:
+                raise ValueError("an input item has no type and is not a message with a role and content")
         return value
 
     @field_validator("tools")
@@ -190,23 +196,52 @@ PROVIDER_REFERENCE_KEYS = frozenset({"file_id"})
 PROVIDER_REFERENCE_TYPES = frozenset({"item_reference"})
 
 
+MAX_INPUT_NODES = 50_000
+# What an item of each kind must carry inline. An item that names a stored one (an ``id``) but lacks its body is a reference to state
+# the provider holds, whatever its ``type`` says.
+INLINE_FIELDS = {"message": ("role", "content"), "function_call": ("call_id", "name", "arguments"), "function_call_output": ("call_id", "output")}
+
+
 class _InputScan:
-    __slots__ = ("uninspectable", "provider_reference")
+    __slots__ = ("uninspectable", "provider_reference", "too_large", "malformed")
 
     def __init__(self) -> None:
         self.uninspectable = False
         self.provider_reference = False
+        self.too_large = False
+        self.malformed = False
+
+
+def _check_top_level_items(items: Any, scan: _InputScan) -> None:
+    """Every top-level item must be a known shape carrying its own content; anything else fails closed."""
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            scan.malformed = True
+            continue
+        kind = item.get("type")
+        if kind is None:  # the short form: {"role": ..., "content": ...}
+            if "role" not in item or "content" not in item:
+                scan.malformed = True
+                if "id" in item:
+                    scan.provider_reference = True
+            continue
+        required = INLINE_FIELDS.get(kind)
+        if required is not None and any(field not in item for field in required):
+            scan.provider_reference = scan.provider_reference or "id" in item  # names a stored item without carrying it
+            scan.malformed = True
 
 
 def _walk_input(value: Any) -> _InputScan:
     scan = _InputScan()
+    _check_top_level_items(value, scan)
     stack: list[Any] = [value]
     visited = 0
     while stack:
         node = stack.pop()
         visited += 1
-        if visited > 50_000:
-            scan.uninspectable = True  # too large to walk: not assumed harmless
+        if visited > MAX_INPUT_NODES:
+            # Unreachable for a validated request (the validator refuses it); if it is ever reached, assume the worst on both counts.
+            scan.too_large = scan.uninspectable = scan.provider_reference = True
             break
         if isinstance(node, list):
             stack.extend(node)
