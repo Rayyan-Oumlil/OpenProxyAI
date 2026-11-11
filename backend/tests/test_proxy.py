@@ -110,7 +110,7 @@ def test_embeddings_route_success(client, fake_redis, monkeypatch):
 	async def fake_get_request_id():
 		return uuid4().hex
 
-	async def fake_embedding(**kwargs):  # noqa: ANN003
+	async def fake_embedding(*args, **kwargs):  # noqa: ANN002, ANN003
 		return JSONResponse(
 			content={
 				"object": "list",
@@ -120,7 +120,7 @@ def test_embeddings_route_success(client, fake_redis, monkeypatch):
 			headers={"X-OpenProxyAI-Provider": "openai", "X-OpenProxyAI-Gateway-Error": "false"},
 		)
 
-	monkeypatch.setattr(proxy_routes.llm_service, "embedding", fake_embedding)
+	monkeypatch.setattr(proxy_routes, "run_modality", fake_embedding)
 
 	app.dependency_overrides[get_current_user_from_api_key] = fake_proxy_auth_dep
 	app.dependency_overrides[get_db] = fake_get_db

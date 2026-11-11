@@ -368,9 +368,12 @@ class PolicyService:
 		request: EmbeddingRequest,
 		config: PolicyConfig | None = None,
 	) -> PolicyDecision:
+		return await self.evaluate_text_request(request.model, self.embedding_text(request), config)
+
+	async def evaluate_text_request(self, model: str, text: str, config: PolicyConfig | None = None) -> PolicyDecision:
+		"""Policy for any request whose content is plain text: allowlist, keywords, PII, then the injection check."""
 		cfg = config or PolicyConfig.from_settings()
-		text = self.embedding_text(request)
-		decision = await self._evaluate_off_loop(model=request.model, text=text, config=cfg)
+		decision = await self._evaluate_off_loop(model=model, text=text, config=cfg)
 		if self._skip_injection(decision, cfg):
 			return decision
 		injection = await self._check_injection_async(text, cfg)
