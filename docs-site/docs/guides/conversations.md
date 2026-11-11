@@ -70,9 +70,24 @@ With routing in `log_only`, history is sent whole, but each answer's context rec
 - Each message keeps its data class and, for answers, the model that wrote it.
 - The context record keeps the ids of the messages sent and held back, the class and routing mode, a size estimate and a **SHA-256 of the exact messages sent**. It is append-only: the application can add records but not change or remove them (they go when their conversation is deleted). The hash lets an auditor check a claim about what a provider received without a second copy of the text.
 
+## Streaming
+
+Send `"stream": true` with a message and the answer comes back as server-sent events as it is written:
+
+| Event | Data |
+|---|---|
+| `context` | First: the model, the class of what was sent, which earlier messages were **held back** (and any `would_withhold` preview). The same guards as a whole answer ran before this. |
+| `delta` | `{"text": "…"}`, as many as it takes. |
+| `done` | The stored exchange, exactly as the non-streaming response. |
+| `error` | The answer broke part-way. **Nothing is stored** (half an answer is not a turn); the attempt is recorded. |
+
+A refusal (446), an unknown model or a policy block is an ordinary error response **before** any stream starts. If the caller disconnects, nothing is stored and the abandoned call is audit-logged (status 499) with what had been delivered. The conversation is locked for as long as the stream runs.
+
+Streaming is **refused** (422 `streaming_unavailable`) for an organization that has response guardrails on: the answer must be checked in full before any of it is delivered, which a stream cannot do. Ask without streaming instead. The console does this automatically.
+
 ## Limits
 
-- Replies are returned whole unless you ask for a stream (see below).
+- Replies are returned whole unless you ask for a stream (see above).
 - One message at a time per conversation (a second returns 409 `turn_in_progress`).
 - A user keeps at most 500 conversations. A message is at most 20,000 characters.
 - Not included: long-term memory across conversations, retrieval over documents, personas, org-wide sharing.

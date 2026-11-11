@@ -24,7 +24,7 @@ HIGH, LOW = "openai/gpt-4o", "openai/gpt-4o-mini"
 
 def upstream_saw(text):
     calls = json.loads(urllib.request.urlopen(f"{FAKE_URL}/__calls", timeout=10).read())
-    return [c for c in calls if text in json.dumps(c["body"]["messages"])]
+    return [c for c in calls if text in json.dumps(c.get("body", {}).get("messages", []))]
 
 
 def main():
@@ -71,6 +71,18 @@ def main():
         status, _, third = say(cid, "And a second sentence?", HIGH)
         check("switching back sees the whole history again", status == 201 and third["context"]["withheld"] == [] and len(third["context"]["included_turn_ids"]) == 4, third)
 
+        print("-- streaming")
+        stream_request = urllib.request.Request(
+            BASE + f"/api/v1/conversations/{cid}/turns", method="POST", data=json.dumps({"content": "Stream a short reply.", "model": HIGH, "stream": True}).encode(),
+            headers={"Authorization": f"Bearer {admin}", "Content-Type": "application/json"})
+        with urllib.request.urlopen(stream_request, timeout=60) as streamed:
+            raw = streamed.read().decode()
+            content_type = streamed.headers.get("content-type", "")
+        events = [block.split(chr(10))[0].removeprefix("event: ") for block in raw.strip().split(chr(10) * 2)]
+        check("a streamed turn is server-sent events: context, text, then the stored exchange", content_type.startswith("text/event-stream") and events[0] == "context" and events[-1] == "done" and "delta" in events, events)
+        _, _, turns_after = call("GET", f"/api/v1/conversations/{cid}/turns", token=admin)
+        check("the streamed exchange was stored", len(turns_after) == 8, len(turns_after))
+
         print("-- the record of what was sent")
         status, _, context = call("GET", f"/api/v1/conversations/{cid}/turns/{second['assistant_turn']['id']}/context", token=admin)
         check("what was sent is recorded with a fingerprint", status == 200 and len(context["payload_sha256"]) == 64 and context["model"] == LOW, context)
@@ -81,12 +93,12 @@ def main():
         status, _, body = say(cid, "hello", "openai/not-registered")
         check("an unregistered model is refused (446)", status == 446, body)
         _, _, turns = call("GET", f"/api/v1/conversations/{cid}/turns", token=admin)
-        check("refused messages stored nothing", len(turns) == 6, len(turns))
+        check("refused messages stored nothing", len(turns) == 8, len(turns))
         check("an invalid model name is rejected (422)", say(cid, "hi", "cap:VISION")[0] == 422)
 
         print("-- privacy inside the org")
         _, _, listed = call("GET", "/api/v1/conversations?scope=org", token=admin)
-        check("an admin sees titles and sizes for the whole org", any(c["id"] == cid and c["turn_count"] == 6 for c in listed) and "Falcon" not in json.dumps(listed))
+        check("an admin sees titles and sizes for the whole org", any(c["id"] == cid and c["turn_count"] == 8 for c in listed) and "Falcon" not in json.dumps(listed))
 
         print("-- deletion")
         check("the owner deletes it (204)", call("DELETE", f"/api/v1/conversations/{cid}", token=admin)[0] == 204)
