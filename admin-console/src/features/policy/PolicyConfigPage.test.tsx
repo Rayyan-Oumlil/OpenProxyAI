@@ -108,6 +108,19 @@ describe("PolicyConfigPage", () => {
     expect(patch.mock.calls[0][1]).toEqual({ routing_mode: "log_only", data_class_map: { US_SSN: "secret" } });
   });
 
+  it("allows provider-side state only when the box is ticked, and saves only that field", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Data and routing"), { button: 0 });
+    const box = (await screen.findByLabelText("Allow requests to keep state at the provider")) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0][1]).toEqual({ allow_provider_response_state: true });
+  });
+
   it("turns capture on at 10%, lets the share be set, and saves only the rate", async () => {
     mockApi();
     renderPage();
