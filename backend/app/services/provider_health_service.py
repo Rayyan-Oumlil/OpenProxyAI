@@ -11,7 +11,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import AsyncSessionLocal, SystemSessionLocal, set_session_org_id
 from app.models.llm_provider_key import LLMProviderKey
-from app.services.crypto_service import decrypt
+from app.services.key_secrets import resolve_secret
 from app.services.provider_client import guarded_http_client
 from app.utils.provider_endpoint import api_base_still_allowed
 
@@ -109,7 +109,7 @@ async def run_provider_health_check() -> None:
 
         for key in keys:
             try:
-                plaintext = decrypt(key.api_key_encrypted)
+                plaintext = await resolve_secret(key)
             except Exception:
                 plaintext = ""
             if not plaintext:

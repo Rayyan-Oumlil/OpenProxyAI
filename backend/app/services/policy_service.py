@@ -107,6 +107,13 @@ class PolicyConfig:
 	# Conversations (Phase 4): the gateway keeps what users said, so it is opt-in per org. Off refuses new conversations;
 	# existing ones stay readable and deletable.
 	conversations_enabled: bool = False
+	# /v1/responses can keep state at the provider (store=true, previous_response_id). That puts data where the org's retention, residency
+	# and routing rules do not reach, so it is refused unless an admin allows it.
+	allow_provider_response_state: bool = False
+	# Enabled WebAssembly plugins ({id, name, sha256}); the module bytes live in policy_plugins. Maintained by the plugin routes.
+	wasm_plugins: list[dict] = field(default_factory=list)
+	# Set when the policy is loaded for an org (not stored): which org's plugins to read.
+	org_id: uuid.UUID | None = field(default=None, compare=False, repr=False)
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -144,6 +151,8 @@ class PolicyConfig:
 			prompt_gate_min_pass_rate=_valid_threshold(data.get("prompt_gate_min_pass_rate"), 0.8),
 			prompt_gate_min_items=_valid_count(data.get("prompt_gate_min_items"), 10),
 			conversations_enabled=data.get("conversations_enabled") is True,
+			allow_provider_response_state=data.get("allow_provider_response_state") is True,
+			wasm_plugins=_valid_plugins(data.get("wasm_plugins")),
 		)
 
 	def to_dict(self) -> dict:
@@ -170,6 +179,8 @@ class PolicyConfig:
 			"prompt_gate_min_pass_rate": self.prompt_gate_min_pass_rate,
 			"prompt_gate_min_items": self.prompt_gate_min_items,
 			"conversations_enabled": self.conversations_enabled,
+			"allow_provider_response_state": self.allow_provider_response_state,
+			"wasm_plugins": self.wasm_plugins,
 		}
 
 
@@ -196,7 +207,9 @@ class PolicyStore:
 		cached = await redis.get(cache_key)
 		if cached:
 			try:
-				return PolicyConfig.from_dict(json.loads(cached))
+				loaded = PolicyConfig.from_dict(json.loads(cached))
+				loaded.org_id = org_id
+				return loaded
 			except (json.JSONDecodeError, KeyError):
 				pass
 
@@ -219,6 +232,7 @@ class PolicyStore:
 						)
 						return PolicyConfig.from_settings()
 					await redis.setex(cache_key, _POLICY_CACHE_TTL, json.dumps(config.to_dict()))
+					config.org_id = org_id
 					return config
 		except Exception as exc:
 			logger.error(
@@ -333,8 +347,28 @@ class PolicyService:
 	async def _evaluate_off_loop(self, model: str, text: str, config: PolicyConfig) -> PolicyDecision:
 		"""Presidio's NLP pass takes tens of milliseconds and would stall every other request on the event loop."""
 		if presidio_service.is_enabled():
-			return await asyncio.to_thread(self._evaluate, model, text, config)
-		return self._evaluate(model=model, text=text, config=config)
+			decision = await asyncio.to_thread(self._evaluate, model, text, config)
+		else:
+			decision = self._evaluate(model=model, text=text, config=config)
+		return await self._ask_plugins(decision, text, config)
+
+	async def _ask_plugins(self, decision: "PolicyDecision", text: str, config: PolicyConfig) -> "PolicyDecision":
+		"""An org's WebAssembly plugins can add a restriction, never lift one: they are asked only when the built-in rules allowed the
+		request outright, and a plugin that fails counts as a hit (it blocks under enforce), never as an allow."""
+		mode = config.enforcement_mode.lower().strip()
+		if mode == "off" or decision.action != "allow" or not config.wasm_plugins or config.org_id is None:
+			return decision
+		from app.services import policy_plugins
+
+		finding = await policy_plugins.run_plugins(config.org_id, config.wasm_plugins, text)
+		if finding is None:
+			return decision
+		reason = f"wasm_plugin_error:{finding.name}" if finding.failed else f"wasm_plugin:{finding.name}"
+		detail = (
+			f"The policy plugin '{finding.name}' could not give a verdict, so the request was not allowed."
+			if finding.failed else f"The policy plugin '{finding.name}' blocked this request."
+		)
+		return self._decision_for_violation(mode=mode, reason_code=reason, detail=detail, triggered_rules=["wasm_plugin"])
 
 	def chat_text(self, request: ChatCompletionRequest) -> str:
 		"""All the text policy and classification inspect. Raises PolicyScanLimitExceeded on an oversized request."""
@@ -368,9 +402,12 @@ class PolicyService:
 		request: EmbeddingRequest,
 		config: PolicyConfig | None = None,
 	) -> PolicyDecision:
+		return await self.evaluate_text_request(request.model, self.embedding_text(request), config)
+
+	async def evaluate_text_request(self, model: str, text: str, config: PolicyConfig | None = None) -> PolicyDecision:
+		"""Policy for any request whose content is plain text: allowlist, keywords, PII, then the injection check."""
 		cfg = config or PolicyConfig.from_settings()
-		text = self.embedding_text(request)
-		decision = await self._evaluate_off_loop(model=request.model, text=text, config=cfg)
+		decision = await self._evaluate_off_loop(model=model, text=text, config=cfg)
 		if self._skip_injection(decision, cfg):
 			return decision
 		injection = await self._check_injection_async(text, cfg)
@@ -633,6 +670,20 @@ _UNICODE_ESCAPE = re.compile('\\\\u([0-9a-fA-F]{4})')
 
 class PolicyScanLimitExceeded(Exception):
 	"""The request is too large to scan completely; policy fails closed rather than scanning part of it."""
+
+
+def _valid_plugins(value: Any) -> list[dict]:
+	"""Only well-formed entries; anything else in a stored policy is dropped rather than trusted."""
+	plugins = []
+	for item in value if isinstance(value, list) else []:
+		if isinstance(item, dict) and all(isinstance(item.get(k), str) and item[k] for k in ("id", "name", "sha256")):
+			plugins.append({"id": item["id"], "name": item["name"], "sha256": item["sha256"]})
+	return plugins
+
+
+def collect_strings(value: Any, out: list[str]) -> None:
+	"""Public name for the scanner every modality uses to read the text of a structured request."""
+	_collect_strings(value, out)
 
 
 def _collect_strings(value: Any, out: list[str]) -> None:

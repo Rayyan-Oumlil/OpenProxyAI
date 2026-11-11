@@ -113,6 +113,40 @@ def create_app() -> FastAPI:
             "usage": {"prompt_tokens": PROMPT_TOKENS, "total_tokens": PROMPT_TOKENS},
         }
 
+    @app.post("/v1/images/generations")
+    async def images(request: Request) -> dict[str, Any]:
+        body = await request.json()
+        calls.append({"path": "/v1/images/generations", "authorization": request.headers.get("authorization"), "body": body})
+        return {"created": 1, "data": [{"b64_json": "iVBORw0KGgo" + "A" * 64} for _ in range(body.get("n", 1))]}
+
+    @app.post("/v1/audio/speech")
+    async def speech(request: Request) -> Response:
+        body = await request.json()
+        calls.append({"path": "/v1/audio/speech", "authorization": request.headers.get("authorization"), "body": body})
+        return Response(content=b"RIFF....fake-audio", media_type="audio/wav")
+
+    @app.post("/v1/audio/transcriptions")
+    async def transcriptions(request: Request) -> dict[str, Any]:
+        raw = await request.body()
+        # Multipart: record the text fields and the size of the audio, not the audio itself.
+        fields = dict(re.findall(rb'name="(\w+)"\r\n\r\n([^\r]*)\r\n', raw))
+        calls.append({
+            "path": "/v1/audio/transcriptions", "authorization": request.headers.get("authorization"), "bytes": len(raw),
+            "fields": {k.decode(): v.decode() for k, v in fields.items()},
+        })
+        return {"text": "transcript of the recording: call 123-45-6789 about the merger"}
+
+    @app.post("/v1/responses")
+    async def responses(request: Request) -> dict[str, Any]:
+        body = await request.json()
+        calls.append({"path": "/v1/responses", "authorization": request.headers.get("authorization"), "body": body})
+        return {
+            "id": "resp_fake", "object": "response", "created_at": 1, "status": "completed", "model": body.get("model"),
+            "output": [{"type": "message", "id": "msg_1", "role": "assistant", "status": "completed",
+                        "content": [{"type": "output_text", "text": "fake response", "annotations": []}]}],
+            "usage": {"input_tokens": PROMPT_TOKENS, "output_tokens": COMPLETION_TOKENS, "total_tokens": PROMPT_TOKENS + COMPLETION_TOKENS},
+        }
+
     @app.post("/v1/chat/completions")
     async def chat(request: Request) -> Response:
         body = await request.json()

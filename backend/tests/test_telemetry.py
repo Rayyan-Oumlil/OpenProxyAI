@@ -341,3 +341,15 @@ def test_valid_configuration_builds_exporters(monkeypatch, tmp_path):
 def test_bad_configuration_fails_hard_instead_of_silently_disabling_export(monkeypatch, overrides):
 	with pytest.raises(ValueError):
 		configure(monkeypatch, **overrides)
+
+
+@pytest.mark.parametrize("modality,operation", [
+	(None, "chat"), ("embedding", "embeddings"), ("rerank", "rerank"), ("image", "image_generation"),
+	("transcription", "audio_transcription"), ("speech", "audio_speech"), ("responses", "responses"), ("something-new", "chat"),
+])
+def test_a_span_is_named_for_what_the_call_was_not_always_chat(modality, operation):
+	telemetry = Telemetry()
+	telemetry.otel = Recorder()
+	telemetry.observe_request(**{**REQUEST, "modality": modality})
+	[span] = telemetry.otel.items
+	assert span.attributes["gen_ai.operation.name"] == operation and span.name.startswith(f"{operation} ")

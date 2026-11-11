@@ -58,6 +58,21 @@ class Settings(BaseSettings):
     DEFAULT_RATE_LIMIT_RPM: int = 60
     DEFAULT_RATE_LIMIT_TPM: int = 100_000
     DEFAULT_BUDGET_DAILY_USD: float = 50.0
+    # Charged per unit (an image, a call) when LiteLLM cannot price a non-chat call, so an unpriced model still counts against budgets.
+    UNPRICED_CALL_COST_USD: float = 0.01
+
+    # ── HashiCorp Vault (provider keys read from KV v2 instead of stored) ───────────────────────
+    # Held by the operator, never by an org. Either a token, or an AppRole (role id + secret id).
+    VAULT_ADDR: str = ""
+    VAULT_TOKEN: str = ""
+    VAULT_ROLE_ID: str = ""
+    VAULT_SECRET_ID: str = ""
+    VAULT_NAMESPACE: str = ""
+    VAULT_KV_MOUNT: str = "secret"
+    # Every path an org names must sit under this prefix, with {org_id} replaced by the org's id: one org cannot read another's secrets.
+    VAULT_PATH_PREFIX: str = "openproxyai/{org_id}/"
+    VAULT_CACHE_SECONDS: int = 60
+    VAULT_ALLOW_INSECURE_HTTP: bool = False  # development only
 
     # ── Provider Fallback ─────────────────────────────────────────────
     MAX_PROVIDER_FALLBACK_ATTEMPTS: int = 3

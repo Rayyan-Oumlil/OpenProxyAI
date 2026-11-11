@@ -65,6 +65,7 @@ const DEFAULT_POLICY: PolicyConfigRequest = {
   prompt_gate_min_pass_rate: 0.8,
   prompt_gate_min_items: 10,
   conversations_enabled: false,
+  allow_provider_response_state: false,
 };
 
 function TagInput({
@@ -194,6 +195,7 @@ function extractPolicy(org: OrganizationResponse): PolicyConfigRequest {
     prompt_gate_min_pass_rate: raw.prompt_gate_min_pass_rate ?? 0.8,
     prompt_gate_min_items: raw.prompt_gate_min_items ?? 10,
     conversations_enabled: raw.conversations_enabled ?? false,
+    allow_provider_response_state: raw.allow_provider_response_state ?? false,
   };
 }
 

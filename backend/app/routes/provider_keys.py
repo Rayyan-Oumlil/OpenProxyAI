@@ -14,13 +14,25 @@ from app.schemas.provider_key import ProviderKeyCreateRequest, ProviderKeyRespon
 from app.services.admin_audit_service import get_ip, log_admin_action, serialize_provider_key
 from app.services.adaptive_sampling_service import get_error_rate, get_latency_p99
 from app.services.circuit_breaker_service import get_open_until, is_enabled as circuit_breaker_enabled
+from app.services import vault_client as vault
 from app.services.crypto_service import decrypt, encrypt
+from app.services.key_secrets import display_label, is_vault_backed
 from app.services.provider_key_service import rotate_key as rotate_key_service
 from app.utils.provider_endpoint import validate_api_base
 
 router = APIRouter(prefix="/api/v1/provider-keys", tags=["Provider Keys"])
 
 _ADMIN_ONLY = "Only admins can manage provider keys"
+
+
+def _stored_secret_or_placeholder(key: LLMProviderKey) -> str:
+	"""What the list masks. A Vault key is never read just to be listed: its place in Vault is shown instead, and its value is not fetched."""
+	if is_vault_backed(key):
+		return ""
+	try:
+		return decrypt(key.api_key_encrypted or "")
+	except ValueError:
+		return "????????"  # decryption failed: show a placeholder
 
 
 def _mask_key(raw_key: str) -> str:
@@ -41,7 +53,9 @@ def _to_response(
 		id=key.id,
 		provider=key.provider,
 		key_alias=key.key_alias,
-		key_prefix=_mask_key(raw_key),
+		secret_source=getattr(key, "secret_source", "local"),
+		vault_path=getattr(key, "vault_path", None),
+		key_prefix=display_label(key) if is_vault_backed(key) else _mask_key(raw_key),
 		weight=key.weight,
 		is_active=key.is_active,
 		region=key.region,
@@ -86,6 +100,20 @@ def _compute_effective_weight(
 	return max(1, int(effective))
 
 
+async def _check_vault_source(org_id, path: str, field: str | None) -> None:
+	"""Refuse a Vault reference that is outside the org's folder or cannot be read now. The value read is discarded."""
+	try:
+		vault.validate_path(org_id, path, field)
+	except ValueError as exc:
+		raise HTTPException(status_code=422, detail={"error": "invalid_vault_path", "detail": str(exc)}) from None
+	if not vault.configured():
+		raise HTTPException(status_code=422, detail={"error": "vault_not_configured", "detail": "Vault is not configured on this gateway."})
+	try:
+		await vault.vault_client.read(org_id, path, field)
+	except vault.VaultError as exc:
+		raise HTTPException(status_code=422, detail={"error": "vault_unreadable", "detail": str(exc)}) from None
+
+
 @router.get("", response_model=list[ProviderKeyResponse])
 async def list_provider_keys(
 	current_user: CurrentUser,
@@ -102,10 +130,7 @@ async def list_provider_keys(
 	adaptive = getattr(settings, "ADAPTIVE_LB_ENABLED", False) and redis is not None
 	result: list[ProviderKeyResponse] = []
 	for key in rows:
-		try:
-			raw = decrypt(key.api_key_encrypted)
-		except ValueError:
-			raw = "????????"  # decryption failed — show placeholder
+		raw = _stored_secret_or_placeholder(key)
 		circuit_until = None
 		if circuit_breaker_enabled() and redis:
 			open_until = await get_open_until(redis, key.id)
@@ -146,11 +171,17 @@ async def create_provider_key(
 
 	await _check_api_base(payload.api_base, payload.is_internal, payload.provider)
 
+	if payload.vault_path is not None:
+		await _check_vault_source(current_user.org_id, payload.vault_path, payload.vault_field)
+
 	key = LLMProviderKey(
 		org_id=current_user.org_id,
 		provider=payload.provider,
 		key_alias=payload.key_alias,
-		api_key_encrypted=encrypt(payload.api_key),
+		secret_source="vault" if payload.vault_path is not None else "local",
+		api_key_encrypted=encrypt(payload.api_key) if payload.api_key is not None else None,
+		vault_path=payload.vault_path,
+		vault_field=payload.vault_field,
 		weight=payload.weight,
 		is_active=True,
 		region=payload.region,
@@ -229,10 +260,7 @@ async def update_provider_key(
 	await db.commit()
 	await db.refresh(key)
 
-	try:
-		raw = decrypt(key.api_key_encrypted)
-	except ValueError:
-		raw = "????????"
+	raw = _stored_secret_or_placeholder(key)
 	circuit_until = None
 	if circuit_breaker_enabled() and redis:
 		open_until = await get_open_until(redis, key.id)
@@ -272,6 +300,13 @@ async def rotate_provider_key(
 	"""
 	if current_user.role != "admin":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
+
+	existing = await db.scalar(select(LLMProviderKey).where(LLMProviderKey.id == key_id, LLMProviderKey.org_id == current_user.org_id))
+	if existing is not None and is_vault_backed(existing):
+		raise HTTPException(
+			status_code=status.HTTP_409_CONFLICT,
+			detail={"error": "vault_backed_key", "detail": "This key is read from Vault, so it is rotated there. Nothing is stored here to re-encrypt."},
+		)
 
 	rotated = await rotate_key_service(
 		db,

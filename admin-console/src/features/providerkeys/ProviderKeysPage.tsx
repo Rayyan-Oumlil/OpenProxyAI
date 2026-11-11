@@ -71,6 +71,9 @@ function AddKeyModal({
   const [provider, setProvider] = useState("openai");
   const [alias, setAlias] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [source, setSource] = useState<"local" | "vault">("local");
+  const [vaultPath, setVaultPath] = useState("");
+  const [vaultField, setVaultField] = useState("");
   const [weight, setWeight] = useState("1.0");
   const [region, setRegion] = useState<"us" | "eu" | "ap" | "global">("us");
   const [apiBase, setApiBase] = useState("");
@@ -81,14 +84,20 @@ function AddKeyModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!apiKey.trim()) {
+    if (source === "local" && !apiKey.trim()) {
       toast.error("API key is required.");
+      return;
+    }
+    if (source === "vault" && !vaultPath.trim()) {
+      toast.error("The Vault path is required.");
       return;
     }
     onSave({
       provider,
       key_alias: alias.trim() || provider,
-      api_key: apiKey.trim(),
+      ...(source === "vault"
+        ? { vault_path: vaultPath.trim(), ...(vaultField.trim() ? { vault_field: vaultField.trim() } : {}) }
+        : { api_key: apiKey.trim() }),
       weight: parseFloat(weight) || 1.0,
       region,
       ...(supportsEndpoint && apiBase.trim() ? { api_base: apiBase.trim() } : {}),
@@ -128,7 +137,19 @@ function AddKeyModal({
               placeholder="e.g. Production OpenAI"
             />
           </label>
-          <label className="inline-control">
+          <fieldset className="inline-control" style={{ border: 0, padding: 0 }}>
+            <legend>Where the key is kept</legend>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" name="secret_source" checked={source === "local"} onChange={() => setSource("local")} />
+              Store it here, encrypted
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" name="secret_source" checked={source === "vault"} onChange={() => setSource("vault")} />
+              Read it from HashiCorp Vault
+            </label>
+          </fieldset>
+          {source === "local" ? (
+            <label className="inline-control">
             API Key
             <input
               type="password"
@@ -138,7 +159,22 @@ function AddKeyModal({
               required
               autoComplete="new-password"
             />
-          </label>
+            </label>
+          ) : (
+            <>
+              <label className="inline-control">
+                Vault path
+                <input type="text" value={vaultPath} onChange={(e) => setVaultPath(e.target.value)} placeholder="openproxyai/<your-org-id>/openai" required />
+              </label>
+              <label className="inline-control">
+                Field (optional)
+                <input type="text" value={vaultField} onChange={(e) => setVaultField(e.target.value)} placeholder="api_key" />
+              </label>
+              <p className="muted" style={{ fontSize: "0.82rem" }}>
+                The gateway holds no copy: it reads the key from Vault when a request needs it. The path must be inside your organization's folder.
+              </p>
+            </>
+          )}
           <label className="inline-control">
             Weight
             <input
@@ -321,7 +357,7 @@ export function ProviderKeysPage() {
         </Badge>
       ),
     },
-    { key: "prefix", header: "Key prefix", mono: true, cell: (k) => `${k.key_prefix}…` },
+    { key: "prefix", header: "Key prefix", mono: true, cell: (k) => (k.secret_source === "vault" ? k.key_prefix : `${k.key_prefix}…`) },
     { key: "weight", header: "Weight", align: "right", mono: true, cell: (k) => k.weight },
     ...adaptiveColumns,
     {
