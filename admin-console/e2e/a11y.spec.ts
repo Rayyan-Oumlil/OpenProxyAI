@@ -148,8 +148,8 @@ test.describe("dialogs", () => {
       expect(box.bottom).toBeLessThanOrEqual(viewport.h + 1);
       expect(box.left).toBeGreaterThanOrEqual(0);
       expect(box.right).toBeLessThanOrEqual(viewport.w + 1);
-      await dialog.getByRole("button", { name: /Create evaluator|Start run/ }).scrollIntoViewIfNeeded();
-      await expect(dialog.getByRole("button", { name: /Create evaluator|Start run/ })).toBeInViewport();
+      await dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation/ }).scrollIntoViewIfNeeded();
+      await expect(dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation/ })).toBeInViewport();
     });
   }
 });
