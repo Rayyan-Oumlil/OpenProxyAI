@@ -103,6 +103,7 @@ function Composer({
       ),
     onSuccess: (exchange) => {
       setContent("");
+      setAsserted(""); // a sensitivity applies to the message it was chosen for, not to the ones after it
       setError(null);
       onSent(exchange);
     },
@@ -156,7 +157,7 @@ function Composer({
           )}
         </label>
         <label className="inline-control" htmlFor={ids.cls}>
-          This message is
+          Sensitivity
           <select
             id={ids.cls}
             value={asserted}
