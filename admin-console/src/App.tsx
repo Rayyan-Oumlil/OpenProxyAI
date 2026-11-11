@@ -23,6 +23,7 @@ const ProviderHealthPage = lazy(() => import("./features/providers/ProviderHealt
 const ModelRegistryPage = lazy(() => import("./features/modelregistry/ModelRegistryPage").then((m) => ({ default: m.ModelRegistryPage })));
 const ProviderKeysPage = lazy(() => import("./features/providerkeys/ProviderKeysPage").then((m) => ({ default: m.ProviderKeysPage })));
 const ExperimentsPage = lazy(() => import("./features/experiments/ExperimentsPage").then((m) => ({ default: m.ExperimentsPage })));
+const ConversationsPage = lazy(() => import("./features/conversations/ConversationsPage").then((m) => ({ default: m.ConversationsPage })));
 const DatasetsPage = lazy(() => import("./features/evaluation/DatasetsPage").then((m) => ({ default: m.DatasetsPage })));
 const EvaluatorsPage = lazy(() => import("./features/evaluation/EvaluatorsPage").then((m) => ({ default: m.EvaluatorsPage })));
 const EvalRunsPage = lazy(() => import("./features/evaluation/EvalRunsPage").then((m) => ({ default: m.EvalRunsPage })));
@@ -89,6 +90,8 @@ export function App() {
             <Route path="billing" element={<BillingPage />} />
             <Route path="audit" element={<AuditLogPage />} />
             <Route path="playground" element={<PlaygroundPage />} />
+            <Route path="conversations" element={<ConversationsPage />} />
+            <Route path="conversations/:id" element={<ConversationsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
