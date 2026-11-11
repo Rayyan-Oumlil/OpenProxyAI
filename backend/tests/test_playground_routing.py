@@ -9,7 +9,9 @@ import pytest
 
 from app.dependencies import get_current_user_from_jwt, get_db, get_redis
 from app.main import app
-from app.routes import playground as pg
+from app.routes import playground as pg  # noqa: F401  (imported so the route is registered)
+from app.services import model_runner as mr
+from app.services.llm_service import llm_service
 from app.services import policy_service as ps
 from app.services import rate_limiter
 from app.services.llm_service import ProviderKeyCandidate
@@ -49,6 +51,14 @@ def harness(client, monkeypatch):
 	async def noop_log(*args, **kwargs):
 		seen.logs.append(kwargs)
 
+	def as_keys(fn):
+		"""The runner asks for a list of keys and takes the first; the fakes below return one."""
+		async def wrapper(db, org_id, provider, model=None, redis=None, max_attempts=None, only_key_id=None):
+			return [await fn(db, org_id, provider, model=model, only_key_id=only_key_id)]
+		return wrapper
+
+	seen.as_keys = as_keys
+
 	def configure(*, mode="off", registry=(), region="us"):
 		user = SimpleNamespace(id=uuid.uuid4(), org_id=uuid.uuid4(), role="admin", is_active=True, budget_daily_usd=None)
 
@@ -70,11 +80,11 @@ def harness(client, monkeypatch):
 		async def fake_inputs(db, org_id):
 			return list(registry), region
 
-		monkeypatch.setattr(pg.cost_tracker_service, "calculate_cost_usd", lambda _response: 0)  # not what is under test
-		monkeypatch.setattr(pg, "acompletion", fake_acompletion)
-		monkeypatch.setattr(pg, "_select_provider_key", fake_select_key)
-		monkeypatch.setattr(pg, "log_request", noop_log)
-		monkeypatch.setattr(pg.llm_service, "routing_inputs", fake_inputs)
+		monkeypatch.setattr(mr.cost_tracker_service, "calculate_cost_usd", lambda _response: 0)  # not what is under test
+		monkeypatch.setattr(mr, "acompletion", fake_acompletion)
+		monkeypatch.setattr(llm_service, "_select_provider_keys", as_keys(fake_select_key))
+		monkeypatch.setattr(mr, "log_request", noop_log)
+		monkeypatch.setattr(llm_service, "routing_inputs", fake_inputs)
 		monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", fake_limits)
 		monkeypatch.setattr(ps.policy_store, "load", fake_policy)
 		app.dependency_overrides[get_current_user_from_jwt] = fake_user
@@ -141,7 +151,7 @@ def test_a_custom_endpoint_is_called_through_the_connection_guard_in_the_playgro
 	async def with_endpoint_key(db, org_id, provider, model=None, only_key_id=None):
 		return ProviderKeyCandidate(None, "sk-vllm", "https://8.8.8.8/v1", False)
 
-	monkeypatch.setattr(pg, "_select_provider_key", with_endpoint_key)
+	monkeypatch.setattr(llm_service, "_select_provider_keys", harness.as_keys(with_endpoint_key))
 	harness.compare()
 
 	assert len(harness.called) == 2
@@ -168,7 +178,7 @@ def test_a_key_that_cannot_be_selected_becomes_that_models_error_not_a_failed_re
 			raise HTTPException(status_code=503, detail={"error": "no_provider_key", "detail": "No provider keys available"})
 		return ProviderKeyCandidate(None, "sk-ok", None)
 
-	monkeypatch.setattr(pg, "_select_provider_key", flaky)
+	monkeypatch.setattr(llm_service, "_select_provider_keys", harness.as_keys(flaky))
 	response = harness.compare()
 	assert response.status_code == 200
 	results = {r["model"]: r for r in response.json()["results"]}
