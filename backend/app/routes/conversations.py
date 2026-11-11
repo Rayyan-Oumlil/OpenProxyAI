@@ -13,6 +13,7 @@ A conversation the caller may not see is a 404, never a 403, so its existence is
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
@@ -20,19 +21,25 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.dependencies import CurrentUser, get_db, get_redis
-from app.models.conversation import PRIVATE, TEAM, Conversation, ConversationTurn
+from app.models.conversation import PRIVATE, TEAM, Conversation, ConversationContextPackage, ConversationTurn
 from app.models.team import Team, team_members
 from app.models.user import User
 from app.schemas.conversation import (
 	MAX_PER_USER,
 	ConversationCreate,
 	ConversationResponse,
+	ContextSummary,
 	ConversationUpdate,
+	TurnExchange,
+	TurnRequest,
 	TurnResponse,
 )
 from app.services.admin_audit_service import get_ip, log_admin_action
-from app.services.policy_service import policy_store
+from app.services.conversation_turns import DEFAULT_CONTEXT_TOKENS, run_turn
+from app.services.policy_service import POLICY_BLOCK_STATUS, policy_store
+from app.services.rate_limiter import rate_limiter_service
 
 router = APIRouter(prefix="/api/v1/conversations", tags=["Conversations"])
 
@@ -210,3 +217,88 @@ async def delete_conversation(conversation_id: UUID, request: Request, current_u
 	await db.delete(row)
 	await db.commit()
 	return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+_TURN_LOCK_SECONDS = 180  # longer than a model call can take; a crashed request frees the conversation when it expires
+
+
+def _turn_response(turn: ConversationTurn) -> TurnResponse:
+	return TurnResponse(id=turn.id, seq=turn.seq, role=turn.role, content=turn.content, data_class=turn.data_class, model=turn.model, created_at=turn.created_at)
+
+
+def _context_summary(package: ConversationContextPackage) -> ContextSummary:
+	return ContextSummary(
+		package_id=package.id, model=package.model, data_class=package.data_class, routing_mode=package.routing_mode,
+		included_turn_ids=package.included_turn_ids, withheld=package.withheld, estimated_tokens=package.estimated_tokens,
+		payload_sha256=package.payload_sha256, outcome=package.outcome, created_at=package.created_at,
+	)
+
+
+async def _rate_limit(redis, user, policy, model: str, estimated_tokens: int) -> None:
+	ok, _, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
+		redis=redis, org_id=str(user.org_id), user_id=str(user.id), request_tokens_estimate=estimated_tokens,
+		max_rpm=settings.DEFAULT_RATE_LIMIT_RPM, max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
+		max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)), user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
+		model=model, policy_config=policy,
+	)
+	if not ok:
+		raise HTTPException(
+			status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+			detail={"error": "rate_limit_exceeded", "limit_type": limit_type, "detail": limit_detail, "retry_after": retry_after},
+		)
+
+
+@router.post("/{conversation_id}/turns", response_model=TurnExchange, status_code=status.HTTP_201_CREATED)
+async def add_turn(
+	conversation_id: UUID, payload: TurnRequest, current_user: CurrentUser, db: AsyncSession = Depends(get_db), redis=Depends(get_redis)
+) -> TurnExchange:
+	"""Ask the model a question in this conversation. Only the owner can. See ``services/conversation_turns.py`` for the order of
+	guards; in short, the model sees only the earlier turns it is cleared for, and the reply says which it did not see."""
+	if current_user.role not in _WRITE_ROLES:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot add turns")
+	conversation = await load_owned(db, current_user, conversation_id)
+	await _require_enabled(redis, db, current_user)
+	policy = await policy_store.load(current_user.org_id, db, redis)
+	await _rate_limit(redis, current_user, policy, payload.model, max(1, len(payload.content) // 4))
+
+	lock_key = f"conversation-turn:{conversation.id}"
+	if not await redis.set(lock_key, "1", nx=True, ex=_TURN_LOCK_SECONDS):
+		raise HTTPException(
+			status_code=status.HTTP_409_CONFLICT,
+			detail={"error": "turn_in_progress", "detail": "Another message in this conversation is still being answered."},
+		)
+	try:
+		result = await run_turn(
+			db, redis, conversation=conversation, user_id=current_user.id, model=payload.model, content=payload.content,
+			asserted_class=payload.data_class, policy=policy, system_prompt=payload.system_prompt, temperature=payload.temperature,
+			max_tokens=payload.max_tokens, token_budget=payload.max_context_tokens or DEFAULT_CONTEXT_TOKENS,
+		)
+	finally:
+		await redis.delete(lock_key)
+
+	outcome = result.outcome
+	if outcome.refused:
+		raise HTTPException(status_code=POLICY_BLOCK_STATUS, detail={"error": "refused", "detail": outcome.error})
+	if outcome.error:
+		detail = {"error": "model_error", "detail": outcome.error}
+		if result.package is not None:
+			detail["package_id"] = str(result.package.id)
+		raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
+	return TurnExchange(
+		user_turn=_turn_response(result.user_turn), assistant_turn=_turn_response(result.assistant_turn), context=_context_summary(result.package),
+		prompt_tokens=outcome.prompt_tokens, completion_tokens=outcome.completion_tokens, cost_usd=str(outcome.cost_usd),
+	)
+
+
+@router.get("/{conversation_id}/turns/{turn_id}/context", response_model=ContextSummary)
+async def get_turn_context(conversation_id: UUID, turn_id: UUID, current_user: CurrentUser, db: AsyncSession = Depends(get_db)) -> ContextSummary:
+	"""What was sent to the model for this answer: which earlier turns, which were withheld and why."""
+	await load_readable(db, current_user, conversation_id)
+	package = await db.scalar(
+		select(ConversationContextPackage).where(
+			ConversationContextPackage.conversation_id == conversation_id, ConversationContextPackage.assistant_turn_id == turn_id
+		)
+	)
+	if package is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No context record for this turn")
+	return _context_summary(package)
