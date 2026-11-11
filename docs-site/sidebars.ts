@@ -54,6 +54,7 @@ const sidebars: SidebarsConfig = {
         'guides/conversations',
         'guides/telemetry-and-siem',
         'guides/secrets-from-vault',
+        'guides/policy-plugins',
       ],
     },
     {

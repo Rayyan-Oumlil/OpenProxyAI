@@ -10,6 +10,7 @@ A summary of what's shipped, grouped by build phase. This tracks major capabilit
 
 ## Unreleased — November 2026
 
+- **Policy plugins (WebAssembly)** — `/api/v1/policy-plugins` (admins): add your own rule to the policy check as a sandboxed module. No imports (nothing to call), bounded time and memory, a fresh instance per call, text over 256 KB refused rather than cut; a plugin can only add a restriction, never lift one, and one that fails blocks under `enforce`. Runs on chat and every other endpoint. Wasmtime, with signal-free traps and the features a rule does not need switched off.
 - **Analytics query** — `POST /api/v1/analytics/query` (admins): filters, group-bys and aggregates over your own request log and scores, from a structured query rather than SQL text, so every column, operator and aggregate is allowlisted and every value is a bound parameter. Read-only transaction, 5-second timeout, every query in the admin audit log, no free-text columns, and always limited to your own organization.
 - **Provider keys from Vault** — a provider key can point at a HashiCorp Vault KV v2 secret (`vault_path`) instead of holding a stored copy. Each org may use only its own folder (`VAULT_PATH_PREFIX`), enforced at creation and on every read; https is required, redirects are refused, a failure to read is an error for that key and never a fallback, and the value is never logged or returned.
 - **Reading scores** — `GET /api/v1/scores` (admins) and `/summary` (admins and developers, aggregates only).
