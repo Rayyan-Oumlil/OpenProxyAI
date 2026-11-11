@@ -55,7 +55,7 @@ class Modality:
 	text_of: Callable[[Any], str | None]  # the text policy and classification must see; None = could not be read (treated as unscanned)
 	estimate_tokens: Callable[[Any], int]  # sizes the request for rate limiting
 	call: CallFn  # (request, api_key, endpoint) -> provider response
-	usage: Callable[[dict], tuple[int, int]]  # provider body -> (prompt_tokens, completion_tokens)
+	usage: Callable[[dict], tuple[int, int] | None]  # provider body -> (prompt, completion) tokens, or None when it reported none
 	model_of: Callable[[Any], str] = lambda request: request.model
 
 
@@ -174,7 +174,8 @@ async def run_modality(
 			policy_metadata = {**(policy_metadata or {}), "fallback_count": fallback_count}
 
 		body = ls._to_jsonable(response)
-		prompt_tokens, completion_tokens = modality.usage(body if isinstance(body, dict) else {})
+		reported = modality.usage(body if isinstance(body, dict) else {})
+		prompt_tokens, completion_tokens = reported if reported is not None else (max(modality.estimate_tokens(request), 0), 0)
 		cost = cost_tracker_service.calculate_cost_usd(response)
 		latency_ms = int((time.perf_counter() - start) * 1000)
 		ls.LLMService._schedule_log(

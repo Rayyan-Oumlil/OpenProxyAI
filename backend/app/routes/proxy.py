@@ -15,7 +15,8 @@ from app.models.llm_provider_key import LLMProviderKey
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.schemas.models import ModelListResponse, ModelResponse
 from app.services.llm_service import llm_service
-from app.services.modalities import EMBEDDINGS
+from app.schemas.modalities import RerankRequest
+from app.services.modalities import EMBEDDINGS, RERANK
 from app.services.modality_pipeline import run_modality
 
 router = APIRouter(tags=["Proxy"])
@@ -123,16 +124,8 @@ async def chat_completions(
         return _proxy_error_response(exc)
 
 
-@router.post("/v1/embeddings")
-async def embeddings(
-    request: EmbeddingRequest,
-    http_request: Request,
-    background_tasks: BackgroundTasks,
-    auth: ProxyAuth,
-    db: AsyncSession = Depends(get_db),
-    redis: Redis = Depends(get_redis),
-    request_id: str = Depends(get_request_id),
-):
+async def _serve(modality, request, http_request, background_tasks, auth, db, redis, request_id):
+    """Every non-chat endpoint is this: the shared pipeline with the endpoint's own modality."""
     user, api_key = auth
     try:
         normalized_request_id = uuid.UUID(request_id)
@@ -140,7 +133,7 @@ async def embeddings(
         normalized_request_id = uuid.uuid4()
     try:
         return await run_modality(
-            EMBEDDINGS,
+            modality,
             request,
             db=db,
             redis=redis,
@@ -152,3 +145,29 @@ async def embeddings(
         )
     except HTTPException as exc:
         return _proxy_error_response(exc)
+
+
+@router.post("/v1/embeddings")
+async def embeddings(
+    request: EmbeddingRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+    auth: ProxyAuth,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    request_id: str = Depends(get_request_id),
+):
+    return await _serve(EMBEDDINGS, request, http_request, background_tasks, auth, db, redis, request_id)
+
+
+@router.post("/v1/rerank")
+async def rerank(
+    request: RerankRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+    auth: ProxyAuth,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    request_id: str = Depends(get_request_id),
+):
+    return await _serve(RERANK, request, http_request, background_tasks, auth, db, redis, request_id)
