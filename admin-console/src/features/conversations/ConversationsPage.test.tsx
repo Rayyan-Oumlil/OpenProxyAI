@@ -28,10 +28,17 @@ vi.mock("../../api/client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), del: vi.fn() },
 }));
 
+vi.mock("../../lib/streamTurn", () => {
+  class StreamUnavailable extends Error {}
+  return { streamTurn: vi.fn(), StreamUnavailable };
+});
+
 import { apiClient } from "../../api/client";
+import { StreamUnavailable, streamTurn } from "../../lib/streamTurn";
 
 const get = vi.mocked(apiClient.get);
 const post = vi.mocked(apiClient.post);
+const stream = vi.mocked(streamTurn);
 const del = vi.mocked(apiClient.del);
 
 const CONVERSATION: Conversation = {
@@ -143,6 +150,7 @@ beforeEach(() => {
   auth.role = "developer";
   get.mockReset();
   post.mockReset();
+  stream.mockReset();
   del.mockReset();
 });
 afterEach(cleanup);
@@ -320,7 +328,7 @@ describe("a thread", () => {
 
   it("sends the chosen model and any asserted class, and tells the user what was held back", async () => {
     mockApi();
-    post.mockResolvedValue(exchange(CONTEXT));
+    stream.mockResolvedValue(exchange(CONTEXT));
     renderAt("/conversations/c1");
     await screen.findByRole("option", {
       name: "anthropic/claude (up to Internal)",
@@ -336,14 +344,15 @@ describe("a thread", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Send/ }));
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(
-        "/api/v1/conversations/c1/turns",
+      expect(stream).toHaveBeenCalledWith(
+        "c1",
         {
           content: "Summarise it",
           model: "anthropic/claude",
           data_class: "confidential",
         },
         "tok",
+        expect.anything(),
       ),
     );
     const status = await screen.findByRole("status");
@@ -394,7 +403,7 @@ describe("a thread", () => {
 
   it("shows a refusal in words and keeps what the user typed", async () => {
     mockApi();
-    post.mockRejectedValue(
+    stream.mockRejectedValue(
       new Error(
         "Not authorized for confidential data: not_authorized:class_too_low",
       ),
@@ -414,7 +423,7 @@ describe("a thread", () => {
 
   it("explains how to switch conversations on when the organization has not", async () => {
     mockApi();
-    post.mockRejectedValue(
+    stream.mockRejectedValue(
       new Error("Conversations are not enabled for this organization."),
     );
     renderAt("/conversations/c1");
@@ -424,6 +433,54 @@ describe("a thread", () => {
     fireEvent.click(screen.getByRole("button", { name: /Send/ }));
     expect((await screen.findByRole("alert")).textContent).toContain(
       "An admin can turn them on under Policy",
+    );
+  });
+
+  it("asks again for the whole answer when the organization cannot stream", async () => {
+    mockApi();
+    stream.mockRejectedValue(
+      new StreamUnavailable("answers are checked first"),
+    );
+    post.mockResolvedValue(exchange(CONTEXT));
+    renderAt("/conversations/c1");
+    fireEvent.change(await screen.findByLabelText("Message"), {
+      target: { value: "hi" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Send/ }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/conversations/c1/turns",
+        { content: "hi", model: "openai/gpt-4o" },
+        "tok",
+      ),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows the answer as it is written, then replaces it with the stored one", async () => {
+    mockApi();
+    let finish: (value: TurnExchange) => void = () => undefined;
+    stream.mockImplementation(async (_id, _body, _token, handlers) => {
+      handlers.onDelta("Hel");
+      handlers.onDelta("lo");
+      return new Promise<TurnExchange>((resolve) => {
+        finish = resolve;
+      });
+    });
+    renderAt("/conversations/c1");
+    fireEvent.change(await screen.findByLabelText("Message"), {
+      target: { value: "hi" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Send/ }));
+    const writing = await screen.findByRole("article", {
+      name: "Assistant, writing",
+    });
+    expect(writing.textContent).toContain("Hello");
+    finish(exchange(CONTEXT));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("article", { name: "Assistant, writing" }),
+      ).toBeNull(),
     );
   });
 

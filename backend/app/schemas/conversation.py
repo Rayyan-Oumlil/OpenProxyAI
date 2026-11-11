@@ -113,6 +113,7 @@ class TurnRequest(BaseModel):
 	temperature: float | None = Field(default=None, ge=0, le=2)
 	max_tokens: int | None = Field(default=None, ge=1, le=32_000)
 	max_context_tokens: int | None = Field(default=None, ge=1, le=200_000)
+	stream: bool = Field(default=False, description="Receive the answer as server-sent events as it is written.")
 
 	@field_validator("content")
 	@classmethod
