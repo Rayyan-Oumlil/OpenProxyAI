@@ -1,13 +1,10 @@
 """Prompt Playground — model comparison and saved prompt templates."""
 
 import asyncio
-import time
-import uuid
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from litellm import acompletion
+from fastapi import APIRouter, Depends, HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,17 +20,16 @@ from app.schemas.playground import (
     PromptTemplateResponse,
     PromptTemplateUpdate,
 )
-from app.services.audit_logger import log_request
-from app.services.cost_tracker import cost_tracker_service
 from app.services.classification_service import classify_chat_request
-from app.services.llm_service import ProviderKeyCandidate, llm_service, route_decision, split_model, with_endpoint
-from app.services.provider_client import ProviderEndpoint
+from app.services.llm_service import llm_service, split_model
+from app.services.model_runner import CallPlan, RunOutcome, execute_plan, plan_call
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 
 router = APIRouter(prefix="/api/v1", tags=["Playground"])
 
 _PLAYGROUND_WRITE_ROLES = frozenset({"admin", "developer"})
+PLAYGROUND_TIMEOUT_SECONDS = 30
 
 
 def _estimate_tokens_from_messages(messages: list[dict]) -> int:
@@ -41,17 +37,6 @@ def _estimate_tokens_from_messages(messages: list[dict]) -> int:
     content_chars = sum(len(str(m.get("content") or "")) for m in messages)
     return max(content_chars // 4, 1)
 
-
-async def _select_provider_key(
-    db: AsyncSession,
-    org_id: UUID,
-    provider: str,
-    model: str | None = None,
-    only_key_id: UUID | None = None,
-) -> ProviderKeyCandidate:
-    """The key (and custom endpoint) a playground call uses: exactly what chat would pick, so the two never drift."""
-    [candidate, *_] = await llm_service._select_provider_keys(db, org_id, provider, model=model, max_attempts=0, only_key_id=only_key_id)
-    return candidate
 
 # ── Prompt Templates CRUD ────────────────────────────────────────────────
 
@@ -371,7 +356,6 @@ async def list_template_versions(
 async def playground_compare(
     payload: PlaygroundCompareRequest,
     current_user: CurrentUser,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> PlaygroundCompareResponse:
@@ -424,150 +408,37 @@ async def playground_compare(
             },
         )
 
-    # How sensitive is this prompt, and which of the chosen models may see it? Decided once, in order: the calls
-    # below run concurrently, and a database session cannot be shared between concurrent tasks.
+    # Every model is checked before any is called: a request that names an unknown provider is a 400, not a partial result.
+    for model_name in payload.models:
+        split_model(model_name)
+
+    # How sensitive is this prompt, and which of the chosen models may see it? Planning uses the database session, which
+    # concurrent tasks cannot share, so each model is planned in turn; the calls themselves (no session) then run together.
+    # The prompt is classified and the registry loaded once for all of them.
     classification = await classify_chat_request(_CCR.model_construct(model="", messages=payload.messages), policy_config, None)
-    candidates, region = await llm_service.routing_inputs(db, current_user.org_id) if policy_config.routing_mode != "off" else ([], "us")
-    plan: dict[str, tuple[ProviderKeyCandidate | None, str | None, dict | None]] = {}  # model -> (key, refusal, routing metadata)
+    routing_inputs = await llm_service.routing_inputs(db, current_user.org_id) if policy_config.routing_mode != "off" else ([], "us")
+    plans: list[CallPlan | RunOutcome] = []
     for model in payload.models:
-        provider, model_name = split_model(model)
-        routing = route_decision(candidates, region, policy_config, classification.data_class, model)
-        metadata = routing.as_metadata() if routing else None
-        if routing is not None and routing.blocked:
-            plan[model] = (None, f"Not authorized for {classification.data_class} data: {routing.reason}", metadata)
-            continue
-        try:
-            key_id = routing.key_id if routing is not None and routing.mode == "enforce" else None
-            plan[model] = (await _select_provider_key(db, current_user.org_id, provider, model_name, only_key_id=key_id), None, metadata)
-        except HTTPException as exc:
-            plan[model] = (None, str(exc.detail.get("detail") if isinstance(exc.detail, dict) else exc.detail), metadata)
-
-    async def _run_one(model: str) -> PlaygroundCompareResult:
-        req_id = uuid.uuid4()
-        start = time.perf_counter()
-        provider, _ = split_model(model)
-        candidate, refusal, routing_metadata = plan[model]
-        metadata = {"source": "playground", "data_class": classification.as_metadata(), **({"routing": routing_metadata} if routing_metadata else {})}
-        if candidate is None:
-            background_tasks.add_task(
-                log_request, redis=redis, request_id=req_id, org_id=current_user.org_id, user_id=current_user.id, api_key_id=None,
-                model=model, provider=provider, prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"), latency_ms=0, ttft_ms=None,
-                status_code=POLICY_BLOCK_STATUS if routing_metadata and routing_metadata.get("model") is None else 503,
-                error_message=refusal, request_metadata=metadata, labels=None,
+        plans.append(
+            await plan_call(
+                db=db, redis=redis, org_id=current_user.org_id, user_id=current_user.id, model=model, messages=messages_list,
+                policy_config=policy_config, source="playground", temperature=payload.temperature, max_tokens=payload.max_tokens,
+                timeout=PLAYGROUND_TIMEOUT_SECONDS, check_policy=False, classification=classification, routing_inputs=routing_inputs,
             )
-            return PlaygroundCompareResult(
-                model=model, content="", prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"), latency_ms=0, ttft_ms=None, error=refusal,
-            )
-
-        kwargs = {
-            "model": model,
-            "messages": messages_list,
-            "api_key": candidate.api_key,
-            "timeout": 30,
-            "request_timeout": 30,
-        }
-        kwargs = with_endpoint(
-            kwargs, candidate.api_key, ProviderEndpoint(candidate.api_base, candidate.is_internal) if candidate.api_base else None,
         )
-        if payload.temperature is not None:
-            kwargs["temperature"] = payload.temperature
-        if payload.max_tokens is not None:
-            kwargs["max_tokens"] = payload.max_tokens
 
-        try:
-            response = await acompletion(**kwargs)
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            usage = getattr(response, "usage", None) or {}
-            prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
-            completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-            cost = cost_tracker_service.calculate_cost_usd(response)
-            content = ""
-            if response.choices:
-                content = getattr(response.choices[0].message, "content", "") or ""
+    async def _finish(plan: CallPlan | RunOutcome) -> RunOutcome:
+        if isinstance(plan, RunOutcome):
+            return plan  # refused or no key: already logged, nothing to call
+        return await execute_plan(plan, redis=redis, org_id=current_user.org_id, user_id=current_user.id)
 
-            background_tasks.add_task(
-                log_request,
-                redis=redis,
-                request_id=req_id,
-                org_id=current_user.org_id,
-                user_id=current_user.id,
-                api_key_id=None,
-                model=model,
-                provider=provider,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                cost_usd=cost,
-                latency_ms=latency_ms,
-                ttft_ms=None,
-                status_code=200,
-                request_metadata=metadata,
-                labels=None,
+    outcomes = await asyncio.gather(*(_finish(plan) for plan in plans))
+    return PlaygroundCompareResponse(
+        results=[
+            PlaygroundCompareResult(
+                model=model, content=outcome.content, prompt_tokens=outcome.prompt_tokens, completion_tokens=outcome.completion_tokens,
+                cost_usd=outcome.cost_usd, latency_ms=outcome.latency_ms, ttft_ms=None, error=outcome.error,
             )
-
-            return PlaygroundCompareResult(
-                model=model,
-                content=content,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                cost_usd=cost,
-                latency_ms=latency_ms,
-                ttft_ms=None,
-                error=None,
-            )
-        except Exception as exc:
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            err_msg = str(exc)
-            background_tasks.add_task(
-                log_request,
-                redis=redis,
-                request_id=req_id,
-                org_id=current_user.org_id,
-                user_id=current_user.id,
-                api_key_id=None,
-                model=model,
-                provider=provider,
-                prompt_tokens=0,
-                completion_tokens=0,
-                cost_usd=Decimal("0"),
-                latency_ms=latency_ms,
-                ttft_ms=None,
-                status_code=502,
-                error_message=err_msg,
-                request_metadata=metadata,
-                labels=None,
-            )
-            return PlaygroundCompareResult(
-                model=model,
-                content="",
-                prompt_tokens=0,
-                completion_tokens=0,
-                cost_usd=Decimal("0"),
-                latency_ms=latency_ms,
-                ttft_ms=None,
-                error=err_msg,
-            )
-
-    tasks = [_run_one(m) for m in payload.models]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    out: list[PlaygroundCompareResult] = []
-    for i, r in enumerate(results):
-        if isinstance(r, Exception):
-            model = payload.models[i]
-            provider, _ = split_model(model)
-            out.append(
-                PlaygroundCompareResult(
-                    model=model,
-                    content="",
-                    prompt_tokens=0,
-                    completion_tokens=0,
-                    cost_usd=Decimal("0"),
-                    latency_ms=0,
-                    ttft_ms=None,
-                    error=str(r),
-                )
-            )
-        else:
-            out.append(r)
-
-    return PlaygroundCompareResponse(results=out)
+            for model, outcome in zip(payload.models, outcomes, strict=True)
+        ]
+    )
