@@ -2,6 +2,7 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
+wasmtime==50.0.1  # sandbox for org policy plugins (Bytecode Alliance); no WASI, fuel and memory limits, see services/wasm_runtime.py
 
 # LLM
 # Pinned to the minor line the suite is verified against; bump deliberately (see tests/test_litellm_contract.py).
