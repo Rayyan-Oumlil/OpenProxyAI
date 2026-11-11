@@ -93,6 +93,32 @@ describe("ProviderKeysPage", () => {
     expect(post.mock.calls[0][1]).toMatchObject({ api_base: "https://vllm.example.com/v1", max_data_class: "confidential", is_internal: false });
   });
 
+  it("adds a key that is read from Vault: sends the path and never an api_key", async () => {
+    get.mockResolvedValue([]);
+    post.mockResolvedValue(key());
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Add provider key" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Read it from HashiCorp Vault" }));
+    expect(screen.queryByLabelText("API Key")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Vault path"), { target: { value: "openproxyai/org-1/openai" } });
+    fireEvent.change(screen.getByLabelText(/^Field/), { target: { value: "key" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Key" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    const body = post.mock.calls[0][1] as Record<string, unknown>;
+    expect(body.vault_path).toBe("openproxyai/org-1/openai");
+    expect(body.vault_field).toBe("key");
+    expect("api_key" in body).toBe(false);
+  });
+
+  it("asks for a Vault path when Vault is chosen and sends nothing without one", async () => {
+    get.mockResolvedValue([]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Add provider key" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Read it from HashiCorp Vault" }));
+    fireEvent.submit(screen.getByRole("button", { name: "Add Key" }).closest("form")!);
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("offers a custom endpoint only for the openai provider, and never sends one for another provider", async () => {
     get.mockResolvedValue([]);
     post.mockResolvedValue(key());

@@ -27,6 +27,8 @@ POST /api/v1/provider-keys
 }
 ```
 
+To keep the key in HashiCorp Vault instead of storing it here, send `"vault_path"` (and optionally `"vault_field"`) in place of the key: see [Provider keys from Vault](/guides/secrets-from-vault).
+
 `weight` controls this key's share of weighted rotation relative to other keys for the same provider. `data_region` is used for [data residency](/guides/data-residency) filtering.
 
 ## Rotate

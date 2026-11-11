@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.llm_provider_key import LLMProviderKey
 from app.services.admin_audit_service import log_admin_action
 from app.services.crypto_service import decrypt, encrypt
+from app.services.key_secrets import is_vault_backed
 
 
 async def rotate_key(
@@ -31,8 +32,11 @@ async def rotate_key(
     if key is None:
         return False
 
+    if is_vault_backed(key):
+        return False  # the secret lives in Vault and is rotated there; there is nothing here to re-encrypt
+
     try:
-        plaintext = decrypt(key.api_key_encrypted)
+        plaintext = decrypt(key.api_key_encrypted or "")
     except ValueError:
         return False
 

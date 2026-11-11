@@ -48,6 +48,12 @@ SEND_TIMEOUT_SECONDS = 3.0
 
 AttributeValue = str | int | float | bool
 
+# ``gen_ai.operation.name``: the semantic-convention value where one exists (chat, embeddings), a descriptive one otherwise.
+OPERATION_NAMES = {
+    "chat": "chat", "embedding": "embeddings", "rerank": "rerank", "image": "image_generation",
+    "transcription": "audio_transcription", "speech": "audio_speech", "responses": "responses",
+}
+
 
 # -- bounded background worker --------------------------------------------------------------------
 
@@ -379,9 +385,9 @@ class Telemetry:
     def observe_request(
         self, *, request_id: Any, org_id: Any, user_id: Any, api_key_id: Any, model: str, provider: str,
         prompt_tokens: int, completion_tokens: int, cost_usd: float, latency_ms: int, status_code: int,
-        error_message: str | None, policy_action: str | None = None,
+        error_message: str | None, policy_action: str | None = None, modality: str | None = None,
     ) -> None:
-        """A finished chat/embedding request: security events plus one ``gen_ai`` span."""
+        """A finished request (chat, embeddings, rerank, images, audio, responses): security events plus one ``gen_ai`` span."""
         try:
             if self.siem is not None:
                 for event in events_for_request(
@@ -390,8 +396,9 @@ class Telemetry:
                 ):
                     self.siem.emit(event)
             if self.otel is not None:
+                operation = OPERATION_NAMES.get(modality or "chat", "chat")
                 attrs: dict[str, AttributeValue] = {
-                    "gen_ai.operation.name": "chat",
+                    "gen_ai.operation.name": operation,
                     "gen_ai.system": provider or "unknown",
                     "gen_ai.request.model": model,
                     "gen_ai.usage.input_tokens": int(prompt_tokens or 0),
@@ -403,7 +410,7 @@ class Telemetry:
                 }
                 if policy_action:
                     attrs["openproxyai.policy.action"] = policy_action
-                self.otel.emit(_span(f"chat {model}", latency_ms, attrs, status_code, _label(error_message, status_code)))
+                self.otel.emit(_span(f"{operation} {model}", latency_ms, attrs, status_code, _label(error_message, status_code)))
         except Exception:  # noqa: BLE001
             self.internal_errors += 1
 

@@ -102,6 +102,7 @@ async def log_request(
 		prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost_usd=float(cost_usd or 0),
 		latency_ms=latency_ms, status_code=status_code, error_message=error_message,
 		policy_action=((request_metadata or {}).get("policy") or {}).get("action"),
+		modality=(request_metadata or {}).get("modality"),
 	)
 	total_tokens = prompt_tokens + completion_tokens
 	metadata = {**(request_metadata or {})}

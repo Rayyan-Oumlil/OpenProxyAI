@@ -24,7 +24,11 @@ class LLMProviderKey(UUIDPrimaryKeyMixin, Base):
     )
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     key_alias: Mapped[str] = mapped_column(String(100), nullable=False)
-    api_key_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    # Null for a key read from Vault (secret_source = "vault"): the gateway then holds no copy of the secret.
+    api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    secret_source: Mapped[str] = mapped_column(String(10), nullable=False, server_default="local")
+    vault_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    vault_field: Mapped[str | None] = mapped_column(String(100), nullable=True)
     weight: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     region: Mapped[str] = mapped_column(String(10), server_default="us", nullable=False)

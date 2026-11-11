@@ -15,7 +15,7 @@ from typing import Any, NamedTuple
 import litellm
 from fastapi import BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import acompletion, aembedding
+from litellm import acompletion, aembedding, aimage_generation, arerank, aresponses, aspeech, atranscription  # noqa: F401  (the provider entry points modalities.py calls through this module, so tests replace them in one place)
 from redis.asyncio import Redis
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
@@ -29,7 +29,7 @@ from app.models.prompt_template import PromptTemplate
 from app.models.organization import Organization
 from app.models.team import Team, team_members
 from app.models.user import User
-from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest, Message, _substitute_variables
+from app.schemas.chat import ChatCompletionRequest, Message, _substitute_variables
 from app.services import cache_service
 from app.services.policy_service import POLICY_BLOCK_STATUS
 from app.services.routing_service import CAPABILITY_PREFIX, RoutingDecision, decide, load_candidates, may_leave_registry
@@ -39,7 +39,6 @@ from app.services.classification_service import (
 	Classification,
 	InvalidDataClass,
 	classify_chat_request,
-	classify_embedding_request,
 )
 from app.services.provider_client import ProviderEndpoint, openai_client_for
 from app.utils.provider_endpoint import filter_allowed_endpoints
@@ -53,7 +52,8 @@ from app.services.circuit_breaker_service import (
 	record_success as circuit_record_success,
 )
 from app.services.adaptive_sampling_service import get_error_rate, get_latency_p99
-from app.services.crypto_service import decrypt
+from app.services.key_secrets import resolve_secret
+from app.services.vault_client import VaultError
 from app.services.eval_service import _extract_prompt_text, run_eval_hook
 from app.services.mcp_taint import ChatTaintResult, load_trust_rules, restrict_chat_request
 from app.services.policy_service import PolicyDecision, policy_service, policy_store
@@ -517,7 +517,20 @@ class LLMService:
 				reverse=True,
 			)
 			ordered = [primary, *fallbacks][: limit]
-			return [ProviderKeyCandidate(k.id, decrypt(k.api_key_encrypted), k.api_base, k.is_internal) for k in ordered]
+			resolved: list[ProviderKeyCandidate] = []
+			for k in ordered:
+				try:
+					resolved.append(ProviderKeyCandidate(k.id, await resolve_secret(k), k.api_base, k.is_internal))
+				except VaultError as exc:
+					# Never a silent fall back: the key is skipped, the reason is logged with no secret in it, and if nothing is left the
+					# caller gets the "no provider keys" error below.
+					logger.error("provider key %s could not be read from Vault: %s", k.id, exc)
+			if not resolved:
+				raise HTTPException(
+					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+					detail={"error": "no_provider_key", "detail": "No provider keys available: a Vault-backed key could not be read"},
+				)
+			return resolved
 
 		env_map = {
 			"openai": settings.OPENAI_API_KEY,
@@ -1538,241 +1551,6 @@ class LLMService:
 	# ------------------------------------------------------------------
 	# Embedding endpoint (uses _execute_with_fallback)
 	# ------------------------------------------------------------------
-
-	async def embedding(
-		self,
-		request: EmbeddingRequest,
-		db: AsyncSession,
-		redis: Redis,
-		user: User,
-		api_key: ApiKey,
-		request_id: uuid.UUID,
-		background_tasks: BackgroundTasks,
-		http_request: Request | None = None,
-	) -> JSONResponse:
-		labels = _parse_labels(http_request) if http_request is not None else None
-		session_id = _parse_session_id_header(http_request) if http_request is not None else None
-		# API key's team_id takes precedence; fall back to x-openproxy-team-id header
-		team_id = getattr(api_key, "team_id", None) or (
-			_parse_team_id(http_request) if http_request is not None else None
-		)
-		team_budget_monthly_usd: Decimal | None = None
-		if team_id is not None:
-			team = await db.scalar(
-				select(Team).where(
-					Team.id == team_id,
-					Team.org_id == user.org_id,
-				)
-			)
-			if team is None:
-				raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
-			member_row = await db.execute(
-				select(team_members).where(
-					team_members.c.team_id == team_id,
-					team_members.c.user_id == user.id,
-				)
-			)
-			if member_row.first() is None:
-				raise HTTPException(
-					status_code=status.HTTP_403_FORBIDDEN,
-					detail="User is not a member of this team",
-				)
-			team_budget_monthly_usd = team.budget_monthly_usd
-
-		start = time.perf_counter()
-		provider = "unknown"
-		rl_headers: dict[str, str] = {}
-		policy_metadata: dict | None = None
-
-		timer = timer_for_request(http_request, start)
-
-		classification: Classification | None = None
-		routing: RoutingDecision | None = None
-
-		def _emb_request_metadata(meta: dict | None) -> dict:
-			out = {**(meta or {})}
-			if classification is not None:
-				out["data_class"] = classification.as_metadata()
-			if routing is not None:
-				out["routing"] = routing.as_metadata()
-			stages = timer.as_list()
-			if stages:
-				out["stages"] = stages
-			if session_id:
-				out["session_id"] = session_id
-			return out
-
-		try:
-			provider, model_name = split_model(request.model)
-			with timer.stage("policy"):
-				policy_config = await policy_store.load(user.org_id, db, redis)
-				decision = await policy_service.evaluate_embedding_request(request, policy_config)
-			policy_metadata = decision.as_metadata()
-			with timer.stage("classify"):
-				try:
-					classification = await classify_embedding_request(
-						request, policy_config,
-						http_request.headers.get(DATA_CLASS_HEADER) if http_request is not None else None,
-					)
-				except InvalidDataClass as exc:
-					raise HTTPException(status_code=400, detail={"error": "invalid_data_class", "detail": str(exc)}) from exc
-			if not decision.allowed:
-				latency_ms = int((time.perf_counter() - start) * 1000)
-				background_tasks.add_task(log_request,
-					redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
-					api_key_id=api_key.id, model=request.model, provider=provider,
-					prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
-					latency_ms=latency_ms, ttft_ms=None, status_code=POLICY_BLOCK_STATUS,
-					error_message=f"policy_blocked:{decision.reason_code}",
-					request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
-					team_id=team_id,
-				)
-				return self._policy_block_response(decision)
-			if policy_config.routing_mode != "off":
-				with timer.stage("route"):
-					candidates, region = await self.routing_inputs(db, user.org_id)
-					routing = route_decision(candidates, region, policy_config, classification.data_class, request.model)
-				if routing.blocked:
-					latency_ms = int((time.perf_counter() - start) * 1000)
-					background_tasks.add_task(log_request,
-						redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
-						api_key_id=api_key.id, model=request.model, provider=provider,
-						prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
-						latency_ms=latency_ms, ttft_ms=None, status_code=POLICY_BLOCK_STATUS,
-						error_message="policy_blocked:no_authorized_model",
-						request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
-						team_id=team_id,
-					)
-					return self._routing_block_response(routing)
-			size = len(request.input) if isinstance(request.input, list) else len(request.input)
-			with timer.stage("rate_limit"):
-				ok, rl_headers, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
-					redis=redis, org_id=str(user.org_id), user_id=str(user.id),
-					request_tokens_estimate=max(size // 4, 1),
-					max_rpm=settings.DEFAULT_RATE_LIMIT_RPM, max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
-					max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
-					user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
-					team_id=str(team_id) if team_id else None,
-					team_budget_monthly_usd=team_budget_monthly_usd,
-					model=request.model, policy_config=policy_config,
-				)
-			rl_headers = {**rl_headers, "X-OpenProxyAI-Data-Class": classification.data_class, **self._route_headers(routing)}
-			if not ok:
-				latency_ms = int((time.perf_counter() - start) * 1000)
-				background_tasks.add_task(log_request,
-					redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
-					api_key_id=api_key.id, model=request.model, provider=provider,
-					prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
-					latency_ms=latency_ms, ttft_ms=None, status_code=429,
-					error_message=f"rate_limited:{limit_type}",
-					request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
-					team_id=team_id,
-				)
-				return JSONResponse(
-					status_code=429,
-					content={"error": "rate_limit_exceeded", "limit_type": limit_type, "detail": limit_detail, "retry_after": retry_after},
-					headers={**rl_headers, "X-OpenProxyAI-Gateway-Error": "true"},
-				)
-
-			retries_override = _parse_retries_header(http_request) if http_request is not None else None
-			try:
-				candidate_keys = await self._select_provider_keys(
-					db, user.org_id, provider, model=model_name, redis=redis,
-					max_attempts=retries_override,
-					only_key_id=routing.key_id if routing is not None and routing.mode == "enforce" else None,
-				)
-			except HTTPException as exc:
-				raise HTTPException(
-					status_code=exc.status_code, detail=exc.detail,
-					headers={**rl_headers, **(exc.headers or {})},
-				) from exc
-
-			async def _emb_call(key: str, endpoint: ProviderEndpoint | None = None) -> Any:
-				return await aembedding(
-					**with_endpoint(
-						{"model": request.model, "input": request.input, "api_key": key,
-						 "encoding_format": request.encoding_format, "timeout": 30},
-						key, endpoint,
-					),
-				)
-
-			with timer.stage("upstream"):
-				response, fb_count, provider_key_id = await self._execute_with_fallback(
-					candidate_keys, _emb_call, request.model, tag=" (embed)", redis=redis,
-				)
-			if fb_count > 0:
-				policy_metadata = {**(policy_metadata or {}), "fallback_count": fb_count}
-
-			body = _to_jsonable(response)
-			usage = body.get("usage", {}) if isinstance(body, dict) else {}
-			prompt_tokens = int(usage.get("prompt_tokens", usage.get("total_tokens", 0)))
-			cost = cost_tracker_service.calculate_cost_usd(response)
-			latency_ms = int((time.perf_counter() - start) * 1000)
-
-			self._schedule_log(
-				background_tasks, redis, request_id, user, api_key,
-				request.model, provider, prompt_tokens, 0, cost,
-				latency_ms, 200, request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
-				team_id=team_id, provider_key_id=provider_key_id,
-			)
-
-			return JSONResponse(
-				content=body,
-				headers={
-					"X-OpenProxyAI-Request-Id": str(request_id),
-					"X-OpenProxyAI-Provider": provider,
-					"X-OpenProxyAI-Model": request.model,
-					"X-OpenProxyAI-Cost-USD": f"{cost:.6f}",
-					"X-OpenProxyAI-Latency-Ms": str(latency_ms),
-					"X-OpenProxyAI-Gateway-Error": "false",
-					**rl_headers,
-				},
-			)
-		except HTTPException as exc:
-			latency_ms = int((time.perf_counter() - start) * 1000)
-			_log_detached(
-				redis=redis, request_id=request_id, org_id=user.org_id, user_id=user.id,
-				api_key_id=api_key.id, model=request.model, provider=provider,
-				prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
-				latency_ms=latency_ms, ttft_ms=None, status_code=exc.status_code,
-				error_message=str(exc.detail), request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
-				team_id=team_id,
-			)
-			if rl_headers:
-				raise HTTPException(
-					status_code=exc.status_code, detail=exc.detail,
-					headers={**rl_headers, **(exc.headers or {})},
-				) from exc
-			raise
-		except TimeoutError as exc:
-			latency_ms = int((time.perf_counter() - start) * 1000)
-			self._schedule_log(
-				background_tasks, redis, request_id, user, api_key,
-				request.model, provider, 0, 0, Decimal("0"),
-				latency_ms, 504, error_message=str(exc),
-				request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
-				team_id=team_id,
-			)
-			raise HTTPException(
-				status_code=504,
-				detail={"error": "provider_timeout", "detail": str(exc)},
-				headers=rl_headers,
-			) from exc
-		except Exception as exc:
-			latency_ms = int((time.perf_counter() - start) * 1000)
-			logger.error("Provider error for embedding %s model=%s: %s", request_id, request.model, exc)
-			self._schedule_log(
-				background_tasks, redis, request_id, user, api_key,
-				request.model, provider, 0, 0, Decimal("0"),
-				latency_ms, 502, error_message=str(exc),
-				request_metadata=_emb_request_metadata(policy_metadata), labels=labels,
-				team_id=team_id,
-			)
-			raise HTTPException(
-				status_code=502,
-				detail={"error": "provider_error", "detail": _provider_error_public_detail(exc)},
-				headers=rl_headers,
-			) from exc
 
 
 llm_service = LLMService()

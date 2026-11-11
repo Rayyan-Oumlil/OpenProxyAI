@@ -67,3 +67,14 @@ Sending the same `score_name` for the same request again replaces the earlier ra
 ## Who can rate what
 
 Any API key with `proxy:llm` in your organization can rate any request in that organization. A key can therefore skew scores for the organization's own traffic. If feedback is going to come from untrusted end users, send it from your own backend and not from the browser.
+
+## Reading scores back
+
+Writing is the endpoint above (and `POST /api/v1/requests/{id}/scores` for a signed-in user). To read, with a user token:
+
+| Method | Path | Who |
+|---|---|---|
+| `GET` | `/api/v1/scores` | Admins. Individual scores with `model`, `comment` (already stripped of personal data) and `user_id`. Filters: `score_name`, `source`, `model`, `request_id`, `experiment_id`, `since`, `until`, `limit` (up to 500), `offset`. |
+| `GET` | `/api/v1/scores/summary?group_by=score_name\|model\|day` | Admins and developers. Count, mean, min and max per group, with no comments or user ids. Same filters. |
+
+The window defaults to the last 30 days and can be at most a year. A score whose request log has been deleted still counts, under the model `unknown`.

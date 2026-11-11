@@ -54,6 +54,8 @@ def serialize_provider_key(key) -> dict:
         "api_base": getattr(key, "api_base", None),
         "max_data_class": getattr(key, "max_data_class", None),
         "is_internal": getattr(key, "is_internal", None),
+        "secret_source": getattr(key, "secret_source", "local"),
+        "vault_path": getattr(key, "vault_path", None),
     }
 
 

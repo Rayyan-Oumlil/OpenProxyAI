@@ -58,8 +58,9 @@ def _request_with(span):
 
 
 def test_the_request_clock_starts_at_authentication_when_it_was_timed():
-    timer = timer_for_request(_request_with((100.0, 100.005)), pipeline_start=100.006)
-    assert timer.origin == 100.0
+    now = time.perf_counter()  # stages read the real clock, so the fake span must be on it (a fixed 100.0 fails on a machine up under 100 s)
+    timer = timer_for_request(_request_with((now - 0.006, now - 0.001)), pipeline_start=now)
+    assert timer.origin == now - 0.006
     assert timer.as_list() == [{"name": "auth", "start_ms": 0, "ms": 5}]
     with timer.stage("policy"):
         pass

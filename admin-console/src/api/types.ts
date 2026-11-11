@@ -243,13 +243,19 @@ export type ProviderKeyResponse = {
   health_status?: string;
   consecutive_failures?: number;
   last_health_check_at?: string | null;
+  /** "vault" when the key is read from HashiCorp Vault and the gateway holds no copy. */
+  secret_source?: "local" | "vault";
+  vault_path?: string | null;
 };
 
 export type CreateProviderKeyRequest = {
   provider: string;
   alias?: string;
   key_alias?: string;
-  api_key: string;
+  /** Send exactly one of api_key and vault_path. */
+  api_key?: string;
+  vault_path?: string;
+  vault_field?: string;
   weight?: number;
   region?: string;
   api_base?: string | null;
@@ -333,6 +339,8 @@ export type PolicyConfigRequest = {
   prompt_gate_min_items?: number;
   /** Lets users keep conversations in the gateway. Off by default: it stores what users said. */
   conversations_enabled?: boolean;
+  /** Lets /v1/responses keep state at the provider (store=true, previous_response_id, file references). Off by default. */
+  allow_provider_response_state?: boolean;
 };
 
 export type RoutingMode = "off" | "log_only" | "enforce";
