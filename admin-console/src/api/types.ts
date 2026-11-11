@@ -333,6 +333,8 @@ export type PolicyConfigRequest = {
   prompt_gate_min_items?: number;
   /** Lets users keep conversations in the gateway. Off by default: it stores what users said. */
   conversations_enabled?: boolean;
+  /** Lets /v1/responses keep state at the provider (store=true, previous_response_id, file references). Off by default. */
+  allow_provider_response_state?: boolean;
 };
 
 export type RoutingMode = "off" | "log_only" | "enforce";

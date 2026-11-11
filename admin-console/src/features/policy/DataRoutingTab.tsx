@@ -52,7 +52,7 @@ export function DataRoutingTab({
   unsaved: boolean;
   token: string;
 }) {
-  const ids = { cls: useId(), entity: useId(), entityClass: useId(), risk: useId() };
+  const ids = { state: useId(), cls: useId(), entity: useId(), entityClass: useId(), risk: useId() };
   const map = form.data_class_map ?? {};
   const [entity, setEntity] = useState("");
   const [entityClass, setEntityClass] = useState<DataClass>("confidential");
@@ -199,6 +199,23 @@ export function DataRoutingTab({
               </option>
             ))}
           </select>
+        </label>
+      </section>
+
+      <section className="surface-panel stack-form">
+        <h2 style={{ fontSize: "1rem", fontWeight: 600 }}>State kept at the provider</h2>
+        <p className="muted" style={{ fontSize: "0.88rem" }}>
+          The Responses API can keep a conversation at the provider (<code>store</code>, <code>previous_response_id</code>, uploaded files). That data then sits where your retention, residency and routing rules do not reach. It is <strong>off by default</strong>: the gateway always sends <code>store=false</code> and refuses requests that rely on provider state.
+        </p>
+        <label className="flex items-center gap-2 text-sm" htmlFor={ids.state}>
+          <input
+            id={ids.state}
+            type="checkbox"
+            checked={form.allow_provider_response_state ?? false}
+            disabled={!isAdmin}
+            onChange={(e) => setForm((f) => ({ ...f, allow_provider_response_state: e.target.checked }))}
+          />
+          Allow requests to keep state at the provider
         </label>
       </section>
 
