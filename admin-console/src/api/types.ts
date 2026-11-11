@@ -331,6 +331,8 @@ export type PolicyConfigRequest = {
   prompt_promotion_gate?: boolean;
   prompt_gate_min_pass_rate?: number;
   prompt_gate_min_items?: number;
+  /** Lets users keep conversations in the gateway. Off by default: it stores what users said. */
+  conversations_enabled?: boolean;
 };
 
 export type RoutingMode = "off" | "log_only" | "enforce";

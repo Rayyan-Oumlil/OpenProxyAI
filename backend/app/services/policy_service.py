@@ -104,6 +104,9 @@ class PolicyConfig:
 	prompt_promotion_gate: bool = False
 	prompt_gate_min_pass_rate: float = 0.8  # share of scored items that must pass
 	prompt_gate_min_items: int = 10  # scored items the run must have, so a run of two cannot promote a prompt
+	# Conversations (Phase 4): the gateway keeps what users said, so it is opt-in per org. Off refuses new conversations;
+	# existing ones stay readable and deletable.
+	conversations_enabled: bool = False
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -140,6 +143,7 @@ class PolicyConfig:
 			prompt_promotion_gate=data.get("prompt_promotion_gate") is True,
 			prompt_gate_min_pass_rate=_valid_threshold(data.get("prompt_gate_min_pass_rate"), 0.8),
 			prompt_gate_min_items=_valid_count(data.get("prompt_gate_min_items"), 10),
+			conversations_enabled=data.get("conversations_enabled") is True,
 		)
 
 	def to_dict(self) -> dict:
@@ -165,6 +169,7 @@ class PolicyConfig:
 			"prompt_promotion_gate": self.prompt_promotion_gate,
 			"prompt_gate_min_pass_rate": self.prompt_gate_min_pass_rate,
 			"prompt_gate_min_items": self.prompt_gate_min_items,
+			"conversations_enabled": self.conversations_enabled,
 		}
 
 

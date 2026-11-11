@@ -1244,3 +1244,148 @@ textarea:focus-visible {
   font-size: var(--text-xs);
   color: var(--muted);
 }
+
+/* Conversations (Phase 4): a list beside a thread, stacked on a narrow screen. minmax(0, 1fr) so long content cannot widen the page. */
+.conv {
+  display: grid;
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .conv {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.conv__list ul {
+  list-style: none;
+  margin: var(--space-3) 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.conv__scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.conv__scope {
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--line);
+  padding: var(--space-1) var(--space-3);
+}
+
+.conv__scope--on {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.conv__item {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  color: var(--text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.conv__item--on {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.thread {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.thread__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.thread__head h2 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-md);
+}
+
+.thread__turns {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.turn {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-raised);
+}
+
+.turn--user {
+  background: var(--bg-sunken);
+}
+
+.turn__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.turn__body {
+  margin: 0 0 var(--space-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.btn-small {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.thread__notice {
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-3);
+}
+
+.composer {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.composer__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3);
+}
+
+.composer__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.composer__error {
+  color: var(--err);
+  margin: 0;
+}
+
+.withheld-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}

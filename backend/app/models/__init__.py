@@ -24,11 +24,15 @@ from app.models.tool_trust_rule import ToolTrustRule
 from app.models.mcp_bundle import ApiKeyMcpBundle, McpBundle, McpBundleTool
 from app.models.model_registry import ModelRegistryEntry
 from app.models.prompt_template import PromptTemplate
+from app.models.conversation import Conversation, ConversationContextPackage, ConversationTurn
 
 __all__ = [
     "Base",
     "ModelRegistryEntry",
     "PromptTemplate",
+    "Conversation",
+    "ConversationTurn",
+    "ConversationContextPackage",
     "Organization",
     "User",
     "ApiKey",

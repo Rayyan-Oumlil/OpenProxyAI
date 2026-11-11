@@ -39,8 +39,9 @@ class PolicyConfigRequest(BaseModel):
 	prompt_promotion_gate: bool | None = None
 	prompt_gate_min_pass_rate: float | None = Field(default=None, gt=0, le=1)
 	prompt_gate_min_items: int | None = Field(default=None, ge=1, le=100_000)
+	conversations_enabled: bool | None = None
 
-	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "payload_capture_sample_rate", "prompt_promotion_gate", "prompt_gate_min_pass_rate", "prompt_gate_min_items", mode="before")
+	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "payload_capture_sample_rate", "prompt_promotion_gate", "prompt_gate_min_pass_rate", "prompt_gate_min_items", "conversations_enabled", mode="before")
 	@classmethod
 	def _not_null(cls, value):
 		if value is None:
@@ -77,6 +78,7 @@ class PolicyConfigResponse(BaseModel):
 	prompt_promotion_gate: bool = False
 	prompt_gate_min_pass_rate: float = 0.8
 	prompt_gate_min_items: int = 10
+	conversations_enabled: bool = False
 
 
 class ApplyTemplateRequest(BaseModel):
