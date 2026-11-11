@@ -69,7 +69,7 @@ def world(monkeypatch):
 	monkeypatch.setattr(llm_service, "routing_inputs", routing_inputs)
 	monkeypatch.setattr(policy_store, "load", load)
 	monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", check_limits)
-	monkeypatch.setattr(llm_module.cost_tracker_service, "calculate_cost_usd", lambda _r: Decimal("0.000123"))
+	monkeypatch.setattr(llm_module.cost_tracker_service, "calculate_cost_usd", lambda _r, call_type=None: Decimal("0.000123"))
 	return seen
 
 

@@ -107,6 +107,9 @@ class PolicyConfig:
 	# Conversations (Phase 4): the gateway keeps what users said, so it is opt-in per org. Off refuses new conversations;
 	# existing ones stay readable and deletable.
 	conversations_enabled: bool = False
+	# /v1/responses can keep state at the provider (store=true, previous_response_id). That puts data where the org's retention, residency
+	# and routing rules do not reach, so it is refused unless an admin allows it.
+	allow_provider_response_state: bool = False
 
 	@classmethod
 	def from_settings(cls) -> "PolicyConfig":
@@ -144,6 +147,7 @@ class PolicyConfig:
 			prompt_gate_min_pass_rate=_valid_threshold(data.get("prompt_gate_min_pass_rate"), 0.8),
 			prompt_gate_min_items=_valid_count(data.get("prompt_gate_min_items"), 10),
 			conversations_enabled=data.get("conversations_enabled") is True,
+			allow_provider_response_state=data.get("allow_provider_response_state") is True,
 		)
 
 	def to_dict(self) -> dict:
@@ -170,6 +174,7 @@ class PolicyConfig:
 			"prompt_gate_min_pass_rate": self.prompt_gate_min_pass_rate,
 			"prompt_gate_min_items": self.prompt_gate_min_items,
 			"conversations_enabled": self.conversations_enabled,
+			"allow_provider_response_state": self.allow_provider_response_state,
 		}
 
 
@@ -636,6 +641,11 @@ _UNICODE_ESCAPE = re.compile('\\\\u([0-9a-fA-F]{4})')
 
 class PolicyScanLimitExceeded(Exception):
 	"""The request is too large to scan completely; policy fails closed rather than scanning part of it."""
+
+
+def collect_strings(value: Any, out: list[str]) -> None:
+	"""Public name for the scanner every modality uses to read the text of a structured request."""
+	_collect_strings(value, out)
 
 
 def _collect_strings(value: Any, out: list[str]) -> None:

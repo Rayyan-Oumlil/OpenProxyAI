@@ -15,7 +15,7 @@ from typing import Any, NamedTuple
 import litellm
 from fastapi import BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from litellm import acompletion, aembedding, aimage_generation, arerank  # noqa: F401  (the provider entry points modalities.py calls through this module, so tests replace them in one place)
+from litellm import acompletion, aembedding, aimage_generation, arerank, aresponses, aspeech, atranscription  # noqa: F401  (the provider entry points modalities.py calls through this module, so tests replace them in one place)
 from redis.asyncio import Redis
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload

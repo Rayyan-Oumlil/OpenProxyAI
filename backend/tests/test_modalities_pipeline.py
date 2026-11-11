@@ -17,11 +17,11 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 
-from app.schemas.modalities import ImageRequest, RerankRequest
+from app.schemas.modalities import ImageRequest, RerankRequest, ResponsesRequest, SpeechRequest, TranscriptionRequest
 from app.services import llm_service as llm_module
 from app.services import rate_limiter
 from app.services.llm_service import ProviderKeyCandidate, llm_service
-from app.services.modalities import IMAGES, RERANK
+from app.services.modalities import IMAGES, RERANK, RESPONSES, TRANSCRIPTION, speech_modality
 from app.services.modality_pipeline import run_modality
 from app.services.policy_service import PolicyConfig, policy_store
 from tests.test_embeddings_pipeline import entry
@@ -44,15 +44,47 @@ def image_request(model, text):
 	return ImageRequest(model=model, prompt=text, response_format="b64_json")
 
 
+AUDIO_BYTES = b"RIFF-not-really-audio" * 20
+TRANSCRIPT_REPLY = {"text": "hello from the meeting"}
+
+
+def transcription_request(model, text):
+	return TranscriptionRequest(model=model, filename="meeting.mp3", data=AUDIO_BYTES, prompt=text)
+
+
+def speech_request(model, text):
+	return SpeechRequest(model=model, input=text, voice="alloy", response_format="wav")
+
+
+RESPONSES_REPLY = {
+	"id": "resp_1", "object": "response",
+	"output": [{"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "Here is the summary."}]}],
+	"usage": {"input_tokens": 12, "output_tokens": 5},
+}
+
+
+def responses_request(model, text):
+	return ResponsesRequest(model=model, input=text)
+
+
+class SpeechReply:
+	content = b"RIFFfake-wav-bytes"
+
+
+# id, modality (or a function of the request, for speech), request factory, provider function, provider reply, model, the registry class that clears it.
+# Audio cannot be inspected, so a transcription is classified as uninspected (confidential) and needs a model cleared for that.
 CASES = [
-	(RERANK, rerank_request, "arerank", RERANK_REPLY, "cohere/rerank-english-v3.0"),
-	(IMAGES, image_request, "aimage_generation", IMAGE_REPLY, "openai/dall-e-3"),
+	("rerank", RERANK, rerank_request, "arerank", RERANK_REPLY, "cohere/rerank-english-v3.0", "internal"),
+	("image", IMAGES, image_request, "aimage_generation", IMAGE_REPLY, "openai/dall-e-3", "internal"),
+	("transcription", TRANSCRIPTION, transcription_request, "atranscription", TRANSCRIPT_REPLY, "openai/whisper-1", "confidential"),
+	("speech", speech_modality, speech_request, "aspeech", SpeechReply(), "openai/tts-1", "internal"),
+	("responses", RESPONSES, responses_request, "aresponses", RESPONSES_REPLY, "openai/gpt-4o", "internal"),
 ]
 
 
-@pytest.fixture(params=CASES, ids=lambda c: c[0].name)
+@pytest.fixture(params=CASES, ids=lambda c: c[0])
 def case(request, monkeypatch):
-	modality, make, fn, reply, model = request.param
+	name, modality, make, fn, reply, model, level = request.param
 	seen = SimpleNamespace(calls=[], key_requests=[], limit_checks=[], policy=PolicyConfig(), registry=[], limited=False, error=None, reply=reply)
 
 	async def provider(**kwargs):
@@ -81,8 +113,8 @@ def case(request, monkeypatch):
 	monkeypatch.setattr(llm_service, "routing_inputs", routing_inputs)
 	monkeypatch.setattr(policy_store, "load", load)
 	monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", check_limits)
-	monkeypatch.setattr(llm_module.cost_tracker_service, "calculate_cost_usd", lambda _r: Decimal("0.001"))
-	seen.modality, seen.make, seen.model = modality, make, model
+	monkeypatch.setattr(llm_module.cost_tracker_service, "calculate_cost_usd", lambda _r, call_type=None: Decimal("0.001"))
+	seen.name, seen.modality, seen.make, seen.model, seen.level = name, modality, make, model, level
 	return seen
 
 
@@ -97,8 +129,10 @@ async def send(case, *, text="the answer", model=None, headers=None):
 	user, api_key = SimpleNamespace(id=USER, org_id=ORG, budget_daily_usd=None), SimpleNamespace(id=uuid.uuid4(), team_id=None)
 	try:
 		try:
+			request = case.make(model or case.model, text)
+			modality = case.modality(request) if callable(case.modality) else case.modality
 			result = await run_modality(
-				case.modality, case.make(model or case.model, text), db=MagicMock(), redis=MagicMock(), user=user, api_key=api_key, request_id=uuid.uuid4(),
+				modality, request, db=MagicMock(), redis=MagicMock(), user=user, api_key=api_key, request_id=uuid.uuid4(),
 				background_tasks=tasks, http_request=SimpleNamespace(headers=headers or {}, state=SimpleNamespace(), client=SimpleNamespace(host="1.2.3.4")),
 			)
 		except HTTPException as exc:
@@ -141,8 +175,8 @@ async def test_enforced_routing_refuses_an_unregistered_model_and_a_model_not_cl
 	case.policy = PolicyConfig(routing_mode="enforce")
 	response, _ = await send(case)
 	assert response.status_code == 446 and json.loads(response.body)["route_reason"] == "not_in_registry" and case.calls == []
-	case.registry = [entry(case.model, level="internal")]
-	response, _ = await send(case, headers={"x-openproxy-data-class": "confidential"})
+	case.registry = [entry(case.model, level=case.level)]
+	response, _ = await send(case, headers={"x-openproxy-data-class": "secret"})
 	assert response.status_code == 446 and case.calls == []
 	response, _ = await send(case)
 	assert response.status_code == 200 and case.key_requests[-1] == case.registry[0].key_id  # served through its registry key only
@@ -162,21 +196,38 @@ async def test_a_provider_failure_is_a_502_that_does_not_echo_provider_text(case
 	assert [row["status_code"] for row in logged] == [502]
 
 
-async def test_a_model_litellm_cannot_price_still_returns_its_answer_with_cost_zero_and_a_flag(case, monkeypatch):
-	def unpriced(_response):
+async def test_a_model_litellm_cannot_price_still_returns_its_answer_and_is_charged_a_flat_fallback_never_zero(case, monkeypatch):
+	def unpriced(_response, call_type=None):
 		raise ValueError("model not in the price map")
 
 	monkeypatch.setattr(llm_module.cost_tracker_service, "calculate_cost_usd", unpriced)
+	monkeypatch.setattr(llm_module.settings, "UNPRICED_CALL_COST_USD", 0.02)
 	response, logged = await send(case)
-	assert response.status_code == 200 and response.headers["x-openproxyai-cost-usd"] == "0.000000"
-	assert logged[0]["request_metadata"]["cost_unknown"] is True and logged[0]["status_code"] == 200
+	assert response.status_code == 200 and logged[0]["status_code"] == 200
+	built = case.make(case.model, "the answer")
+	expected = Decimal("0.02") * (case.modality(built) if callable(case.modality) else case.modality).units(built)
+	assert logged[0]["cost_usd"] == expected and expected > 0 and logged[0]["request_metadata"]["cost_estimated"] is True
+
+
+async def test_each_modality_prices_its_call_as_what_it_is(case, monkeypatch):
+	seen = []
+
+	def record(_response, call_type=None):
+		seen.append(call_type)
+		return Decimal("0.001")
+
+	monkeypatch.setattr(llm_module.cost_tracker_service, "calculate_cost_usd", record)
+	await send(case)
+	built = case.make(case.model, "the answer")
+	modality = case.modality(built) if callable(case.modality) else case.modality
+	assert seen == [modality.call_type] and modality.call_type is not None
 
 
 # -- rerank specifics ------------------------------------------------------------------------------
 
 
 async def test_rerank_sends_the_query_and_documents_as_given_and_returns_the_ranking(case):
-	if case.modality is not RERANK:
+	if case.name != "rerank":
 		pytest.skip("rerank only")
 	request = RerankRequest(model=case.model, query="q", documents=["a", {"text": "b"}], top_n=1, return_documents=False)
 	response = await run_modality(
@@ -208,7 +259,7 @@ def test_rerank_accepts_documents_as_text_objects_and_reads_them_as_text():
 
 
 async def test_a_generated_image_is_returned_but_never_written_to_the_audit_log(case):
-	if case.modality is not IMAGES:
+	if case.name != "image":
 		pytest.skip("images only")
 	response, logged = await send(case)
 	assert json.loads(response.body)["data"][0]["b64_json"] == IMAGE_B64
@@ -216,14 +267,14 @@ async def test_a_generated_image_is_returned_but_never_written_to_the_audit_log(
 
 
 async def test_an_image_counts_heavily_toward_the_token_rate_limit(case):
-	if case.modality is not IMAGES:
+	if case.name != "image":
 		pytest.skip("images only")
 	await send(case)
 	assert case.limit_checks[0]["request_tokens_estimate"] >= 1_000
 
 
 async def test_image_options_reach_the_provider_only_when_set(case):
-	if case.modality is not IMAGES:
+	if case.name != "image":
 		pytest.skip("images only")
 	await send(case)
 	sent = case.calls[0]
@@ -237,3 +288,192 @@ async def test_image_options_reach_the_provider_only_when_set(case):
 def test_image_requests_outside_the_limits_are_rejected(body):
 	with pytest.raises(ValueError):
 		ImageRequest(model="openai/dall-e-3", **body)
+
+
+# -- audio specifics ---------------------------------------------------------------------------------
+
+
+async def test_audio_cannot_be_inspected_so_a_transcription_is_classified_as_uninspected(case):
+	if case.name != "transcription":
+		pytest.skip("transcription only")
+	response, logged = await send(case, text="a harmless hint")
+	assert response.headers["x-openproxyai-data-class"] == "confidential"
+	assert "__unscanned__" in logged[0]["request_metadata"]["data_class"]["entities"]
+
+
+async def test_a_transcription_model_cleared_only_for_internal_data_never_receives_the_audio(case):
+	if case.name != "transcription":
+		pytest.skip("transcription only")
+	case.policy = PolicyConfig(routing_mode="enforce")
+	case.registry = [entry(case.model, level="internal")]
+	response, _ = await send(case)
+	assert response.status_code == 446 and case.calls == []
+
+
+async def test_the_audio_reaches_the_provider_as_a_named_file_and_the_hint_is_scanned(case):
+	if case.name != "transcription":
+		pytest.skip("transcription only")
+	await send(case, text="names: Alice")
+	sent = case.calls[0]
+	assert sent["file"].name == "meeting.mp3" and sent["file"].read() == AUDIO_BYTES and sent["prompt"] == "names: Alice"
+
+
+async def test_a_transcript_goes_through_the_orgs_response_guardrails(case):
+	if case.name != "transcription":
+		pytest.skip("transcription only")
+	case.policy = PolicyConfig(enforcement_mode="enforce", response_guardrails_enabled=True, blocked_keywords=["meeting"])
+	response, logged = await send(case)
+	assert isinstance(response, HTTPException) and response.status_code == 446
+	assert response.detail["error"]["code"] == "response_policy_violation" and logged[0]["status_code"] == 446
+
+
+async def test_a_transcript_with_pii_is_redacted_when_the_org_asked_for_redaction(case):
+	if case.name != "transcription":
+		pytest.skip("transcription only")
+	case.reply = {"text": "call me on 123-45-6789 please"}
+	case.policy = PolicyConfig(response_guardrails_enabled=True, response_pii_redact=True)
+	response, _ = await send(case)
+	assert "123-45-6789" not in json.loads(response.body)["text"] and "[REDACTED" in json.loads(response.body)["text"]
+
+
+async def test_speech_comes_back_as_audio_bytes_with_the_right_type(case):
+	if case.name != "speech":
+		pytest.skip("speech only")
+	response, logged = await send(case)
+	assert response.body == SpeechReply.content and response.media_type == "audio/wav"
+	assert response.headers["x-openproxyai-request-id"] and logged[0]["status_code"] == 200
+	assert case.calls[0]["voice"] == "alloy" and case.calls[0]["response_format"] == "wav" and "speed" not in case.calls[0]
+
+
+async def test_a_provider_that_returns_no_audio_is_a_502_not_an_empty_200(case):
+	if case.name != "speech":
+		pytest.skip("speech only")
+	case.reply = object()
+	failure, _ = await send(case)
+	assert isinstance(failure, HTTPException) and failure.status_code == 502
+
+
+@pytest.mark.parametrize("body", [
+	{"input": ""}, {"input": "x" * 4_097}, {"input": "hi", "voice": "bad voice!"}, {"input": "hi", "voice": ""},
+	{"input": "hi", "response_format": "exe"}, {"input": "hi", "speed": 9}, {"input": "hi", "speed": 0.1}, {"input": "hi", "surprise": 1},
+])
+def test_speech_requests_outside_the_limits_are_rejected(body):
+	with pytest.raises(ValueError):
+		SpeechRequest(**{"model": "openai/tts-1", "voice": "alloy", **body})
+
+
+@pytest.mark.parametrize("fields", [
+	{"filename": "notes.txt"}, {"filename": "noextension"}, {"filename": "evil.exe"}, {"data": b""}, {"language": "english"},
+	{"temperature": 2}, {"prompt": "x" * 1_001}, {"response_format": "xml"},
+])
+def test_transcription_requests_outside_the_limits_are_rejected(fields):
+	with pytest.raises(ValueError):
+		TranscriptionRequest(**{"model": "openai/whisper-1", "filename": "a.mp3", "data": b"x", **fields})
+
+
+# -- responses specifics -----------------------------------------------------------------------------
+
+
+async def test_store_is_always_sent_explicitly_as_false_so_the_provider_keeps_nothing_by_default(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	await send(case)
+	assert case.calls[0]["store"] is False and "previous_response_id" not in case.calls[0]
+
+
+@pytest.mark.parametrize("fields", [{"store": True}, {"previous_response_id": "resp_123"}])
+async def test_provider_side_state_is_refused_unless_the_org_allows_it(case, fields):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	original = case.make
+
+	case.make = lambda model, text: ResponsesRequest(model=model, input=text, **fields)
+	failure, logged = await send(case)
+	assert isinstance(failure, HTTPException) and failure.status_code == 400 and failure.detail["error"] == "provider_state_not_allowed"
+	assert case.calls == [] and [row["status_code"] for row in logged] == [400]
+
+	case.policy = PolicyConfig(allow_provider_response_state=True)
+	response, _ = await send(case)
+	assert response.status_code == 200 and case.calls[0]["store"] is bool(fields.get("store"))
+	case.make = original
+
+
+async def test_the_whole_structured_input_is_scanned_including_tool_definitions_and_instructions(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	case.policy = PolicyConfig(enforcement_mode="enforce", blocked_keywords=["hidden-marker"])
+	for fields in (
+		{"instructions": "be nice, hidden-marker"},
+		{"tools": [{"type": "function", "name": "lookup", "description": "uses hidden-marker", "parameters": {}}]},
+		{"input": [{"role": "user", "content": [{"type": "input_text", "text": "carrying hidden-marker"}]}]},
+	):
+		case.make = lambda model, text, fields=fields: ResponsesRequest(**{"model": model, "input": text, **fields})
+		response, _ = await send(case)
+		assert response.status_code == 446, fields
+	assert case.calls == []
+
+
+async def test_an_image_input_is_uninspected_so_a_model_cleared_only_for_internal_data_never_receives_it(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	case.make = lambda model, text: ResponsesRequest(
+		model=model, input=[{"role": "user", "content": [{"type": "input_image", "image_url": "data:image/png;base64,AAAA"}]}]
+	)
+	case.policy = PolicyConfig(routing_mode="enforce")
+	case.registry = [entry(case.model, level="internal")]
+	response, _ = await send(case)
+	assert response.status_code == 446 and case.calls == []
+
+
+async def test_a_text_only_input_is_not_treated_as_uninspected(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	response, _ = await send(case)
+	assert response.headers["x-openproxyai-data-class"] == "internal"
+
+
+async def test_the_answer_text_goes_through_response_guardrails(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	case.policy = PolicyConfig(enforcement_mode="enforce", response_guardrails_enabled=True, blocked_keywords=["summary"])
+	failure, _ = await send(case)
+	assert isinstance(failure, HTTPException) and failure.status_code == 446
+	case.policy = PolicyConfig(response_guardrails_enabled=True, response_pii_redact=True)
+	case.reply = {**RESPONSES_REPLY, "output": [{"type": "message", "content": [{"type": "output_text", "text": "ssn 123-45-6789"}, {"type": "output_text", "text": "and 078-05-1120"}]}]}
+	response, _ = await send(case)
+	text = json.dumps(json.loads(response.body))
+	assert "123-45-6789" not in text and "078-05-1120" not in text
+
+
+async def test_token_usage_is_read_from_the_responses_shape(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	_, logged = await send(case)
+	assert (logged[0]["prompt_tokens"], logged[0]["completion_tokens"]) == (12, 5)
+
+
+@pytest.mark.parametrize("body", [
+	{"input": ""}, {"input": []}, {"input": "hi", "stream": True}, {"input": "hi", "background": True}, {"input": "hi", "conversation": "c1"},
+	{"input": "hi", "tools": [{"type": "web_search"}]}, {"input": "hi", "tools": [{"type": "code_interpreter"}]},
+	{"input": "hi", "tools": [{"type": "mcp", "server_url": "https://evil.example"}]}, {"input": "hi", "tools": [{"type": "file_search"}]},
+	{"input": "hi", "temperature": 3}, {"input": "hi", "max_output_tokens": 0}, {"input": "hi", "surprise": 1},
+	{"input": [{"role": "user", "content": "x"}] * 501},
+])
+def test_responses_requests_that_could_run_things_at_the_provider_or_are_malformed_are_rejected(body):
+	with pytest.raises(ValueError):
+		ResponsesRequest(model="openai/gpt-4o", **body)
+
+
+def test_client_side_function_tools_are_accepted():
+	request = ResponsesRequest(model="openai/gpt-4o", input="hi", tools=[{"type": "function", "name": "lookup", "parameters": {}}])
+	assert request.tools[0]["name"] == "lookup"
+
+
+async def test_a_request_too_large_to_scan_is_refused_not_scanned_in_part(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	huge = {f"key{i}": i for i in range(60_000)}  # more nodes than the scanner will walk
+	case.make = lambda model, text: ResponsesRequest(model=model, input=text, tools=[{"type": "function", "name": "f", "parameters": huge}])
+	response, logged = await send(case)
+	assert response.status_code == 446 and json.loads(response.body)["reason_code"] == "scan_limit_exceeded"
+	assert case.calls == [] and logged[0]["error_message"] == "policy_blocked:scan_limit_exceeded"
