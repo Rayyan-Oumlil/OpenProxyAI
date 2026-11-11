@@ -91,3 +91,56 @@ class TurnResponse(BaseModel):
 	data_class: str
 	model: str | None
 	created_at: datetime
+
+
+MODEL_PATTERN = r"^[A-Za-z0-9._-]+/[A-Za-z0-9._:/@-]+$"  # "provider/name"; capability routes ("cap:...") are not for conversations
+MAX_MESSAGE_CHARS = 20_000
+
+
+class TurnRequest(BaseModel):
+	model_config = ConfigDict(extra="forbid")
+
+	content: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
+	model: str = Field(pattern=MODEL_PATTERN, max_length=100)
+	data_class: Literal["public", "internal", "confidential", "secret"] | None = Field(
+		default=None, description="Assert a class for this message. It can only raise the class, never lower it."
+	)
+	system_prompt: str | None = Field(default=None, max_length=4_000)
+	temperature: float | None = Field(default=None, ge=0, le=2)
+	max_tokens: int | None = Field(default=None, ge=1, le=32_000)
+	max_context_tokens: int | None = Field(default=None, ge=1, le=200_000)
+
+	@field_validator("content")
+	@classmethod
+	def _not_blank(cls, value: str) -> str:
+		if not value.strip():
+			raise ValueError("content cannot be blank")
+		return value
+
+
+class WithheldTurn(BaseModel):
+	turn_id: uuid.UUID
+	seq: int
+	reason: Literal["above_clearance", "over_budget"]
+
+
+class ContextSummary(BaseModel):
+	package_id: uuid.UUID
+	model: str
+	data_class: str
+	routing_mode: str
+	included_turn_ids: list[uuid.UUID]
+	withheld: list[WithheldTurn]
+	estimated_tokens: int
+	payload_sha256: str
+	outcome: str
+	created_at: datetime
+
+
+class TurnExchange(BaseModel):
+	user_turn: TurnResponse
+	assistant_turn: TurnResponse
+	context: ContextSummary
+	prompt_tokens: int
+	completion_tokens: int
+	cost_usd: str

@@ -55,3 +55,25 @@ class ConversationTurn(UUIDPrimaryKeyMixin, Base):
 	data_class: Mapped[str] = mapped_column(String(20), nullable=False)
 	model: Mapped[str | None] = mapped_column(String(100), nullable=True)  # the model that wrote an assistant turn
 	created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+
+
+class ConversationContextPackage(UUIDPrimaryKeyMixin, Base):
+	"""What one turn sent to the model: which earlier turns, which were withheld and why, and a hash of the exact messages.
+
+	Append-only (the app role can insert and read, not update or delete). The hash lets an auditor check a claim about what a
+	provider received without the table keeping a second copy of the text."""
+
+	__tablename__ = "conversation_context_packages"
+
+	org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+	conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
+	assistant_turn_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("conversation_turns.id", ondelete="SET NULL"), nullable=True)
+	model: Mapped[str] = mapped_column(String(100), nullable=False)
+	data_class: Mapped[str] = mapped_column(String(20), nullable=False)
+	routing_mode: Mapped[str] = mapped_column(String(10), nullable=False)
+	included_turn_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+	withheld: Mapped[list] = mapped_column(JSONB, nullable=False)
+	estimated_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+	payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+	outcome: Mapped[str] = mapped_column(String(10), nullable=False)
+	created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
