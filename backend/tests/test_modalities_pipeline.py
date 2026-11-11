@@ -477,3 +477,100 @@ async def test_a_request_too_large_to_scan_is_refused_not_scanned_in_part(case):
 	response, logged = await send(case)
 	assert response.status_code == 446 and json.loads(response.body)["reason_code"] == "scan_limit_exceeded"
 	assert case.calls == [] and logged[0]["error_message"] == "policy_blocked:scan_limit_exceeded"
+
+
+# -- found by the security review: what is read, referenced and delivered -----------------------------
+
+
+def _responses_case(case, **fields):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	case.make = lambda model, text: ResponsesRequest(**{"model": model, "input": text, **fields})
+
+
+@pytest.mark.parametrize("item", [
+	{"type": "item_reference", "id": "msg_stored"},
+	{"role": "user", "content": [{"type": "input_text", "text": "see file"}, {"type": "input_file", "file_id": "file-abc"}]},
+	{"role": "user", "content": "hi", "attachments": [{"file_id": "file-abc"}]},
+])
+async def test_input_that_points_at_state_the_provider_holds_is_refused_unless_the_org_allows_it(case, item):
+	_responses_case(case, input=[item])
+	failure, _ = await send(case)
+	assert isinstance(failure, HTTPException) and failure.detail["error"] == "provider_state_not_allowed" and case.calls == []
+	case.policy = PolicyConfig(allow_provider_response_state=True)
+	response, _ = await send(case)
+	assert response.status_code == 200
+
+
+@pytest.mark.parametrize("item", [
+	{"role": "user", "content": [{"type": "input_image", "image_url": "data:image/png;base64,AAAA"}]},
+	{"role": "user", "content": "hi", "extras": {"nested": [{"image_url": "https://example.com/x.png"}]}},  # hidden outside `content`
+	{"role": "user", "content": [{"type": "brand_new_part", "payload": "???"}]},  # a type that does not exist yet: not assumed harmless
+	{"type": "reasoning", "encrypted_content": "gAAAA", "summary": []},
+])
+async def test_any_input_the_gateway_cannot_read_or_does_not_recognise_is_uninspected_wherever_it_hides(case, item):
+	_responses_case(case, input=[item])
+	case.policy = PolicyConfig(routing_mode="enforce")
+	case.registry = [entry(case.model, level="internal")]
+	response, _ = await send(case, headers={"x-openproxy-data-class": "internal"})
+	assert response.status_code == 446 and case.calls == []
+
+
+async def test_plain_text_items_in_their_known_shapes_stay_inspected(case):
+	_responses_case(case, input=[
+		{"role": "user", "content": [{"type": "input_text", "text": "hello"}]},
+		{"type": "function_call", "call_id": "c1", "name": "lookup", "arguments": "{}"},
+		{"type": "function_call_output", "call_id": "c1", "output": "42"},
+	])
+	response, _ = await send(case)
+	assert response.status_code == 200 and response.headers["x-openproxyai-data-class"] == "internal"
+
+
+@pytest.mark.parametrize("output", [
+	[{"type": "function_call", "call_id": "c", "name": "send", "arguments": '{"to": "x", "body": "the summary of the hidden-marker plan"}'}],
+	[{"type": "message", "content": [{"type": "refusal", "refusal": "I cannot share the hidden-marker plan"}]}],
+	[{"type": "reasoning", "summary": [{"type": "summary_text", "text": "thinking about the hidden-marker plan"}]}],
+])
+async def test_every_string_the_model_produced_is_checked_not_only_the_message_text(case, output):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	case.reply = {**RESPONSES_REPLY, "output": output}
+	case.policy = PolicyConfig(enforcement_mode="enforce", response_guardrails_enabled=True, blocked_keywords=["hidden-marker"])
+	failure, _ = await send(case)
+	assert isinstance(failure, HTTPException) and failure.status_code == 446
+
+
+async def test_pii_is_redacted_in_function_call_arguments_and_refusals_too(case):
+	if case.name != "responses":
+		pytest.skip("responses only")
+	case.reply = {**RESPONSES_REPLY, "output": [
+		{"type": "function_call", "call_id": "c", "name": "send", "arguments": '{"ssn": "123-45-6789"}'},
+		{"type": "message", "content": [{"type": "refusal", "refusal": "not for 078-05-1120"}]},
+	]}
+	case.policy = PolicyConfig(response_guardrails_enabled=True, response_pii_redact=True)
+	response, _ = await send(case)
+	text = response.body.decode()
+	assert "123-45-6789" not in text and "078-05-1120" not in text and '"name":"send"' in text  # structure is left alone
+
+
+async def test_a_verbose_transcript_is_redacted_in_its_segments_and_words_not_only_its_headline_text(case):
+	if case.name != "transcription":
+		pytest.skip("transcription only")
+	case.reply = {
+		"text": "my number is 123-45-6789", "language": "en", "duration": 3.1,
+		"segments": [{"id": 0, "text": "my number is 123-45-6789", "start": 0, "end": 2}],
+		"words": [{"word": "123-45-6789", "start": 1, "end": 2}],
+	}
+	case.policy = PolicyConfig(response_guardrails_enabled=True, response_pii_redact=True)
+	response, _ = await send(case)
+	body = json.loads(response.body)
+	assert "123-45-6789" not in response.body.decode() and body["language"] == "en" and body["segments"][0]["start"] == 0
+
+
+async def test_a_blocked_keyword_only_in_a_segment_still_blocks_the_transcript(case):
+	if case.name != "transcription":
+		pytest.skip("transcription only")
+	case.reply = {"text": "all fine", "segments": [{"id": 0, "text": "the hidden-marker plan"}]}
+	case.policy = PolicyConfig(enforcement_mode="enforce", response_guardrails_enabled=True, blocked_keywords=["hidden-marker"])
+	failure, _ = await send(case)
+	assert isinstance(failure, HTTPException) and failure.status_code == 446

@@ -121,7 +121,6 @@ class TranscriptionRequest(BaseModel):
 # -- responses ---------------------------------------------------------------------------------------
 
 MAX_RESPONSES_INPUT_ITEMS = 500
-INPUT_ITEM_TYPES_WITH_NO_TEXT = frozenset({"input_image", "input_file", "input_audio"})
 
 
 class ResponsesRequest(BaseModel):
@@ -174,12 +173,54 @@ class ResponsesRequest(BaseModel):
         return tools
 
     def has_uninspectable_input(self) -> bool:
-        """An image, file or audio part: content the gateway cannot read."""
-        if isinstance(self.input, str):
-            return False
-        for item in self.input:
-            content = item.get("content")
-            parts = content if isinstance(content, list) else []
-            if item.get("type") in INPUT_ITEM_TYPES_WITH_NO_TEXT or any(isinstance(p, dict) and p.get("type") in INPUT_ITEM_TYPES_WITH_NO_TEXT for p in parts):
-                return True
-        return False
+        """True when any part of the input is content the gateway cannot read, or is of a kind it does not know. Walks the whole
+        structure, every field, because the provider reads all of it, not only ``content``. An unknown part type fails closed."""
+        return _walk_input(self.input).uninspectable
+
+    def references_provider_state(self) -> bool:
+        """True when the input points at something the provider is holding (a stored item or an uploaded file) instead of carrying it."""
+        return _walk_input(self.input).provider_reference
+
+
+# Part and item types whose content is text the gateway reads. Anything else (images, files, audio, encrypted reasoning, a type that
+# does not exist yet) is treated as unreadable rather than assumed harmless.
+READABLE_INPUT_TYPES = frozenset({"message", "input_text", "output_text", "text", "refusal", "function_call", "function_call_output", "summary_text"})
+UNREADABLE_INPUT_KEYS = frozenset({"image_url", "file_id", "file_data", "file_url", "input_audio", "audio", "input_image", "input_file", "encrypted_content"})
+PROVIDER_REFERENCE_KEYS = frozenset({"file_id"})
+PROVIDER_REFERENCE_TYPES = frozenset({"item_reference"})
+
+
+class _InputScan:
+    __slots__ = ("uninspectable", "provider_reference")
+
+    def __init__(self) -> None:
+        self.uninspectable = False
+        self.provider_reference = False
+
+
+def _walk_input(value: Any) -> _InputScan:
+    scan = _InputScan()
+    stack: list[Any] = [value]
+    visited = 0
+    while stack:
+        node = stack.pop()
+        visited += 1
+        if visited > 50_000:
+            scan.uninspectable = True  # too large to walk: not assumed harmless
+            break
+        if isinstance(node, list):
+            stack.extend(node)
+        elif isinstance(node, dict):
+            kind = node.get("type")
+            if kind is not None and kind not in READABLE_INPUT_TYPES:
+                scan.uninspectable = True
+            if kind in PROVIDER_REFERENCE_TYPES:
+                scan.provider_reference = True
+            for key, child in node.items():
+                if key in UNREADABLE_INPUT_KEYS:
+                    scan.uninspectable = True
+                if key in PROVIDER_REFERENCE_KEYS:
+                    scan.provider_reference = True
+                if isinstance(child, (list, dict)):
+                    stack.append(child)
+    return scan

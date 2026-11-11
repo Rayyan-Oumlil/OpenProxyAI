@@ -124,13 +124,32 @@ async def _transcribe(request: TranscriptionRequest, api_key: str, endpoint: Pro
 	return await ls.atranscription(**with_endpoint(kwargs, api_key, endpoint))
 
 
+_TRANSCRIPT_TEXT_KEYS = frozenset({"text", "word"})
+
+
+def _map_text_keys(value: Any, keys: frozenset[str], fn) -> Any:
+	"""A copy of ``value`` with ``fn`` applied to every string held under one of ``keys``, at any depth (segments and words included)."""
+	if isinstance(value, dict):
+		return {k: (fn(v) if k in keys and isinstance(v, str) else _map_text_keys(v, keys, fn)) for k, v in value.items()}
+	if isinstance(value, list):
+		return [_map_text_keys(v, keys, fn) for v in value]
+	return value
+
+
+def _text_under_keys(value: Any, keys: frozenset[str]) -> list[str]:
+	found: list[str] = []
+	_map_text_keys(value, keys, lambda text: found.append(text) or text)
+	return found
+
+
 def _transcript_text(body: dict) -> str | None:
-	text = body.get("text")
-	return text if isinstance(text, str) else None
+	"""The transcript and, for verbose output, every segment and word: all of it is delivered to the caller."""
+	found = _text_under_keys(body, _TRANSCRIPT_TEXT_KEYS)
+	return "\n".join(found) if found else None
 
 
 def _with_transcript_text(body: dict, redact) -> dict:
-	return {**body, "text": redact(body["text"])}
+	return _map_text_keys(body, _TRANSCRIPT_TEXT_KEYS, redact)
 
 
 TRANSCRIPTION = Modality(
@@ -194,15 +213,15 @@ def _responses_text(request: ResponsesRequest) -> str:
 
 
 def _responses_check(request: ResponsesRequest, policy: Any) -> None:
-    if (request.store or request.previous_response_id) and not policy.allow_provider_response_state:
+    if (request.store or request.previous_response_id or request.references_provider_state()) and not policy.allow_provider_response_state:
         from fastapi import HTTPException
 
         raise HTTPException(
             status_code=400,
             detail={
                 "error": "provider_state_not_allowed",
-                "detail": "store=true and previous_response_id keep conversation state at the provider, which this organization has not allowed. "
-                "Send the full input each time with store=false.",
+                "detail": "store=true, previous_response_id, item references and file ids rely on state held at the provider, which this organization has not "
+                "allowed. Send the full input each time with store=false.",
             },
         )
 
@@ -219,28 +238,30 @@ async def _respond(request: ResponsesRequest, api_key: str, endpoint: ProviderEn
     return await ls.aresponses(**with_endpoint(kwargs, api_key, endpoint))
 
 
-def _output_text_parts(body: dict):
-    for item in body.get("output") or []:
-        for part in (item.get("content") or []) if isinstance(item, dict) else []:
-            if isinstance(part, dict) and part.get("type") == "output_text" and isinstance(part.get("text"), str):
-                yield part
+# Keys in a response's output that are structure, not model-produced text. Everything else in ``output`` is: message text, refusals,
+# function-call arguments, reasoning summaries, and any field a newer API version adds.
+_RESPONSE_STRUCTURE_KEYS = frozenset({"type", "id", "role", "status", "call_id", "name", "object", "model", "phase", "format"})
+
+
+def _map_output_strings(value: Any, fn, key: str | None = None) -> Any:
+    if isinstance(value, str):
+        return value if key in _RESPONSE_STRUCTURE_KEYS else fn(value)
+    if isinstance(value, dict):
+        return {k: _map_output_strings(v, fn, k) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_map_output_strings(v, fn, key) for v in value]
+    return value
 
 
 def _response_text(body: dict) -> str | None:
-    texts = [part["text"] for part in _output_text_parts(body)]
-    return "\n".join(texts) if texts else None
+    found: list[str] = []
+    _map_output_strings(body.get("output") or [], lambda text: found.append(text) or text)
+    return "\n".join(found) if found else None
 
 
 def _with_response_text(body: dict, redact) -> dict:
-    """Every text part of the answer, redacted on its own with the org's redactor."""
-    out = {**body, "output": [dict(item) if isinstance(item, dict) else item for item in body.get("output") or []]}
-    for item in out["output"]:
-        if isinstance(item, dict) and isinstance(item.get("content"), list):
-            item["content"] = [
-                {**part, "text": redact(part["text"])} if isinstance(part, dict) and part.get("type") == "output_text" and isinstance(part.get("text"), str) else part
-                for part in item["content"]
-            ]
-    return out
+    """Every model-produced string in the output, redacted on its own with the org's redactor."""
+    return {**body, "output": _map_output_strings(body.get("output") or [], redact)}
 
 
 def _responses_usage(body: dict) -> tuple[int, int] | None:
