@@ -243,13 +243,19 @@ export type ProviderKeyResponse = {
   health_status?: string;
   consecutive_failures?: number;
   last_health_check_at?: string | null;
+  /** "vault" when the key is read from HashiCorp Vault and the gateway holds no copy. */
+  secret_source?: "local" | "vault";
+  vault_path?: string | null;
 };
 
 export type CreateProviderKeyRequest = {
   provider: string;
   alias?: string;
   key_alias?: string;
-  api_key: string;
+  /** Send exactly one of api_key and vault_path. */
+  api_key?: string;
+  vault_path?: string;
+  vault_field?: string;
   weight?: number;
   region?: string;
   api_base?: string | null;

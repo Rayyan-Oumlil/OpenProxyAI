@@ -53,6 +53,7 @@ const sidebars: SidebarsConfig = {
         'guides/prompt-promotion',
         'guides/conversations',
         'guides/telemetry-and-siem',
+        'guides/secrets-from-vault',
       ],
     },
     {
