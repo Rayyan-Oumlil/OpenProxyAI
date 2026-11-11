@@ -574,3 +574,29 @@ async def test_a_blocked_keyword_only_in_a_segment_still_blocks_the_transcript(c
 	case.policy = PolicyConfig(enforcement_mode="enforce", response_guardrails_enabled=True, blocked_keywords=["hidden-marker"])
 	failure, _ = await send(case)
 	assert isinstance(failure, HTTPException) and failure.status_code == 446
+
+
+@pytest.mark.parametrize("item", [
+	{"id": "msg_stored"},  # no type, no content: an id with nothing inline
+	{"role": "user"},  # a message with no content
+	{"content": "hi"},  # no role
+	"just a string",
+	{"type": "function_call", "id": "fc_stored"},  # names a stored call without carrying it
+	{"type": "function_call_output", "id": "fco_stored", "call_id": "c"},  # missing its output
+])
+def test_an_input_item_that_is_not_a_complete_known_shape_is_rejected_rather_than_guessed_at(item):
+	with pytest.raises(ValueError):
+		ResponsesRequest(model="openai/gpt-4o", input=[item])
+
+
+def test_input_too_large_to_walk_is_refused_at_validation_so_the_walkers_cap_is_never_reached():
+	wide = {"role": "user", "content": "hi", "extras": [[] for _ in range(60_000)]}
+	with pytest.raises(ValueError, match="more than"):
+		ResponsesRequest(model="openai/gpt-4o", input=[wide])
+
+
+def test_an_unreadable_walk_that_somehow_hit_the_cap_would_assume_the_worst():
+	from app.schemas import modalities
+
+	scan = modalities._walk_input([{"role": "user", "content": "hi", "x": [[] for _ in range(60_000)]}])
+	assert scan.too_large and scan.uninspectable and scan.provider_reference

@@ -16,8 +16,8 @@ An adapter supplies: how to read the text that policy and classification must se
 | 5.4 | `POST /v1/audio/transcriptions` and `/v1/audio/speech` (this is the "voice endpoint") | Audio in is multipart: size cap, content type check. The transcript is checked against policy on the way back, since that is where the text appears. Speech input is checked like any prompt. |
 | 5.5 | `POST /v1/responses` | Provider-side state (`previous_response_id`, `store=true`) is blocked by default: it keeps data at the provider and conflicts with residency. A policy flag allows it. |
 | 5.6 | Files and batches | `batch_jobs` table, a poll job, every line scanned by policy, budget reserved up front. Largest slice. |
-| 5.7 | OpenTelemetry export | Sidecar rule: it can never raise into a request. Off unless configured. No prompt text in spans. |
-| 5.8 | SIEM export | Security events and admin audit as JSON lines to a webhook/syslog-style sink; same never-raises rule; backoff and a bounded queue. |
+| 5.7 | OpenTelemetry export | **Already built in Phase 1** (`services/telemetry.py`). Found on checking: spans said `chat` for every call, now named for the operation; added the user-facing doc it lacked. |
+| 5.8 | SIEM export | **Already built in Phase 1** (CEF/JSON to stdout, file, syslog). Documented. |
 | 5.9 | Read-only SQL view | A tightly scoped read path over the org's own logs for analysts. Design below. |
 | 5.10 | Secrets from Vault | Provider keys can be fetched from HashiCorp Vault (KV v2) instead of being stored encrypted in Postgres. |
 | 5.11 | WASM policy plugins | An org-supplied module can add a verdict to the policy check. Design below; the riskiest slice. |

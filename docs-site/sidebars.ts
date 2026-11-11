@@ -52,6 +52,7 @@ const sidebars: SidebarsConfig = {
         'guides/adaptive-experiments',
         'guides/prompt-promotion',
         'guides/conversations',
+        'guides/telemetry-and-siem',
       ],
     },
     {
