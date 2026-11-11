@@ -5,6 +5,8 @@ import uuid
 
 import litellm
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from pydantic import ValidationError
+from starlette.datastructures import UploadFile
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -15,8 +17,8 @@ from app.models.llm_provider_key import LLMProviderKey
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.schemas.models import ModelListResponse, ModelResponse
 from app.services.llm_service import llm_service
-from app.schemas.modalities import ImageRequest, RerankRequest
-from app.services.modalities import EMBEDDINGS, IMAGES, RERANK
+from app.schemas.modalities import MAX_AUDIO_BYTES, ImageRequest, RerankRequest, ResponsesRequest, SpeechRequest, TranscriptionRequest
+from app.services.modalities import EMBEDDINGS, IMAGES, RERANK, RESPONSES, TRANSCRIPTION, speech_modality
 from app.services.modality_pipeline import run_modality
 
 router = APIRouter(tags=["Proxy"])
@@ -184,3 +186,76 @@ async def image_generations(
     request_id: str = Depends(get_request_id),
 ):
     return await _serve(IMAGES, request, http_request, background_tasks, auth, db, redis, request_id)
+
+
+@router.post("/v1/audio/speech")
+async def audio_speech(
+    request: SpeechRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+    auth: ProxyAuth,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    request_id: str = Depends(get_request_id),
+):
+    return await _serve(speech_modality(request), request, http_request, background_tasks, auth, db, redis, request_id)
+
+
+_MULTIPART_OVERHEAD_BYTES = 64 * 1024  # form fields and boundaries around the file
+
+
+def _upload_error(status_code: int, error: str, detail: str) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content={"error": error, "detail": detail}, headers={"X-OpenProxyAI-Gateway-Error": "true"})
+
+
+@router.post("/v1/audio/transcriptions")
+async def audio_transcriptions(
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+    auth: ProxyAuth,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    request_id: str = Depends(get_request_id),
+):
+    """Multipart upload. The form is read by hand, after authentication, because the framework would spool a body of any size to disk
+    before a handler could refuse it: the declared length is checked first, and the file itself is checked again once read."""
+    declared = http_request.headers.get("content-length")
+    if declared is None or not declared.isdigit():
+        return _upload_error(411, "length_required", "A Content-Length header is required for uploads.")
+    if int(declared) > MAX_AUDIO_BYTES + _MULTIPART_OVERHEAD_BYTES:
+        return _upload_error(413, "file_too_large", f"Audio files can be at most {MAX_AUDIO_BYTES} bytes.")
+    form = await http_request.form(max_files=1, max_fields=10)
+    upload = form.get("file")
+    if not isinstance(upload, UploadFile) or not isinstance(form.get("model"), str):
+        return _upload_error(422, "invalid_request", "Send multipart form data with a model and a file.")
+    data = await upload.read(MAX_AUDIO_BYTES + 1)
+    if len(data) > MAX_AUDIO_BYTES:
+        return _upload_error(413, "file_too_large", f"Audio files can be at most {MAX_AUDIO_BYTES} bytes.")
+
+    def field(name: str):
+        value = form.get(name)
+        return value if isinstance(value, str) and value != "" else None
+
+    temperature = field("temperature")
+    try:
+        request = TranscriptionRequest(
+            model=form["model"], filename=upload.filename or "", data=data, language=field("language"), prompt=field("prompt"),
+            response_format=field("response_format") or "json", temperature=float(temperature) if temperature is not None else None,
+        )
+    except (ValidationError, ValueError) as exc:
+        message = exc.errors()[0]["msg"] if isinstance(exc, ValidationError) else "temperature must be a number"
+        return _upload_error(422, "invalid_request", message)
+    return await _serve(TRANSCRIPTION, request, http_request, background_tasks, auth, db, redis, request_id)
+
+
+@router.post("/v1/responses")
+async def responses(
+    request: ResponsesRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+    auth: ProxyAuth,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    request_id: str = Depends(get_request_id),
+):
+    return await _serve(RESPONSES, request, http_request, background_tasks, auth, db, redis, request_id)

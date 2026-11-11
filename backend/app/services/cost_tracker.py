@@ -14,8 +14,10 @@ def _today_iso() -> str:
 
 class CostTrackerService:
 	@staticmethod
-	def calculate_cost_usd(completion_response: object) -> Decimal:
-		cost = completion_cost(completion_response=completion_response)
+	def calculate_cost_usd(completion_response: object, call_type: str | None = None) -> Decimal:
+		"""``call_type`` is LiteLLM's (``embedding``, ``rerank``, ``image_generation``, ``transcription``, ``speech``): the default
+		assumes a chat completion and mis-prices, or fails to price, anything else."""
+		cost = completion_cost(completion_response=completion_response, **({"call_type": call_type} if call_type else {}))
 		return Decimal(str(cost)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
 
 	async def get_org_spend_today(self, redis: Redis, org_id: UUID | str) -> Decimal:

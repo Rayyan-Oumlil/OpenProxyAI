@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     DEFAULT_RATE_LIMIT_RPM: int = 60
     DEFAULT_RATE_LIMIT_TPM: int = 100_000
     DEFAULT_BUDGET_DAILY_USD: float = 50.0
+    # Charged per unit (an image, a call) when LiteLLM cannot price a non-chat call, so an unpriced model still counts against budgets.
+    UNPRICED_CALL_COST_USD: float = 0.01
 
     # ── Provider Fallback ─────────────────────────────────────────────
     MAX_PROVIDER_FALLBACK_ATTEMPTS: int = 3
