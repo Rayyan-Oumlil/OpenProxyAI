@@ -40,6 +40,7 @@ const CONVERSATION: Conversation = {
   visibility: "private",
   team_id: null,
   tags: ["finance"],
+  system_prompt: null,
   owner_id: "u1",
   owner_email: "me@x.test",
   is_owner: true,
@@ -203,6 +204,93 @@ describe("the conversation list", () => {
     );
   });
 
+  it("sends a standing instruction with the new conversation", async () => {
+    mockApi();
+    post.mockResolvedValue({ ...CONVERSATION, id: "c9" });
+    renderAt("/conversations");
+    fireEvent.click(
+      await screen.findByRole("button", { name: /New conversation/ }),
+    );
+    fireEvent.change(await screen.findByLabelText("Title"), {
+      target: { value: "Review" },
+    });
+    fireEvent.change(screen.getByLabelText(/Standing instruction/), {
+      target: { value: "  Be terse.  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start conversation" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/conversations",
+        { title: "Review", tags: [], system_prompt: "Be terse." },
+        "tok",
+      ),
+    );
+  });
+
+  it("offers whole-organization sharing to admins only, and it replaces the team choice", async () => {
+    mockApi();
+    post.mockResolvedValue({ ...CONVERSATION, id: "c9" });
+    renderAt("/conversations");
+    fireEvent.click(
+      await screen.findByRole("button", { name: /New conversation/ }),
+    );
+    await screen.findByLabelText("Title");
+    expect(
+      screen.queryByLabelText(/Share with the whole organization/),
+    ).toBeNull();
+    cleanup();
+    auth.role = "admin";
+    renderAt("/conversations");
+    fireEvent.click(
+      await screen.findByRole("button", { name: /New conversation/ }),
+    );
+    fireEvent.change(await screen.findByLabelText("Title"), {
+      target: { value: "Handbook" },
+    });
+    fireEvent.click(screen.getByLabelText(/Share with the whole organization/));
+    expect(
+      (screen.getByLabelText("Share with") as HTMLSelectElement).disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Start conversation" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/conversations",
+        { title: "Handbook", tags: [], visibility: "org" },
+        "tok",
+      ),
+    );
+  });
+
+  it("says in the drawer what enforcement would have held back when routing is only in preview", async () => {
+    mockApi();
+    get.mockImplementation(async (path: string) => {
+      if (path.endsWith("/context"))
+        return {
+          ...CONTEXT,
+          routing_mode: "log_only",
+          withheld: [],
+          included_turn_ids: ["t1", "t2"],
+          would_withhold: [
+            { turn_id: "t1", seq: 1, reason: "above_clearance" },
+          ],
+        };
+      if (path === "/api/v1/conversations/c1") return CONVERSATION;
+      if (path === "/api/v1/conversations/c1/turns") return TURNS;
+      if (path === "/api/v1/conversations/models") return MODELS;
+      return [];
+    });
+    renderAt("/conversations/c1");
+    const answer = await screen.findByRole("article", {
+      name: "Assistant, message 2",
+    });
+    fireEvent.click(
+      within(answer).getByRole("button", { name: "Context sent" }),
+    );
+    expect((await screen.findByRole("note")).textContent).toContain(
+      "1 earlier message (#1) would have been held back",
+    );
+  });
+
   it("refuses an empty title without calling the server", async () => {
     mockApi();
     renderAt("/conversations");
@@ -266,7 +354,8 @@ describe("a thread", () => {
     );
     expect(
       (screen.getByLabelText("Message") as HTMLTextAreaElement).value,
-    ).toBe("");    expect(
+    ).toBe("");
+    expect(
       (screen.getByLabelText("Sensitivity") as HTMLSelectElement).value,
     ).toBe("");
   });

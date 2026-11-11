@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import CurrentUser, get_db, get_redis
-from app.models.conversation import PRIVATE, TEAM, Conversation, ConversationContextPackage, ConversationTurn
+from app.models.conversation import ORG, PRIVATE, TEAM, Conversation, ConversationContextPackage, ConversationTurn
 from app.models.team import Team, team_members
 from app.models.user import User
 from app.schemas.conversation import (
@@ -60,7 +60,11 @@ def _my_teams(user):
 
 def visible_to(user):
 	"""SQL condition: conversations this user may read."""
-	return or_(Conversation.owner_id == user.id, and_(Conversation.visibility == TEAM, Conversation.team_id.in_(_my_teams(user))))
+	return or_(
+		Conversation.owner_id == user.id,
+		Conversation.visibility == ORG,
+		and_(Conversation.visibility == TEAM, Conversation.team_id.in_(_my_teams(user))),
+	)
 
 
 async def load_readable(db: AsyncSession, user, conversation_id: UUID) -> Conversation:
@@ -87,6 +91,15 @@ async def _require_enabled(redis, db: AsyncSession, user) -> None:
 		)
 
 
+def _require_admin_to_publish(user) -> None:
+	"""Org-wide sharing puts a conversation in front of every member, so only an admin may do it (and only with their own)."""
+	if user.role != "admin":
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail={"error": "admin_only", "detail": "Only an organization admin can share a conversation with the whole organization."},
+		)
+
+
 async def _validate_team(db: AsyncSession, user, team_id: UUID) -> None:
 	"""The team must be in the caller's org and the caller a member: you cannot share with a team you are not in."""
 	in_org = await db.scalar(select(Team.id).where(Team.id == team_id, Team.org_id == user.org_id))
@@ -110,7 +123,7 @@ async def _responses(db: AsyncSession, user, rows: list[Conversation]) -> list[C
 	emails = dict((await db.execute(select(User.id, User.email).where(User.id.in_({row.owner_id for row in rows})))).all())
 	return [
 		ConversationResponse(
-			id=row.id, title=row.title, visibility=row.visibility if row.team_id else PRIVATE, team_id=row.team_id, tags=list(row.tags or []), owner_id=row.owner_id,
+			id=row.id, title=row.title, visibility=PRIVATE if row.visibility == TEAM and not row.team_id else row.visibility, team_id=row.team_id, tags=list(row.tags or []), system_prompt=row.system_prompt, owner_id=row.owner_id,
 			owner_email=emails.get(row.owner_id), is_owner=row.owner_id == user.id, turn_count=int(counts.get(row.id, 0)),
 			created_at=row.created_at, updated_at=row.updated_at,
 		)
@@ -125,6 +138,8 @@ async def create_conversation(
 	if current_user.role not in _WRITE_ROLES:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot start conversations")
 	await _require_enabled(redis, db, current_user)
+	if payload.visibility == ORG:
+		_require_admin_to_publish(current_user)
 	if payload.team_id is not None:
 		await _validate_team(db, current_user, payload.team_id)
 	owned = await db.scalar(select(func.count()).select_from(Conversation).where(Conversation.owner_id == current_user.id))
@@ -135,7 +150,7 @@ async def create_conversation(
 		)
 	row = Conversation(
 		org_id=current_user.org_id, owner_id=current_user.id, team_id=payload.team_id, title=payload.title,
-		visibility=payload.visibility, tags=payload.tags,
+		visibility=payload.visibility, tags=payload.tags, system_prompt=payload.system_prompt,
 	)
 	db.add(row)
 	await db.commit()
@@ -203,12 +218,16 @@ async def update_conversation(
 		row.title = payload.title
 	if "tags" in changes:
 		row.tags = payload.tags
+	if "system_prompt" in changes:
+		row.system_prompt = payload.system_prompt
 	if "visibility" in changes or "team_id" in changes:
 		visibility = payload.visibility if "visibility" in changes else row.visibility
 		team_id = payload.team_id if "team_id" in changes else row.team_id
-		if visibility == PRIVATE:
+		if visibility in (PRIVATE, ORG):
 			if "team_id" in changes and payload.team_id is not None:
 				raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="team_id is only for a conversation shared with a team")
+			if visibility == ORG and row.visibility != ORG:
+				_require_admin_to_publish(current_user)
 			team_id = None
 		elif team_id is None:
 			raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="team_id is required when visibility is 'team'")
@@ -250,7 +269,7 @@ def _context_summary(package: ConversationContextPackage) -> ContextSummary:
 	return ContextSummary(
 		package_id=package.id, model=package.model, data_class=package.data_class, routing_mode=package.routing_mode,
 		included_turn_ids=package.included_turn_ids, withheld=package.withheld, estimated_tokens=package.estimated_tokens,
-		payload_sha256=package.payload_sha256, outcome=package.outcome, created_at=package.created_at,
+		payload_sha256=package.payload_sha256, outcome=package.outcome, would_withhold=package.would_withhold, created_at=package.created_at,
 	)
 
 
@@ -289,7 +308,7 @@ async def add_turn(
 	try:
 		result = await run_turn(
 			db, redis, conversation=conversation, user_id=current_user.id, model=payload.model, content=payload.content,
-			asserted_class=payload.data_class, policy=policy, system_prompt=payload.system_prompt, temperature=payload.temperature,
+			asserted_class=payload.data_class, policy=policy, system_prompt=payload.system_prompt or conversation.system_prompt, temperature=payload.temperature,
 			max_tokens=payload.max_tokens, token_budget=payload.max_context_tokens or DEFAULT_CONTEXT_TOKENS,
 			before_call=lambda tokens: _rate_limit(redis, current_user, policy, payload.model, tokens),
 		)

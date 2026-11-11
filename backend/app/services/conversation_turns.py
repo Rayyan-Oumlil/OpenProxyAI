@@ -64,15 +64,16 @@ def _withheld_json(withheld: tuple[Withheld, ...]) -> list[dict]:
 	return [{"turn_id": str(w.turn_id), "seq": w.seq, "reason": w.reason} for w in withheld]
 
 
-async def _model_clearance(db: AsyncSession, org_id: uuid.UUID, model: str, policy: PolicyConfig) -> tuple[int, tuple | None]:
-	"""The rank this model may receive, and the registry inputs (loaded once, reused by the routing check)."""
+async def _model_clearance(db: AsyncSession, org_id: uuid.UUID, model: str, policy: PolicyConfig) -> tuple[int, tuple | None, int]:
+	"""The rank applied now, the registry inputs (loaded once, reused by the routing check), and the rank enforcement would apply.
+
+	They differ only under ``log_only``: nothing is withheld yet, but the preview says what would be."""
 	if policy.routing_mode == "off":
-		return _UNCAPPED, None
+		return _UNCAPPED, None, _UNCAPPED
 	inputs = await llm_service.routing_inputs(db, org_id)
-	if policy.routing_mode != "enforce":
-		return _UNCAPPED, inputs
 	entry = next((c for c in inputs[0] if c.model_id == model), None)
-	return (clearance(entry) if entry is not None else -1), inputs  # not in the registry: nothing is cleared; routing refuses it
+	enforced = clearance(entry) if entry is not None else -1  # not in the registry: nothing is cleared; routing refuses it
+	return (enforced if policy.routing_mode == "enforce" else _UNCAPPED), inputs, enforced
 
 
 async def prepare_turn(
@@ -85,19 +86,22 @@ async def prepare_turn(
 	policy: PolicyConfig,
 	system_prompt: str | None,
 	token_budget: int,
-) -> tuple[Classification, ContextPackage, str, tuple | None]:
+) -> tuple[Classification, ContextPackage, str, tuple | None, tuple]:
 	"""Everything decided before the call: the new message's class, the context, and the class of the package as a whole."""
 	new_class = await classify_text(content, policy, asserted_class)
-	allowed, inputs = await _model_clearance(db, conversation.org_id, model, policy)
+	allowed, inputs, enforced = await _model_clearance(db, conversation.org_id, model, policy)
 	turns = list((await db.scalars(select(ConversationTurn).where(ConversationTurn.conversation_id == conversation.id))).all())
 	package = build_context(turns, content, clearance=allowed, token_budget=token_budget, system_prompt=system_prompt)
 	by_id = {t.id: t for t in turns}
+	preview = ()
+	if policy.routing_mode == "log_only":
+		preview = build_context(turns, content, clearance=enforced, token_budget=token_budget, system_prompt=system_prompt).withheld
 	# Everything the model receives counts: the system prompt is text the model reads, so it is classified like the message.
 	system_class = (await classify_text(system_prompt, policy, None)).data_class if system_prompt else new_class.data_class
 	package_class = _highest(new_class.data_class, system_class, *(by_id[i].data_class for i in package.included_ids if by_id[i].data_class in DATA_CLASSES))
 	if any(by_id[i].data_class not in DATA_CLASSES for i in package.included_ids):
 		package_class = DATA_CLASSES[-1]  # an unreadable class on a stored turn: assume the worst
-	return new_class, package, package_class, inputs
+	return new_class, package, package_class, inputs, preview
 
 
 async def run_turn(
@@ -117,7 +121,7 @@ async def run_turn(
 	before_call: Callable[[int], Awaitable[None]] | None = None,
 ) -> TurnResult:
 	"""Never raises for a model or policy failure: those come back as ``outcome`` (with ``refused`` set for a refusal)."""
-	new_class, package, package_class, inputs = await prepare_turn(
+	new_class, package, package_class, inputs, preview = await prepare_turn(
 		db, conversation=conversation, model=model, content=content, asserted_class=asserted_class,
 		policy=policy, system_prompt=system_prompt, token_budget=token_budget,
 	)
@@ -136,7 +140,7 @@ async def run_turn(
 
 	record = ConversationContextPackage(
 		org_id=conversation.org_id, conversation_id=conversation.id, model=model, data_class=package_class, routing_mode=policy.routing_mode,
-		included_turn_ids=[str(i) for i in package.included_ids], withheld=_withheld_json(package.withheld),
+		included_turn_ids=[str(i) for i in package.included_ids], withheld=_withheld_json(package.withheld), would_withhold=_withheld_json(preview),
 		estimated_tokens=package.estimated_tokens, payload_sha256=_sha256(package.messages), outcome="error" if outcome.error else "ok",
 	)
 	if outcome.error:

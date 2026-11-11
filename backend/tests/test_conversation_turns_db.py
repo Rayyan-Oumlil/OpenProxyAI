@@ -418,3 +418,43 @@ async def test_the_rate_limit_is_checked_on_everything_that_is_sent_not_just_the
 		upstream.limit_checks.clear()
 		await say(api, conversation, "hi", system_prompt="b" * 400)
 	assert upstream.limit_checks[0]["request_tokens_estimate"] >= 1000 + 100  # the earlier exchange and the system prompt count
+
+
+# -- personas and the log_only preview ----------------------------------------------------------------------
+
+
+async def test_the_conversations_persona_is_sent_with_every_turn_and_a_turns_own_prompt_overrides_it(org, upstream):
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api, system_prompt="You are a terse reviewer.")
+		await say(api, conversation, "first")
+		await say(api, conversation, "second", system_prompt="Answer in French.")
+	assert upstream.calls[0]["messages"][0] == {"role": "system", "content": "You are a terse reviewer."}
+	assert upstream.calls[1]["messages"][0] == {"role": "system", "content": "Answer in French."}
+	assert [m["content"] for m in upstream.calls[1]["messages"][1:]] == ["first", "Sure.", "second"]  # the persona is not stored as a turn
+
+
+async def test_a_sensitive_persona_is_classified_like_any_system_prompt_and_can_be_refused(org, upstream):
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api, system_prompt="The customer's SSN is 123-45-6789.")
+		refused = await say(api, conversation, "summarise", model=CLAUDE)
+		assert refused.status_code == 446
+	assert upstream.calls == []
+
+
+async def test_under_log_only_everything_is_sent_but_the_record_says_what_enforcement_would_have_held_back(org, upstream):
+	await configure(org.id, routing_mode="log_only")
+	upstream.registry = REGISTRY
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		await say(api, conversation, SECRET_TEXT, model=GPT, data_class="confidential")
+		reply = (await say(api, conversation, "next", model=CLAUDE)).json()["context"]
+	assert reply["withheld"] == [] and "Falcon" in json.dumps(upstream.sent_to(CLAUDE)[0]["messages"])  # log_only never restricts
+	assert sorted(w["seq"] for w in reply["would_withhold"]) == [1, 2] and {w["reason"] for w in reply["would_withhold"]} == {"above_clearance"}
+
+
+async def test_under_enforce_there_is_no_preview_because_the_real_list_is_the_answer(org, upstream):
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		await say(api, conversation, SECRET_TEXT, model=GPT, data_class="confidential")
+		reply = (await say(api, conversation, "next", model=CLAUDE)).json()["context"]
+	assert len(reply["withheld"]) == 2 and reply["would_withhold"] == []

@@ -13,7 +13,8 @@ MAX_PER_USER = 500  # conversations one user may keep; a ceiling against runaway
 
 Title = Annotated[str, StringConstraints(min_length=1, max_length=200, strip_whitespace=True)]
 Tag = Annotated[str, StringConstraints(min_length=1, max_length=30, strip_whitespace=True)]
-Visibility = Literal["private", "team"]
+Visibility = Literal["private", "team", "org"]
+SystemPrompt = Annotated[str, StringConstraints(min_length=1, max_length=4_000, strip_whitespace=True)]
 
 
 def _clean_tags(tags: list[str]) -> list[str]:
@@ -31,6 +32,7 @@ class ConversationCreate(BaseModel):
 	visibility: Visibility = "private"
 	team_id: uuid.UUID | None = None
 	tags: list[Tag] = Field(default_factory=list, max_length=MAX_TAGS)
+	system_prompt: SystemPrompt | None = None
 
 	@field_validator("tags")
 	@classmethod
@@ -41,7 +43,7 @@ class ConversationCreate(BaseModel):
 	def _team_matches_visibility(self) -> "ConversationCreate":
 		if self.visibility == "team" and self.team_id is None:
 			raise ValueError("team_id is required when visibility is 'team'")
-		if self.visibility == "private" and self.team_id is not None:
+		if self.visibility != "team" and self.team_id is not None:
 			raise ValueError("team_id is only for a conversation shared with a team")
 		return self
 
@@ -55,6 +57,7 @@ class ConversationUpdate(BaseModel):
 	visibility: Visibility | None = None
 	team_id: uuid.UUID | None = None
 	tags: list[Tag] | None = Field(default=None, max_length=MAX_TAGS)
+	system_prompt: SystemPrompt | None = Field(default=None, description="Send null to clear the persona.")
 
 	@field_validator("title", "visibility", "tags", mode="before")
 	@classmethod
@@ -75,6 +78,7 @@ class ConversationResponse(BaseModel):
 	visibility: str
 	team_id: uuid.UUID | None
 	tags: list[str]
+	system_prompt: str | None = None
 	owner_id: uuid.UUID
 	owner_email: str | None
 	is_owner: bool
@@ -134,6 +138,7 @@ class ContextSummary(BaseModel):
 	estimated_tokens: int
 	payload_sha256: str
 	outcome: str
+	would_withhold: list[WithheldTurn] = Field(default_factory=list)
 	created_at: datetime
 
 
