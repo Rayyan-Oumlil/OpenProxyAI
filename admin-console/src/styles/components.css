@@ -557,6 +557,11 @@ kbd,
   gap: var(--space-2);
 }
 
+/* The global textarea is 190px tall for the playground prompt; a one-or-two-line field in a form should not be. */
+.textarea-short {
+  min-height: 4.5rem;
+}
+
 /* Form controls inside a labelled cell fill it instead of overflowing into the next one. */
 .inline-control input,
 .inline-control select,

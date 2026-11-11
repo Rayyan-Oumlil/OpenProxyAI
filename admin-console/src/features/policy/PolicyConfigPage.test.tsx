@@ -73,7 +73,7 @@ describe("PolicyConfigPage", () => {
     mockApi();
     renderPage();
     await screen.findByRole("tablist", { name: "Policy sections" });
-    expect(["Enforcement", "Data protection", "Data and routing", "Rate limits", "Templates"].map((n) => tab(n).getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false", "false"]);
+    expect(["Enforcement", "Data protection", "Data and routing", "Evaluation", "Rate limits", "Templates"].map((n) => tab(n).getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false", "false", "false"]);
     expect(screen.getByRole("heading", { name: "Model Allowlist" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "PII Detection" })).toBeNull();
   });
@@ -106,6 +106,72 @@ describe("PolicyConfigPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
     expect(patch.mock.calls[0][1]).toEqual({ routing_mode: "log_only", data_class_map: { US_SSN: "secret" } });
+  });
+
+  it("turns capture on at 10%, lets the share be set, and saves only the rate", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Evaluation"), { button: 0 });
+    await screen.findByRole("heading", { name: "Capture traffic for evaluation" });
+    expect(screen.queryByLabelText("Share of requests kept (%)")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Keep a sample of delivered requests"));
+    const share = screen.getByLabelText("Share of requests kept (%)") as HTMLInputElement;
+    expect(share.value).toBe("10");
+    fireEvent.change(share, { target: { value: "25" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0][1]).toEqual({ payload_capture_sample_rate: 0.25 });
+  });
+
+  it("keeps the capture share between 1 and 100", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Evaluation"), { button: 0 });
+    fireEvent.click(await screen.findByLabelText("Keep a sample of delivered requests"));
+    const share = screen.getByLabelText("Share of requests kept (%)") as HTMLInputElement;
+    fireEvent.change(share, { target: { value: "500" } });
+    expect(share.value).toBe("100");
+    fireEvent.change(share, { target: { value: "0" } });
+    expect(share.value).toBe("1");
+  });
+
+  it("turning capture off again sends zero", async () => {
+    get.mockImplementation(async (path: string) => (path === "/api/v1/organizations/current" ? org({ payload_capture_sample_rate: 0.5 }) : []));
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Evaluation"), { button: 0 });
+    const toggle = (await screen.findByLabelText("Keep a sample of delivered requests")) as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0][1]).toEqual({ payload_capture_sample_rate: 0 });
+  });
+
+  it("enables the promotion gate with its thresholds", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Evaluation"), { button: 0 });
+    fireEvent.click(await screen.findByLabelText("Require a passing eval run before a prompt goes live"));
+    expect((screen.getByLabelText("Pass rate required (%)") as HTMLInputElement).value).toBe("80");
+    fireEvent.change(screen.getByLabelText("Pass rate required (%)"), { target: { value: "90" } });
+    fireEvent.change(screen.getByLabelText("Items the run must score"), { target: { value: "25" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0][1]).toEqual({ prompt_promotion_gate: true, prompt_gate_min_pass_rate: 0.9, prompt_gate_min_items: 25 });
+  });
+
+  it("does not offer the evaluation controls to a non-admin", async () => {
+    auth.role = "viewer";
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Evaluation"), { button: 0 });
+    expect((await screen.findByLabelText("Keep a sample of delivered requests") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Require a passing eval run before a prompt goes live") as HTMLInputElement).disabled).toBe(true);
   });
 
   it("Enter in the detected-kind field adds a row and does not save the policy", async () => {

@@ -23,6 +23,7 @@ import {
   DialogFooter,
 } from "../../components/ui/dialog";
 import { useAuth } from "../../state/AuthContext";
+import { PromotionDialog } from "./PromotionDialog";
 import { formatCost, formatLatency, cn } from "../../lib/utils";
 
 const COMMON_MODELS = [
@@ -286,6 +287,7 @@ function TemplatesTab({
 }) {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [promoting, setPromoting] = useState<PromptTemplate | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -317,9 +319,9 @@ function TemplatesTab({
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof apiClient.updatePromptTemplate>[1] }) =>
       apiClient.updatePromptTemplate(id, data, token!),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["prompt-templates"] });
-      toast.success("Template updated");
+      toast.success(saved.status === "draft" ? "Saved as a draft. It goes live when you promote it." : "Template updated");
       setEditingId(null);
       setFormData({ name: "", description: "", system_message: "", user_template: "" });
     },
@@ -451,13 +453,26 @@ function TemplatesTab({
                     {t.description?.slice(0, 60) ?? "—"}
                     {t.description && t.description.length > 60 ? "…" : ""}
                   </td>
-                  <td>v{t.version}</td>
+                  <td>
+                    v{t.version}
+                    {t.status === "draft" ? (
+                      <>
+                        {" "}
+                        <Badge variant="warning">Draft</Badge>
+                      </>
+                    ) : null}
+                  </td>
                   <td style={{ color: "var(--muted)" }}>
                     {formatDate(t.updated_at)}
                   </td>
                   {canManage && (
                     <td>
                       <div className="flex gap-2">
+                        {t.status === "draft" ? (
+                          <button type="button" className="btn-outline" onClick={() => setPromoting(t)} aria-label={`Promote ${t.name} v${t.version}`}>
+                            Promote
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => openEdit(t)}
@@ -492,6 +507,8 @@ function TemplatesTab({
           </table>
         </div>
       )}
+
+      {promoting ? <PromotionDialog template={promoting} isAdmin={user?.role === "admin"} token={token} onClose={() => setPromoting(null)} /> : null}
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent>

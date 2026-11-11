@@ -68,7 +68,7 @@ afterEach(cleanup);
 describe("AdminLayout on a wide screen", () => {
   beforeEach(() => setViewport(true));
 
-  it("pins a sidebar with the four groups and every link", () => {
+  it("pins a sidebar with every group and every link", () => {
     renderLayout();
     const nav = screen.getByRole("navigation", { name: "Main" });
     for (const group of NAV_GROUPS) {
