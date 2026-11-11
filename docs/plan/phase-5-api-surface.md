@@ -18,7 +18,7 @@ An adapter supplies: how to read the text that policy and classification must se
 | 5.6 | Files and batches | `batch_jobs` table, a poll job, every line scanned by policy, budget reserved up front. Largest slice. |
 | 5.7 | OpenTelemetry export | **Already built in Phase 1** (`services/telemetry.py`). Found on checking: spans said `chat` for every call, now named for the operation; added the user-facing doc it lacked. |
 | 5.8 | SIEM export | **Already built in Phase 1** (CEF/JSON to stdout, file, syslog). Documented. |
-| 5.9 | Read-only SQL view | A tightly scoped read path over the org's own logs for analysts. Design below. |
+| 5.9 | Read-only query (built as a structured query, not SQL text) | See the decision below. |
 | 5.10 | Secrets from Vault | Provider keys can be fetched from HashiCorp Vault (KV v2) instead of being stored encrypted in Postgres. |
 | 5.11 | WASM policy plugins | An org-supplied module can add a verdict to the policy check. Design below; the riskiest slice. |
 | 5.12 | Scores API | `/v1/feedback` already covers writing scores with an API key. Adds the missing read side: query scores by request, model, name and time. |
@@ -32,3 +32,9 @@ An adapter supplies: how to read the text that policy and classification must se
 
 ## Working rules
 Spec first, tests first, a real-stack smoke script per slice, mutation checks on every rule that guards data, dated docs, one PR per slice with CI green before merge. Anything that sends content to a provider goes through policy, classification, routing and the audit log, with a test that the provider received only what was allowed.
+
+## Decisions made while building (2026-11-11)
+- **5.9 is a structured query, not SQL text.** The plan allowed this fallback. Parsing arbitrary SQL safely on a shared database means trusting a parser completely; a structured spec has nothing to parse. Every choice is looked up in an allowlist, every value is bound, free-text columns are not exposed, and it runs read-only with a timeout and an audit entry. Raw SQL can be added later behind a vetted parser if analysts need joins.
+- **5.7 and 5.8 already existed** (Phase 1). The work was a bug (every span said `chat`) and the missing documentation.
+- **5.10 Vault:** a path is valid only inside the org's own folder (`VAULT_PATH_PREFIX`), checked at creation and on every read, because the gateway holds one Vault credential for all orgs. A test found a trailing-newline hole in the first regex (`$` accepts one); `fullmatch` now.
+- **5.2-5.5:** audio is uninspected input (classified confidential unless the class map says otherwise); `/v1/responses` always sends `store=false` and refuses provider state and provider-run tools unless allowed. Seven issues from the automatic security review were fixed along the way (see the PR).

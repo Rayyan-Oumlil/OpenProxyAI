@@ -90,6 +90,7 @@ const sidebars: SidebarsConfig = {
         'api-reference/feedback',
         'api-reference/datasets',
         'api-reference/eval-runs',
+        'api-reference/analytics-query',
         'api-reference/conversations',
         'api-reference/models',
         'api-reference/api-keys',
