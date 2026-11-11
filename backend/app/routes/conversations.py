@@ -31,12 +31,16 @@ from app.schemas.conversation import (
 	ConversationCreate,
 	ConversationResponse,
 	ContextSummary,
+	ModelChoice,
+	TeamChoice,
 	ConversationUpdate,
 	TurnExchange,
 	TurnRequest,
 	TurnResponse,
 )
 from app.services.admin_audit_service import get_ip, log_admin_action
+from app.services.data_class import DATA_CLASSES
+from app.services.routing_service import clearance, load_candidates
 from app.services.conversation_turns import DEFAULT_CONTEXT_TOKENS, run_turn
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_store
 from app.services.rate_limiter import rate_limiter_service
@@ -158,6 +162,22 @@ async def list_conversations(
 	return await _responses(db, current_user, list(rows))
 
 
+@router.get("/teams", response_model=list[TeamChoice])
+async def my_teams(current_user: CurrentUser, db: AsyncSession = Depends(get_db)) -> list[TeamChoice]:
+	"""The teams the caller belongs to: the only ones a conversation can be shared with."""
+	rows = await db.execute(select(Team.id, Team.name).where(Team.org_id == current_user.org_id, Team.id.in_(_my_teams(current_user))).order_by(Team.name))
+	return [TeamChoice(id=i, name=n) for i, n in rows.all()]
+
+
+@router.get("/models", response_model=list[ModelChoice])
+async def usable_models(current_user: CurrentUser, db: AsyncSession = Depends(get_db)) -> list[ModelChoice]:
+	"""Registry models that are enabled and have an active key, with the most sensitive class each may receive. Lets the picker
+	say up front which models will not see an earlier confidential turn."""
+	candidates = await load_candidates(db, current_user.org_id)
+	usable = [c for c in candidates if c.enabled and c.key_active]
+	return [ModelChoice(model_id=c.model_id, max_data_class=DATA_CLASSES[clearance(c)]) for c in sorted(usable, key=lambda c: c.model_id)]
+
+
 @router.get("/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(conversation_id: UUID, current_user: CurrentUser, db: AsyncSession = Depends(get_db)) -> ConversationResponse:
 	return (await _responses(db, current_user, [await load_readable(db, current_user, conversation_id)]))[0]
@@ -259,7 +279,6 @@ async def add_turn(
 	conversation = await load_owned(db, current_user, conversation_id)
 	await _require_enabled(redis, db, current_user)
 	policy = await policy_store.load(current_user.org_id, db, redis)
-	await _rate_limit(redis, current_user, policy, payload.model, max(1, len(payload.content) // 4))
 
 	lock_key = f"conversation-turn:{conversation.id}"
 	if not await redis.set(lock_key, "1", nx=True, ex=_TURN_LOCK_SECONDS):
@@ -272,6 +291,7 @@ async def add_turn(
 			db, redis, conversation=conversation, user_id=current_user.id, model=payload.model, content=payload.content,
 			asserted_class=payload.data_class, policy=policy, system_prompt=payload.system_prompt, temperature=payload.temperature,
 			max_tokens=payload.max_tokens, token_budget=payload.max_context_tokens or DEFAULT_CONTEXT_TOKENS,
+			before_call=lambda tokens: _rate_limit(redis, current_user, policy, payload.model, tokens),
 		)
 	finally:
 		await redis.delete(lock_key)

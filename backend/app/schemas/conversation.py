@@ -144,3 +144,13 @@ class TurnExchange(BaseModel):
 	prompt_tokens: int
 	completion_tokens: int
 	cost_usd: str
+
+
+class TeamChoice(BaseModel):
+	id: uuid.UUID
+	name: str
+
+
+class ModelChoice(BaseModel):
+	model_id: str
+	max_data_class: str  # the highest class this model may receive: the lower of its registry entry's and its key's

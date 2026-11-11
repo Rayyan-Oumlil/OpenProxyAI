@@ -318,3 +318,35 @@ async def test_turn_order_is_unique_within_a_conversation(org):
 	await add_turns(org.id, created["id"], "one")
 	with pytest.raises(Exception, match="uq_conversation_turns_seq"):
 		await add_turns(org.id, created["id"], "again as seq 1")
+
+
+# -- the helpers the console's pickers use ------------------------------------------------------------
+
+
+async def test_my_teams_lists_only_teams_the_caller_belongs_to_in_their_org(org):
+	mine = await team_of(org.id, org.alice)
+	await team_of(org.id, org.bob)
+	await team_of(org.other, await member(org.other))
+	async with as_user(org.id, org.alice) as api:
+		listed = (await api.http.get(f"{PATH}/teams")).json()
+	assert [t["id"] for t in listed] == [str(mine)]
+
+
+async def test_usable_models_are_the_enabled_ones_with_a_live_key_and_their_effective_clearance(org):
+	from app.models.llm_provider_key import LLMProviderKey
+	from app.models.model_registry import ModelRegistryEntry
+
+	async with org_scoped_session(org.id) as db:
+		key = LLMProviderKey(org_id=org.id, provider="openai", key_alias="k", api_key_encrypted="x", is_active=True, max_data_class="internal")
+		dead = LLMProviderKey(org_id=org.id, provider="anthropic", key_alias="d", api_key_encrypted="x", is_active=False, max_data_class="secret")
+		db.add_all([key, dead])
+		await db.flush()
+		db.add_all([
+			ModelRegistryEntry(org_id=org.id, model_id="openai/gpt-4o", provider="openai", provider_key_id=key.id, max_data_class="confidential", regions=["us"], risk_rating="low", enabled=True),
+			ModelRegistryEntry(org_id=org.id, model_id="anthropic/claude", provider="anthropic", provider_key_id=dead.id, max_data_class="secret", regions=["us"], risk_rating="low", enabled=True),
+			ModelRegistryEntry(org_id=org.id, model_id="openai/off", provider="openai", provider_key_id=key.id, max_data_class="internal", regions=["us"], risk_rating="low", enabled=False),
+		])
+		await db.commit()
+	async with as_user(org.id, org.alice) as api:
+		listed = (await api.http.get(f"{PATH}/models")).json()
+	assert listed == [{"model_id": "openai/gpt-4o", "max_data_class": "internal"}]  # the key's lower class wins

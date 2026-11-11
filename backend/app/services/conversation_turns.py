@@ -8,6 +8,7 @@ The order matters, and each step is a guard:
 3. Build the context for that clearance (``conversation_context``), then **classify the package** as the highest of the new
    message and the history actually included. That class goes to the same routing check every request gets, so even a bug in
    the builder cannot send a model data above its clearance: routing refuses it (446) before anything leaves.
+3b. Check the rate limit on the package's real size (history, system prompt and message), not just the new message.
 4. Call through ``model_runner`` (policy, routing, key choice, metering, audit log; ``source = conversation``).
 5. Only on success store the exchange, redacted and capped. The answer takes the class of everything the model saw: it may
    quote any of it, so a later, less-cleared model must not see it either.
@@ -23,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
@@ -90,7 +92,9 @@ async def prepare_turn(
 	turns = list((await db.scalars(select(ConversationTurn).where(ConversationTurn.conversation_id == conversation.id))).all())
 	package = build_context(turns, content, clearance=allowed, token_budget=token_budget, system_prompt=system_prompt)
 	by_id = {t.id: t for t in turns}
-	package_class = _highest(new_class.data_class, *(by_id[i].data_class for i in package.included_ids if by_id[i].data_class in DATA_CLASSES))
+	# Everything the model receives counts: the system prompt is text the model reads, so it is classified like the message.
+	system_class = (await classify_text(system_prompt, policy, None)).data_class if system_prompt else new_class.data_class
+	package_class = _highest(new_class.data_class, system_class, *(by_id[i].data_class for i in package.included_ids if by_id[i].data_class in DATA_CLASSES))
 	if any(by_id[i].data_class not in DATA_CLASSES for i in package.included_ids):
 		package_class = DATA_CLASSES[-1]  # an unreadable class on a stored turn: assume the worst
 	return new_class, package, package_class, inputs
@@ -110,12 +114,15 @@ async def run_turn(
 	temperature: float | None = None,
 	max_tokens: int | None = None,
 	token_budget: int = DEFAULT_CONTEXT_TOKENS,
+	before_call: Callable[[int], Awaitable[None]] | None = None,
 ) -> TurnResult:
 	"""Never raises for a model or policy failure: those come back as ``outcome`` (with ``refused`` set for a refusal)."""
 	new_class, package, package_class, inputs = await prepare_turn(
 		db, conversation=conversation, model=model, content=content, asserted_class=asserted_class,
 		policy=policy, system_prompt=system_prompt, token_budget=token_budget,
 	)
+	if before_call is not None:
+		await before_call(package.estimated_tokens)  # e.g. the rate limit, on what is really about to be sent
 	package_classification = Classification(package_class, new_class.source, new_class.entities)  # type: ignore[arg-type]
 	planned = await plan_call(
 		db=db, redis=redis, org_id=conversation.org_id, user_id=user_id, model=model, messages=package.messages, policy_config=policy,
