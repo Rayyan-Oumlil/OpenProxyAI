@@ -15,6 +15,8 @@ from app.models.llm_provider_key import LLMProviderKey
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.schemas.models import ModelListResponse, ModelResponse
 from app.services.llm_service import llm_service
+from app.services.modalities import EMBEDDINGS
+from app.services.modality_pipeline import run_modality
 
 router = APIRouter(tags=["Proxy"])
 
@@ -137,8 +139,9 @@ async def embeddings(
     except (TypeError, ValueError):
         normalized_request_id = uuid.uuid4()
     try:
-        return await llm_service.embedding(
-            request=request,
+        return await run_modality(
+            EMBEDDINGS,
+            request,
             db=db,
             redis=redis,
             user=user,
