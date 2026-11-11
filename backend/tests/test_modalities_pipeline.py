@@ -17,11 +17,11 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 
-from app.schemas.modalities import RerankRequest
+from app.schemas.modalities import ImageRequest, RerankRequest
 from app.services import llm_service as llm_module
 from app.services import rate_limiter
 from app.services.llm_service import ProviderKeyCandidate, llm_service
-from app.services.modalities import RERANK
+from app.services.modalities import IMAGES, RERANK
 from app.services.modality_pipeline import run_modality
 from app.services.policy_service import PolicyConfig, policy_store
 from tests.test_embeddings_pipeline import entry
@@ -36,7 +36,18 @@ def rerank_request(model, text):
 
 
 # modality, request factory (model, text), provider function on llm_service, provider reply, default model
-CASES = [(RERANK, rerank_request, "arerank", RERANK_REPLY, "cohere/rerank-english-v3.0")]
+IMAGE_B64 = "iVBORw0KGgo" + "A" * 400
+IMAGE_REPLY = {"created": 1, "data": [{"b64_json": IMAGE_B64}]}
+
+
+def image_request(model, text):
+	return ImageRequest(model=model, prompt=text, response_format="b64_json")
+
+
+CASES = [
+	(RERANK, rerank_request, "arerank", RERANK_REPLY, "cohere/rerank-english-v3.0"),
+	(IMAGES, image_request, "aimage_generation", IMAGE_REPLY, "openai/dall-e-3"),
+]
 
 
 @pytest.fixture(params=CASES, ids=lambda c: c[0].name)
@@ -151,6 +162,16 @@ async def test_a_provider_failure_is_a_502_that_does_not_echo_provider_text(case
 	assert [row["status_code"] for row in logged] == [502]
 
 
+async def test_a_model_litellm_cannot_price_still_returns_its_answer_with_cost_zero_and_a_flag(case, monkeypatch):
+	def unpriced(_response):
+		raise ValueError("model not in the price map")
+
+	monkeypatch.setattr(llm_module.cost_tracker_service, "calculate_cost_usd", unpriced)
+	response, logged = await send(case)
+	assert response.status_code == 200 and response.headers["x-openproxyai-cost-usd"] == "0.000000"
+	assert logged[0]["request_metadata"]["cost_unknown"] is True and logged[0]["status_code"] == 200
+
+
 # -- rerank specifics ------------------------------------------------------------------------------
 
 
@@ -181,3 +202,38 @@ def test_rerank_rejects_malformed_or_oversized_requests(body):
 def test_rerank_accepts_documents_as_text_objects_and_reads_them_as_text():
 	request = RerankRequest(model="cohere/x", query="q", documents=["plain", {"text": "wrapped"}])
 	assert request.texts() == ["plain", "wrapped"]
+
+
+# -- images specifics --------------------------------------------------------------------------------
+
+
+async def test_a_generated_image_is_returned_but_never_written_to_the_audit_log(case):
+	if case.modality is not IMAGES:
+		pytest.skip("images only")
+	response, logged = await send(case)
+	assert json.loads(response.body)["data"][0]["b64_json"] == IMAGE_B64
+	assert IMAGE_B64[:40] not in json.dumps(logged, default=str)
+
+
+async def test_an_image_counts_heavily_toward_the_token_rate_limit(case):
+	if case.modality is not IMAGES:
+		pytest.skip("images only")
+	await send(case)
+	assert case.limit_checks[0]["request_tokens_estimate"] >= 1_000
+
+
+async def test_image_options_reach_the_provider_only_when_set(case):
+	if case.modality is not IMAGES:
+		pytest.skip("images only")
+	await send(case)
+	sent = case.calls[0]
+	assert (sent["n"], sent["response_format"]) == (1, "b64_json") and "size" not in sent and "style" not in sent
+
+
+@pytest.mark.parametrize("body", [
+	{"prompt": ""}, {"prompt": "x" * 4_001}, {"prompt": "a", "n": 5}, {"prompt": "a", "n": 0}, {"prompt": "a", "size": "99999x99999"},
+	{"prompt": "a", "response_format": "file"}, {"prompt": "a", "surprise": 1},
+])
+def test_image_requests_outside_the_limits_are_rejected(body):
+	with pytest.raises(ValueError):
+		ImageRequest(model="openai/dall-e-3", **body)

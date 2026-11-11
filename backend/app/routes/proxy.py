@@ -15,8 +15,8 @@ from app.models.llm_provider_key import LLMProviderKey
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.schemas.models import ModelListResponse, ModelResponse
 from app.services.llm_service import llm_service
-from app.schemas.modalities import RerankRequest
-from app.services.modalities import EMBEDDINGS, RERANK
+from app.schemas.modalities import ImageRequest, RerankRequest
+from app.services.modalities import EMBEDDINGS, IMAGES, RERANK
 from app.services.modality_pipeline import run_modality
 
 router = APIRouter(tags=["Proxy"])
@@ -171,3 +171,16 @@ async def rerank(
     request_id: str = Depends(get_request_id),
 ):
     return await _serve(RERANK, request, http_request, background_tasks, auth, db, redis, request_id)
+
+
+@router.post("/v1/images/generations")
+async def image_generations(
+    request: ImageRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+    auth: ProxyAuth,
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    request_id: str = Depends(get_request_id),
+):
+    return await _serve(IMAGES, request, http_request, background_tasks, auth, db, redis, request_id)
