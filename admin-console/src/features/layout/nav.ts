@@ -1,10 +1,13 @@
 import {
   BarChart3,
   Boxes,
+  Database,
   Building2,
   CreditCard,
   Activity,
   FlaskConical,
+  Gauge,
+  ListChecks,
   Key,
   LayoutDashboard,
   List,
@@ -29,8 +32,8 @@ export interface NavGroup {
 }
 
 /**
- * Four groups answer four questions: what is happening (Observe), what is allowed (Govern),
- * what is connected (Connect), who runs it (Admin). New pages slot into a group, not the top level.
+ * Five groups answer five questions: what is happening (Observe), what is allowed (Govern),
+ * is a change better (Evaluate), what is connected (Connect), who runs it (Admin). New pages slot into a group, not the top level.
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -50,6 +53,15 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Policy", to: "/policy", icon: Sliders },
       { label: "API keys", to: "/api-keys", icon: Key },
       { label: "Model registry", to: "/model-registry", icon: Boxes },
+    ],
+  },
+  {
+    id: "evaluate",
+    label: "Evaluate",
+    items: [
+      { label: "Datasets", to: "/datasets", icon: Database },
+      { label: "Evaluators", to: "/evaluators", icon: ListChecks },
+      { label: "Eval runs", to: "/eval-runs", icon: Gauge },
     ],
   },
   {

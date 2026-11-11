@@ -102,6 +102,7 @@ const sidebars: SidebarsConfig = {
         'admin-console/overview',
         'admin-console/managing-teams',
         'admin-console/managing-policies',
+        'admin-console/evaluating-changes',
         'admin-console/billing',
       ],
     },

@@ -97,7 +97,7 @@ describe("ExperimentsPage", () => {
     renderPage();
     await screen.findByText("mini-vs-4o");
     expect(api.getExperimentResults).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "View results" }));
+    fireEvent.click(screen.getByRole("button", { name: /Show details for mini-vs-4o results/ }));
     await waitFor(() => expect(api.getExperimentResults).toHaveBeenCalledWith("e1", "tok"));
   });
 
