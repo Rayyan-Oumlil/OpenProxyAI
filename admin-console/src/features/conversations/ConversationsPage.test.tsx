@@ -240,7 +240,7 @@ describe("a thread", () => {
     fireEvent.change(screen.getByLabelText("Model"), {
       target: { value: "anthropic/claude" },
     });
-    fireEvent.change(screen.getByLabelText("This message is"), {
+    fireEvent.change(screen.getByLabelText("Sensitivity"), {
       target: { value: "confidential" },
     });
     fireEvent.change(screen.getByLabelText("Message"), {
@@ -266,6 +266,8 @@ describe("a thread", () => {
     );
     expect(
       (screen.getByLabelText("Message") as HTMLTextAreaElement).value,
+    ).toBe("");    expect(
+      (screen.getByLabelText("Sensitivity") as HTMLSelectElement).value,
     ).toBe("");
   });
 

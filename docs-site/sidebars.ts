@@ -51,6 +51,7 @@ const sidebars: SidebarsConfig = {
         'guides/payload-capture',
         'guides/adaptive-experiments',
         'guides/prompt-promotion',
+        'guides/conversations',
       ],
     },
     {
@@ -86,6 +87,7 @@ const sidebars: SidebarsConfig = {
         'api-reference/feedback',
         'api-reference/datasets',
         'api-reference/eval-runs',
+        'api-reference/conversations',
         'api-reference/models',
         'api-reference/api-keys',
         'api-reference/provider-keys',

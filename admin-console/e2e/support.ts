@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 
+import { conversationMock } from "./conversationMocks";
 import { evalMock } from "./evalMocks";
 
 export const API = "http://localhost:8000";
@@ -219,6 +220,8 @@ export async function mockApi(page: Page) {
     if (pathname === "/api/v1/api-keys") return json([]);
     if (pathname === "/api/v1/mcp-servers/s1/tools") return json([DRIFTED_TOOL]);
     if (pathname === "/api/v1/mcp-servers/s1/tools/t1/approve") return json({ ...DRIFTED_TOOL, status: "approved", approved_snapshot: DRIFTED_TOOL.definition });
+    const conversation = conversationMock(pathname);
+    if (conversation !== undefined) return json(conversation);
     const evaluation = evalMock(pathname, method);
     if (evaluation !== undefined) return json(evaluation);
     return json({ detail: "not mocked" }, 404);

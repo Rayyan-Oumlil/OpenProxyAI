@@ -27,11 +27,25 @@ SheetOverlay.displayName = "SheetOverlay";
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideOverlay?: boolean }
->(({ className, children, hideOverlay = false, ...props }, ref) => (
+>(({ className, children, hideOverlay = false, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  // As in DialogContent: a drawer opened by a plain button has no Radix trigger to return focus to, so remember the opener.
+  const opener = React.useRef<HTMLElement | null>(null);
+  return (
   <DialogPrimitive.Portal>
     {!hideOverlay && <SheetOverlay />}
     <DialogPrimitive.Content
       ref={ref}
+      onOpenAutoFocus={(event) => {
+        opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        onOpenAutoFocus?.(event);
+      }}
+      onCloseAutoFocus={(event) => {
+        onCloseAutoFocus?.(event);
+        if (!event.defaultPrevented && opener.current?.isConnected) {
+          event.preventDefault();
+          opener.current.focus();
+        }
+      }}
       className={cn(
         "fixed right-0 top-0 z-50 h-full w-[520px] max-w-[95vw]",
         "border-l border-border bg-surface shadow-card",
@@ -50,7 +64,8 @@ const SheetContent = React.forwardRef<
       </SheetClose>
     </DialogPrimitive.Content>
   </DialogPrimitive.Portal>
-));
+  );
+});
 SheetContent.displayName = "SheetContent";
 
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
