@@ -235,3 +235,22 @@ def test_an_unknown_parameter_and_n_never_reach_the_provider_under_a_ceiling_but
     sent = _sent(upstream)
     assert not {"n", "max_thinking_tokens", "some_new_limit"} & set(sent) and "tools" in sent
     assert {"n", "max_thinking_tokens", "some_new_limit"} <= set(_log(tenant.org_id)["request_metadata"]["behavior"]["removed"])
+
+
+# ── a body cannot pick the provider endpoint or credentials (with or without a ceiling) ──
+
+@pytest.mark.parametrize("policy", [{}, {"behavior_ceiling": {"creativity": "low"}}])
+@pytest.mark.parametrize("field", ["api_base", "base_url"])
+def test_a_body_endpoint_never_redirects_the_provider_call(e2e_client, upstream, make_tenant, field, policy):
+    tenant = _tenant(make_tenant, **policy)
+    response = e2e_client.post(CHAT, json=_body(**{field: "http://127.0.0.1:9/v1"}), headers=tenant.headers)
+    assert response.status_code == 200  # a redirected call would have failed against a closed port
+    [call] = upstream_calls(upstream)
+    assert call["authorization"] == "Bearer sk-good"
+
+
+def test_a_body_api_key_never_replaces_the_orgs_key(e2e_client, upstream, make_tenant):
+    tenant = _tenant(make_tenant)
+    e2e_client.post(CHAT, json=_body(api_key="sk-attacker"), headers=tenant.headers)
+    [call] = upstream_calls(upstream)
+    assert call["authorization"] == "Bearer sk-good"

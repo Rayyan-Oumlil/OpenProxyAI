@@ -918,8 +918,8 @@ class LLMService:
 	def _provider_kwargs(ctx: _RequestContext, model: str) -> dict[str, Any]:
 		"""What to send the provider for ``model``: the request as the caller made it, plus the behaviour settings as parameters this
 		model accepts (the caller's own temperature, max_tokens and reasoning_effort win, lowered to the org's ceiling if it has one)."""
-		kwargs = ctx.request.model_dump(exclude_none=True, exclude={"behavior"})
-		kwargs.update({"model": model, "timeout": 30, "request_timeout": 30})
+		# What the caller sent, minus anything that would choose the endpoint or the credentials: those are the gateway's to set.
+		kwargs = ctx.request.model_dump(exclude_none=True, exclude={"behavior", *behavior_mod.TRANSPORT_FIELDS})
 		if ctx.behavior is not None:
 			provider, model_name = split_model(model)
 			ctx.behavior_plan = behavior_mod.plan_params(
@@ -928,6 +928,7 @@ class LLMService:
 			kwargs.update(ctx.behavior_plan.params)
 			for name in ctx.behavior_plan.remove:
 				kwargs.pop(name, None)
+		kwargs.update({"model": model, "timeout": 30, "request_timeout": 30})  # the gateway's own settings, after every check above
 		return kwargs
 
 	@staticmethod
