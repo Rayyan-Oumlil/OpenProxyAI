@@ -61,6 +61,14 @@ class Settings(BaseSettings):
     # Charged per unit (an image, a call) when LiteLLM cannot price a non-chat call, so an unpriced model still counts against budgets.
     UNPRICED_CALL_COST_USD: float = 0.01
 
+    # ── Realtime (WebSocket) ──────────────────────────────────────────────────────────────────
+    REALTIME_ENABLED: bool = True
+    REALTIME_UPSTREAM_URL: str = "wss://api.openai.com/v1/realtime"
+    REALTIME_MAX_SESSION_SECONDS: int = 3600
+    REALTIME_MAX_MESSAGE_BYTES: int = 1_048_576
+    REALTIME_MAX_SESSIONS_PER_ORG: int = 20  # at once; each holds a provider connection open
+    REALTIME_CHECK_SECONDS: int = 30  # how often a live session re-checks its key, user and policy
+
     # ── Batches ───────────────────────────────────────────────────────────────────────────────
     BATCH_FILE_RETENTION_DAYS: int = 7  # uploaded inputs and finished outputs hold real text, so they are deleted after this
     BATCH_MAX_FILES_PER_USER: int = 50
