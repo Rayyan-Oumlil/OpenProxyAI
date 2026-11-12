@@ -15,7 +15,7 @@ An adapter supplies: how to read the text that policy and classification must se
 | 5.3 | `POST /v1/images/generations` | Prompt is checked like any text. Never cached. `b64_json` is kept out of logs. |
 | 5.4 | `POST /v1/audio/transcriptions` and `/v1/audio/speech` (this is the "voice endpoint") | Audio in is multipart: size cap, content type check. The transcript is checked against policy on the way back, since that is where the text appears. Speech input is checked like any prompt. |
 | 5.5 | `POST /v1/responses` | Provider-side state (`previous_response_id`, `store=true`) is blocked by default: it keeps data at the provider and conflicts with residency. A policy flag allows it. |
-| 5.6 | Files and batches | `batch_jobs` table, a poll job, every line scanned by policy, budget reserved up front. Largest slice. |
+| 5.6 (done, #78) | Files and batches | Built as a gateway-run job, not a forwarded provider batch: every line goes through the governed runner, so policy, routing, metering and audit apply per line on any provider. Spending cap, daily-budget and owner checks per line, cancel, janitor, expiring content. |
 | 5.7 | OpenTelemetry export | **Already built in Phase 1** (`services/telemetry.py`). Found on checking: spans said `chat` for every call, now named for the operation; added the user-facing doc it lacked. |
 | 5.8 | SIEM export | **Already built in Phase 1** (CEF/JSON to stdout, file, syslog). Documented. |
 | 5.9 | Read-only query (built as a structured query, not SQL text) | See the decision below. |
@@ -39,3 +39,9 @@ Spec first, tests first, a real-stack smoke script per slice, mutation checks on
 - **5.7 and 5.8 already existed** (Phase 1). The work was a bug (every span said `chat`) and the missing documentation.
 - **5.10 Vault:** a path is valid only inside the org's own folder (`VAULT_PATH_PREFIX`), checked at creation and on every read, because the gateway holds one Vault credential for all orgs. A test found a trailing-newline hole in the first regex (`$` accepts one); `fullmatch` now.
 - **5.2-5.5:** audio is uninspected input (classified confidential unless the class map says otherwise); `/v1/responses` always sends `store=false` and refuses provider state and provider-run tools unless allowed. Seven issues from the automatic security review were fixed along the way (see the PR).
+
+## Status (2026-11-12): complete
+Everything in this plan is built and merged (#77, #78). Also finished from the earlier phases' leftovers: conversation retention (idle past the plan's audit retention), personas, org-wide sharing (admin only), the `log_only` preview, streaming (SSE; refused for orgs with response guardrails), and console screens for policy plugins, the analytics query and scores.
+
+Deliberately held for the owner: Stripe/pricing, a domain, the hosted demo and its video, GCP, outreach emails, and the three open upstream PRs' forks.
+Not built, by design: chat on the shared pipeline (a riskier, separate refactor), secret managers other than Vault, the realtime API, raw SQL (the structured query replaces it), the design-specs section C hot-path performance work (auth caching, batched `last_used_at`).
