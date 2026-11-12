@@ -19,6 +19,8 @@ class ProviderKeyCreateRequest(BaseModel):
 	api_key: str | None = Field(default=None, min_length=8, description="Raw API key: stored encrypted, never returned. Or use vault_path.")
 	vault_path: str | None = Field(default=None, max_length=500, description="Read the key from Vault (KV v2) at this path instead; it must be inside your organization's folder.")
 	vault_field: str | None = Field(default=None, max_length=100, description="The field in that secret. Default: api_key.")
+	aws_secret_name: str | None = Field(default=None, max_length=512, description="Read the key from AWS Secrets Manager: the secret's name (not an ARN), inside your organization's folder.")
+	aws_secret_field: str | None = Field(default=None, max_length=100, description="The JSON field in that secret. Default: api_key.")
 	weight: int = Field(default=1, ge=1, le=100)
 	region: Region = Field(default="us", description="Data region: us, eu, ap, or global")
 	api_base: str | None = Field(default=None, max_length=500, description="Custom endpoint (vLLM, Ollama, private gateway). None uses the provider's own.")
@@ -27,10 +29,12 @@ class ProviderKeyCreateRequest(BaseModel):
 
 	@model_validator(mode="after")
 	def _exactly_one_secret_source(self) -> "ProviderKeyCreateRequest":
-		if (self.api_key is None) == (self.vault_path is None):
-			raise ValueError("send exactly one of api_key and vault_path")
+		if sum(v is not None for v in (self.api_key, self.vault_path, self.aws_secret_name)) != 1:
+			raise ValueError("send exactly one of api_key, vault_path and aws_secret_name")
 		if self.vault_field is not None and self.vault_path is None:
 			raise ValueError("vault_field only goes with vault_path")
+		if self.aws_secret_field is not None and self.aws_secret_name is None:
+			raise ValueError("aws_secret_field only goes with aws_secret_name")
 		return self
 
 

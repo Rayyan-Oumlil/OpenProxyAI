@@ -127,7 +127,7 @@ async def test_a_vault_outage_is_a_503_for_the_request_and_never_another_source(
 	async with org_scoped_session(tenants.a) as db:
 		with pytest.raises(HTTPException) as caught:
 			await llm_service._select_provider_keys(db, tenants.a, "openai", model="gpt-4o", max_attempts=0)
-	assert caught.value.status_code == 503 and "Vault" in str(caught.value.detail) and "sealed" not in str(caught.value.detail)
+	assert caught.value.status_code == 503 and "secret manager" in str(caught.value.detail) and "sealed" not in str(caught.value.detail)
 
 
 async def test_a_stored_key_beside_a_broken_vault_key_still_serves_but_a_vault_key_is_never_substituted(tenants, vault):

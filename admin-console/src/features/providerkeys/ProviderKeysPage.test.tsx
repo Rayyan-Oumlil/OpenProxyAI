@@ -110,6 +110,22 @@ describe("ProviderKeysPage", () => {
     expect("api_key" in body).toBe(false);
   });
 
+  it("adds a key read from AWS Secrets Manager: sends the secret name and never an api_key", async () => {
+    get.mockResolvedValue([]);
+    post.mockResolvedValue(key());
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Add provider key" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Read it from AWS Secrets Manager" }));
+    expect(screen.queryByLabelText("API Key")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Secret name"), { target: { value: "openproxyai/org-1/openai" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Key" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    const body = post.mock.calls[0][1] as Record<string, unknown>;
+    expect(body.aws_secret_name).toBe("openproxyai/org-1/openai");
+    expect("api_key" in body).toBe(false);
+    expect("vault_path" in body).toBe(false);
+  });
+
   it("asks for a Vault path when Vault is chosen and sends nothing without one", async () => {
     get.mockResolvedValue([]);
     renderPage();

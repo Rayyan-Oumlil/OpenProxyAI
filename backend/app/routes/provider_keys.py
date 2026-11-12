@@ -16,7 +16,8 @@ from app.services.adaptive_sampling_service import get_error_rate, get_latency_p
 from app.services.circuit_breaker_service import get_open_until, is_enabled as circuit_breaker_enabled
 from app.services import vault_client as vault
 from app.services.crypto_service import decrypt, encrypt
-from app.services.key_secrets import display_label, is_vault_backed
+from app.services import aws_secrets as aws
+from app.services.key_secrets import display_label, is_external
 from app.services.provider_key_service import rotate_key as rotate_key_service
 from app.utils.provider_endpoint import validate_api_base
 
@@ -27,7 +28,7 @@ _ADMIN_ONLY = "Only admins can manage provider keys"
 
 def _stored_secret_or_placeholder(key: LLMProviderKey) -> str:
 	"""What the list masks. A Vault key is never read just to be listed: its place in Vault is shown instead, and its value is not fetched."""
-	if is_vault_backed(key):
+	if is_external(key):
 		return ""
 	try:
 		return decrypt(key.api_key_encrypted or "")
@@ -55,7 +56,7 @@ def _to_response(
 		key_alias=key.key_alias,
 		secret_source=getattr(key, "secret_source", "local"),
 		vault_path=getattr(key, "vault_path", None),
-		key_prefix=display_label(key) if is_vault_backed(key) else _mask_key(raw_key),
+		key_prefix=display_label(key) if is_external(key) else _mask_key(raw_key),
 		weight=key.weight,
 		is_active=key.is_active,
 		region=key.region,
@@ -98,6 +99,20 @@ def _compute_effective_weight(
 	health = 1.0 / (1.0 + lat_penalty + err_penalty)
 	effective = max(floor, health) * base_weight
 	return max(1, int(effective))
+
+
+async def _check_aws_source(org_id, name: str, field: str | None) -> None:
+	"""Refuse an AWS secret outside the org's folder or unreadable now. The value read is discarded."""
+	try:
+		aws.validate_name(org_id, name, field)
+	except ValueError as exc:
+		raise HTTPException(status_code=422, detail={"error": "invalid_aws_secret", "detail": str(exc)}) from None
+	if not aws.configured():
+		raise HTTPException(status_code=422, detail={"error": "aws_not_configured", "detail": "AWS Secrets Manager is not enabled on this gateway."})
+	try:
+		await aws.aws_secrets.read(org_id, name, field)
+	except aws.AwsSecretError as exc:
+		raise HTTPException(status_code=422, detail={"error": "aws_unreadable", "detail": str(exc)}) from None
 
 
 async def _check_vault_source(org_id, path: str, field: str | None) -> None:
@@ -173,15 +188,17 @@ async def create_provider_key(
 
 	if payload.vault_path is not None:
 		await _check_vault_source(current_user.org_id, payload.vault_path, payload.vault_field)
+	if payload.aws_secret_name is not None:
+		await _check_aws_source(current_user.org_id, payload.aws_secret_name, payload.aws_secret_field)
 
 	key = LLMProviderKey(
 		org_id=current_user.org_id,
 		provider=payload.provider,
 		key_alias=payload.key_alias,
-		secret_source="vault" if payload.vault_path is not None else "local",
+		secret_source="vault" if payload.vault_path is not None else "aws" if payload.aws_secret_name is not None else "local",
 		api_key_encrypted=encrypt(payload.api_key) if payload.api_key is not None else None,
-		vault_path=payload.vault_path,
-		vault_field=payload.vault_field,
+		vault_path=payload.vault_path or payload.aws_secret_name,
+		vault_field=payload.vault_field or payload.aws_secret_field,
 		weight=payload.weight,
 		is_active=True,
 		region=payload.region,
@@ -302,10 +319,10 @@ async def rotate_provider_key(
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ADMIN_ONLY)
 
 	existing = await db.scalar(select(LLMProviderKey).where(LLMProviderKey.id == key_id, LLMProviderKey.org_id == current_user.org_id))
-	if existing is not None and is_vault_backed(existing):
+	if existing is not None and is_external(existing):
 		raise HTTPException(
 			status_code=status.HTTP_409_CONFLICT,
-			detail={"error": "vault_backed_key", "detail": "This key is read from Vault, so it is rotated there. Nothing is stored here to re-encrypt."},
+			detail={"error": "vault_backed_key", "detail": "This key is read from a secret manager, so it is rotated there. Nothing is stored here to re-encrypt."},
 		)
 
 	rotated = await rotate_key_service(
