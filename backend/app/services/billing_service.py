@@ -58,10 +58,10 @@ class BillingService:
     @staticmethod
     def _price_id_for_plan(plan: str) -> str:
         plan_key = plan.lower().strip()
-        if plan_key == "starter":
-            return settings.STRIPE_STARTER_PRICE_ID
-        if plan_key == "growth":
-            return settings.STRIPE_GROWTH_PRICE_ID
+        if plan_key == "team":
+            return settings.STRIPE_TEAM_PRICE_ID
+        if plan_key == "business":
+            return settings.STRIPE_BUSINESS_PRICE_ID
         if plan_key == "metered":
             metered = getattr(settings, "STRIPE_METERED_PRICE_ID", "") or ""
             if not metered:
@@ -82,10 +82,10 @@ class BillingService:
         metered_pid = getattr(settings, "STRIPE_METERED_PRICE_ID", "") or ""
         if metered_pid and price_id == metered_pid:
             return "metered"
-        if price_id == settings.STRIPE_STARTER_PRICE_ID and price_id:
-            return "starter"
-        if price_id == settings.STRIPE_GROWTH_PRICE_ID and price_id:
-            return "growth"
+        if price_id == settings.STRIPE_TEAM_PRICE_ID and price_id:
+            return "team"
+        if price_id == settings.STRIPE_BUSINESS_PRICE_ID and price_id:
+            return "business"
         base_pid = getattr(settings, "STRIPE_METERED_BASE_PRICE_ID", "") or ""
         if base_pid and price_id == base_pid:
             return "metered"
@@ -213,7 +213,7 @@ class BillingService:
             if not price_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Missing Stripe price ID for {plan_key}",
+                    detail=f"Missing Stripe price ID for {plan_key}: set STRIPE_{plan_key.upper()}_PRICE_ID",
                 )
             line_items = [{"price": price_id, "quantity": 1}]
 
@@ -327,7 +327,7 @@ class BillingService:
                     org.stripe_customer_id = _event_get(event_obj, "customer") or org.stripe_customer_id
                     org.stripe_subscription_id = _event_get(event_obj, "subscription") or org.stripe_subscription_id
                     org.stripe_subscription_status = "active"
-                    # Set plan immediately from checkout metadata so the org is not left on "free"
+                    # Set plan immediately from checkout metadata so the org is not left on "community"
                     # while waiting for the invoice.paid event (which may be delayed or lost).
                     target_plan = _event_get(event_obj, "metadata", "target_plan")
                     if target_plan and target_plan != "enterprise":
@@ -391,7 +391,7 @@ class BillingService:
             org = await self._find_org_by_customer(_event_get(event_obj, "customer"), db)
             if org is not None:
                 before_plan = org.plan
-                org.plan = "free"
+                org.plan = "community"
                 org.stripe_subscription_id = None
                 org.stripe_subscription_status = "canceled"
                 await self._log_plan_change(

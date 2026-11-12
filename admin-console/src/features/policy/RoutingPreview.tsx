@@ -26,6 +26,12 @@ const NOT_CHECKED: Record<string, string> = {
 };
 
 /** Ask the gateway what would happen to a request, without sending it. It uses the saved policy, not unsaved edits. */
+/** The sentence a refused caller would get: policy's when policy refuses, else routing's when no model is authorized. */
+function callerMessage(result: PolicyPreviewResponse): string | null {
+  if (!result.policy.allowed) return result.policy.explanation ?? null;
+  return result.routing.model === null ? (result.routing.explanation ?? null) : null;
+}
+
 export function RoutingPreview({ token, unsaved }: { token: string; unsaved: boolean }) {
   const ids = { model: useId(), prompt: useId(), cls: useId(), fallback: useId() };
   const [model, setModel] = useState("");
@@ -121,6 +127,7 @@ export function RoutingPreview({ token, unsaved }: { token: string; unsaved: boo
                 ) : null}
                 <span className="trace-fact__detail"> · routing is currently {result.routing.current_mode.replace("_", " ")}</span>
               </Fact>
+              {callerMessage(result) ? <Fact label="Caller would be told">{callerMessage(result)}</Fact> : null}
               {Object.keys(result.routing.excluded).length > 0 ? (
                 <Fact label="Ruled out">
                   {Object.entries(result.routing.excluded).map(([name, code]) => (

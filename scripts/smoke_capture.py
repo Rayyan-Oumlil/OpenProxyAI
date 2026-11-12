@@ -82,7 +82,7 @@ def main():
             check("the email address is not in the stored prompt, and the row says it was redacted",
                   "jane.doe@example.com" not in messages and "[REDACTED]" in messages and redacted == "true", (messages, redacted))
             check("an answer was stored", len(output) > 0, output)
-            check("the free plan keeps it 7 days", abs(float(days) - 7.0) < 0.2, days)
+            check("the community plan keeps it 7 days", abs(float(days) - 7.0) < 0.2, days)
 
         status, rid_secret = chat(f"classified {time.time()}", headers={"x-openproxy-data-class": "confidential"})
         time.sleep(3)

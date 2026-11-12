@@ -21,7 +21,7 @@ function org(policy: Record<string, unknown> = {}): OrganizationResponse {
     id: "o1",
     name: "Demo Org",
     slug: "demo",
-    plan: "starter",
+    plan: "team",
     settings: {
       policy: {
         enforcement_mode: "enforce",
