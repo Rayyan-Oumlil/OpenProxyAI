@@ -39,6 +39,7 @@ OpenProxyAI is an enterprise LLM proxy between your organization and LLM provide
 | [Customer-Cluster Install](./guides/customer-cluster-install.md) | Self-host on your own cluster with customer-provided PostgreSQL and Redis (no managed deps) |
 | [Operational features](./guides/operational-features.md) | Batched spend, provider health check, circuit breaker, adaptive LB, spend reports, key rotation scheduler |
 | [Voice Integration](./guides/voice-integration.md) | PTT hardware, STT engines, mobile apps, and wearables |
+| [Accessibility](./guides/accessibility.md) | What is checked automatically, and the 15-minute NVDA screen-reader check |
 
 ---
 
@@ -51,6 +52,9 @@ OpenProxyAI is an enterprise LLM proxy between your organization and LLM provide
 | [Architecture Decisions](./architecture/decisions.md) | Why key decisions were made — derived from LiteLLM, Portkey, Helicone, Bifrost |
 | [Deployment](./architecture/deployment.md) | Docker Compose and Kubernetes Helm production guide |
 | [Database Schema](./architecture/database-schema.md) | All tables, columns, constraints, and migration chain |
+| [Design history](./architecture/history.md) | Decisions made while building Phases 0 to 5, and why |
+| [MCP gateway design](./architecture/mcp-gateway-design.md) | Design of the MCP gateway |
+| [RLS enforcement design](./architecture/rls-enforcement-design.md) | Design of row-level security enforcement |
 
 ---
 
@@ -63,13 +67,6 @@ OpenProxyAI is an enterprise LLM proxy between your organization and LLM provide
 | [Self-Hosted Security](./compliance/self-hosted-security.md) | Encryption, RLS, key rotation, network isolation for customer cluster |
 | [Air-Gap Checklist](./compliance/airgap-checklist.md) | No outbound telemetry, license validation, upgrade path |
 
-### Security review notes (internal / audit trail)
-
-These are **not** runbooks — they record what was reviewed, findings, and remediation status for specific features or migrations.
-
-| Document | Topic |
-|----------|--------|
-| [Security review report](./security/SECURITY_REVIEW_REPORT.md) | Auth, RLS, OWASP Top 10, audit immutability, self-hosted. RLS details: [database-schema.md](./architecture/database-schema.md#row-level-security-rls) |
 
 ---
 
@@ -79,10 +76,3 @@ These are **not** runbooks — they record what was reviewed, findings, and reme
 |----------|---------|
 | [Feature Reference](./features.md) | Complete inventory of every shipped capability with details |
 
----
-
-## Roadmap
-
-| Document | Purpose |
-|----------|---------|
-| [Roadmap](./roadmap.md) | Go-live status, P1–P3 backlog |
