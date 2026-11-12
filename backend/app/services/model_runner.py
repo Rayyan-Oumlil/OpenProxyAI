@@ -153,7 +153,7 @@ async def plan_call(
 		metadata["data_class"] = classification.as_metadata()
 		routing, only_key_id = None, None
 		if policy_config.routing_mode != "off":
-			candidates, region = routing_inputs if routing_inputs is not None else await llm_service.routing_inputs(db, org_id)
+			candidates, region = routing_inputs if routing_inputs is not None else await llm_service.routing_inputs(db, org_id, policy_config)
 			routing = route_decision(candidates, region, policy_config, classification.data_class, model)
 		if routing is not None:
 			metadata["routing"] = routing.as_metadata()

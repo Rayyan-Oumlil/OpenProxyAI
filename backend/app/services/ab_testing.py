@@ -60,6 +60,14 @@ def probability_best(stats: list[VariantStats], seed: int, draws: int = DRAWS) -
 	return {s.variant_id: wins[i] / draws for i, s in enumerate(stats)}
 
 
+def smoothed_rate(n: int, total: float) -> float:
+	"""The mean of the Beta(1 + total, 1 + n - total) posterior: a rate that a small sample cannot push to 0 or 1.
+
+	No observations gives 0.5 (the prior). Twenty perfect ratings give 21/22, not 1.
+	"""
+	return (1 + total) / (2 + n)
+
+
 def allocate(probabilities: dict[str, float], floor: int) -> dict[str, int]:
 	"""Integer weights summing to 100: ``floor`` for everyone, the rest in proportion to each chance of being best."""
 	count = len(probabilities)
