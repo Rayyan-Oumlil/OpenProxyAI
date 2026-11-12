@@ -15,11 +15,11 @@ Authenticated with a user JWT (the console's session). Read the [guide](/guides/
 
 | Method | Path | |
 |---|---|---|
-| `POST` | `/` | Start one. Body: `{"title", "visibility": "private"\|"team"\|"org", "team_id", "tags", "system_prompt"}`. `org` is admin only (403 `admin_only`). Sharing needs a team you belong to (422 `not_a_team_member`). 403 `conversations_disabled`; 409 `too_many_conversations` at 500. |
-| `GET` | `/?scope=mine\|shared\|org&limit&offset` | List. `org` is admins only and returns titles, owners and sizes. |
+| `POST` | `/` | Start one. Body: `{"title", "visibility": "private"\|"team"\|"org", "team_id", "tags", "system_prompt", "space_id"}`. A `private` tag cannot be combined with sharing (422 `private_tag`). A `space_id` must be a space you can see (422 `space_not_available`). `org` is admin only (403 `admin_only`). Sharing needs a team you belong to (422 `not_a_team_member`). 403 `conversations_disabled`; 409 `too_many_conversations` at 500. |
+| `GET` | `/?scope=mine\|shared\|org&tag&q&space_id&limit&offset` | List. `org` is admins only and returns titles, owners and sizes. `tag` is an exact tag. `q` is text in a title or a tag; message content is never searched. `space_id` lists what is filed in that space (and only what you could read anyway). |
 | `GET` | `/{id}` | One conversation. 404 if it is not yours or not shared with you. |
 | `GET` | `/{id}/turns` | The messages, in order, with each one's `data_class` and `model`. |
-| `PATCH` | `/{id}` | Owner only: `title`, `tags`, `visibility`/`team_id`. Only what you send changes; going private clears the team. |
+| `PATCH` | `/{id}` | Owner only: `title`, `tags`, `space_id` (`null` takes it out of its space), `visibility`/`team_id`. Only what you send changes; going private clears the team. Adding the `private` tag makes it private. |
 | `DELETE` | `/{id}` | Owner, or an admin (audited as `conversation.deleted`, without content). 204. |
 | `GET` | `/teams` | Teams you belong to (the only ones you can share with). |
 | `GET` | `/models` | Enabled registry models with a live key and the most sensitive class each may receive. |
@@ -76,3 +76,26 @@ Unknown fields are rejected (422).
 | 502 | `model_error` | The provider call failed. Nothing was stored; `package_id` points at the record of what was sent. |
 
 See also [errors and status codes](/api-reference/errors-and-status-codes).
+
+## Tags
+
+Up to 10 per conversation, at most 30 characters each: letters, digits and `. # + / - _`, with single spaces inside. They are trimmed, lower-cased and de-duplicated; anything else (a comma, a newline, markup) is a 422.
+
+The tag `private` is special. A conversation that carries it cannot be shared: creating or updating it with `visibility` `team` or `org` is refused (422 `private_tag`), and adding the tag to a conversation that is already shared makes it private again and clears its team. Removing the tag does not share anything.
+
+## Spaces
+
+```
+/api/v1/spaces
+```
+
+A space is a named folder for finding conversations. **It never changes who can read one.** A space is visible to its owner and, if it has a team, to that team's members (an admin is not special here). Listing a space shows only the conversations you could already read, and every conversation route keeps its owner, team and visibility rule.
+
+| Method | Path | |
+|---|---|---|
+| `POST` | `/` | Create. Body: `{"name", "team_id"}`. `name` is 1 to 100 characters, unique per owner ignoring case (409 `space_name_taken`); `team_id` must be a team you belong to (422 `not_a_team_member`). At most 50 per user (409 `too_many_spaces`). Needs conversations enabled for the org. |
+| `GET` | `/` | The spaces you can see: yours and your teams'. Each has `conversation_count`, which counts only conversations you can read. |
+| `PATCH` | `/{id}` | Owner only: `name`, `team_id` (`null` makes it personal). 404 for anyone else. |
+| `DELETE` | `/{id}` | Owner only. The space's conversations are not deleted; they leave the space. 204. |
+
+A conversation response includes `space_id` and `space_name` only when you can see that space. Deleting a team turns its spaces personal.

@@ -55,6 +55,16 @@ An organization-wide conversation is readable by every member of the org (and no
 
 An admin can delete any conversation, which is written to the admin audit log with the owner and visibility but never the content. A conversation you may not see is a 404, so its existence is not revealed. Deleting a team makes its conversations private to their owners.
 
+## Tags, search and spaces
+
+**Tags** label a conversation (`finance`, `q3`). The console lists them as chips you can click to filter. **Search** looks in titles and tags only, never in what was said, so a search cannot reveal the content of a conversation.
+
+**Spaces** are folders. Put the conversations of one project in a space and filter the list by it. A space can belong to a team, so teammates see the same folder. It is a way to find things, not a way to share them: a teammate sees a conversation in a team space only if it was already shared with them. A private conversation in a team space stays invisible to everyone else, and the space's conversation count does not include it.
+
+**Keep private.** Tick it (or add the tag `private`) and the conversation can never be shared: the share options are refused until you remove the tag. Adding it to a conversation that is already shared stops the sharing.
+
+The gateway does not reuse one person's conversations as context for another's. That is a separate, deliberate step.
+
 ## Standing instructions (personas)
 
 A conversation can carry a **standing instruction** (`system_prompt`, up to 4,000 characters): "You are a terse code reviewer." It is sent with every message and a single message can override it. It is part of what the model receives, so it is classified and routed like the message: a sensitive instruction cannot reach a model that is not cleared for it. It is not stored as a turn.

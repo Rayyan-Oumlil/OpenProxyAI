@@ -21,16 +21,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, exists, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import CurrentUser, get_db, get_redis
 from app.models.conversation import ORG, PRIVATE, TEAM, Conversation, ConversationContextPackage, ConversationTurn
+from app.models.space import Space
 from app.models.team import Team, team_members
 from app.models.user import User
 from app.schemas.conversation import (
 	MAX_PER_USER,
+	PRIVATE_TAG,
 	ConversationCreate,
 	ConversationResponse,
 	ContextSummary,
@@ -85,6 +87,42 @@ async def load_owned(db: AsyncSession, user, conversation_id: UUID) -> Conversat
 	return row
 
 
+def visible_spaces(user):
+	"""SQL condition: spaces this user may see: their own, and their teams' spaces. An admin is not special here."""
+	return or_(Space.owner_id == user.id, and_(Space.team_id.is_not(None), Space.team_id.in_(_my_teams(user))))
+
+
+async def _validate_space(db: AsyncSession, user, space_id: UUID) -> None:
+	"""A conversation can only be filed in a space the caller can see (another org's space is invisible, so it fails the same way)."""
+	found = await db.scalar(select(Space.id).where(Space.id == space_id, Space.org_id == user.org_id, visible_spaces(user)))
+	if found is None:
+		raise HTTPException(
+			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			detail={"error": "space_not_available", "detail": "That space does not exist or is not yours to use."},
+		)
+
+
+def _refuse_sharing_a_private_tag() -> HTTPException:
+	return HTTPException(
+		status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+		detail={"error": "private_tag", "detail": "A conversation tagged 'private' cannot be shared. Remove the tag first."},
+	)
+
+
+def _like(text: str) -> str:
+	"""A search term as a literal ILIKE pattern: % and _ are matched as themselves."""
+	escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+	return f"%{escaped}%"
+
+
+def _matches_title_or_tag(term: str):
+	"""Titles and tags only. Message content is never searched here: a search must not reveal what a conversation says."""
+	pattern = _like(term)
+	elements = func.jsonb_array_elements_text(Conversation.tags).table_valued("value")
+	in_a_tag = exists(select(literal(1)).select_from(elements).where(elements.c.value.ilike(pattern, escape="\\")))
+	return or_(Conversation.title.ilike(pattern, escape="\\"), in_a_tag)
+
+
 async def _require_enabled(redis, db: AsyncSession, user) -> None:
 	policy = await policy_store.load(user.org_id, db, redis)
 	if not policy.conversations_enabled:
@@ -125,6 +163,8 @@ async def _responses(db: AsyncSession, user, rows: list[Conversation]) -> list[C
 	)).all())
 	emails = dict((await db.execute(select(User.id, User.email).where(User.id.in_({row.owner_id for row in rows})))).all())
 	my_teams = set((await db.scalars(_my_teams(user))).all())
+	space_ids = {row.space_id for row in rows if row.space_id}
+	spaces = dict((await db.execute(select(Space.id, Space.name).where(Space.id.in_(space_ids), visible_spaces(user)))).all()) if space_ids else {}
 
 	def may_read(row: Conversation) -> bool:
 		# The org-wide listing is metadata for admins: a persona is content, so it is shown only where the caller could read the conversation.
@@ -132,7 +172,8 @@ async def _responses(db: AsyncSession, user, rows: list[Conversation]) -> list[C
 
 	return [
 		ConversationResponse(
-			id=row.id, title=row.title, visibility=PRIVATE if row.visibility == TEAM and not row.team_id else row.visibility, team_id=row.team_id, tags=list(row.tags or []), system_prompt=row.system_prompt if may_read(row) else None, owner_id=row.owner_id,
+			id=row.id, title=row.title, visibility=PRIVATE if row.visibility == TEAM and not row.team_id else row.visibility, team_id=row.team_id, tags=list(row.tags or []), system_prompt=row.system_prompt if may_read(row) else None,
+			space_id=row.space_id if row.space_id in spaces else None, space_name=spaces.get(row.space_id), owner_id=row.owner_id,
 			owner_email=emails.get(row.owner_id), is_owner=row.owner_id == user.id, turn_count=int(counts.get(row.id, 0)),
 			created_at=row.created_at, updated_at=row.updated_at,
 		)
@@ -147,10 +188,14 @@ async def create_conversation(
 	if current_user.role not in _WRITE_ROLES:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot start conversations")
 	await _require_enabled(redis, db, current_user)
+	if PRIVATE_TAG in payload.tags and payload.visibility != PRIVATE:
+		raise _refuse_sharing_a_private_tag()
 	if payload.visibility == ORG:
 		_require_admin_to_publish(current_user)
 	if payload.team_id is not None:
 		await _validate_team(db, current_user, payload.team_id)
+	if payload.space_id is not None:
+		await _validate_space(db, current_user, payload.space_id)
 	owned = await db.scalar(select(func.count()).select_from(Conversation).where(Conversation.owner_id == current_user.id))
 	if (owned or 0) >= MAX_PER_USER:
 		raise HTTPException(
@@ -159,7 +204,7 @@ async def create_conversation(
 		)
 	row = Conversation(
 		org_id=current_user.org_id, owner_id=current_user.id, team_id=payload.team_id, title=payload.title,
-		visibility=payload.visibility, tags=payload.tags, system_prompt=payload.system_prompt,
+		visibility=payload.visibility, tags=payload.tags, system_prompt=payload.system_prompt, space_id=payload.space_id,
 	)
 	db.add(row)
 	await db.commit()
@@ -171,6 +216,9 @@ async def create_conversation(
 async def list_conversations(
 	current_user: CurrentUser,
 	scope: Literal["mine", "shared", "org"] = Query("mine", description="mine: yours; shared: teammates' shared with you; org: every conversation, admins only, metadata"),
+	tag: str | None = Query(None, max_length=30, description="Only conversations carrying exactly this tag"),
+	q: str | None = Query(None, min_length=1, max_length=100, description="Text in a title or a tag (never in the messages)"),
+	space_id: UUID | None = Query(None, description="Only conversations filed in this space (and only those you could read anyway)"),
 	limit: int = Query(100, ge=1, le=200),
 	offset: int = Query(0, ge=0),
 	db: AsyncSession = Depends(get_db),
@@ -182,6 +230,14 @@ async def list_conversations(
 		query = query.where(Conversation.owner_id != current_user.id, visible_to(current_user))
 	elif current_user.role != "admin":
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only organization admins can list every conversation")
+	if tag is not None:
+		query = query.where(Conversation.tags.contains([" ".join(tag.lower().split())]))
+	if q is not None:
+		query = query.where(_matches_title_or_tag(q.strip()))
+	if space_id is not None:
+		query = query.where(Conversation.space_id == space_id)
+		if scope != "org":  # the admin's org listing is metadata about everyone's conversations; the others need to see the space
+			query = query.where(Conversation.space_id.in_(select(Space.id).where(Space.org_id == current_user.org_id, visible_spaces(current_user))))
 	rows = (await db.scalars(query.order_by(Conversation.updated_at.desc(), Conversation.id).limit(limit).offset(offset))).all()
 	return await _responses(db, current_user, list(rows))
 
@@ -229,7 +285,16 @@ async def update_conversation(
 		row.tags = payload.tags
 	if "system_prompt" in changes:
 		row.system_prompt = payload.system_prompt
-	if "visibility" in changes or "team_id" in changes:
+	if "space_id" in changes:
+		if payload.space_id is not None:
+			await _validate_space(db, current_user, payload.space_id)
+		row.space_id = payload.space_id
+	private = PRIVATE_TAG in (row.tags or [])
+	if private and (("visibility" in changes and payload.visibility != PRIVATE) or ("team_id" in changes and payload.team_id is not None)):
+		raise _refuse_sharing_a_private_tag()
+	if private:  # the tag is the quick way to pull a conversation back: it forces private, and clears any team
+		row.visibility, row.team_id = PRIVATE, None
+	elif "visibility" in changes or "team_id" in changes:
 		visibility = payload.visibility if "visibility" in changes else row.visibility
 		team_id = payload.team_id if "team_id" in changes else row.team_id
 		if visibility in (PRIVATE, ORG):

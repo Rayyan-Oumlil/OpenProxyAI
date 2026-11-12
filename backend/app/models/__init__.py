@@ -25,6 +25,7 @@ from app.models.mcp_bundle import ApiKeyMcpBundle, McpBundle, McpBundleTool
 from app.models.model_registry import ModelRegistryEntry
 from app.models.prompt_template import PromptTemplate
 from app.models.conversation import Conversation, ConversationContextPackage, ConversationTurn
+from app.models.space import Space
 from app.models.policy_plugin import PolicyPlugin
 from app.models.batch import BatchFile, BatchJob, BatchResult
 
@@ -35,6 +36,7 @@ __all__ = [
     "Conversation",
     "ConversationTurn",
     "ConversationContextPackage",
+    "Space",
     "PolicyPlugin",
     "BatchFile",
     "BatchJob",
