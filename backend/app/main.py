@@ -48,6 +48,7 @@ from app.routes.feedback import router as feedback_router
 from app.routes.requests import router as requests_router
 from app.routes.teams import router as teams_router
 from app.routes.proxy import router as proxy_router
+from app.routes.realtime import router as realtime_router
 from app.routes.sso import router as sso_router
 from app.routes.metrics import router as metrics_router
 from app.routes.users import router as users_router
@@ -458,6 +459,7 @@ app.include_router(eval_runs_router)
 app.include_router(prompt_promotion_router)
 app.include_router(teams_router)
 app.include_router(proxy_router)
+app.include_router(realtime_router)
 app.include_router(analytics_router)
 app.include_router(invites_router)
 app.include_router(sso_router)
