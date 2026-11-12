@@ -3,7 +3,7 @@
 A space never widens who can read a conversation; it only groups what the caller can already see.
 
 Revision ID: s8v9w0x1y2z3
-Revises: r4m5n6o7p8q9
+Revises: s5n6o7p8q9r0
 """
 
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "s8v9w0x1y2z3"
-down_revision: Union[str, None] = "r4m5n6o7p8q9"
+down_revision: Union[str, None] = "s5n6o7p8q9r0"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
