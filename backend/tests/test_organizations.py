@@ -1,3 +1,4 @@
+import pytest
 """Organization settings route tests — get/update org, policy, webhooks."""
 
 from datetime import UTC, datetime
@@ -275,6 +276,25 @@ def test_update_org_plan_change_conflict_with_stripe(client, monkeypatch):
 		headers={"Authorization": "Bearer test"},
 	)
 	assert response.status_code == 409
+	assert "stripe" in response.json()["detail"].lower()
+
+
+@pytest.mark.parametrize("plan", ["team", "business", "metered", "enterprise"])
+def test_update_org_paid_plan_needs_stripe_not_a_manual_patch(client, monkeypatch, plan):
+	org_id = uuid4()
+	org = _make_org(org_id)
+	user = _make_user(org_id, role="admin")
+
+	_noop_audit(monkeypatch)
+	_override_auth(user)
+	_override_db(FakeDB(scalar_result=org))
+
+	response = client.patch(
+		"/api/v1/organizations/current",
+		json={"plan": plan},
+		headers={"Authorization": "Bearer test"},
+	)
+	assert response.status_code == 400
 	assert "stripe" in response.json()["detail"].lower()
 
 
