@@ -1160,7 +1160,7 @@ class LLMService:
 			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 			cost = Decimal("0")
 			if prompt_tokens > 0 or completion_tokens > 0:
-				cost = cost_tracker_service.calculate_cost_usd({
+				cost, estimated = cost_tracker_service.price_or_fallback({
 					"model": ctx.request.model,
 					"usage": {
 						"prompt_tokens": prompt_tokens,
@@ -1168,6 +1168,8 @@ class LLMService:
 						"total_tokens": prompt_tokens + completion_tokens,
 					},
 				})
+				if estimated:
+					ctx.policy_metadata = {**(ctx.policy_metadata or {}), "cost_estimated": True}
 			if completed:
 				self._schedule_log(
 					ctx.background_tasks, ctx.redis, ctx.request_id, ctx.user, ctx.api_key,
@@ -1293,7 +1295,7 @@ class LLMService:
 				cached_usage = cached_body.get("usage", {}) if isinstance(cached_body, dict) else {}
 				cached_prompt = int(cached_usage.get("prompt_tokens", 0))
 				cached_completion = int(cached_usage.get("completion_tokens", 0))
-				cached_cost = cost_tracker_service.calculate_cost_usd(cached_body)
+				cached_cost, _ = cost_tracker_service.price_or_fallback(cached_body)
 				cached_latency = int((time.perf_counter() - ctx.start) * 1000)
 				request_metadata = _build_request_metadata(ctx, {"cache": cache_tier})
 				self._schedule_log(
@@ -1388,7 +1390,9 @@ class LLMService:
 		usage = body.get("usage", {}) if isinstance(body, dict) else {}
 		prompt_tokens = int(usage.get("prompt_tokens", 0))
 		completion_tokens = int(usage.get("completion_tokens", 0))
-		cost = cost_tracker_service.calculate_cost_usd(response)
+		cost, estimated = cost_tracker_service.price_or_fallback(response)
+		if estimated:
+			ctx.policy_metadata = {**(ctx.policy_metadata or {}), "cost_estimated": True}
 		latency_ms = int((time.perf_counter() - ctx.start) * 1000)
 
 		if cache_service.is_enabled():

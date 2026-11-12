@@ -67,6 +67,11 @@ class FakeRedis:
 		self._counter[key] = value
 		return value
 
+	async def decr(self, key: str) -> int:
+		value = self._counter.get(key, 0) - 1
+		self._counter[key] = value
+		return value
+
 	async def expire(self, key: str, seconds: int) -> bool:  # noqa: ARG002
 		return True
 
