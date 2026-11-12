@@ -28,4 +28,4 @@ Fix order: anything that blocks a task, then wrong names, then verbosity. Report
 ## Result log
 | Date | Tester | Result |
 |---|---|---|
-| (not yet run) | | |
+| 2026-11-12 | n/a | Manual NVDA pass skipped by owner decision; not run. Only the automated checks above are claimed. |
