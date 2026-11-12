@@ -42,6 +42,7 @@ from app.routes.batches import router as batches_router
 from app.routes.policy_plugins import router as policy_plugins_router
 from app.routes.analytics_query import router as analytics_query_router
 from app.routes.conversations import router as conversations_router
+from app.routes.spaces import router as spaces_router
 from app.routes.evaluation import evaluators_router, runs_router as eval_runs_router
 from app.routes.prompt_promotion import router as prompt_promotion_router
 from app.routes.feedback import router as feedback_router
@@ -454,6 +455,7 @@ app.include_router(batches_router)
 app.include_router(policy_plugins_router)
 app.include_router(analytics_query_router)
 app.include_router(conversations_router)
+app.include_router(spaces_router)
 app.include_router(evaluators_router)
 app.include_router(eval_runs_router)
 app.include_router(prompt_promotion_router)
