@@ -202,66 +202,51 @@ def test_settle_is_none_when_nothing_is_asked_set_or_configured():
 
 # ── aliases of a capped limit must not walk around the ceiling ──────────────
 
-@pytest.mark.parametrize("alias", bh.LENGTH_ALIASES)
-def test_a_length_alias_above_the_ceiling_is_clamped(alias):
-	plan = _plan(ceiling=Behavior(max_response_length="short"), explicit={alias: 50000})
-	assert plan.params == {alias: bh.MAX_TOKENS["short"]}
-	assert {"param": alias, "from": 50000, "to": bh.MAX_TOKENS["short"]} in plan.clamped
+ALIASES = ["max_completion_tokens", "max_output_tokens", "max_new_tokens", "max_tokens_to_sample", "maxOutputTokens",
+           "top_p", "top_k", "reasoning", "thinking", "extra_body", "generation_config"]
 
 
-@pytest.mark.parametrize("alias", bh.LENGTH_ALIASES)
-def test_a_length_alias_inside_the_ceiling_is_left_alone_and_a_garbage_one_is_removed(alias):
-	assert _plan(ceiling=Behavior(max_response_length="long"), explicit={alias: 10}).params == {}
-	for garbage in ("lots", [1], {"n": 1}, True):
-		assert alias in _plan(ceiling=Behavior(max_response_length="short"), explicit={alias: garbage}).remove
+@pytest.mark.parametrize("alias", ALIASES)
+@pytest.mark.parametrize("ceiling", [Behavior(creativity="low"), Behavior(reasoning_depth="low"), Behavior(max_response_length="short")])
+def test_every_alias_is_removed_under_any_ceiling(alias, ceiling):
+	assert _plan(ceiling=ceiling, explicit={alias: {"effort": "high"}}).remove == (alias,)
 
 
-@pytest.mark.parametrize("alias", bh.CREATIVITY_UNMAPPED)
-def test_sampling_knobs_are_removed_while_a_creativity_ceiling_is_active(alias):
-	assert _plan(ceiling=Behavior(creativity="low"), explicit={alias: 1}).remove == (alias,)
-	assert _plan(ceiling=Behavior(max_response_length="short"), explicit={alias: 1}).remove == ()  # a different ceiling does not touch them
-
-
-@pytest.mark.parametrize("alias", bh.REASONING_UNMAPPED)
-def test_provider_shaped_reasoning_parameters_are_removed_while_a_reasoning_ceiling_is_active(alias):
-	explicit = {alias: {"effort": "high", "budget_tokens": 100000}}
-	assert _plan(ceiling=Behavior(reasoning_depth="low"), explicit=explicit).remove == (alias,)
-	assert _plan(ceiling=Behavior(creativity="low"), explicit=explicit).remove == ()
-
-
-@pytest.mark.parametrize("alias", bh.PASSTHROUGH)
-def test_passthrough_containers_are_removed_whenever_any_ceiling_is_active(alias):
-	explicit = {alias: {"max_tokens": 99999}}
-	for ceiling in (Behavior(creativity="low"), Behavior(reasoning_depth="low"), Behavior(max_response_length="short")):
-		assert _plan(ceiling=ceiling, explicit=explicit).remove == (alias,)
-
-
-def test_with_no_ceiling_no_alias_is_touched():
-	explicit = {k: 1 for k in (*bh.LENGTH_ALIASES, *bh.CREATIVITY_UNMAPPED, *bh.REASONING_UNMAPPED, *bh.PASSTHROUGH)}
-	plan = _plan(Behavior(creativity="low"), explicit=explicit)
-	assert plan.remove == () and not any(k in plan.params for k in explicit)
+@pytest.mark.parametrize("alias", ALIASES)
+def test_with_no_ceiling_no_alias_is_touched(alias):
+	plan = _plan(Behavior(creativity="low"), explicit={alias: 1})
+	assert plan.remove == () and alias not in plan.params
 
 
 def test_removing_a_parameter_means_the_call_skips_the_cache():
 	assert _plan(ceiling=Behavior(creativity="low"), explicit={"top_p": 0.9}).changes_more_than_temperature
 
 
+# ── fail closed: under a ceiling only an allowlist reaches the provider ─────
+
+@pytest.mark.parametrize("name", ["n", "best_of", "max_thinking_tokens", "some_future_provider_limit", "num_predict", "candidate_count"])
+def test_an_unknown_parameter_is_removed_while_a_ceiling_is_active(name):
+	plan = _plan(ceiling=Behavior(max_response_length="long"), explicit={name: 5})
+	assert plan.remove == (name,) and plan.changes_more_than_temperature
+
+
+def test_allowlisted_parameters_survive_a_ceiling():
+	explicit = {k: 1 for k in bh.ALLOWED if k not in ("temperature", "max_tokens", "reasoning_effort")}
+	assert _plan(ceiling=Behavior(creativity="high"), explicit=explicit).remove == ()
+
+
+def test_unknown_parameters_are_untouched_with_no_ceiling():
+	plan = _plan(Behavior(creativity="low"), explicit={"n": 4, "max_thinking_tokens": 9})
+	assert plan.remove == ()
+
+
 @settings(max_examples=200)
-@given(
-	ceiling=ceilings,
-	alias=st.sampled_from([*bh.LENGTH_ALIASES, *bh.CREATIVITY_UNMAPPED, *bh.REASONING_UNMAPPED, *bh.PASSTHROUGH]),
-	value=st.one_of(st.integers(0, 10**6), st.floats(0, 1e6), st.text(max_size=5), st.none(), st.dictionaries(st.text(max_size=3), st.integers(), max_size=2)),
-)
-def test_no_alias_survives_a_ceiling_above_it(ceiling, alias, value):
-	plan = _plan(ceiling=ceiling, explicit={alias: value})
-	sent = {**{alias: value}, **plan.params}
-	if alias in plan.remove:
-		return
-	if alias in bh.LENGTH_ALIASES and ceiling.max_response_length is not None and sent.get(alias) is not None:
-		assert isinstance(sent[alias], (int, float)) and not isinstance(sent[alias], bool) and sent[alias] <= bh.MAX_TOKENS[ceiling.max_response_length]
-	if alias in bh.CREATIVITY_UNMAPPED:
-		assert ceiling.creativity is None
-	if alias in bh.REASONING_UNMAPPED:
-		assert ceiling.reasoning_depth is None
-	if alias in bh.PASSTHROUGH:
-		assert all(getattr(ceiling, k) is None for k in bh.SCALES)
+@given(ceiling=ceilings, explicit=st.dictionaries(st.text(min_size=1, max_size=12), st.integers(), max_size=6))
+def test_under_any_ceiling_nothing_outside_the_allowlist_survives(ceiling, explicit):
+	plan = _plan(ceiling=ceiling, explicit=explicit)
+	active = any(getattr(ceiling, k) is not None for k in bh.SCALES)
+	survivors = {k for k in explicit if k not in plan.remove}
+	if active:
+		assert survivors <= bh.ALLOWED
+	else:
+		assert plan.remove == ()
