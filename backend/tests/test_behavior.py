@@ -250,3 +250,8 @@ def test_under_any_ceiling_nothing_outside_the_allowlist_survives(ceiling, expli
 		assert survivors <= bh.ALLOWED
 	else:
 		assert plan.remove == ()
+
+
+def test_the_allowlist_never_contains_a_transport_or_credential_field():
+	assert not bh.ALLOWED & bh.TRANSPORT_FIELDS
+	assert not bh.ALLOWED & {"timeout", "request_timeout", "api_key", "api_base", "base_url", "extra_headers", "headers", "client"}
