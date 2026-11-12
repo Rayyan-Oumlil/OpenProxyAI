@@ -25,6 +25,25 @@ description: Standard and OpenProxyAI-specific HTTP status codes, and the SDK ex
 
 These map directly to the request pipeline stages that can reject a request — see [Request Pipeline](/core-concepts/request-pipeline).
 
+### What a `446` body contains
+
+A `446` body keeps its technical fields (`error`, `reason_code`, `detail`, and for routing refusals `route_reason`, `data_class` and `requested_model`) and adds one more:
+
+| Field | What it is |
+|---|---|
+| `explanation` | One plain sentence you can show an end user: what was refused and why. |
+
+```json
+{
+  "error": "routing_blocked",
+  "reason_code": "no_authorized_model",
+  "detail": "No model authorized for this request's data class can serve it.",
+  "explanation": "openai/gpt-4o is not approved for confidential data in your organization."
+}
+```
+
+The sentence names only what the caller already knows: the model they asked for and the data class of their own request. It never says which keyword, pattern, plugin or registry setting was involved, and it does not distinguish a disabled model from one with no usable key. Use `reason_code` in code; show `explanation` to people. The same sentence appears on the request trace and in the policy preview in the console.
+
 ## Provider-side errors
 
 An error from the upstream provider itself (not from OpenProxyAI's own pipeline) surfaces as `ProviderError` in the SDKs, with the original provider identified so you can distinguish "OpenProxyAI blocked this" from "the model provider itself errored."
