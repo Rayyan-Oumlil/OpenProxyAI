@@ -1,9 +1,9 @@
 import { PAGE_MAX_WIDTH } from '../lib/layout';
 
 const FAQS = [
-  { q: 'Do you charge per token?', a: 'No — plans are flat monthly fees based on usage tier and seats. You still pay your model providers directly for tokens; OpenProxyAI doesn\'t mark those up.' },
+  { q: 'Do you charge per token?', a: 'No — Team and Business are flat monthly fees, and Enterprise starts at $25k per year. You still pay your model providers directly for tokens; OpenProxyAI doesn\'t mark those up.' },
   { q: 'What happens if we exceed our plan\'s request limit?', a: 'You\'re notified before hitting the ceiling. Overages are billed at a per-request rate rather than hard-stopping your traffic — contact sales if you need a hard cap instead.' },
-  { q: 'Can we self-host instead of using a hosted plan?', a: 'Yes — Enterprise includes air-gapped and on-prem deployment. Starter and Growth are typically hosted but can be self-hosted on request.' },
+  { q: 'Can we self-host instead of using a hosted plan?', a: 'Yes — Enterprise includes air-gapped and on-prem deployment. Community is open source (Apache-2.0) and self-hostable by anyone; Team and Business are hosted plans.' },
   { q: 'Is there a discount for annual billing?', a: 'Yes, contact sales — annual commitments get a reduced effective rate versus month-to-month.' },
 ];
 

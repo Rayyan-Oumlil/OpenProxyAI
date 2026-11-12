@@ -185,7 +185,7 @@ export const POLICY_TEMPLATES = [
 ];
 
 export const ORG = {
-  id: "o1", name: "Demo Org", slug: "demo", plan: "starter", settings: { policy: { enforcement_mode: "enforce", allowed_models: ["gpt-4o"], blocked_keywords: ["project-phoenix"], pii_detection_enabled: true, pii_entities: ["EMAIL_ADDRESS"] } }, budget_monthly_usd: "100", is_active: true,
+  id: "o1", name: "Demo Org", slug: "demo", plan: "team", settings: { policy: { enforcement_mode: "enforce", allowed_models: ["gpt-4o"], blocked_keywords: ["project-phoenix"], pii_detection_enabled: true, pii_entities: ["EMAIL_ADDRESS"] } }, budget_monthly_usd: "100", is_active: true,
   data_region: "us", created_at: "2026-11-01T10:00:00Z",
 };
 

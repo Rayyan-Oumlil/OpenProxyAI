@@ -132,7 +132,7 @@ def _enterprise_org(org_id):
 
 
 def _free_org(org_id):
-    return SimpleNamespace(id=org_id, plan="free", name="Free Org", slug="free-org")
+    return SimpleNamespace(id=org_id, plan="community", name="Free Org", slug="free-org")
 
 
 def _sso_connection(org_id):

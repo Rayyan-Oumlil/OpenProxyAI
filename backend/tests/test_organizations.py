@@ -1,3 +1,4 @@
+import pytest
 """Organization settings route tests — get/update org, policy, webhooks."""
 
 from datetime import UTC, datetime
@@ -278,6 +279,25 @@ def test_update_org_plan_change_conflict_with_stripe(client, monkeypatch):
 	assert "stripe" in response.json()["detail"].lower()
 
 
+@pytest.mark.parametrize("plan", ["team", "business", "metered", "enterprise"])
+def test_update_org_paid_plan_needs_stripe_not_a_manual_patch(client, monkeypatch, plan):
+	org_id = uuid4()
+	org = _make_org(org_id)
+	user = _make_user(org_id, role="admin")
+
+	_noop_audit(monkeypatch)
+	_override_auth(user)
+	_override_db(FakeDB(scalar_result=org))
+
+	response = client.patch(
+		"/api/v1/organizations/current",
+		json={"plan": plan},
+		headers={"Authorization": "Bearer test"},
+	)
+	assert response.status_code == 400
+	assert "stripe" in response.json()["detail"].lower()
+
+
 def test_update_org_requires_auth(client):
 	response = client.patch(
 		"/api/v1/organizations/current",
@@ -421,12 +441,12 @@ def _patch_pii(client, monkeypatch, *, plan, pii_now, body):
 
 
 def test_turning_pii_detection_on_still_needs_a_plan_that_has_it(client, monkeypatch):
-	response, saved = _patch_pii(client, monkeypatch, plan="free", pii_now=False, body={"pii_detection_enabled": True})
+	response, saved = _patch_pii(client, monkeypatch, plan="community", pii_now=False, body={"pii_detection_enabled": True})
 	assert response.status_code == 402 and response.json()["detail"]["error"] == "plan_limit_exceeded" and "config" not in saved
 
 
 def test_a_paid_plan_can_turn_pii_detection_on(client, monkeypatch):
-	response, saved = _patch_pii(client, monkeypatch, plan="starter", pii_now=False, body={"pii_detection_enabled": True})
+	response, saved = _patch_pii(client, monkeypatch, plan="team", pii_now=False, body={"pii_detection_enabled": True})
 	assert response.status_code == 200 and saved["config"].pii_detection_enabled is True
 
 

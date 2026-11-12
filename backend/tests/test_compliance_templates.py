@@ -49,7 +49,7 @@ class FakeRedis:
 		return True
 
 
-def _org(org_id, plan="starter", settings=None):
+def _org(org_id, plan="team", settings=None):
 	return SimpleNamespace(
 		id=org_id,
 		name="TestOrg",
