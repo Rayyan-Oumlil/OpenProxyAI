@@ -34,6 +34,7 @@ class PolicyOut(BaseModel):
 	reason_code: str | None
 	detail: str | None
 	triggered_rules: list[str]
+	explanation: str | None = Field(default=None, description="What the caller is told when policy refuses; null when allowed")
 
 
 class RoutingOut(BaseModel):
@@ -44,6 +45,7 @@ class RoutingOut(BaseModel):
 	authorized: list[str]
 	excluded: dict[str, str]
 	key_alias: str | None = Field(description="Which provider key would serve it (never the key itself)")
+	explanation: str | None = Field(default=None, description="What the caller is told when no model is authorized; null when one is")
 
 
 class FallbackOut(BaseModel):

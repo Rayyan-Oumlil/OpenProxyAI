@@ -580,6 +580,7 @@ Response: `verdict` is `allowed`, `blocked_by_policy`, `blocked_by_routing` (rou
 (never the text). `routing` is always the decision enforce would make: the model that would serve it, why, which models are authorized and
 why each other one was ruled out, and which provider key would be used (alias only). `fallback` judges the fallback model by the same rules.
 `not_evaluated` lists what a real request also goes through that a preview skips (rate limits, budget, cache, experiments, tool taint, the upstream call).
+When policy refuses, `policy.explanation` is the plain sentence a caller would be given; when no model is authorized, `routing.explanation` is. Both are null otherwise. They are the same text as the `explanation` field of a `446` response.
 
 ### GET /api/v1/analytics/logs
 
