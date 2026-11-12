@@ -18,6 +18,7 @@ from __future__ import annotations
 import time
 import uuid
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket
@@ -29,6 +30,7 @@ from app.services import llm_service as ls
 from app.services import realtime_pricing
 from app.services.auth_service import validate_api_key
 from app.services.classification_service import classify_text
+from app.services.modality_pipeline import _team_budget
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
 from app.services.rate_limiter import rate_limiter_service
 from app.services.realtime_relay import Disconnected, Hooks, relay
@@ -136,6 +138,7 @@ async def realtime(ws: WebSocket) -> None:
 		user, org_id = api_key.user, api_key.org_id
 		user_id, api_key_id = user.id, api_key.id
 		user_budget = getattr(user, "budget_daily_usd", None)
+		request_like = SimpleNamespace(headers=ws.headers)  # the HTTP header parsers read .headers only
 		model = ws.query_params.get("model", "")
 		subprotocol = SERVED_SUBPROTOCOL if SERVED_SUBPROTOCOL in ws.headers.get("sec-websocket-protocol", "") else None
 		await ws.accept(subprotocol=subprotocol)
@@ -149,6 +152,13 @@ async def realtime(ws: WebSocket) -> None:
 		if provider != PROVIDER:
 			return await _refuse(ws, 1008, "only_openai_is_supported")
 
+		try:
+			team_id = getattr(api_key, "team_id", None) or ls._parse_team_id(request_like)
+			labels = ls._parse_labels(request_like)
+			team_budget = await _team_budget(db, user, team_id) if team_id is not None else None
+		except HTTPException as exc:
+			return await _refuse(ws, 1008, f"team_or_labels_refused:{exc.status_code}")
+
 		request_id = uuid.uuid4()
 		started = time.perf_counter()
 		state: dict[str, Any] = {"config": await policy_store.load(org_id, db, redis), "checked": time.monotonic(), "classification": None}
@@ -157,7 +167,7 @@ async def realtime(ws: WebSocket) -> None:
 		def log(**fields: Any) -> Any:
 			return ls.log_request(
 				redis=redis, request_id=fields.pop("request_id", request_id), org_id=org_id, user_id=user_id, api_key_id=api_key_id,
-				model=model, provider=provider, ttft_ms=None, labels=None, team_id=None, **fields,
+				model=model, provider=provider, ttft_ms=None, labels=labels, team_id=team_id, **fields,
 			)
 
 		def metadata(extra: dict | None = None) -> dict:
@@ -189,7 +199,7 @@ async def realtime(ws: WebSocket) -> None:
 				redis=redis, org_id=str(org_id), user_id=str(user_id), request_tokens_estimate=1,
 				max_rpm=settings.DEFAULT_RATE_LIMIT_RPM, max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
 				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)), user_daily_budget_usd=user_budget,
-				team_id=None, team_budget_monthly_usd=None, model=model, policy_config=state["config"],
+				team_id=str(team_id) if team_id else None, team_budget_monthly_usd=team_budget, model=model, policy_config=state["config"],
 			)
 			return None if ok else f"rate_limited:{limit_type}"
 
@@ -264,7 +274,7 @@ async def realtime(ws: WebSocket) -> None:
 
 		hooks = Hooks(scan=scan, admit_response=admit, record_response=record, still_valid=still_valid)
 		code, reason = await relay(
-			ClientSocket(ws), UpstreamSocket(upstream), hooks, max_message_bytes=settings.REALTIME_MAX_MESSAGE_BYTES,
+			ClientSocket(ws), UpstreamSocket(upstream), hooks, model_name=model_name, max_message_bytes=settings.REALTIME_MAX_MESSAGE_BYTES,
 			max_seconds=settings.REALTIME_MAX_SESSION_SECONDS, check_every=settings.REALTIME_CHECK_SECONDS,
 		)
 		logger.info("realtime session %s ended: %s %s", request_id, code, reason)

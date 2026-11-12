@@ -4,8 +4,12 @@ from datetime import UTC, datetime
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
+from app.utils.logging import get_logger
+
 from litellm import completion_cost
 from redis.asyncio import Redis
+
+logger = get_logger(__name__)
 
 
 def _today_iso() -> str:
@@ -19,6 +23,17 @@ class CostTrackerService:
 		assumes a chat completion and mis-prices, or fails to price, anything else."""
 		cost = completion_cost(completion_response=completion_response, **({"call_type": call_type} if call_type else {}))
 		return Decimal(str(cost)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+
+	def price_or_fallback(self, response: object, call_type: str | None = None, units: int = 1) -> tuple[Decimal, bool]:
+		"""(cost, estimated). A call LiteLLM cannot price must not turn an answer the provider already gave into an error, and must
+		not be free (that would let spend go uncounted against budgets): it is charged a flat fee per unit and flagged as an estimate."""
+		try:
+			return (self.calculate_cost_usd(response, call_type=call_type) if call_type else self.calculate_cost_usd(response)), False
+		except Exception as exc:  # noqa: BLE001  (LiteLLM raises plain exceptions for an unknown model or a shape it cannot read)
+			from app.config import settings
+
+			logger.warning("Could not price a %s call: %s", call_type or "chat", exc)
+			return Decimal(str(settings.UNPRICED_CALL_COST_USD)) * units, True
 
 	async def get_org_spend_today(self, redis: Redis, org_id: UUID | str) -> Decimal:
 		key = f"rl:usd:{org_id}:{_today_iso()}"

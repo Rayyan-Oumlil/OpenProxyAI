@@ -44,4 +44,8 @@ Spec first, tests first, a real-stack smoke script per slice, mutation checks on
 Everything in this plan is built and merged (#77, #78). Also finished from the earlier phases' leftovers: conversation retention (idle past the plan's audit retention), personas, org-wide sharing (admin only), the `log_only` preview, streaming (SSE; refused for orgs with response guardrails), and console screens for policy plugins, the analytics query and scores.
 
 Deliberately held for the owner: Stripe/pricing, a domain, the hosted demo and its video, GCP, outreach emails, and the three open upstream PRs' forks.
-Not built, by design: chat on the shared pipeline (a riskier, separate refactor), secret managers other than Vault, the realtime API, raw SQL (the structured query replaces it), the design-specs section C hot-path performance work (auth caching, batched `last_used_at`).
+Also built since (#81, #82, #83): AWS Secrets Manager beside Vault; the once-a-minute `last_used_at` write (authorization is still checked on every request, nothing about who may call is cached); the realtime API (`WS /v1/realtime`, `docs-site/docs/api-reference/realtime.md`).
+
+Chat and the shared pipeline: **not merged into one function, on purpose.** Chat has its own order (experiments, cache, templates, tool taint, streaming, fallback model) and forcing it through `Modality` would make that type carry every one of those. What stops the two drifting is `tests/test_chat_parity.py`, which asks chat the questions `test_modalities_pipeline.py` asks every modality. It found a real bug on its first run: a successful chat call to a model LiteLLM cannot price returned 502 (and a stream's pricing error escaped its close, leaving the spend uncounted). Both now use `cost_tracker_service.price_or_fallback`, the same flat-fee rule as every other endpoint.
+
+Not built, by design: raw SQL (the structured query replaces it).

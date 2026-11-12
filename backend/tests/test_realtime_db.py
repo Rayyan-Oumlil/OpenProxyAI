@@ -31,7 +31,7 @@ DONE = {"type": "response.done", "response": {"id": "resp_1", "status": "complet
 @pytest.fixture
 async def provider(monkeypatch):
 	"""A fake realtime provider on a local port: records the headers it was opened with and every event it receives."""
-	seen = SimpleNamespace(headers=[], received=[], opened=0)
+	seen = SimpleNamespace(headers=[], received=[], opened=0, auto=False)
 
 	async def handler(connection):
 		seen.opened += 1
@@ -40,6 +40,8 @@ async def provider(monkeypatch):
 		async for raw in connection:
 			event = json.loads(raw)
 			seen.received.append(event)
+			if event["type"] == "input_audio_buffer.append" and seen.auto:
+				await connection.send(json.dumps({"type": "response.created", "response": {"id": "auto"}}))
 			if event["type"] == "response.create":
 				await connection.send(json.dumps({"type": "response.audio.delta", "delta": "AAAA"}))
 				await connection.send(json.dumps(DONE))
@@ -239,3 +241,62 @@ async def test_when_the_provider_is_down_the_client_is_told_and_no_session_is_co
 		code, reason = await closed_with(ws)
 	assert (code, reason) == (1008, "provider_unavailable") and "sk-provider" not in reason
 	assert [r["status_code"] for r in logs] == [502] and int(await gateway.redis.get(f"rt:sessions:{tenants.a}") or 0) == 0
+
+
+async def test_the_team_in_the_header_gives_its_budget_to_the_limits_and_its_id_to_every_log_row(tenants, key, gateway, provider, logs, monkeypatch):
+	from decimal import Decimal
+
+	from app.services import rate_limiter
+	from tests.test_conversations_db import team_of
+
+	from sqlalchemy import update as sa_update
+
+	from app.models.team import Team
+
+	team = await team_of(tenants.a, tenants.user_a)
+	async with SystemSessionLocal() as session:
+		await session.execute(sa_update(Team).where(Team.id == team).values(budget_monthly_usd=Decimal("5")))
+		await session.commit()
+	checks = []
+	real = rate_limiter.rate_limiter_service.check_limits
+
+	async def spy(**kwargs):
+		checks.append(kwargs)
+		return await real(**kwargs)
+
+	monkeypatch.setattr(rate_limiter.rate_limiter_service, "check_limits", spy)
+	async with await connect(gateway, key, additional_headers={"Authorization": f"Bearer {key.full}", "x-openproxy-team-id": str(team), "x-openproxy-labels": '{"app":"voice"}'}) as ws:
+		await ws.recv()
+		await ws.send(json.dumps({"type": "response.create"}))
+		await ws.recv()
+		await ws.recv()
+	await asyncio.sleep(0.1)
+	assert {c["team_id"] for c in checks} == {str(team)} and all(c["team_budget_monthly_usd"] == Decimal("5") for c in checks)
+	assert [r["team_id"] for r in logs] == [team] and logs[0]["labels"] == {"app": "voice"}
+
+
+@pytest.mark.parametrize("header,reason", [("not-a-uuid", "team_or_labels_refused:400"), ("00000000-0000-0000-0000-000000000001", "team_or_labels_refused:404")])
+async def test_a_team_the_caller_cannot_use_is_refused_not_ignored(tenants, key, gateway, provider, header, reason):
+	async with await connect(gateway, key, additional_headers={"Authorization": f"Bearer {key.full}", "x-openproxy-team-id": header}) as ws:
+		assert await closed_with(ws) == (1008, reason)
+	assert provider.opened == 0
+
+
+async def test_a_team_the_caller_is_not_in_is_refused(tenants, key, gateway, provider):
+	from tests.test_conversations_db import team_of
+
+	team = await team_of(tenants.a)  # exists, but nobody is a member
+	async with await connect(gateway, key, additional_headers={"Authorization": f"Bearer {key.full}", "x-openproxy-team-id": str(team)}) as ws:
+		assert await closed_with(ws) == (1008, "team_or_labels_refused:403")
+
+
+async def test_the_provider_answering_on_its_own_is_held_to_the_limits_too(tenants, key, gateway, provider, logs, monkeypatch):
+	"""Server-side voice detection: nobody sent response.create, yet a response starts. The second one is over the limit."""
+	monkeypatch.setattr(settings, "DEFAULT_RATE_LIMIT_RPM", 1)  # the connection takes the only slot
+	provider.auto = True
+	async with await connect(gateway, key) as ws:
+		await ws.recv()
+		await ws.send(json.dumps({"type": "input_audio_buffer.append", "audio": "QUJD"}))
+		error = json.loads(await asyncio.wait_for(ws.recv(), 5))
+	assert error["error"]["code"] == "limit_exceeded"
+	assert "response.cancel" in [e["type"] for e in provider.received]

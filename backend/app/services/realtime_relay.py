@@ -7,7 +7,9 @@ What the relay guarantees:
 
 - Only known client event types reach the provider; anything else is refused with an ``error`` event (fail closed).
 - Every string a client can put in an event is handed to ``scan`` first; audio is opaque and is not.
-- ``response.create`` is admitted by the limits before the provider is asked to speak.
+- A response is admitted by the limits before it starts: when the client asks (``response.create``), and when the provider starts one on
+  its own (server-side voice detection), which is cancelled if refused.
+- No event can change the model the session was admitted for.
 - Each ``response.done`` is recorded exactly once. If recording fails the session ends: usage that cannot be counted is not given away.
 - A session ends at its time limit, or when the credentials stop being valid, whichever comes first.
 - Nothing from an internal failure is sent to the client.
@@ -35,8 +37,9 @@ CLIENT_EVENTS = frozenset({
 	"conversation.item.create", "conversation.item.truncate", "conversation.item.delete", "conversation.item.retrieve",
 	"response.create", "response.cancel",
 })
-# Keys whose values are not text a person wrote: audio payloads and identifiers.
-_NOT_TEXT = frozenset({"audio", "event_id", "type", "id", "previous_item_id", "item_id", "call_id", "voice", "model", "object", "role", "status", "format"})
+# The one thing left out of the text scan: the base64 audio payload. Every other string, whatever its key, is scanned: a key name says
+# what a field is usually for, not what a client put in it.
+_AUDIO_KEY = "audio"
 
 
 @dataclass(frozen=True)
@@ -53,8 +56,8 @@ class _End(Exception):
 
 
 def texts_of(value: Any, key: str | None = None) -> list[str]:
-	"""Every string a person could have written in an event, leaving out audio and identifiers."""
-	if key in _NOT_TEXT:
+	"""Every string in an event except the audio payload."""
+	if key == _AUDIO_KEY:
 		return []
 	if isinstance(value, str):
 		return [value] if value else []
@@ -65,6 +68,15 @@ def texts_of(value: Any, key: str | None = None) -> list[str]:
 	return []
 
 
+def models_named(value: Any, key: str | None = None) -> list[str]:
+	"""Every ``model`` value in an event, at any depth."""
+	if isinstance(value, dict):
+		return [m for k, v in value.items() for m in models_named(v, k)]
+	if isinstance(value, list):
+		return [m for v in value for m in models_named(v, key)]
+	return [value] if key == "model" and isinstance(value, str) else []
+
+
 def error_event(code: str, message: str, event_id: str | None) -> str:
 	return json.dumps({"type": "error", "error": {"type": "invalid_request_error", "code": code, "message": message, "event_id": event_id}})
 
@@ -73,7 +85,14 @@ def _size(data: str | bytes) -> int:
 	return len(data) if isinstance(data, (bytes, bytearray)) else len(data.encode("utf-8"))
 
 
-async def _client_to_provider(client: Any, upstream: Any, hooks: Hooks, max_bytes: int) -> None:
+class _Pending:
+	"""Responses the client asked for that the provider has not yet announced: those were admitted when asked, and must not be admitted again."""
+
+	def __init__(self) -> None:
+		self.count = 0
+
+
+async def _client_to_provider(client: Any, upstream: Any, hooks: Hooks, max_bytes: int, model_name: str, pending: _Pending) -> None:
 	while True:
 		frame = await client.receive()
 		if isinstance(frame, (bytes, bytearray)):
@@ -90,6 +109,9 @@ async def _client_to_provider(client: Any, upstream: Any, hooks: Hooks, max_byte
 		if event["type"] not in CLIENT_EVENTS:
 			await client.send_text(error_event("unsupported_event", f"Event type '{event['type'][:64]}' is not supported through the gateway", event_id))
 			continue
+		if any(m not in (model_name, f"openai/{model_name}") for m in models_named(event)):
+			await client.send_text(error_event("model_not_allowed", "The model of a session cannot be changed after it is admitted", event_id))
+			continue
 		text = "\n".join(texts_of(event))
 		if text:
 			reason = await hooks.scan(text)
@@ -101,20 +123,42 @@ async def _client_to_provider(client: Any, upstream: Any, hooks: Hooks, max_byte
 			if reason:
 				await client.send_text(error_event("limit_exceeded", f"Response not started: {reason}", event_id))
 				continue
+			pending.count += 1
 		await upstream.send(frame)
 
 
-async def _provider_to_client(client: Any, upstream: Any, hooks: Hooks) -> None:
+async def _provider_to_client(client: Any, upstream: Any, hooks: Hooks, pending: _Pending) -> None:
 	while True:
 		frame = await upstream.recv()
-		await client.send_text(frame)
-		if isinstance(frame, str) and '"response.done"' in frame:
-			try:
-				event = json.loads(frame)
-			except ValueError:
+		event = _event_of(frame)
+		kind = event.get("type") if event else None
+		if kind == "response.created" and pending.count == 0:
+			# The provider started a response nobody asked for (server-side voice detection answers on its own). It is subject to the
+			# same limits as one the client asked for: refused means cancelled, and the client is told instead of being shown it.
+			reason = await hooks.admit_response()
+			if reason:
+				await upstream.send(json.dumps({"type": "response.cancel"}))
+				await client.send_text(error_event("limit_exceeded", f"Response cancelled: {reason}", None))
 				continue
-			if isinstance(event, dict) and event.get("type") == "response.done" and isinstance(event.get("response"), dict):
-				await hooks.record_response(event["response"])
+		elif kind == "response.created":
+			pending.count -= 1
+		elif kind == "error" and pending.count > 0:
+			pending.count -= 1  # the request that failed never produces response.created; checking one response too many is the safe side
+		await client.send_text(frame)
+		if kind == "response.done" and isinstance(event.get("response"), dict):
+			await hooks.record_response(event["response"])
+
+
+def _event_of(frame: str | bytes) -> dict | None:
+	if not isinstance(frame, str) or not frame.startswith("{"):
+		return None
+	if not any(marker in frame for marker in ('"response.created"', '"response.done"', '"error"')):
+		return None
+	try:
+		event = json.loads(frame)
+	except ValueError:
+		return None
+	return event if isinstance(event, dict) else None
 
 
 async def _limits(hooks: Hooks, max_seconds: float, check_every: float) -> None:
@@ -138,11 +182,12 @@ async def _close(socket: Any, code: int, reason: str) -> None:
 		pass
 
 
-async def relay(client: Any, upstream: Any, hooks: Hooks, *, max_message_bytes: int, max_seconds: float, check_every: float) -> tuple[int, str]:
+async def relay(client: Any, upstream: Any, hooks: Hooks, *, model_name: str, max_message_bytes: int, max_seconds: float, check_every: float) -> tuple[int, str]:
 	"""Runs the session until one side ends it. Returns the close code and reason that were sent."""
+	pending = _Pending()
 	tasks = [
-		asyncio.create_task(_client_to_provider(client, upstream, hooks, max_message_bytes)),
-		asyncio.create_task(_provider_to_client(client, upstream, hooks)),
+		asyncio.create_task(_client_to_provider(client, upstream, hooks, max_message_bytes, model_name, pending)),
+		asyncio.create_task(_provider_to_client(client, upstream, hooks, pending)),
 		asyncio.create_task(_limits(hooks, max_seconds, check_every)),
 	]
 	try:

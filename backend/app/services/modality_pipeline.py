@@ -221,13 +221,8 @@ async def run_modality(
 			body = _guard_output(modality, body, policy_config)
 		reported = modality.usage(body if isinstance(body, dict) else {})
 		prompt_tokens, completion_tokens = reported if reported is not None else (max(modality.estimate_tokens(request), 0), 0)
-		try:
-			cost = cost_tracker_service.calculate_cost_usd(response, call_type=modality.call_type)
-		except Exception as exc:
-			# An unpriced model must not turn a call that already succeeded into an error, and must not be free either (that would let
-			# spend go uncounted against budgets): charge a flat fallback per unit and say it is an estimate.
-			logger.warning("Could not price %s call to %s: %s", modality.name, model, exc)
-			cost = Decimal(str(settings.UNPRICED_CALL_COST_USD)) * modality.units(request)
+		cost, estimated = cost_tracker_service.price_or_fallback(response, call_type=modality.call_type, units=modality.units(request))
+		if estimated:
 			policy_metadata = {**(policy_metadata or {}), "cost_estimated": True}
 		latency_ms = int((time.perf_counter() - start) * 1000)
 		ls.LLMService._schedule_log(
