@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -150,6 +150,9 @@ async def _ensure_unique(db: AsyncSession, ctx: ScimContext, changes: UserChange
 async def _guard_last_admin(db: AsyncSession, ctx: ScimContext, user: User, changes: UserChanges) -> None:
     if changes.fields.get("active") is not False or not (user.role == "admin" and user.is_active):
         return
+    # Serialize deactivations of admins in this org until commit: two concurrent requests would otherwise each count two
+    # active admins and both proceed, leaving none. The second waits, then counts again and is refused.
+    await db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": f"scim-admins:{ctx.org_id}"})
     active_admins = list(await db.scalars(select(User.id).where(User.org_id == ctx.org_id, User.role == "admin", User.is_active.is_(True))))
     if len(active_admins) <= 1:
         raise ScimError(400, "Cannot deactivate the last active admin of the organization", "mutability")
