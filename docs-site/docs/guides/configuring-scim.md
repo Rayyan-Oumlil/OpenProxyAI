@@ -18,6 +18,8 @@ What it does and does not do:
 | Groups | Not supported. Manage teams in OpenProxyAI. |
 | Bulk, sort, ETags, password changes | Not supported (advertised as such in `ServiceProviderConfig`). |
 
+SCIM manages **only the users it created**. Users who already exist (admins, people who signed up or were invited) are invisible to it: it cannot read, change or deactivate them, and creating a user with an existing email returns `409`. This is deliberate: SSO matches people by email, so letting an identity provider change an existing user's email would let it take over their account. Once someone has been promoted past viewer in the console, SCIM can still deactivate them (offboarding) but can no longer change their email or re-enable them (`403`).
+
 Deactivation takes effect on the next request: sessions and API keys of an inactive user are refused by the same check the rest of the product already makes.
 
 ## 1. Create a token
@@ -61,6 +63,8 @@ An email is unique across all of OpenProxyAI, so creating a user whose email alr
 ## Safeguards
 
 - Every change is written to the admin audit log (`user.scim_created`, `user.scim_updated`, `user.scim_deactivated`, `user.scim_reactivated`), with the token's prefix as the actor. Creating, rotating and revoking the token are logged too. The token itself is never logged.
+- Changing the email of a SCIM-created user unlinks their SSO identity and revokes their API keys.
+- Creating or re-enabling a user counts against the plan's user limit; when it is full the request returns `403` with `scimType: tooMany`. Deactivating is never blocked.
 - The last active admin of an organization cannot be deactivated through SCIM.
 - A PUT that omits `active` leaves it unchanged, so a replace never re-enables someone your identity provider deactivated.
 - Requests are limited per organization (600 per minute), and repeated failed token attempts from one address are throttled.

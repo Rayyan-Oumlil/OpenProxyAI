@@ -51,6 +51,8 @@ def upgrade() -> None:
     op.execute("GRANT SELECT, INSERT, DELETE ON scim_token_lookup TO app_user")
 
     op.add_column("users", sa.Column("external_id", sa.String(255), nullable=True))
+    # SCIM may only touch users it created itself; every existing user is false, so an identity provider cannot take one over.
+    op.add_column("users", sa.Column("scim_managed", sa.Boolean(), nullable=False, server_default=sa.text("false")))
     op.create_index(
         "uq_users_org_external_id", "users", ["org_id", "external_id"], unique=True, postgresql_where=sa.text("external_id IS NOT NULL")
     )
@@ -58,6 +60,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("uq_users_org_external_id", table_name="users")
+    op.drop_column("users", "scim_managed")
     op.drop_column("users", "external_id")
     op.drop_table("scim_token_lookup")
     op.execute("DROP POLICY IF EXISTS rls_org_isolation ON scim_tokens")

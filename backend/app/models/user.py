@@ -43,6 +43,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     # SCIM externalId: the identity provider's own id for this user (unique within an org).
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # True only for users created through SCIM. SCIM can read and change nothing else.
+    scim_managed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
 
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="users")
