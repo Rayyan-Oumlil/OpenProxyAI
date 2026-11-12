@@ -25,6 +25,9 @@ const ROUTES = [
   "/eval-runs",
   "/conversations",
   "/conversations/c1",
+  "/policy-plugins",
+  "/analytics-query",
+  "/scores",
   "/teams",
   "/users-roles",
   "/organization-settings",
@@ -217,6 +220,32 @@ for (const theme of ["light", "dark"] as const) {
       await page.getByRole("button", { name: /New conversation/ }).click();
       await expect(page.getByRole("dialog", { name: "New conversation" })).toBeVisible();
       expect(await audit(page)).toEqual([]);
+    });
+
+    test("analytics query: a result on screen", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/analytics-query");
+      await expect(page.getByRole("option", { name: "Requests" })).toBeAttached();
+      await page.getByRole("button", { name: /Run query/ }).click();
+      await expect(page.getByText("openai/gpt-4o-mini")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+    });
+
+    test("policy plugins: a listed plugin and the upload form", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/policy-plugins");
+      await expect(page.getByText("no-codenames")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+    });
+
+    test("scores: the summary and the recent scores", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/scores");
+      await expect(page.getByText("loved it")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
     });
 
     test("evaluators: the new-evaluator dialog for a judge", async ({ page }) => {

@@ -20,6 +20,7 @@ import {
   withheldNotice,
 } from "../../lib/conversations";
 import { DATA_CLASSES, dataClassLabel } from "../../lib/dataClasses";
+import { StreamUnavailable, streamTurn } from "../../lib/streamTurn";
 import { formatDateTime } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
 import { ContextSheet } from "./ContextSheet";
@@ -74,9 +75,12 @@ function TurnCard({
 function Composer({
   conversation,
   onSent,
+  onLive,
 }: {
   conversation: Conversation;
   onSent: (exchange: TurnExchange) => void;
+  /** The answer so far while it is being written, or null when nothing is being written. */
+  onLive: (live: { model: string; text: string } | null) => void;
 }) {
   const { token } = useAuth();
   const ids = { model: useId(), cls: useId(), text: useId() };
@@ -95,12 +99,30 @@ function Composer({
   const chosen = model || choices[0]?.model_id || "";
 
   const send = useMutation({
-    mutationFn: (body: TurnRequest) =>
-      apiClient.post<TurnExchange>(
-        `${CONVERSATIONS}/${conversation.id}/turns`,
-        body,
-        token!,
-      ),
+    mutationFn: async (body: TurnRequest) => {
+      let text = "";
+      onLive({ model: body.model, text });
+      try {
+        return await streamTurn(conversation.id, body, token!, {
+          onContext: () => undefined,
+          onDelta: (piece) => {
+            text += piece;
+            onLive({ model: body.model, text });
+          },
+        });
+      } catch (e) {
+        // An organization that checks answers before delivering them cannot stream: ask again for the whole answer.
+        if (e instanceof StreamUnavailable)
+          return apiClient.post<TurnExchange>(
+            `${CONVERSATIONS}/${conversation.id}/turns`,
+            body,
+            token!,
+          );
+        throw e;
+      } finally {
+        onLive(null);
+      }
+    },
     onSuccess: (exchange) => {
       setContent("");
       setAsserted(""); // a sensitivity applies to the message it was chosen for, not to the ones after it
@@ -215,6 +237,9 @@ export function ThreadView({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [notice, setNotice] = useState("");
+  const [live, setLive] = useState<{ model: string; text: string } | null>(
+    null,
+  );
   const [inspecting, setInspecting] = useState<Turn | null>(null);
 
   const conversation = useQuery({
@@ -266,10 +291,17 @@ export function ThreadView({
                   <Users size={12} aria-hidden="true" />
                   &nbsp;Shared with a team
                 </>
+              ) : c.visibility === "org" ? (
+                "Shared with the organization"
               ) : (
                 "Private"
               )}
             </Badge>
+            {c.system_prompt ? (
+              <Badge variant="default" title={c.system_prompt}>
+                Has a standing instruction
+              </Badge>
+            ) : null}
             {c.tags.map((t) => (
               <Badge key={t} variant="default">
                 {t}
@@ -312,6 +344,20 @@ export function ThreadView({
         )}
       </div>
 
+      {live ? (
+        <article
+          className="turn turn--assistant"
+          aria-label="Assistant, writing"
+        >
+          <header className="turn__meta">
+            <strong>Assistant</strong>
+            <span className="text-muted text-sm">{live.model}</span>
+            <span className="text-muted text-sm">writing…</span>
+          </header>
+          <p className="turn__body">{live.text || "…"}</p>
+        </article>
+      ) : null}
+
       <div
         role="status"
         aria-live="polite"
@@ -323,6 +369,7 @@ export function ThreadView({
       {c.is_owner ? (
         <Composer
           conversation={c}
+          onLive={setLive}
           onSent={(exchange) => {
             setNotice(withheldNotice(exchange.context));
             void qc.invalidateQueries({

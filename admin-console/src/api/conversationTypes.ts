@@ -1,6 +1,6 @@
 import type { DataClass } from "./types";
 
-export type Visibility = "private" | "team";
+export type Visibility = "private" | "team" | "org";
 export type ConversationScope = "mine" | "shared" | "org";
 
 export type Conversation = {
@@ -9,6 +9,7 @@ export type Conversation = {
   visibility: Visibility;
   team_id: string | null;
   tags: string[];
+  system_prompt: string | null;
   owner_id: string;
   owner_email: string | null;
   is_owner: boolean;
@@ -22,6 +23,7 @@ export type ConversationCreate = {
   visibility?: Visibility;
   team_id?: string | null;
   tags?: string[];
+  system_prompt?: string | null;
 };
 export type ConversationUpdate = Partial<ConversationCreate>;
 
@@ -52,6 +54,8 @@ export type ContextSummary = {
   withheld: WithheldTurn[];
   estimated_tokens: number;
   payload_sha256: string;
+  /** Under log_only nothing is held back; this is what enforcement would have held back. */
+  would_withhold?: WithheldTurn[];
   outcome: "ok" | "error";
   created_at: string;
 };

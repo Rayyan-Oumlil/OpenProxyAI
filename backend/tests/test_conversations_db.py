@@ -350,3 +350,61 @@ async def test_usable_models_are_the_enabled_ones_with_a_live_key_and_their_effe
 	async with as_user(org.id, org.alice) as api:
 		listed = (await api.http.get(f"{PATH}/models")).json()
 	assert listed == [{"model_id": "openai/gpt-4o", "max_data_class": "internal"}]  # the key's lower class wins
+
+
+# -- org-wide sharing and personas ---------------------------------------------------------------------
+
+
+async def test_only_an_admin_can_publish_a_conversation_to_the_whole_org(org):
+	async with as_user(org.id, org.alice) as api:
+		refused = await api.http.post(PATH, json={"title": "x", "visibility": "org"})
+		assert refused.status_code == 403 and refused.json()["detail"]["error"] == "admin_only"
+		mine = await make(api)
+		assert (await api.http.patch(f"{PATH}/{mine['id']}", json={"visibility": "org"})).status_code == 403
+	async with as_user(org.id, org.admin, role="admin") as api:
+		published = await api.http.post(PATH, json={"title": "handbook Q&A", "visibility": "org"})
+		assert published.status_code == 201 and published.json()["visibility"] == "org" and published.json()["team_id"] is None
+
+
+async def test_an_org_conversation_is_readable_by_every_member_and_writable_by_none_but_its_owner(org):
+	async with as_user(org.id, org.admin, role="admin") as api:
+		shared = await make(api, visibility="org")
+		await add_turns(org.id, shared["id"], "welcome", "hello")
+	path = f"{PATH}/{shared['id']}"
+	viewer = await member(org.id, "viewer")
+	for reader in (org.alice, org.bob, viewer):
+		async with as_user(org.id, reader) as api:
+			assert (await api.http.get(path)).json()["is_owner"] is False
+			assert [t["content"] for t in (await api.http.get(f"{path}/turns")).json()] == ["welcome", "hello"]
+			assert shared["id"] in [c["id"] for c in (await api.http.get(PATH, params={"scope": "shared"})).json()]
+			assert (await api.http.patch(path, json={"title": "hijack"})).status_code == 404
+			assert (await api.http.delete(path)).status_code == 404
+	stranger = await member(org.other)
+	async with as_user(org.other, stranger) as api:
+		assert (await api.http.get(path)).status_code == 404  # org-wide means this org, not every org
+
+
+async def test_unpublishing_an_org_conversation_takes_access_away(org):
+	async with as_user(org.id, org.admin, role="admin") as api:
+		shared = await make(api, visibility="org")
+		assert (await api.http.patch(f"{PATH}/{shared['id']}", json={"visibility": "private"})).json()["visibility"] == "private"
+	async with as_user(org.id, org.alice) as api:
+		assert (await api.http.get(f"{PATH}/{shared['id']}")).status_code == 404
+
+
+async def test_an_org_conversation_cannot_carry_a_team(org):
+	team = await team_of(org.id, org.admin)
+	async with as_user(org.id, org.admin, role="admin") as api:
+		assert (await api.http.post(PATH, json={"title": "x", "visibility": "org", "team_id": str(team)})).status_code == 422
+
+
+async def test_a_persona_is_stored_returned_changed_and_cleared(org):
+	async with as_user(org.id, org.alice) as api:
+		created = await make(api, system_prompt="  You are a terse reviewer.  ")
+		assert created["system_prompt"] == "You are a terse reviewer."
+		changed = (await api.http.patch(f"{PATH}/{created['id']}", json={"system_prompt": "Answer in French."})).json()
+		assert changed["system_prompt"] == "Answer in French."
+		cleared = (await api.http.patch(f"{PATH}/{created['id']}", json={"system_prompt": None})).json()
+		assert cleared["system_prompt"] is None
+		assert (await api.http.post(PATH, json={"title": "x", "system_prompt": ""})).status_code == 422
+		assert (await api.http.post(PATH, json={"title": "x", "system_prompt": "a" * 4_001})).status_code == 422

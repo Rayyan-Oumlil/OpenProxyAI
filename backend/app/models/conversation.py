@@ -15,13 +15,13 @@ from sqlalchemy.sql import func
 
 from app.models.base import Base, UUIDPrimaryKeyMixin
 
-PRIVATE, TEAM = "private", "team"
+PRIVATE, TEAM, ORG = "private", "team", "org"
 
 
 class Conversation(UUIDPrimaryKeyMixin, Base):
 	__tablename__ = "conversations"
 	__table_args__ = (
-		CheckConstraint("visibility IN ('private', 'team')", name="ck_conversations_visibility"),
+		CheckConstraint("visibility IN ('private', 'team', 'org')", name="ck_conversations_visibility"),
 		Index("ix_conversations_owner_updated", "owner_id", "updated_at"),
 	)
 
@@ -29,6 +29,8 @@ class Conversation(UUIDPrimaryKeyMixin, Base):
 	owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 	team_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
 	title: Mapped[str] = mapped_column(String(200), nullable=False)
+	# A standing instruction (a persona) sent with every message. Part of the package, so it is classified and routed like the message.
+	system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 	# "team" with no team_id is a conversation whose team was deleted: nobody but the owner can read it, and the API reports it
 	# as private. (A CHECK demanding a team would make deleting a team fail.)
 	visibility: Mapped[str] = mapped_column(String(10), nullable=False, server_default=PRIVATE)
@@ -73,6 +75,8 @@ class ConversationContextPackage(UUIDPrimaryKeyMixin, Base):
 	routing_mode: Mapped[str] = mapped_column(String(10), nullable=False)
 	included_turn_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
 	withheld: Mapped[list] = mapped_column(JSONB, nullable=False)
+	# Under log_only nothing is withheld, so this records what enforcement WOULD have held back: the preview before turning enforce on.
+	would_withhold: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
 	estimated_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
 	payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
 	outcome: Mapped[str] = mapped_column(String(10), nullable=False)

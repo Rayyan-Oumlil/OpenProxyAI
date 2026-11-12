@@ -72,7 +72,7 @@ describe("CommandPalette", () => {
     renderPalette();
     await screen.findByRole("dialog");
     fireEvent.change(input(), { target: { value: "policy" } });
-    expect(options().map((o) => o.textContent)).toEqual(["PolicyGovern"]);
+    expect(options().map((o) => o.textContent)).toEqual(["PolicyGovern", "Policy pluginsGovern"]);
 
     fireEvent.change(input(), { target: { value: "zzz" } });
     expect(screen.queryAllByRole("option")).toHaveLength(0);

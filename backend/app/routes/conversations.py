@@ -13,17 +13,20 @@ A conversation the caller may not see is a 404, never a 403, so its existence is
 
 from __future__ import annotations
 
+import json
+import uuid as uuid_module
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import CurrentUser, get_db, get_redis
-from app.models.conversation import PRIVATE, TEAM, Conversation, ConversationContextPackage, ConversationTurn
+from app.models.conversation import ORG, PRIVATE, TEAM, Conversation, ConversationContextPackage, ConversationTurn
 from app.models.team import Team, team_members
 from app.models.user import User
 from app.schemas.conversation import (
@@ -41,7 +44,7 @@ from app.schemas.conversation import (
 from app.services.admin_audit_service import get_ip, log_admin_action
 from app.services.data_class import DATA_CLASSES
 from app.services.routing_service import clearance, load_candidates
-from app.services.conversation_turns import DEFAULT_CONTEXT_TOKENS, run_turn
+from app.services.conversation_turns import DEFAULT_CONTEXT_TOKENS, PreparedTurn, TurnResult, begin_turn, run_turn, stream_turn
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_store
 from app.services.rate_limiter import rate_limiter_service
 
@@ -60,7 +63,11 @@ def _my_teams(user):
 
 def visible_to(user):
 	"""SQL condition: conversations this user may read."""
-	return or_(Conversation.owner_id == user.id, and_(Conversation.visibility == TEAM, Conversation.team_id.in_(_my_teams(user))))
+	return or_(
+		Conversation.owner_id == user.id,
+		Conversation.visibility == ORG,
+		and_(Conversation.visibility == TEAM, Conversation.team_id.in_(_my_teams(user))),
+	)
 
 
 async def load_readable(db: AsyncSession, user, conversation_id: UUID) -> Conversation:
@@ -87,6 +94,15 @@ async def _require_enabled(redis, db: AsyncSession, user) -> None:
 		)
 
 
+def _require_admin_to_publish(user) -> None:
+	"""Org-wide sharing puts a conversation in front of every member, so only an admin may do it (and only with their own)."""
+	if user.role != "admin":
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail={"error": "admin_only", "detail": "Only an organization admin can share a conversation with the whole organization."},
+		)
+
+
 async def _validate_team(db: AsyncSession, user, team_id: UUID) -> None:
 	"""The team must be in the caller's org and the caller a member: you cannot share with a team you are not in."""
 	in_org = await db.scalar(select(Team.id).where(Team.id == team_id, Team.org_id == user.org_id))
@@ -108,9 +124,15 @@ async def _responses(db: AsyncSession, user, rows: list[Conversation]) -> list[C
 		.where(ConversationTurn.conversation_id.in_([row.id for row in rows])).group_by(ConversationTurn.conversation_id)
 	)).all())
 	emails = dict((await db.execute(select(User.id, User.email).where(User.id.in_({row.owner_id for row in rows})))).all())
+	my_teams = set((await db.scalars(_my_teams(user))).all())
+
+	def may_read(row: Conversation) -> bool:
+		# The org-wide listing is metadata for admins: a persona is content, so it is shown only where the caller could read the conversation.
+		return row.owner_id == user.id or row.visibility == ORG or (row.visibility == TEAM and row.team_id in my_teams)
+
 	return [
 		ConversationResponse(
-			id=row.id, title=row.title, visibility=row.visibility if row.team_id else PRIVATE, team_id=row.team_id, tags=list(row.tags or []), owner_id=row.owner_id,
+			id=row.id, title=row.title, visibility=PRIVATE if row.visibility == TEAM and not row.team_id else row.visibility, team_id=row.team_id, tags=list(row.tags or []), system_prompt=row.system_prompt if may_read(row) else None, owner_id=row.owner_id,
 			owner_email=emails.get(row.owner_id), is_owner=row.owner_id == user.id, turn_count=int(counts.get(row.id, 0)),
 			created_at=row.created_at, updated_at=row.updated_at,
 		)
@@ -125,6 +147,8 @@ async def create_conversation(
 	if current_user.role not in _WRITE_ROLES:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your role cannot start conversations")
 	await _require_enabled(redis, db, current_user)
+	if payload.visibility == ORG:
+		_require_admin_to_publish(current_user)
 	if payload.team_id is not None:
 		await _validate_team(db, current_user, payload.team_id)
 	owned = await db.scalar(select(func.count()).select_from(Conversation).where(Conversation.owner_id == current_user.id))
@@ -135,7 +159,7 @@ async def create_conversation(
 		)
 	row = Conversation(
 		org_id=current_user.org_id, owner_id=current_user.id, team_id=payload.team_id, title=payload.title,
-		visibility=payload.visibility, tags=payload.tags,
+		visibility=payload.visibility, tags=payload.tags, system_prompt=payload.system_prompt,
 	)
 	db.add(row)
 	await db.commit()
@@ -203,12 +227,16 @@ async def update_conversation(
 		row.title = payload.title
 	if "tags" in changes:
 		row.tags = payload.tags
+	if "system_prompt" in changes:
+		row.system_prompt = payload.system_prompt
 	if "visibility" in changes or "team_id" in changes:
 		visibility = payload.visibility if "visibility" in changes else row.visibility
 		team_id = payload.team_id if "team_id" in changes else row.team_id
-		if visibility == PRIVATE:
+		if visibility in (PRIVATE, ORG):
 			if "team_id" in changes and payload.team_id is not None:
 				raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="team_id is only for a conversation shared with a team")
+			if visibility == ORG and row.visibility != ORG:
+				_require_admin_to_publish(current_user)
 			team_id = None
 		elif team_id is None:
 			raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="team_id is required when visibility is 'team'")
@@ -250,7 +278,7 @@ def _context_summary(package: ConversationContextPackage) -> ContextSummary:
 	return ContextSummary(
 		package_id=package.id, model=package.model, data_class=package.data_class, routing_mode=package.routing_mode,
 		included_turn_ids=package.included_turn_ids, withheld=package.withheld, estimated_tokens=package.estimated_tokens,
-		payload_sha256=package.payload_sha256, outcome=package.outcome, created_at=package.created_at,
+		payload_sha256=package.payload_sha256, outcome=package.outcome, would_withhold=package.would_withhold, created_at=package.created_at,
 	)
 
 
@@ -268,6 +296,56 @@ async def _rate_limit(redis, user, policy, model: str, estimated_tokens: int) ->
 		)
 
 
+def _sse(event: str, data: dict) -> str:
+	return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+
+
+def _exchange(result: TurnResult) -> TurnExchange:
+	outcome = result.outcome
+	return TurnExchange(
+		user_turn=_turn_response(result.user_turn), assistant_turn=_turn_response(result.assistant_turn), context=_context_summary(result.package),
+		prompt_tokens=outcome.prompt_tokens, completion_tokens=outcome.completion_tokens, cost_usd=str(outcome.cost_usd),
+	)
+
+
+def _raise_for_failure(result: TurnResult) -> None:
+	outcome = result.outcome
+	if outcome.refused:
+		raise HTTPException(status_code=POLICY_BLOCK_STATUS, detail={"error": "refused", "detail": outcome.error})
+	if outcome.error:
+		detail = {"error": "model_error", "detail": outcome.error}
+		if result.package is not None:
+			detail["package_id"] = str(result.package.id)
+		raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
+
+
+async def _release(redis, lock_key: str, token: str) -> None:
+	"""Release the lock only if it is still ours: if it expired and another turn took it, deleting it would free theirs."""
+	held = await redis.get(lock_key)
+	if (held.decode() if isinstance(held, bytes) else held) == token:
+		await redis.delete(lock_key)
+
+
+async def _events(prepared: PreparedTurn, redis, lock_key: str, token: str):
+	"""The SSE body. The lock is renewed each time the answer makes progress, so it outlives a long answer but not a stalled one,
+	and it is released however the stream ends."""
+	try:
+		async for event, data in stream_turn(prepared, redis):
+			if event == "delta":
+				await redis.expire(lock_key, _TURN_LOCK_SECONDS)
+			if event in ("done", "error"):
+				result: TurnResult = data
+				if event == "done":
+					exchange = _exchange(result)
+					yield _sse("done", json.loads(exchange.model_dump_json()))
+				else:
+					yield _sse("error", {"error": "model_error", "detail": result.outcome.error, **({"package_id": str(result.package.id)} if result.package else {})})
+			else:
+				yield _sse(event, data)
+	finally:
+		await _release(redis, lock_key, token)
+
+
 @router.post("/{conversation_id}/turns", response_model=TurnExchange, status_code=status.HTTP_201_CREATED)
 async def add_turn(
 	conversation_id: UUID, payload: TurnRequest, current_user: CurrentUser, db: AsyncSession = Depends(get_db), redis=Depends(get_redis)
@@ -280,34 +358,47 @@ async def add_turn(
 	await _require_enabled(redis, db, current_user)
 	policy = await policy_store.load(current_user.org_id, db, redis)
 
+	if payload.stream and policy.response_guardrails_enabled:
+		raise HTTPException(
+			status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+			detail={
+				"error": "streaming_unavailable",
+				"detail": "This organization checks answers against response guardrails, which needs the whole answer before any of it is delivered. Ask for the answer without streaming.",
+			},
+		)
+
 	lock_key = f"conversation-turn:{conversation.id}"
-	if not await redis.set(lock_key, "1", nx=True, ex=_TURN_LOCK_SECONDS):
+	token = uuid_module.uuid4().hex
+	if not await redis.set(lock_key, token, nx=True, ex=_TURN_LOCK_SECONDS):
 		raise HTTPException(
 			status_code=status.HTTP_409_CONFLICT,
 			detail={"error": "turn_in_progress", "detail": "Another message in this conversation is still being answered."},
 		)
-	try:
-		result = await run_turn(
-			db, redis, conversation=conversation, user_id=current_user.id, model=payload.model, content=payload.content,
-			asserted_class=payload.data_class, policy=policy, system_prompt=payload.system_prompt, temperature=payload.temperature,
-			max_tokens=payload.max_tokens, token_budget=payload.max_context_tokens or DEFAULT_CONTEXT_TOKENS,
-			before_call=lambda tokens: _rate_limit(redis, current_user, policy, payload.model, tokens),
-		)
-	finally:
-		await redis.delete(lock_key)
-
-	outcome = result.outcome
-	if outcome.refused:
-		raise HTTPException(status_code=POLICY_BLOCK_STATUS, detail={"error": "refused", "detail": outcome.error})
-	if outcome.error:
-		detail = {"error": "model_error", "detail": outcome.error}
-		if result.package is not None:
-			detail["package_id"] = str(result.package.id)
-		raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
-	return TurnExchange(
-		user_turn=_turn_response(result.user_turn), assistant_turn=_turn_response(result.assistant_turn), context=_context_summary(result.package),
-		prompt_tokens=outcome.prompt_tokens, completion_tokens=outcome.completion_tokens, cost_usd=str(outcome.cost_usd),
+	options = dict(
+		user_id=current_user.id, model=payload.model, content=payload.content, asserted_class=payload.data_class, policy=policy,
+		system_prompt=payload.system_prompt or conversation.system_prompt, temperature=payload.temperature, max_tokens=payload.max_tokens,
+		token_budget=payload.max_context_tokens or DEFAULT_CONTEXT_TOKENS,
+		before_call=lambda tokens: _rate_limit(redis, current_user, policy, payload.model, tokens),
 	)
+	if payload.stream:
+		try:
+			prepared = await begin_turn(db, redis, conversation=conversation, **options)
+		except BaseException:
+			await _release(redis, lock_key, token)
+			raise
+		if isinstance(prepared, TurnResult):  # refused, or no key: the same errors as without streaming, before any stream starts
+			await _release(redis, lock_key, token)
+			_raise_for_failure(prepared)
+		return StreamingResponse(
+			_events(prepared, redis, lock_key, token), media_type="text/event-stream",
+			headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-OpenProxyAI-Request-Id": str(prepared.plan.request_id)},
+		)
+	try:
+		result = await run_turn(db, redis, conversation=conversation, **options)
+	finally:
+		await _release(redis, lock_key, token)
+	_raise_for_failure(result)
+	return _exchange(result)
 
 
 @router.get("/{conversation_id}/turns/{turn_id}/context", response_model=ContextSummary)

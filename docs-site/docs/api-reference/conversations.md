@@ -15,7 +15,7 @@ Authenticated with a user JWT (the console's session). Read the [guide](/guides/
 
 | Method | Path | |
 |---|---|---|
-| `POST` | `/` | Start one. Body: `{"title", "visibility": "private"\|"team", "team_id", "tags"}`. Sharing needs a team you belong to (422 `not_a_team_member`). 403 `conversations_disabled`; 409 `too_many_conversations` at 500. |
+| `POST` | `/` | Start one. Body: `{"title", "visibility": "private"\|"team"\|"org", "team_id", "tags", "system_prompt"}`. `org` is admin only (403 `admin_only`). Sharing needs a team you belong to (422 `not_a_team_member`). 403 `conversations_disabled`; 409 `too_many_conversations` at 500. |
 | `GET` | `/?scope=mine\|shared\|org&limit&offset` | List. `org` is admins only and returns titles, owners and sizes. |
 | `GET` | `/{id}` | One conversation. 404 if it is not yours or not shared with you. |
 | `GET` | `/{id}/turns` | The messages, in order, with each one's `data_class` and `model`. |

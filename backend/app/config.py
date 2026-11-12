@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     # Charged per unit (an image, a call) when LiteLLM cannot price a non-chat call, so an unpriced model still counts against budgets.
     UNPRICED_CALL_COST_USD: float = 0.01
 
+    # ── Batches ───────────────────────────────────────────────────────────────────────────────
+    BATCH_FILE_RETENTION_DAYS: int = 7  # uploaded inputs and finished outputs hold real text, so they are deleted after this
+    BATCH_MAX_FILES_PER_USER: int = 50
+    BATCH_DEFAULT_MAX_COST_USD: float = 5.0  # the spending cap when a batch does not set one
+    BATCH_MAX_COST_USD: float = 500.0
+
     # ── HashiCorp Vault (provider keys read from KV v2 instead of stored) ───────────────────────
     # Held by the operator, never by an org. Either a token, or an AppRole (role id + secret id).
     VAULT_ADDR: str = ""
