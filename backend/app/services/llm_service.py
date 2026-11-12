@@ -33,6 +33,7 @@ from app.schemas.chat import ChatCompletionRequest, Message, _substitute_variabl
 from app.services import behavior as behavior_mod
 from app.services import cache_service
 from app.services.policy_service import POLICY_BLOCK_STATUS
+from app.services.refusal_explanations import explain_policy
 from app.services.routing_service import CAPABILITY_PREFIX, RoutingDecision, decide, load_candidates, may_leave_registry
 from app.utils.region import org_data_region, region_of
 from app.services.classification_service import (
@@ -695,6 +696,7 @@ class LLMService:
 				"error": "routing_blocked",
 				"reason_code": "no_authorized_model",
 				"detail": "No model authorized for this request's data class can serve it.",
+				"explanation": routing.explanation,
 				"route_reason": routing.reason,
 				"data_class": routing.data_class,
 				"requested_model": routing.requested,
@@ -761,6 +763,7 @@ class LLMService:
 				"error": "policy_violation",
 				"detail": decision.detail or "Request blocked by policy.",
 				"reason_code": decision.reason_code,
+				"explanation": explain_policy(decision.reason_code),
 				"triggered_rules": decision.triggered_rules or [],
 			},
 			headers={

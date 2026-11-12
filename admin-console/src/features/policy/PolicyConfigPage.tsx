@@ -293,7 +293,7 @@ function TemplateCard({
                 className="inline-block mt-3 text-xs px-2 py-1 rounded-full"
                 style={{ background: "color-mix(in srgb, var(--warn) 14%, transparent)", color: "var(--warn)" }}
               >
-                Requires Starter plan
+                Requires Team plan
               </span>
             )
           )}
@@ -747,7 +747,7 @@ export function PolicyConfigPage() {
                     template={tpl}
                     isApplied={currentTemplate === tpl.name}
                     isAdmin={isAdmin}
-                    isEligible={orgQuery.data?.plan !== "free"}
+                    isEligible={orgQuery.data?.plan !== "community"}
                     onApply={() => setConfirmTemplate(tpl.name)}
                     isApplying={applyTemplateMutation.isPending && confirmTemplate === tpl.name}
                   />

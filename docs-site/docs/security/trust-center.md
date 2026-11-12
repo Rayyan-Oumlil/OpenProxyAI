@@ -15,7 +15,7 @@ This page is about OpenProxyAI's own security posture as a vendor — not the gu
 
 OpenProxyAI is self-hosted: it runs inside your own VPC, against your own Postgres and Redis. There is no multi-tenant SaaS data plane where your requests pass through infrastructure OpenProxyAI operates on your behalf — the software runs on infrastructure you control, so the relevant subprocessors are the ones *you* choose (your cloud provider, your database host), not a fixed list OpenProxyAI dictates.
 
-For the Starter and Growth plans' hosted option, deployment specifics and the exact subprocessor list are covered during procurement — ask your point of contact.
+For the Team and Business plans' hosted option, deployment specifics and the exact subprocessor list are covered during procurement — ask your point of contact.
 
 ## How data isolation is enforced
 

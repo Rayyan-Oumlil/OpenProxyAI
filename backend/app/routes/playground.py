@@ -25,6 +25,7 @@ from app.services.classification_service import classify_chat_request
 from app.services.llm_service import llm_service, split_model
 from app.services.model_runner import CallPlan, RunOutcome, execute_plan, plan_call
 from app.services.policy_service import POLICY_BLOCK_STATUS, policy_service, policy_store
+from app.services.refusal_explanations import explain_policy
 from app.services.rate_limiter import rate_limiter_service
 
 router = APIRouter(prefix="/api/v1", tags=["Playground"])
@@ -383,6 +384,7 @@ async def playground_compare(
                     "error": "policy_violation",
                     "detail": decision.detail or "Blocked by policy.",
                     "reason_code": decision.reason_code,
+                    "explanation": explain_policy(decision.reason_code),
                 },
             )
 

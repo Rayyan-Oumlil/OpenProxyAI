@@ -79,6 +79,41 @@ describe("RoutingPreview", () => {
     expect(screen.getByText(/Not checked here: rate limits, budgets, the provider call\./)).toBeTruthy();
   });
 
+  it("shows what the caller would be told: the policy sentence first, else the routing one, nothing when allowed", async () => {
+    const refusedRouting = {
+      current_mode: "enforce" as const, requested: "openai/gpt-4o", model: null, reason: "not_authorized:class_too_low",
+      authorized: [], excluded: {}, key_alias: null, explanation: "openai/gpt-4o is not approved for confidential data in your organization.",
+    };
+    post.mockResolvedValue(result({ verdict: "blocked_by_routing", routing: refusedRouting }));
+    renderPanel();
+    fill();
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    expect(await screen.findByText("Caller would be told")).toBeTruthy();
+    expect(screen.getByText("openai/gpt-4o is not approved for confidential data in your organization.")).toBeTruthy();
+    cleanup();
+
+    post.mockResolvedValue(
+      result({
+        verdict: "blocked_by_policy",
+        policy: { mode: "enforce", allowed: false, action: "block", reason_code: "pii_detected", detail: "x", triggered_rules: [], explanation: "This request appears to contain personal or sensitive data that your organization's policy does not allow to be sent." },
+        routing: refusedRouting,
+      }),
+    );
+    renderPanel();
+    fill();
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    expect(await screen.findByText(/appears to contain personal or sensitive data/)).toBeTruthy();
+    expect(screen.queryByText(/is not approved for confidential data/)).toBeNull();
+    cleanup();
+
+    post.mockResolvedValue(result());
+    renderPanel();
+    fill();
+    fireEvent.click(screen.getByRole("button", { name: "Preview" }));
+    await screen.findByText("Would be served");
+    expect(screen.queryByText("Caller would be told")).toBeNull();
+  });
+
   it("explains a refusal: what was ruled out and why, and the fallback's fate", async () => {
     post.mockResolvedValue(
       result({
