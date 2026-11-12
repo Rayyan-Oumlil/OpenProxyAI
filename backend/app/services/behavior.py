@@ -39,6 +39,13 @@ TEMPERATURE: Final = {"low": 0.2, "medium": 0.7, "high": 1.0}
 MAX_TOKENS: Final = {"short": 256, "medium": 1024, "long": 4096}
 _EFFORT_RANK: Final = ("minimal", *REASONING)  # a caller's own reasoning_effort may be "minimal", which sits below "low"
 
+# Where a call goes and with whose credentials is the gateway's decision (the org's provider keys and registry), never the caller's.
+# A request body may carry extra fields, and these must never reach the provider call, with or without a ceiling.
+TRANSPORT_FIELDS: Final = frozenset({
+    "api_base", "base_url", "api_key", "api_version", "client", "custom_llm_provider", "extra_headers", "headers", "organization",
+    "azure_ad_token", "aws_access_key_id", "aws_secret_access_key", "aws_session_token", "vertex_credentials", "vertex_project", "vertex_location",
+})
+
 # Fail closed: while a ceiling is active, only these reach the provider (plus what the plan itself sets). A name list of aliases is
 # incomplete by nature (every provider invents new ones), so anything not listed here is removed and recorded, whatever it is called.
 ALLOWED: Final = frozenset({
