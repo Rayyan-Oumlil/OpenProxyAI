@@ -68,6 +68,32 @@ export const LOG_DETAIL = {
   policy_triggered_rules: null,
 };
 
+/** A request the gateway refused: routing found no authorized model, and the caller was given a plain sentence. */
+export const LOG_DETAIL_REFUSED = {
+  ...LOG_DETAIL,
+  id: "l2",
+  status: "error",
+  error_message: "policy_blocked:no_authorized_model",
+  policy_action: "block",
+  policy_reason: "no_authorized_model",
+  request_metadata: {
+    stages: [
+      { name: "policy", start_ms: 0, ms: 12 },
+      { name: "route", start_ms: 12, ms: 2 },
+    ],
+    data_class: { class: "confidential", source: "detected", entities: ["ssn"] },
+    routing: {
+      mode: "enforce",
+      requested: "openai/gpt-4o-mini",
+      model: null,
+      reason: "not_authorized:class_too_low",
+      authorized: ["openai/gpt-4o"],
+      excluded: { "openai/gpt-4o-mini": "class_too_low" },
+      explanation: "openai/gpt-4o-mini is not approved for confidential data in your organization.",
+    },
+  },
+};
+
 export const LOG_ITEM = {
   id: "l1",
   created_at: "2026-11-03T10:00:00Z",
@@ -148,6 +174,7 @@ export const POLICY_PREVIEW = {
     authorized: ["openai/gpt-4o"],
     excluded: { "openai/gpt-4o-mini": "class_too_low" },
     key_alias: null,
+    explanation: "openai/gpt-4o-mini is not approved for confidential data in your organization.",
   },
   fallback: { model: "openai/gpt-4o-mini", authorized: false, reason: "class_too_low" },
   not_evaluated: ["rate_limit", "budget", "cache", "upstream"],
@@ -209,6 +236,7 @@ export async function mockApi(page: Page) {
     if (pathname === "/api/v1/auth/login") return json({ access_token: jwt(), refresh_token: "r", token_type: "bearer", expires_in: 3600 });
     if (pathname === "/api/v1/auth/me") return json(ME);
     if (pathname === "/api/v1/analytics/logs/l1") return json(LOG_DETAIL);
+    if (pathname === "/api/v1/analytics/logs/l2") return json(LOG_DETAIL_REFUSED);
     if (pathname === "/api/v1/analytics/overview") return json(overview(Number(new URL(route.request().url()).searchParams.get("period_days"))));
     if (pathname === "/api/v1/organizations/current") return json(ORG);
     if (pathname === "/api/v1/organizations/current/policy/templates") return json(POLICY_TEMPLATES);

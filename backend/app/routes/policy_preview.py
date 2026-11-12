@@ -28,6 +28,7 @@ from app.schemas.policy_preview import (
 from app.services.classification_service import classify_chat_request
 from app.services.llm_service import llm_service, route_decision, split_model
 from app.services.policy_service import policy_service, policy_store
+from app.services.refusal_explanations import explain_policy
 from app.services.routing_service import CAPABILITY_PREFIX
 
 router = APIRouter(prefix="/api/v1/policy", tags=["Policy"])
@@ -80,10 +81,12 @@ async def preview_policy(
 		policy=PolicyOut(
 			mode=stored.enforcement_mode, allowed=policy.allowed, action=policy.action, reason_code=policy.reason_code,
 			detail=policy.detail, triggered_rules=list(policy.triggered_rules or []),
+			explanation=None if policy.allowed else explain_policy(policy.reason_code),
 		),
 		routing=RoutingOut(
 			current_mode=stored.routing_mode, requested=payload.model, model=decision.model, reason=decision.reason,
 			authorized=list(decision.authorized), excluded=dict(decision.excluded), key_alias=key.key_alias if key is not None else None,
+			explanation=decision.explanation,
 		),
 		fallback=fallback,
 		not_evaluated=list(_NOT_EVALUATED),

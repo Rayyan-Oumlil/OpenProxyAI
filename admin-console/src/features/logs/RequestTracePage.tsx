@@ -89,6 +89,7 @@ function Outcome({ detail, trace }: { detail: RequestLogDetail; trace: Trace }) 
         </Fact>
         {dataClassText(trace) ? <Fact label="Data class">{dataClassText(trace)}</Fact> : null}
         {trace.routing ? <RoutingFact routing={trace.routing} /> : null}
+        {trace.callerMessage ? <Fact label="Caller was told">{trace.callerMessage}</Fact> : null}
         <Fact label="Cache">{cacheText(trace)}</Fact>
         <Fact label="Upstream">
           {reachedUpstream || detail.status === "success"
