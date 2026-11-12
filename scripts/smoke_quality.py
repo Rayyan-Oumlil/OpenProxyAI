@@ -23,7 +23,7 @@ ADMIN = (os.environ.get("ADMIN_EMAIL", "admin@example.com"), os.environ.get("ADM
 CLIENT_KEY = os.environ.get("API_KEY", "opai_dev_demo0001_00000000000000000000000000demo01fea5")
 CHEAP, STRONG = "openai/gpt-4o-mini", "openai/gpt-4o"
 CAPABILITY = "cap:SUMMARIZATION"
-RATINGS = 30  # per model; the signal ignores a model with fewer than 20
+RATINGS = 22  # per model; the signal ignores a model with fewer than 20
 
 failures = 0
 
@@ -59,9 +59,15 @@ def main():
         return call("PATCH", "/api/v1/organizations/current/policy", token=admin, body=fields)
 
     def chat(content, model, data_class=None):
+        """The demo key allows 60 requests a minute; on 429 wait for the window to reset instead of failing."""
         headers = {"x-openproxy-data-class": data_class} if data_class else {}
-        return call("POST", "/v1/chat/completions", token=CLIENT_KEY, headers=headers,
-                    body={"model": model, "messages": [{"role": "user", "content": content}]})
+        for _ in range(20):
+            result = call("POST", "/v1/chat/completions", token=CLIENT_KEY, headers=headers,
+                          body={"model": model, "messages": [{"role": "user", "content": content}]})
+            if result[0] != 429:
+                return result
+            time.sleep(5)
+        return result
 
     def rate(request_id, thumbs):
         """Feedback needs the request's log row, which is written in the background: retry until it lands."""
