@@ -39,12 +39,13 @@ TEMPERATURE: Final = {"low": 0.2, "medium": 0.7, "high": 1.0}
 MAX_TOKENS: Final = {"short": 256, "medium": 1024, "long": 4096}
 _EFFORT_RANK: Final = ("minimal", *REASONING)  # a caller's own reasoning_effort may be "minimal", which sits below "low"
 
-# Other names for the same limits. A ceiling that only watched temperature, max_tokens and reasoning_effort could be walked around with
-# these, so while a ceiling is active they are clamped (a number) or removed (anything else, or what has no level to compare with).
-LENGTH_ALIASES: Final = ("max_completion_tokens", "max_output_tokens", "max_new_tokens", "max_tokens_to_sample", "maxOutputTokens")
-CREATIVITY_UNMAPPED: Final = ("top_p", "top_k")  # sampling knobs with no level to compare against the ceiling
-REASONING_UNMAPPED: Final = ("reasoning", "thinking")  # {"effort": ...}, {"budget_tokens": ...}: provider-specific shapes
-PASSTHROUGH: Final = ("extra_body", "generation_config")  # carry arbitrary provider parameters past every check above
+# Fail closed: while a ceiling is active, only these reach the provider (plus what the plan itself sets). A name list of aliases is
+# incomplete by nature (every provider invents new ones), so anything not listed here is removed and recorded, whatever it is called.
+ALLOWED: Final = frozenset({
+    "model", "messages", "temperature", "max_tokens", "stream", "stop", "user", "frequency_penalty", "presence_penalty",
+    "tools", "tool_choice", "parallel_tool_calls", "functions", "function_call", "response_format", "stream_options",
+    "timeout", "request_timeout", "api_key", "api_base", "reasoning_effort",
+})
 
 CITATION_INSTRUCTION: Final = (
 	"When you rely on a specific source, document or earlier message, name it. "
@@ -252,25 +253,9 @@ def plan_params(*, resolved: Resolved | None, explicit: Mapping[str, Any], suppo
 		else:
 			params["reasoning_effort"] = eff.reasoning_depth
 	remove: list[str] = []
-	cap_tokens = _cap_of(ceiling.max_response_length, MAX_TOKENS)
-	if cap_tokens is not None:
-		for alias in LENGTH_ALIASES:
-			given = explicit.get(alias)
-			if given is None:
-				continue
-			if isinstance(given, (int, float)) and not isinstance(given, bool):
-				if given > cap_tokens:
-					params[alias] = cap_tokens
-					clamped.append({"param": alias, "from": given, "to": cap_tokens})
-			else:
-				remove.append(alias)
-	if ceiling.creativity is not None:
-		remove.extend(k for k in CREATIVITY_UNMAPPED if k in explicit)
-	if ceiling.reasoning_depth is not None:
-		remove.extend(k for k in REASONING_UNMAPPED if k in explicit)
 	if any(getattr(ceiling, key) is not None for key in SCALES):
-		remove.extend(k for k in PASSTHROUGH if k in explicit)
-	return Plan(params=params, ignored=tuple(ignored), clamped=tuple(clamped), remove=tuple(remove))
+		remove.extend(k for k in explicit if k not in ALLOWED and k not in remove)  # includes n and best_of, which multiply the output
+	return Plan(params=params, ignored=tuple(ignored), clamped=tuple(clamped), remove=tuple(dict.fromkeys(remove)))
 
 
 def with_citation_instruction(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -207,16 +207,9 @@ def test_the_api_refuses_what_it_cannot_store_safely(e2e_client, make_tenant, bo
 
 # ── aliases cannot walk around a ceiling ────────────────────────────────────
 
-@pytest.mark.parametrize("alias", ["max_completion_tokens", "max_output_tokens"])
-def test_a_length_alias_is_clamped_to_the_ceiling_at_the_provider(e2e_client, upstream, make_tenant, alias):
-    tenant = _tenant(make_tenant, behavior_ceiling={"max_response_length": "short"})
-    e2e_client.post(CHAT, json=_body(**{alias: 30000}), headers=tenant.headers)
-    assert _sent(upstream)[alias] == bh.MAX_TOKENS["short"]
-
-
 @pytest.mark.parametrize("extra", [
     {"top_p": 0.99}, {"top_k": 500}, {"reasoning": {"effort": "high"}}, {"thinking": {"budget_tokens": 100000}},
-    {"extra_body": {"max_tokens": 99999}}, {"generation_config": {"maxOutputTokens": 99999}},
+    {"max_completion_tokens": 30000}, {"max_output_tokens": 30000}, {"extra_body": {"max_tokens": 99999}}, {"generation_config": {"maxOutputTokens": 99999}},
 ])
 def test_unmapped_generation_parameters_never_reach_the_provider_while_a_ceiling_is_active(e2e_client, upstream, make_tenant, extra):
     ceiling = {"creativity": "low", "reasoning_depth": "low", "max_response_length": "short"}
@@ -233,3 +226,12 @@ def test_with_no_ceiling_those_parameters_are_left_exactly_as_sent(e2e_client, u
     e2e_client.post(CHAT, json=_body(top_p=0.4, max_completion_tokens=77), headers=tenant.headers)
     sent = _sent(upstream)
     assert (sent["top_p"], sent["max_completion_tokens"]) == (0.4, 77)
+
+
+def test_an_unknown_parameter_and_n_never_reach_the_provider_under_a_ceiling_but_tools_do(e2e_client, upstream, make_tenant):
+    tenant = _tenant(make_tenant, behavior_ceiling={"max_response_length": "long"})
+    tool = {"type": "function", "function": {"name": "f", "parameters": {"type": "object", "properties": {}}}}
+    e2e_client.post(CHAT, json=_body(n=8, max_thinking_tokens=99999, some_new_limit=1, tools=[tool]), headers=tenant.headers)
+    sent = _sent(upstream)
+    assert not {"n", "max_thinking_tokens", "some_new_limit"} & set(sent) and "tools" in sent
+    assert {"n", "max_thinking_tokens", "some_new_limit"} <= set(_log(tenant.org_id)["request_metadata"]["behavior"]["removed"])
