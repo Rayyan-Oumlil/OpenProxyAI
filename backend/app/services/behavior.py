@@ -51,7 +51,7 @@ TRANSPORT_FIELDS: Final = frozenset({
 ALLOWED: Final = frozenset({
     "model", "messages", "temperature", "max_tokens", "stream", "stop", "user", "frequency_penalty", "presence_penalty",
     "tools", "tool_choice", "parallel_tool_calls", "functions", "function_call", "response_format", "stream_options",
-    "timeout", "request_timeout", "api_key", "api_base", "reasoning_effort",
+    "reasoning_effort",
 })
 
 CITATION_INSTRUCTION: Final = (
