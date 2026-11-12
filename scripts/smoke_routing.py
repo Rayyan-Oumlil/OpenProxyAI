@@ -125,7 +125,8 @@ def main():
         print("-- enforce")
         check("enforce accepted", policy(routing_mode="enforce")[0] == 200)
         # A prompt nobody has sent before, so the answer cannot come from the cache and the upstream must be called.
-        prompt = f"credential check {os.getpid()}-{os.urandom(4).hex()}"
+        # Letters only: a run of digits can look like a payment card to the detector and make this check flaky.
+        prompt = "credential check " + (str(os.getpid()) + os.urandom(4).hex()).translate(str.maketrans("0123456789", "ghijklmnop"))
         status, headers, body = chat(prompt)
         check("an authorized request is served", status == 200 and headers.get("x-openproxyai-route-model") == "openai/gpt-4o-mini", body)
         try:
@@ -137,6 +138,11 @@ def main():
             print(f"skip (fake upstream not reachable at {FAKE_URL}: {error})")
         status, _, body = chat(data_class="confidential")
         check("too sensitive for the model: 446 routing_blocked", status == 446 and body.get("error") == "routing_blocked", body)
+        explanation = body.get("explanation") or ""
+        check("the refusal explains itself in a plain sentence naming the model and the class",
+              "openai/gpt-4o-mini" in explanation and "confidential" in explanation and explanation.endswith("."), body)
+        check("the explanation does not leak registry wiring or reason codes",
+              not any(word in explanation for word in ("class_too_low", "not_authorized", "key", "registry")), explanation)
         status, _, body = chat(model="openai/gpt-4o", data_class="confidential")
         check("the model cleared for it serves it", status == 200, body)
         status, _, body = chat(model="openai/gpt-4o", data_class="secret")
@@ -169,6 +175,9 @@ def main():
             else:
                 agrees = preview["verdict"] == "blocked_by_routing" and actual_status == 446 and actual_body.get("route_reason") == preview["routing"]["reason"]
             check(f"the real request did what the preview said: {model} / {data_class or 'default class'} ({preview['verdict']})", agrees, (actual_status, actual_body))
+            if preview["verdict"] == "blocked_by_routing":
+                check(f"the preview shows the same sentence the caller got: {model} / {data_class or 'default class'}",
+                      preview["routing"].get("explanation") and preview["routing"]["explanation"] == actual_body.get("explanation"), (preview["routing"], actual_body))
 
         print("-- the audit trail and the playground")
         status, _, logs = call("GET", "/api/v1/analytics/logs?limit=50", token=admin)
@@ -178,6 +187,7 @@ def main():
             _, _, detail = call("GET", f"/api/v1/analytics/logs/{refused[0]['id']}", token=admin)
             meta = detail.get("request_metadata") or {}
             check("a refused row carries its routing decision and data class", "routing" in meta and "data_class" in meta, meta)
+            check("a refused row records what the caller was told", bool((meta.get("routing") or {}).get("explanation")), meta)
         status, _, body = call("POST", "/api/v1/playground/compare", token=admin, body={
             "models": ["openai/gpt-4o", "openai/gpt-4o-mini-2024-07-18"], "messages": [{"role": "user", "content": "hello"}]})
         results = {r["model"]: r for r in body.get("results", [])} if status == 200 else {}
