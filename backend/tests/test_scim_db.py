@@ -17,7 +17,6 @@ from app.database import SystemSessionLocal, org_scoped_session
 from app.dependencies import get_redis
 from app.main import app
 from app.models.admin_audit_log import AdminAuditLog
-from app.models.api_key import ApiKey
 from app.models.scim_token import ScimToken
 from app.models.user import User
 from app.services import scim_limits
@@ -143,7 +142,7 @@ async def test_only_admins_on_a_plan_with_sso_can_manage_the_token(tenants):
         assert (await api.http.get("/api/v1/scim/token")).status_code == 403
         assert (await api.http.post("/api/v1/scim/token")).status_code == 403
         assert (await api.http.delete("/api/v1/scim/token")).status_code == 403
-    await set_plan(tenants.a, "free")
+    await set_plan(tenants.a, "community")
     async with Api(tenants.a, tenants.user_a) as api:
         assert (await api.http.post("/api/v1/scim/token")).status_code == 402
 
@@ -208,7 +207,7 @@ async def test_requests_per_org_are_limited(scim, monkeypatch):
 
 
 async def test_an_org_whose_plan_does_not_include_sso_cannot_use_scim(scim):
-    await set_plan(scim.tenants.a, "free")
+    await set_plan(scim.tenants.a, "community")
     scim_error(await scim.a("GET", "/Users"), 403)
 
 
@@ -309,14 +308,17 @@ async def test_delete_deactivates_and_keeps_the_row(scim):
     scim_error(await scim.a("DELETE", f"/Users/{uuid.uuid4()}"), 404)
 
 
-async def test_changing_the_email_checks_it_is_free(scim):
-    first = (await scim.a("POST", "/Users", new_user())).json()
-    second = (await scim.a("POST", "/Users", new_user())).json()
-    clash = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "userName", "value": first["userName"]}]}
-    scim_error(await scim.a("PATCH", f"/Users/{second['id']}", clash), 409, "uniqueness")
-    free = email()
-    ok = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "userName", "value": free.upper()}]}
-    assert (await scim.a("PATCH", f"/Users/{second['id']}", ok)).json()["userName"] == free
+async def test_the_email_of_an_existing_user_can_never_be_changed(scim):
+    """SSO matches people by email, and tokens already issued would keep working: so the identity provider cannot re-point it."""
+    user = (await scim.a("POST", "/Users", new_user())).json()
+    other = email()
+    change = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "userName", "value": other}]}
+    scim_error(await scim.a("PATCH", f"/Users/{user['id']}", change), 403, "mutability")
+    scim_error(await scim.a("PATCH", f"/Users/{user['id']}", {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "value": {"userName": other}}]}), 403, "mutability")
+    scim_error(await scim.a("PUT", f"/Users/{user['id']}", {"userName": other}), 403, "mutability")
+    assert (await fetch_user(scim.tenants.a, user["id"])).email == user["userName"]
+    # Resending the same email (every PUT does) and changing the case of it are not changes.
+    assert (await scim.a("PUT", f"/Users/{user['id']}", {"userName": user["userName"].upper(), "displayName": "Same"})).status_code == 200
 
 
 # ── roles: SCIM can never grant admin ─────────────────────────────────────────
@@ -340,23 +342,78 @@ async def test_scim_cannot_grant_or_change_roles(scim):
 # ── SCIM only manages the users it created; it cannot take over anyone else ───
 
 
-async def test_scim_cannot_see_or_touch_users_it_did_not_create(scim):
-    """The seeded admin was created outside SCIM: invisible to it, and 404 on every verb (no email takeover of an admin)."""
-    admin_id = str(scim.tenants.user_a.id)
-    before = await fetch_user(scim.tenants.a, admin_id)
-    takeover = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "userName", "value": email()}]}
-    for method, body in (("GET", None), ("PATCH", takeover), ("PUT", {"userName": email()}), ("DELETE", None)):
-        scim_error(await scim.a(method, f"/Users/{admin_id}", body), 404)
-    after = await fetch_user(scim.tenants.a, admin_id)
-    assert (after.email, after.is_active, after.role) == (before.email, True, "admin")
-    listed = (await scim.a("GET", "/Users")).json()
-    assert admin_id not in {r["id"] for r in listed["Resources"]}
-    assert (await scim.a("GET", "/Users", params={"filter": f'userName eq "{before.email}"'})).json()["totalResults"] == 0
-    assert (await scim.a("POST", "/Users", new_user(userName=before.email))).status_code in (400, 409)  # nor can it re-create it (the seed's .local address fails validation first)
-    async with org_scoped_session(scim.tenants.a) as db:  # with a valid address the answer is the plain uniqueness conflict
-        (await db.scalar(select(User).where(User.id == scim.tenants.user_a.id))).email = "seeded-admin@example.com"
+async def make_plain_user(org_id, role: str = "developer") -> str:
+    async with org_scoped_session(org_id) as db:
+        user = User(org_id=org_id, email=email(), password_hash="x", role=role, is_active=True)
+        db.add(user)
         await db.commit()
-    scim_error(await scim.a("POST", "/Users", new_user(userName="seeded-admin@example.com")), 409, "uniqueness")
+        return str(user.id)
+
+
+async def test_scim_cannot_read_or_change_users_it_did_not_create(scim):
+    """The seeded admin and a hand-made developer were not created by SCIM: invisible, and no verb changes them."""
+    admin_id = str(scim.tenants.user_a.id)
+    dev_id = await make_plain_user(scim.tenants.a)
+    before = {i: await fetch_user(scim.tenants.a, i) for i in (admin_id, dev_id)}
+    takeover = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "userName", "value": email()}]}
+    rename = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "displayName", "value": "Hijacked"}]}
+    reactivate = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "active", "value": True}]}
+    mixed = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "value": {"active": False, "displayName": "x"}}]}
+    for uid in (admin_id, dev_id):
+        scim_error(await scim.a("GET", f"/Users/{uid}"), 404)
+        for body in (takeover, rename, reactivate, mixed):
+            scim_error(await scim.a("PATCH", f"/Users/{uid}", body), 404)
+        scim_error(await scim.a("PUT", f"/Users/{uid}", {"userName": email()}), 404)
+    for uid, row in before.items():
+        after = await fetch_user(scim.tenants.a, uid)
+        assert (after.email, after.name, after.is_active, after.role) == (row.email, row.name, True, row.role)
+    listed = (await scim.a("GET", "/Users")).json()
+    assert {admin_id, dev_id}.isdisjoint({r["id"] for r in listed["Resources"]})
+    assert (await scim.a("GET", "/Users", params={"filter": f'userName eq "{before[dev_id].email}"'})).json()["totalResults"] == 0
+    assert (await scim.a("POST", "/Users", new_user(userName=before[dev_id].email))).status_code == 409  # nor can it re-create one
+
+
+async def test_offboarding_does_not_fail_open_deactivation_reaches_any_user(scim):
+    """A leaver the identity provider did not provision must still lose access: DELETE and active=false (alone) work on anyone."""
+    dev_id = await make_plain_user(scim.tenants.a, "developer")
+    other_dev = await make_plain_user(scim.tenants.a, "developer")
+    off = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "active", "value": False}]}
+    patched = await scim.a("PATCH", f"/Users/{dev_id}", off)
+    assert patched.status_code == 200 and patched.json()["active"] is False
+    assert (await fetch_user(scim.tenants.a, dev_id)).is_active is False
+    assert (await scim.a("DELETE", f"/Users/{other_dev}")).status_code == 204
+    assert (await fetch_user(scim.tenants.a, other_dev)).is_active is False
+    assert (await scim.a("DELETE", f"/Users/{other_dev}")).status_code == 204  # idempotent
+
+    okta = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "value": {"active": False}}]}
+    third = await make_plain_user(scim.tenants.a, "viewer")
+    assert (await scim.a("PATCH", f"/Users/{third}", okta)).json()["active"] is False
+
+    # Not a back door: re-enabling, or deactivating together with any other change, stays limited to SCIM-created users.
+    on = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "active", "value": True}]}
+    scim_error(await scim.a("PATCH", f"/Users/{dev_id}", on), 404)
+    assert (await fetch_user(scim.tenants.a, dev_id)).is_active is False
+    victim = await make_plain_user(scim.tenants.a, "developer")
+    mixed = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "active", "value": False}, {"op": "replace", "path": "displayName", "value": "x"}]}
+    scim_error(await scim.a("PATCH", f"/Users/{victim}", mixed), 404)
+    assert (await fetch_user(scim.tenants.a, victim)).is_active is True
+    # Other orgs' users are out of reach, as ever.
+    foreign = await make_plain_user(scim.tenants.b)
+    scim_error(await scim.a("DELETE", f"/Users/{foreign}"), 404)
+    assert (await fetch_user(scim.tenants.b, foreign)).is_active is True
+    assert "user.scim_deactivated" in await audit_actions(scim.tenants.a)
+
+
+async def test_offboarding_an_unmanaged_admin_is_allowed_but_never_the_last_one(scim):
+    admin_id = str(scim.tenants.user_a.id)  # created outside SCIM, and the only admin
+    scim_error(await scim.a("DELETE", f"/Users/{admin_id}"), 400, "mutability")
+    off = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "active", "value": False}]}
+    scim_error(await scim.a("PATCH", f"/Users/{admin_id}", off), 400, "mutability")
+    assert (await fetch_user(scim.tenants.a, admin_id)).is_active is True
+
+    await make_plain_user(scim.tenants.a, "admin")  # a second active admin
+    assert (await scim.a("DELETE", f"/Users/{admin_id}")).status_code == 204
+    assert (await fetch_user(scim.tenants.a, admin_id)).is_active is False
 
 
 async def test_promoted_users_cannot_be_repointed_or_reenabled_but_can_be_deactivated(scim):
@@ -378,34 +435,6 @@ async def test_promoted_users_cannot_be_repointed_or_reenabled_but_can_be_deacti
         scim_error(await scim.a("PATCH", f"/Users/{user['id']}", on), 403, "mutability")
         scim_error(await scim.a("PUT", f"/Users/{user['id']}", {"userName": original, "active": True}), 403, "mutability")
         assert (await fetch_user(scim.tenants.a, user["id"])).is_active is False
-
-
-async def test_changing_a_viewers_email_unlinks_sso_and_revokes_api_keys(scim):
-    user = (await scim.a("POST", "/Users", new_user())).json()
-    uid = uuid.UUID(user["id"])
-    async with org_scoped_session(scim.tenants.a) as db:
-        row = await db.scalar(select(User).where(User.id == uid))
-        row.sso_sub = "idp-subject-1"
-        db.add(ApiKey(org_id=scim.tenants.a, user_id=uid, key_hash=uuid.uuid4().hex, key_prefix="opai_test_", name="k", is_active=True))
-        await db.commit()
-
-    other = email()
-    change = {"schemas": [PATCH_SCHEMA], "Operations": [{"op": "replace", "path": "userName", "value": other}]}
-    assert (await scim.a("PATCH", f"/Users/{user['id']}", change)).json()["userName"] == other
-    async with org_scoped_session(scim.tenants.a) as db:
-        row = await db.scalar(select(User).where(User.id == uid))
-        assert row.sso_sub is None and row.sso_connection_id is None
-        assert [k.is_active for k in (await db.scalars(select(ApiKey).where(ApiKey.user_id == uid))).all()] == [False]
-
-    # A change that does not touch the email leaves the link and keys alone.
-    async with org_scoped_session(scim.tenants.a) as db:
-        (await db.scalar(select(User).where(User.id == uid))).sso_sub = "idp-subject-2"
-        await db.execute(text("UPDATE api_keys SET is_active = true WHERE user_id = :u"), {"u": uid})
-        await db.commit()
-    await scim.a("PUT", f"/Users/{user['id']}", {"userName": other, "displayName": "Renamed"})
-    async with org_scoped_session(scim.tenants.a) as db:
-        assert (await db.scalar(select(User).where(User.id == uid))).sso_sub == "idp-subject-2"
-        assert [k.is_active for k in (await db.scalars(select(ApiKey).where(ApiKey.user_id == uid))).all()] == [True]
 
 
 async def test_the_last_active_admin_cannot_be_deactivated_through_scim(scim):

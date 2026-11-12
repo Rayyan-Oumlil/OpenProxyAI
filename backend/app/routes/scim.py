@@ -17,12 +17,11 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from fastapi import HTTPException
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db, get_real_ip, get_redis
-from app.models.api_key import ApiKey
 from app.models.organization import Organization
 from app.models.scim_token import ScimToken
 from app.models.user import User
@@ -120,12 +119,16 @@ def _audit_view(user: User) -> dict[str, Any]:
     }
 
 
-async def _load_user(db: AsyncSession, ctx: ScimContext, user_id: str) -> User:
+async def _load_user(db: AsyncSession, ctx: ScimContext, user_id: str, *, any_user: bool = False) -> User:
+    """The user, in the token's org. SCIM-created users only, unless ``any_user`` (used for deactivation alone)."""
     try:
         wanted = uuid.UUID(user_id)
     except ValueError:
         wanted = None
-    user = await db.scalar(select(User).where(User.id == wanted, User.org_id == ctx.org_id, User.scim_managed.is_(True))) if wanted else None
+    query = select(User).where(User.id == wanted, User.org_id == ctx.org_id)
+    if not any_user:
+        query = query.where(User.scim_managed.is_(True))
+    user = await db.scalar(query) if wanted else None
     if user is None:
         raise ScimError(404, "User not found")
     return user
@@ -152,19 +155,18 @@ async def _guard_last_admin(db: AsyncSession, ctx: ScimContext, user: User, chan
         raise ScimError(400, "Cannot deactivate the last active admin of the organization", "mutability")
 
 
-def _guard_elevated(user: User, changes: UserChanges) -> None:
-    """A user someone promoted past viewer is no longer the identity provider's to re-point or re-enable.
+def _guard_changes(user: User, changes: UserChanges) -> None:
+    """What SCIM may not do to an existing user.
 
-    Changing the email of an admin or developer would let whoever controls the new address sign in as them through SSO
-    (SSO matches on email), and re-enabling one would undo an admin's decision. Deactivating stays allowed: that is
-    offboarding, and it only removes access.
+    The email is never changeable: SSO matches people by email, so re-pointing it would hand the account to whoever
+    controls the new address, and an access token already issued would keep working for the account. A user promoted
+    past viewer also cannot be re-enabled by the identity provider (that would undo an admin's decision); deactivating
+    one stays allowed, because that is offboarding and only removes access.
     """
-    if user.role == "viewer":
-        return
     new_email = changes.fields.get("email")
     if new_email is not None and new_email != user.email:
-        raise ScimError(403, f"The email of a {user.role} cannot be changed through SCIM", "mutability")
-    if changes.fields.get("active") is True and not user.is_active:
+        raise ScimError(403, "The email (userName) of an existing user cannot be changed through SCIM", "mutability")
+    if user.role != "viewer" and changes.fields.get("active") is True and not user.is_active:
         raise ScimError(403, f"A deactivated {user.role} cannot be re-enabled through SCIM", "mutability")
 
 
@@ -175,13 +177,6 @@ async def _enforce_user_limit(db: AsyncSession, ctx: ScimContext) -> None:
         check_user_limit(org, int(active))
     except HTTPException as exc:
         raise ScimError(403, "The plan's user limit is reached; upgrade the plan or deactivate a user", "tooMany") from exc
-
-
-async def _cut_old_identity(db: AsyncSession, user: User) -> None:
-    """After an email change the person behind the account may differ: unlink SSO and revoke the user's API keys."""
-    user.sso_sub = None
-    user.sso_connection_id = None
-    await db.execute(update(ApiKey).where(ApiKey.user_id == user.id).values(is_active=False))
 
 
 def _action(before: User | None, changes: UserChanges) -> str:
@@ -207,12 +202,10 @@ async def _save(db: AsyncSession, ctx: ScimContext, user: User | None, changes: 
         )
         db.add(target)
     else:
-        _guard_elevated(user, changes)
+        _guard_changes(user, changes)
         await _guard_last_admin(db, ctx, user, changes)
         if changes.fields.get("active") is True and not user.is_active:
             await _enforce_user_limit(db, ctx)
-        if changes.fields.get("email") not in (None, user.email):
-            await _cut_old_identity(db, user)
         target = user
     for key, value in changes.fields.items():
         if key == "active":
@@ -312,14 +305,18 @@ async def replace_user(user_id: str, request: Request, ctx: ScimContext = Auth, 
 
 @router.patch("/Users/{user_id}")
 async def patch_user(user_id: str, request: Request, ctx: ScimContext = Auth, db: AsyncSession = Depends(get_db)) -> Response:
-    user = await _load_user(db, ctx, user_id)
-    saved = await _save(db, ctx, user, parse_patch(await _json_body(request)))
+    changes = parse_patch(await _json_body(request))
+    # Offboarding must not fail open: a request that only deactivates works on any user in the org (the last active admin
+    # is still protected). Anything else, including re-enabling, is limited to users SCIM created.
+    deactivation_only = changes.fields == {"active": False}
+    user = await _load_user(db, ctx, user_id, any_user=deactivation_only)
+    saved = await _save(db, ctx, user, changes)
     return scim_response(to_scim_user(saved, ctx.base_url))
 
 
 @router.delete("/Users/{user_id}")
 async def deactivate_user(user_id: str, ctx: ScimContext = Auth, db: AsyncSession = Depends(get_db)) -> Response:
-    user = await _load_user(db, ctx, user_id)
+    user = await _load_user(db, ctx, user_id, any_user=True)
     if user.is_active:
         await _save(db, ctx, user, UserChanges({"active": False}))
     return scim_response(None, 204)
