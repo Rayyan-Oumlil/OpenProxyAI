@@ -59,7 +59,7 @@ def upstream(monkeypatch):
 	async def log_request(**kwargs):
 		seen.logs.append(kwargs)
 
-	async def routing_inputs(db, org_id):
+	async def routing_inputs(db, org_id, config=None):
 		return list(seen.registry), "us"
 
 	async def allow(*_a, **kwargs):

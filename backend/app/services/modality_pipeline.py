@@ -180,7 +180,7 @@ async def run_modality(
 
 		async def route(config: Any, classified: Classification) -> RoutingDecision:
 			nonlocal routing
-			candidates, region = await ls.llm_service.routing_inputs(db, user.org_id)
+			candidates, region = await ls.llm_service.routing_inputs(db, user.org_id, config)
 			routing = ls.route_decision(candidates, region, config, classified.data_class, model)
 			return routing
 
