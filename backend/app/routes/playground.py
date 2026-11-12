@@ -20,6 +20,7 @@ from app.schemas.playground import (
     PromptTemplateResponse,
     PromptTemplateUpdate,
 )
+from app.services import behavior as behavior_mod
 from app.services.classification_service import classify_chat_request
 from app.services.llm_service import llm_service, split_model
 from app.services.model_runner import CallPlan, RunOutcome, execute_plan, plan_call
@@ -417,13 +418,17 @@ async def playground_compare(
     # The prompt is classified and the registry loaded once for all of them.
     classification = await classify_chat_request(_CCR.model_construct(model="", messages=payload.messages), policy_config, None)
     routing_inputs = await llm_service.routing_inputs(db, current_user.org_id) if policy_config.routing_mode != "off" else ([], "us")
+    requested = behavior_mod.Behavior(**payload.behavior.model_dump(exclude_none=True)) if payload.behavior is not None else behavior_mod.Behavior()
+    behavior = behavior_mod.settle(policy_config.behavior_defaults, policy_config.behavior_ceiling, requested)
+    planned_messages = behavior_mod.with_citation_instruction(messages_list) if behavior is not None and behavior.effective.citations else messages_list
     plans: list[CallPlan | RunOutcome] = []
     for model in payload.models:
         plans.append(
             await plan_call(
-                db=db, redis=redis, org_id=current_user.org_id, user_id=current_user.id, model=model, messages=messages_list,
+                db=db, redis=redis, org_id=current_user.org_id, user_id=current_user.id, model=model, messages=planned_messages,
                 policy_config=policy_config, source="playground", temperature=payload.temperature, max_tokens=payload.max_tokens,
                 timeout=PLAYGROUND_TIMEOUT_SECONDS, check_policy=False, classification=classification, routing_inputs=routing_inputs,
+                behavior=behavior,
             )
         )
 

@@ -8,6 +8,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
+from app.schemas.policy import BehaviorDefaults
+
 MAX_TAGS = 10
 MAX_PER_USER = 500  # conversations one user may keep; a ceiling against runaway scripts, far above human use
 
@@ -114,6 +116,9 @@ class TurnRequest(BaseModel):
 	max_tokens: int | None = Field(default=None, ge=1, le=32_000)
 	max_context_tokens: int | None = Field(default=None, ge=1, le=200_000)
 	stream: bool = Field(default=False, description="Receive the answer as server-sent events as it is written.")
+	behavior: BehaviorDefaults | None = Field(
+		default=None, description="Provider-neutral settings for this turn (creativity, reasoning_depth, max_response_length, citations). The organization's ceiling can lower them."
+	)
 
 	@field_validator("content")
 	@classmethod

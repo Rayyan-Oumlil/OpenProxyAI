@@ -37,6 +37,9 @@ class ChatCompletionRequest(BaseModel):
 	presence_penalty: float | None = None
 	stop: str | list[str] | None = None
 	user: str | None = None
+	# Provider-neutral behaviour settings, e.g. {"creativity": "low"}. Not a provider parameter: the gateway turns it into
+	# one (see services/behavior.py) and never forwards this field. The x-openproxy-behavior header says the same thing.
+	behavior: dict[str, Any] | None = None
 
 	model_config = ConfigDict(extra="allow")
 

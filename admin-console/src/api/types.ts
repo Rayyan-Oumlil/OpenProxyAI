@@ -1,3 +1,4 @@
+import type { BehaviorCeiling, BehaviorSettings } from "../lib/behavior";
 export type LoginRequest = {
   email: string;
   password: string;
@@ -343,6 +344,10 @@ export type PolicyConfigRequest = {
   conversations_enabled?: boolean;
   /** Lets /v1/responses keep state at the provider (store=true, previous_response_id, file references). Off by default. */
   allow_provider_response_state?: boolean;
+  /** What a call is like when the caller does not say (creativity, reasoning_depth, max_response_length, citations). Send the whole object. */
+  behavior_defaults?: BehaviorSettings;
+  /** The most a caller may ask for; also lowers a caller's own temperature, max_tokens and reasoning_effort. No citations. */
+  behavior_ceiling?: BehaviorCeiling;
 };
 
 export type RoutingMode = "off" | "log_only" | "enforce";
@@ -419,6 +424,8 @@ export type PlaygroundCompareRequest = {
   messages: Array<{ role: string; content: string }>;
   temperature?: number | null;
   max_tokens?: number | null;
+  /** Provider-neutral settings; the org's ceiling can lower them. A setting here replaces the matching raw value above. */
+  behavior?: BehaviorSettings;
 };
 
 export type PlaygroundCompareResult = {

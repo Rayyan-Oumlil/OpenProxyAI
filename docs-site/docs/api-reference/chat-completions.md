@@ -30,6 +30,7 @@ OpenAI-compatible request and response shape. Any field the OpenAI API accepts i
 | `Authorization` | Yes | `Bearer <api-key>` |
 | `x-op-team` | If key isn't team-scoped | Attributes cost to a team's budget |
 | `x-op-policy` | No | Comma-separated policy names to apply — see [Policies & Guardrails](/core-concepts/policies-and-guardrails) |
+| `x-openproxy-behavior` | No | Provider-neutral settings such as `creativity=low; max_response_length=short` (or a `behavior` field in the body) — see [Behavior Settings](/core-concepts/behavior-settings). The response reports what applied in `X-OpenProxyAI-Behavior`, and `X-OpenProxyAI-Behavior-Clamped` when your organization's ceiling lowered a request |
 
 ## Response
 
