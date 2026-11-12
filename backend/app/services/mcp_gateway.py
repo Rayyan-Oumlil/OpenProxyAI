@@ -2,7 +2,7 @@
 
 Pure orchestration — the upstream caller is injected (``mcp_client.call_upstream`` in production)
 so policy and routing are testable without a network. See the design:
-docs/superpowers/specs/2026-09-30-mcp-gateway-design.md
+docs/architecture/mcp-gateway-design.md
 """
 
 from __future__ import annotations
