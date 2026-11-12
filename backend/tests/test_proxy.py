@@ -1,5 +1,6 @@
 """LLM proxy endpoint tests — with mocked LiteLLM (never call real APIs)."""
 
+from app.services import rate_limiter as _rate_limiter_module
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -291,7 +292,7 @@ async def test_llm_service_rate_limit_contract(monkeypatch, fake_redis):
 	async def fake_provider_key(*args, **kwargs):  # noqa: ANN002, ANN003
 		return [(None, "dummy")]
 
-	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", fake_check_limits)
+	monkeypatch.setattr(_rate_limiter_module.rate_limiter_service, "check_limits", fake_check_limits)
 	monkeypatch.setattr(llm_service_module, "log_request", fake_log_request)
 	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", fake_provider_key)
 
@@ -351,7 +352,7 @@ async def test_llm_service_preserves_rl_headers_on_provider_key_error(monkeypatc
 			detail={"error": "no_provider_key", "detail": "No active key for provider"},
 		)
 
-	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", fake_check_limits)
+	monkeypatch.setattr(_rate_limiter_module.rate_limiter_service, "check_limits", fake_check_limits)
 	monkeypatch.setattr(llm_service_module, "log_request", fake_log_request)
 	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", fake_provider_key)
 

@@ -56,9 +56,8 @@ from app.services.key_secrets import resolve_secret
 from app.services.external_secret_error import ExternalSecretError
 from app.services.eval_service import _extract_prompt_text, run_eval_hook
 from app.services.mcp_taint import ChatTaintResult, load_trust_rules, restrict_chat_request
-from app.services.policy_service import PolicyDecision, policy_service, policy_store
+from app.services.policy_service import PolicyDecision, policy_service
 from app.services.stage_timing import StageTimer, timer_for_request
-from app.services.rate_limiter import rate_limiter_service
 from app.utils.logging import get_logger
 from app.utils.token_estimator import estimate_tokens
 
@@ -806,159 +805,75 @@ class LLMService:
 			ctx.provider, ctx.model_name = split_model(resolved_model)
 			ctx.experiment_info = experiment_info
 
-		with ctx.stages.stage("policy"):
-			ctx.policy_config = await policy_store.load(ctx.user.org_id, db, ctx.redis)
+		from app.services.request_gate import admit  # here, not at the top: the gate itself imports this module
+
+		taint: ChatTaintResult | None = None
+
+		async def evaluate(config: Any) -> PolicyDecision:
+			nonlocal taint
+			ctx.policy_config = config
 			taint = await self._apply_tool_taint(ctx, db)
-			decision = await policy_service.evaluate_chat_request(ctx.request, ctx.policy_config)
-		if decision.allowed and taint is not None and taint.forced_sink:
-			decision = policy_service.taint_violation(taint.forced_sink, ctx.policy_config)
-		ctx.policy_metadata = decision.as_metadata()
-		with ctx.stages.stage("classify"):
+			decision = await policy_service.evaluate_chat_request(ctx.request, config)
+			if decision.allowed and taint is not None and taint.forced_sink:
+				decision = policy_service.taint_violation(taint.forced_sink, config)
+			ctx.policy_metadata = decision.as_metadata()
+			return decision
+
+		async def classify(config: Any) -> Classification:
 			try:
 				ctx.classification = await classify_chat_request(
-					ctx.request, ctx.policy_config,
+					ctx.request, config,
 					ctx.http_request.headers.get(DATA_CLASS_HEADER) if ctx.http_request is not None else None,
 				)
 			except InvalidDataClass as exc:
 				raise HTTPException(status_code=400, detail={"error": "invalid_data_class", "detail": str(exc)}) from exc
-		if taint is not None and taint.tainted:
-			ctx.policy_metadata["tool_taint"] = {"removed": list(taint.removed), "forced_sink": taint.forced_sink}
-		if is_capability_request and ctx.policy_config.routing_mode != "enforce":
-			raise HTTPException(
-				status_code=status.HTTP_400_BAD_REQUEST,
-				detail={"error": "invalid_model", "detail": "Capability routing (cap:NAME) needs routing_mode=enforce in the organization's policy"},
-			)
-		if ctx.policy_config.routing_mode != "off":
-			with ctx.stages.stage("route"):
-				await self._decide_route(ctx, db)
-
-		# Validate x-openproxy-fallback-model against policy allowlist when present
-		if ctx.fallback_model and ctx.policy_config.allowed_models:
-			allowlist = {m.strip() for m in ctx.policy_config.allowed_models if m.strip()}
-			if allowlist and ctx.fallback_model not in allowlist:
-				ctx.fallback_model = None  # Ignore header if model not allowed
-
-		# Resolve team context from x-openproxy-team-id (optional)
-		if ctx.team_id is not None:
-			team = await db.scalar(
-				select(Team).where(
-					Team.id == ctx.team_id,
-					Team.org_id == ctx.user.org_id,
-				)
-			)
-			if team is None:
+			if taint is not None and taint.tainted:
+				ctx.policy_metadata["tool_taint"] = {"removed": list(taint.removed), "forced_sink": taint.forced_sink}
+			if is_capability_request and config.routing_mode != "enforce":
 				raise HTTPException(
-					status_code=status.HTTP_404_NOT_FOUND,
-					detail="Team not found",
+					status_code=status.HTTP_400_BAD_REQUEST,
+					detail={"error": "invalid_model", "detail": "Capability routing (cap:NAME) needs routing_mode=enforce in the organization's policy"},
 				)
-			member_row = await db.execute(
-				select(team_members).where(
-					team_members.c.team_id == ctx.team_id,
-					team_members.c.user_id == ctx.user.id,
-				)
-			)
-			if member_row.first() is None:
-				raise HTTPException(
-					status_code=status.HTTP_403_FORBIDDEN,
-					detail="User is not a member of this team",
-				)
-			ctx.team_budget_monthly_usd = team.budget_monthly_usd
+			return ctx.classification
 
-		if not decision.allowed:
-			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
-			ctx.background_tasks.add_task(log_request,
-				redis=ctx.redis,
-				request_id=ctx.request_id,
-				org_id=ctx.user.org_id,
-				user_id=ctx.user.id,
-				api_key_id=ctx.api_key.id,
-				model=ctx.request.model,
-				provider=ctx.provider,
-				prompt_tokens=0,
-				completion_tokens=0,
-				cost_usd=Decimal("0"),
-				latency_ms=latency_ms,
-				ttft_ms=None,
-				status_code=POLICY_BLOCK_STATUS,
-				error_message=f"policy_blocked:{decision.reason_code}",
-				request_metadata=_build_request_metadata(ctx),
-				labels=ctx.labels,
-				team_id=ctx.team_id,
-			)
-			return self._policy_block_response(decision)
+		async def route(_config: Any, _classification: Any) -> RoutingDecision | None:
+			await self._decide_route(ctx, db)
+			return ctx.routing
 
-		if ctx.routing is not None and ctx.routing.blocked:
-			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
-			ctx.background_tasks.add_task(log_request,
-				redis=ctx.redis,
-				request_id=ctx.request_id,
-				org_id=ctx.user.org_id,
-				user_id=ctx.user.id,
-				api_key_id=ctx.api_key.id,
-				model=ctx.request.model,
-				provider=ctx.provider,
-				prompt_tokens=0,
-				completion_tokens=0,
-				cost_usd=Decimal("0"),
-				latency_ms=latency_ms,
-				ttft_ms=None,
-				status_code=POLICY_BLOCK_STATUS,
-				error_message="policy_blocked:no_authorized_model",
-				request_metadata=_build_request_metadata(ctx),
-				labels=ctx.labels,
-				team_id=ctx.team_id,
-			)
-			return self._routing_block_response(ctx.routing)
+		async def between(config: Any, _classification: Any, _routing: Any) -> Decimal | None:
+			# Validate x-openproxy-fallback-model against policy allowlist when present
+			if ctx.fallback_model and config.allowed_models:
+				allowlist = {m.strip() for m in config.allowed_models if m.strip()}
+				if allowlist and ctx.fallback_model not in allowlist:
+					ctx.fallback_model = None  # Ignore header if model not allowed
 
-		with ctx.stages.stage("rate_limit"):
-			ok, ctx.rl_headers, limit_type, limit_detail, retry_after = (
-				await rate_limiter_service.check_limits(
-					redis=ctx.redis,
-					org_id=str(ctx.user.org_id),
-					user_id=str(ctx.user.id),
-					request_tokens_estimate=estimate_tokens(ctx.request),
-					max_rpm=settings.DEFAULT_RATE_LIMIT_RPM,
-					max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
-					max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)),
-					user_daily_budget_usd=getattr(ctx.user, "budget_daily_usd", None),
-					team_id=str(ctx.team_id) if ctx.team_id else None,
-					team_budget_monthly_usd=ctx.team_budget_monthly_usd,
-					model=ctx.request.model,
-					policy_config=ctx.policy_config,
+			# Resolve team context from x-openproxy-team-id (optional)
+			if ctx.team_id is not None:
+				team = await db.scalar(select(Team).where(Team.id == ctx.team_id, Team.org_id == ctx.user.org_id))
+				if team is None:
+					raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+				member_row = await db.execute(
+					select(team_members).where(team_members.c.team_id == ctx.team_id, team_members.c.user_id == ctx.user.id)
 				)
+				if member_row.first() is None:
+					raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not a member of this team")
+				ctx.team_budget_monthly_usd = team.budget_monthly_usd
+			return ctx.team_budget_monthly_usd
+
+		gate = await admit(
+			db=db, redis=ctx.redis, user=ctx.user, model_of=lambda: ctx.request.model, timer=ctx.stages, evaluate=evaluate, classify=classify,
+			route=route, between=between, estimate_tokens=estimate_tokens(ctx.request), team_id=ctx.team_id,
 		)
-		ctx.rl_headers = {**ctx.rl_headers, "X-OpenProxyAI-Data-Class": ctx.classification.data_class, **self._route_headers(ctx.routing)}
-		if not ok:
-			latency_ms = int((time.perf_counter() - ctx.start) * 1000)
+		if gate.rl_headers is not None:
+			ctx.rl_headers = gate.rl_headers
+		if gate.refusal is not None:
 			ctx.background_tasks.add_task(log_request,
-				redis=ctx.redis,
-				request_id=ctx.request_id,
-				org_id=ctx.user.org_id,
-				user_id=ctx.user.id,
-				api_key_id=ctx.api_key.id,
-				model=ctx.request.model,
-				provider=ctx.provider,
-				prompt_tokens=0,
-				completion_tokens=0,
-				cost_usd=Decimal("0"),
-				latency_ms=latency_ms,
-				ttft_ms=None,
-				status_code=429,
-				error_message=f"rate_limited:{limit_type}",
-				request_metadata=_build_request_metadata(ctx),
-				labels=ctx.labels,
-				team_id=ctx.team_id,
+				redis=ctx.redis, request_id=ctx.request_id, org_id=ctx.user.org_id, user_id=ctx.user.id, api_key_id=ctx.api_key.id,
+				model=ctx.request.model, provider=ctx.provider, prompt_tokens=0, completion_tokens=0, cost_usd=Decimal("0"),
+				latency_ms=int((time.perf_counter() - ctx.start) * 1000), ttft_ms=None, status_code=gate.refusal.status_code,
+				error_message=gate.error, request_metadata=_build_request_metadata(ctx), labels=ctx.labels, team_id=ctx.team_id,
 			)
-			return JSONResponse(
-				status_code=429,
-				content={
-					"error": "rate_limit_exceeded",
-					"limit_type": limit_type,
-					"detail": limit_detail,
-					"retry_after": retry_after,
-				},
-				headers={**ctx.rl_headers, "X-OpenProxyAI-Gateway-Error": "true"},
-			)
+			return gate.refusal
 
 		try:
 			ctx.candidate_keys = await self._select_provider_keys(
