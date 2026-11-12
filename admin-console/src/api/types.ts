@@ -359,7 +359,16 @@ export type PolicyPreviewVerdict = "allowed" | "blocked_by_policy" | "blocked_by
 export type PolicyPreviewResponse = {
   verdict: PolicyPreviewVerdict;
   data_class: { class: DataClass; source: string; entities: string[] };
-  policy: { mode: string; allowed: boolean; action: string; reason_code: string | null; detail: string | null; triggered_rules: string[] };
+  policy: {
+    mode: string;
+    allowed: boolean;
+    action: string;
+    reason_code: string | null;
+    detail: string | null;
+    triggered_rules: string[];
+    /** The plain sentence a caller is given when policy refuses; null when allowed */
+    explanation?: string | null;
+  };
   routing: {
     current_mode: RoutingMode;
     requested: string;
@@ -368,6 +377,8 @@ export type PolicyPreviewResponse = {
     authorized: string[];
     excluded: Record<string, string>;
     key_alias: string | null;
+    /** The plain sentence a caller is given when no model is authorized; null when one is */
+    explanation?: string | null;
   };
   fallback: { model: string; authorized: boolean; reason: string } | null;
   /** What a real request also goes through that a preview skips */

@@ -121,6 +121,19 @@ describe("RequestTracePage", () => {
     expect(screen.getByText(expected)).toBeTruthy();
   });
 
+  it("shows the sentence the caller was told, only when there is one", async () => {
+    const routing = { mode: "enforce", requested: "openai/x", model: null, reason: "not_authorized:class_too_low", authorized: [], excluded: {}, explanation: "openai/x is not approved for secret data in your organization." };
+    get.mockResolvedValue(detail({ request_metadata: { routing } }));
+    renderPage();
+    expect(await screen.findByText("Caller was told")).toBeTruthy();
+    expect(screen.getByText("openai/x is not approved for secret data in your organization.")).toBeTruthy();
+    cleanup();
+    get.mockResolvedValue(detail({ request_metadata: { routing: { ...routing, model: "openai/x", reason: "authorized" } } }));
+    renderPage();
+    await screen.findByText("What happened");
+    expect(screen.queryByText("Caller was told")).toBeNull();
+  });
+
   it("lists what was authorized when routing refused, and says nothing about routing for older rows", async () => {
     get.mockResolvedValue(
       detail({ request_metadata: { routing: { mode: "enforce", requested: "openai/x", model: null, reason: "not_in_registry", authorized: ["openai/a", "openai/b"], excluded: {} } } }),

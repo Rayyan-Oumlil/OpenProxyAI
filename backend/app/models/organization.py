@@ -25,7 +25,7 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    plan: Mapped[str] = mapped_column(String(50), nullable=False, server_default="free")
+    plan: Mapped[str] = mapped_column(String(50), nullable=False, server_default="community")
     settings: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     budget_monthly_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")

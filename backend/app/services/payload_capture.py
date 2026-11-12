@@ -102,8 +102,8 @@ async def capture_payload(org_id: uuid.UUID, request_id: uuid.UUID, messages: An
 		moment = now or datetime.now(UTC)
 		async with org_scoped_session(org_id) as db:
 			org = await db.get(Organization, org_id)
-			plan = (getattr(org, "plan", None) or "free").lower()
-			retention_days = PLAN_FEATURES.get(plan, PLAN_FEATURES["free"])["audit_retention_days"]
+			plan = (getattr(org, "plan", None) or "community").lower()
+			retention_days = PLAN_FEATURES.get(plan, PLAN_FEATURES["community"])["audit_retention_days"]
 			fields = {
 				"messages": stored_messages,
 				"output": stored_output,

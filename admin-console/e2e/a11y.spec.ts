@@ -191,6 +191,17 @@ for (const theme of ["light", "dark"] as const) {
       await page.getByLabel("Prompt").fill("my ssn is 123-45-6789");
       await page.getByRole("button", { name: "Preview", exact: true }).click();
       await expect(page.getByText("Refused by routing")).toBeVisible();
+      await expect(page.getByText("Caller would be told")).toBeVisible();
+      await expect(page.getByText("is not approved for confidential data in your organization.")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+    });
+
+    test("request trace: a refused request shows what the caller was told", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/logs/l2");
+      await expect(page.getByText("Caller was told")).toBeVisible();
+      await expect(page.getByText("is not approved for confidential data in your organization.")).toBeVisible();
       expect(await audit(page)).toEqual([]);
       expect(await lowContrastIcons(page)).toEqual([]);
     });
