@@ -35,6 +35,8 @@ class Conversation(UUIDPrimaryKeyMixin, Base):
 	# as private. (A CHECK demanding a team would make deleting a team fail.)
 	visibility: Mapped[str] = mapped_column(String(10), nullable=False, server_default=PRIVATE)
 	tags: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+	# The folder it is filed in, if any. Filing never changes who can read it. Deleting the space un-files it.
+	space_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("spaces.id", ondelete="SET NULL"), nullable=True)
 	created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 	updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 

@@ -25,7 +25,7 @@ vi.mock("../../state/AuthContext", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("../../api/client", () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), del: vi.fn() },
+  apiClient: { get: vi.fn(), post: vi.fn(), del: vi.fn(), patch: vi.fn() },
 }));
 
 vi.mock("../../lib/streamTurn", () => {
@@ -40,6 +40,7 @@ const get = vi.mocked(apiClient.get);
 const post = vi.mocked(apiClient.post);
 const stream = vi.mocked(streamTurn);
 const del = vi.mocked(apiClient.del);
+const patch = vi.mocked(apiClient.patch);
 
 const CONVERSATION: Conversation = {
   id: "c1",
@@ -95,6 +96,18 @@ const CONTEXT: ContextSummary = {
   created_at: "2026-11-01T10:01:00Z",
 };
 
+const SPACES = [
+  {
+    id: "s1",
+    name: "Q3 planning",
+    team_id: null,
+    owner_id: "u1",
+    is_owner: true,
+    conversation_count: 1,
+    created_at: "2026-11-01T09:00:00Z",
+  },
+];
+
 function mockApi(
   overrides: {
     conversation?: Conversation;
@@ -109,6 +122,9 @@ function mockApi(
     if (path === "/api/v1/conversations?scope=shared") return [];
     if (path === "/api/v1/conversations?scope=org")
       return overrides.org ?? [CONVERSATION];
+    if (path.startsWith("/api/v1/conversations?scope=mine&"))
+      return overrides.list ?? [CONVERSATION];
+    if (path === "/api/v1/spaces") return SPACES;
     if (path === "/api/v1/conversations/models") return MODELS;
     if (path === "/api/v1/conversations/teams")
       return [{ id: "team1", name: "Finance" }];
@@ -152,6 +168,7 @@ beforeEach(() => {
   post.mockReset();
   stream.mockReset();
   del.mockReset();
+  patch.mockReset();
 });
 afterEach(cleanup);
 
@@ -568,5 +585,241 @@ describe("the context drawer", () => {
     expect(
       await screen.findByText(/Nothing\. The model saw the whole conversation/),
     ).toBeTruthy();
+  });
+});
+
+describe("tags, search and spaces", () => {
+  it("searches titles and tags through the server, not the browser", async () => {
+    mockApi();
+    renderAt("/conversations");
+    await screen.findByRole("link", { name: /Q3 review/ });
+    fireEvent.change(screen.getByLabelText("Search titles and tags"), {
+      target: { value: "falcon" },
+    });
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/conversations?scope=mine&q=falcon",
+        "tok",
+      ),
+    );
+  });
+
+  it("filters by a tag chip and clears it again", async () => {
+    mockApi();
+    renderAt("/conversations");
+    const chip = await screen.findByRole("button", { name: "finance" });
+    expect(chip.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(chip);
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/conversations?scope=mine&tag=finance",
+        "tok",
+      ),
+    );
+    expect(chip.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(chip);
+    expect(chip.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("filters by space", async () => {
+    mockApi();
+    renderAt("/conversations");
+    await screen.findByRole("option", { name: "Q3 planning" });
+    fireEvent.change(screen.getByLabelText("Space"), {
+      target: { value: "s1" },
+    });
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/conversations?scope=mine&space_id=s1",
+        "tok",
+      ),
+    );
+  });
+
+  it("says so when nothing matches", async () => {
+    mockApi({ list: [] });
+    renderAt("/conversations");
+    fireEvent.change(await screen.findByLabelText("Search titles and tags"), {
+      target: { value: "zzz" },
+    });
+    expect(await screen.findByText("No conversation matches.")).toBeTruthy();
+  });
+
+  it("keeps a new conversation private and unshareable when 'Keep private' is ticked", async () => {
+    mockApi();
+    post.mockResolvedValue({ ...CONVERSATION, id: "c9" });
+    renderAt("/conversations");
+    fireEvent.click(
+      await screen.findByRole("button", { name: /New conversation/ }),
+    );
+    fireEvent.change(await screen.findByLabelText("Title"), {
+      target: { value: "Secret" },
+    });
+    await screen.findByRole("option", { name: "Team: Finance" });
+    fireEvent.change(screen.getByLabelText("Share with"), {
+      target: { value: "team1" },
+    });
+    fireEvent.click(screen.getByLabelText(/Keep private/));
+    expect(
+      (screen.getByLabelText("Share with") as HTMLSelectElement).disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Start conversation" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/conversations",
+        { title: "Secret", tags: ["private"] },
+        "tok",
+      ),
+    );
+  });
+
+  it("files a new conversation in the chosen space", async () => {
+    mockApi();
+    post.mockResolvedValue({ ...CONVERSATION, id: "c9" });
+    renderAt("/conversations");
+    fireEvent.click(
+      await screen.findByRole("button", { name: /New conversation/ }),
+    );
+    fireEvent.change(await screen.findByLabelText("Title"), {
+      target: { value: "Plan" },
+    });
+    const dialog = screen.getByRole("dialog", { name: "New conversation" });
+    await within(dialog).findByRole("option", { name: "Q3 planning" });
+    fireEvent.change(within(dialog).getByLabelText("Space"), {
+      target: { value: "s1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start conversation" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/conversations",
+        { title: "Plan", tags: [], space_id: "s1" },
+        "tok",
+      ),
+    );
+  });
+
+  it("edits the tags and space of your own conversation, and says that making it private stops sharing", async () => {
+    mockApi({
+      conversation: { ...CONVERSATION, visibility: "team", team_id: "team1" },
+    });
+    patch.mockResolvedValue(CONVERSATION);
+    renderAt("/conversations/c1");
+    fireEvent.click(await screen.findByRole("button", { name: /Details/ }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Conversation details",
+    });
+    fireEvent.change(within(dialog).getByLabelText(/Tags/), {
+      target: { value: "ops,  q3" },
+    });
+    fireEvent.click(within(dialog).getByLabelText(/Keep private/));
+    expect(within(dialog).getByText(/Saving stops sharing it/)).toBeTruthy();
+    await within(dialog).findByRole("option", { name: "Q3 planning" });
+    fireEvent.change(within(dialog).getByLabelText("Space"), {
+      target: { value: "s1" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Save details" }),
+    );
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        "/api/v1/conversations/c1",
+        { tags: ["ops", "q3", "private"], space_id: "s1" },
+        "tok",
+      ),
+    );
+  });
+
+  it("takes a conversation out of its space when 'No space' is chosen", async () => {
+    mockApi({
+      conversation: {
+        ...CONVERSATION,
+        space_id: "s1",
+        space_name: "Q3 planning",
+      },
+    });
+    patch.mockResolvedValue(CONVERSATION);
+    renderAt("/conversations/c1");
+    fireEvent.click(await screen.findByRole("button", { name: /Details/ }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Conversation details",
+    });
+    await within(dialog).findByRole("option", { name: "Q3 planning" });
+    fireEvent.change(within(dialog).getByLabelText("Space"), {
+      target: { value: "" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Save details" }),
+    );
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        "/api/v1/conversations/c1",
+        { tags: ["finance"], space_id: null },
+        "tok",
+      ),
+    );
+  });
+
+  it("offers no Details button on a conversation a teammate shared with you", async () => {
+    mockApi({
+      conversation: {
+        ...CONVERSATION,
+        is_owner: false,
+        owner_email: "alice@x.test",
+      },
+    });
+    renderAt("/conversations/c1");
+    await screen.findByText(/Read-only, owned by alice@x.test/);
+    expect(screen.queryByRole("button", { name: /Details/ })).toBeNull();
+  });
+
+  it("creates, renames and deletes spaces from the Spaces dialog", async () => {
+    mockApi();
+    post.mockResolvedValue(SPACES[0]);
+    patch.mockResolvedValue(SPACES[0]);
+    del.mockResolvedValue(undefined);
+    renderAt("/conversations");
+    fireEvent.click(await screen.findByRole("button", { name: /^Spaces$/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Spaces" });
+
+    fireEvent.change(within(dialog).getByLabelText("New space"), {
+      target: { value: "Roadmap" },
+    });
+    await within(dialog).findByRole("option", { name: "Team: Finance" });
+    fireEvent.change(within(dialog).getByLabelText("Visible to"), {
+      target: { value: "team1" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Create space" }),
+    );
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/spaces",
+        { name: "Roadmap", team_id: "team1" },
+        "tok",
+      ),
+    );
+
+    const name = await within(dialog).findByLabelText(
+      "Name of space Q3 planning",
+    );
+    fireEvent.change(name, { target: { value: "Q4 planning" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Rename" }));
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        "/api/v1/spaces/s1",
+        { name: "Q4 planning" },
+        "tok",
+      ),
+    );
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Delete space Q3 planning" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Delete space" }),
+    );
+    await waitFor(() =>
+      expect(del).toHaveBeenCalledWith("/api/v1/spaces/s1", "tok"),
+    );
   });
 });

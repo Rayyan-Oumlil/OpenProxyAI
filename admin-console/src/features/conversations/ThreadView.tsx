@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Send, Trash2, Users } from "lucide-react";
+import { Folder, Send, Tags, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { apiClient } from "../../api/client";
@@ -24,6 +24,7 @@ import { StreamUnavailable, streamTurn } from "../../lib/streamTurn";
 import { formatDateTime } from "../../lib/utils";
 import { useAuth } from "../../state/AuthContext";
 import { ContextSheet } from "./ContextSheet";
+import { DetailsDialog } from "./DetailsDialog";
 
 const CONVERSATIONS = "/api/v1/conversations";
 
@@ -241,6 +242,7 @@ export function ThreadView({
     null,
   );
   const [inspecting, setInspecting] = useState<Turn | null>(null);
+  const [editingDetails, setEditingDetails] = useState(false);
 
   const conversation = useQuery({
     queryKey: ["conversation", conversationId],
@@ -302,6 +304,12 @@ export function ThreadView({
                 Has a standing instruction
               </Badge>
             ) : null}
+            {c.space_name ? (
+              <Badge variant="muted">
+                <Folder size={12} aria-hidden="true" />
+                &nbsp;{c.space_name}
+              </Badge>
+            ) : null}
             {c.tags.map((t) => (
               <Badge key={t} variant="default">
                 {t}
@@ -313,26 +321,43 @@ export function ThreadView({
           </div>
         </div>
         {c.is_owner ? (
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={async () => {
-              if (
-                await confirm({
-                  title: "Delete this conversation?",
-                  description:
-                    "Its messages and the record of what was sent for each answer are removed. This cannot be undone.",
-                  confirmLabel: "Delete",
-                  destructive: true,
-                })
-              )
-                remove.mutate();
-            }}
-          >
-            <Trash2 size={14} aria-hidden="true" /> Delete
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => setEditingDetails(true)}
+            >
+              <Tags size={14} aria-hidden="true" /> Details
+            </button>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: "Delete this conversation?",
+                    description:
+                      "Its messages and the record of what was sent for each answer are removed. This cannot be undone.",
+                    confirmLabel: "Delete",
+                    destructive: true,
+                  })
+                )
+                  remove.mutate();
+              }}
+            >
+              <Trash2 size={14} aria-hidden="true" /> Delete
+            </button>
+          </div>
         ) : null}
       </header>
+      {c.is_owner && editingDetails ? (
+        <DetailsDialog
+          key={c.id + c.updated_at}
+          conversation={c}
+          open
+          onClose={() => setEditingDetails(false)}
+        />
+      ) : null}
 
       <div className="thread__turns">
         {list.length === 0 ? (

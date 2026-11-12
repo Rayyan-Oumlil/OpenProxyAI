@@ -196,6 +196,37 @@ test("conversations: the context drawer opens from the keyboard, traps focus, an
   await expect(opener).toBeFocused();
 });
 
+test("conversations: filter by tag, open the spaces dialog and edit details with the keyboard; Escape returns focus", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/conversations/c1");
+  const tag = page.getByRole("button", { name: "finance", exact: true });
+  await tag.focus();
+  await page.keyboard.press("Enter");
+  await expect(tag).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Enter");
+  await expect(tag).toHaveAttribute("aria-pressed", "false");
+
+  const spaces = page.getByRole("button", { name: /^Spaces$/ });
+  await spaces.focus();
+  await page.keyboard.press("Enter");
+  const spacesDialog = page.getByRole("dialog", { name: "Spaces" });
+  await expect(spacesDialog).toBeVisible();
+  for (let i = 0; i < 8; i += 1) await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(spacesDialog).toBeHidden();
+  await expect(spaces).toBeFocused();
+
+  const details = page.getByRole("button", { name: /Details/ });
+  await details.focus();
+  await page.keyboard.press("Enter");
+  const detailsDialog = page.getByRole("dialog", { name: "Conversation details" });
+  await expect(detailsDialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(detailsDialog).toBeHidden();
+  await expect(details).toBeFocused();
+});
+
 test("conversations: a message can be written and sent without the mouse", async ({ page }) => {
   let sent: unknown = null;
   await page.route("**/api/v1/conversations/c1/turns", async (route) => {

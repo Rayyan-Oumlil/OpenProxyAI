@@ -135,6 +135,8 @@ test.describe("dialogs", () => {
     ["/evaluators", async (page: Page) => { await page.getByRole("button", { name: /New evaluator/ }).click(); await page.getByLabel("Type").selectOption("llm_judge"); }],
     ["/eval-runs", async (page: Page) => { await page.getByRole("button", { name: /Start a run/ }).click(); }],
     ["/conversations", async (page: Page) => { await page.getByRole("button", { name: /New conversation/ }).click(); }],
+    ["/conversations?dialog=spaces", async (page: Page) => { await page.getByRole("button", { name: /^Spaces$/ }).click(); }],
+    ["/conversations/c1?dialog=details", async (page: Page) => { await page.getByRole("button", { name: /Details/ }).click(); }],
   ] as const) {
     test(`the tallest dialog on ${route} stays inside the window with its buttons reachable`, async ({ page }) => {
       await signIn(page);
@@ -151,8 +153,8 @@ test.describe("dialogs", () => {
       expect(box.bottom).toBeLessThanOrEqual(viewport.h + 1);
       expect(box.left).toBeGreaterThanOrEqual(0);
       expect(box.right).toBeLessThanOrEqual(viewport.w + 1);
-      await dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation/ }).scrollIntoViewIfNeeded();
-      await expect(dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation/ })).toBeInViewport();
+      await dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation|Create space|Save details/ }).scrollIntoViewIfNeeded();
+      await expect(dialog.getByRole("button", { name: /Create evaluator|Start run|Start conversation|Create space|Save details/ })).toBeInViewport();
     });
   }
 });
@@ -230,6 +232,22 @@ for (const theme of ["light", "dark"] as const) {
       await page.keyboard.press("Escape");
       await page.getByRole("button", { name: /New conversation/ }).click();
       await expect(page.getByRole("dialog", { name: "New conversation" })).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
+    test("conversations: the filters, the spaces dialog and the details dialog", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/conversations/c1");
+      await expect(page.getByRole("group", { name: "Filter by tag" })).toBeVisible();
+      await expect(page.getByLabel("Search titles and tags")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+      await page.getByRole("button", { name: /^Spaces$/ }).click();
+      await expect(page.getByRole("dialog", { name: "Spaces" })).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: /Details/ }).click();
+      await expect(page.getByRole("dialog", { name: "Conversation details" })).toBeVisible();
       expect(await audit(page)).toEqual([]);
     });
 
