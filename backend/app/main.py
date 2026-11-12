@@ -7,12 +7,15 @@ from datetime import UTC, datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 
 from app.config import settings
+from app.services.scim_errors import SCIM_MEDIA_TYPE, ScimError
 from app.database import AsyncSessionLocal, engine, set_session_org_id
 from app.models.webhook_delivery import WebhookDelivery
 from app.middleware.cors import add_cors_middleware
@@ -34,6 +37,8 @@ from app.routes.mcp_servers import router as mcp_servers_router
 from app.routes.mcp_trust_rules import router as mcp_trust_rules_router
 from app.routes.model_registry import router as model_registry_router
 from app.routes.policy_preview import router as policy_preview_router
+from app.routes.scim import router as scim_router
+from app.routes.scim_admin import router as scim_admin_router
 from app.routes.provider_keys import router as provider_keys_router
 from app.routes.experiments import router as experiments_router
 from app.routes.datasets import router as datasets_router
@@ -473,9 +478,28 @@ app.include_router(mcp_bundles_router)
 app.include_router(mcp_trust_rules_router)
 app.include_router(model_registry_router)
 app.include_router(policy_preview_router)
+app.include_router(scim_admin_router)
+app.include_router(scim_router)
 
 if settings.PROMETHEUS_ENABLED:
     app.include_router(metrics_router)
+
+
+# ── SCIM errors use the SCIM error body (RFC 7644), including 404/405 and unexpected failures under /scim/ ──
+def _scim_response(err: ScimError) -> JSONResponse:
+    return JSONResponse(err.body(), status_code=err.status, headers=err.headers, media_type=SCIM_MEDIA_TYPE)
+
+
+@app.exception_handler(ScimError)
+async def scim_error_handler(request: Request, exc: ScimError) -> JSONResponse:  # noqa: ARG001
+    return _scim_response(exc)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_with_scim(request: Request, exc: StarletteHTTPException):
+    if request.url.path.startswith("/scim/"):
+        return _scim_response(ScimError(exc.status_code, str(exc.detail)))
+    return await http_exception_handler(request, exc)
 
 
 # ── Global exception handler — never leak stack traces ──────────────
@@ -484,6 +508,8 @@ async def unhandled_exception_handler(
     request: Request, exc: Exception
 ) -> JSONResponse:
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    if request.url.path.startswith("/scim/"):
+        return _scim_response(ScimError(500, "An unexpected error occurred"))
     return JSONResponse(
         status_code=500,
         content={"error": "internal_server_error", "detail": "An unexpected error occurred"},

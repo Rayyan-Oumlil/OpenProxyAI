@@ -41,6 +41,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     sso_connection_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("sso_connections.id", ondelete="SET NULL"), nullable=True
     )
+    # SCIM externalId: the identity provider's own id for this user (unique within an org).
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="users")
