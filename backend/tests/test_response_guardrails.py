@@ -1,5 +1,7 @@
 """Tests for response guardrail enforcement in the non-streaming LLM path."""
 
+from app.services import policy_service as _policy_service_module
+from app.services import rate_limiter as _rate_limiter_module
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -134,8 +136,8 @@ async def test_response_blocked_keyword_enforcement_mode(monkeypatch, fake_redis
 	async def _fake_log(**kwargs):
 		return None
 
-	monkeypatch.setattr(llm_service_module.policy_store, "load", _fake_load)
-	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", _fake_check_limits)
+	monkeypatch.setattr(_policy_service_module.policy_store, "load", _fake_load)
+	monkeypatch.setattr(_rate_limiter_module.rate_limiter_service, "check_limits", _fake_check_limits)
 	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _fake_provider_key)
 	monkeypatch.setattr(llm_service_module, "acompletion", _fake_acompletion)
 	monkeypatch.setattr(llm_service_module.cost_tracker_service, "calculate_cost_usd", _fake_calculate_cost)
@@ -208,8 +210,8 @@ async def test_response_pii_redacted_when_response_pii_redact_true(monkeypatch, 
 		decision.reason_code = "response_pii_detected"
 		return decision
 
-	monkeypatch.setattr(llm_service_module.policy_store, "load", _fake_load)
-	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", _fake_check_limits)
+	monkeypatch.setattr(_policy_service_module.policy_store, "load", _fake_load)
+	monkeypatch.setattr(_rate_limiter_module.rate_limiter_service, "check_limits", _fake_check_limits)
 	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _fake_provider_key)
 	monkeypatch.setattr(llm_service_module, "acompletion", _fake_acompletion)
 	monkeypatch.setattr(llm_service_module.cost_tracker_service, "calculate_cost_usd", _fake_calculate_cost)
@@ -275,8 +277,8 @@ async def test_response_blocked_keyword_log_only_mode_passes_through(monkeypatch
 	async def _fake_log(**kwargs):
 		return None
 
-	monkeypatch.setattr(llm_service_module.policy_store, "load", _fake_load)
-	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", _fake_check_limits)
+	monkeypatch.setattr(_policy_service_module.policy_store, "load", _fake_load)
+	monkeypatch.setattr(_rate_limiter_module.rate_limiter_service, "check_limits", _fake_check_limits)
 	monkeypatch.setattr(llm_service_module.llm_service, "_select_provider_keys", _fake_provider_key)
 	monkeypatch.setattr(llm_service_module, "acompletion", _fake_acompletion)
 	monkeypatch.setattr(llm_service_module.cost_tracker_service, "calculate_cost_usd", _fake_calculate_cost)

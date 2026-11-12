@@ -1,5 +1,6 @@
 """Policy guardrail tests for pre-provider enforcement in LLM service."""
 
+from app.services import rate_limiter as _rate_limiter_module
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -67,7 +68,7 @@ async def test_llm_service_blocks_before_rate_limit_for_policy_violation(monkeyp
 	async def fake_log_request(**kwargs):  # noqa: ANN003
 		observed.update(kwargs)
 
-	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", fake_check_limits)
+	monkeypatch.setattr(_rate_limiter_module.rate_limiter_service, "check_limits", fake_check_limits)
 	monkeypatch.setattr(llm_service_module, "log_request", fake_log_request)
 
 	async def _noop_set_session(_db, _org_id):
