@@ -39,6 +39,13 @@ TEMPERATURE: Final = {"low": 0.2, "medium": 0.7, "high": 1.0}
 MAX_TOKENS: Final = {"short": 256, "medium": 1024, "long": 4096}
 _EFFORT_RANK: Final = ("minimal", *REASONING)  # a caller's own reasoning_effort may be "minimal", which sits below "low"
 
+# Other names for the same limits. A ceiling that only watched temperature, max_tokens and reasoning_effort could be walked around with
+# these, so while a ceiling is active they are clamped (a number) or removed (anything else, or what has no level to compare with).
+LENGTH_ALIASES: Final = ("max_completion_tokens", "max_output_tokens", "max_new_tokens", "max_tokens_to_sample", "maxOutputTokens")
+CREATIVITY_UNMAPPED: Final = ("top_p", "top_k")  # sampling knobs with no level to compare against the ceiling
+REASONING_UNMAPPED: Final = ("reasoning", "thinking")  # {"effort": ...}, {"budget_tokens": ...}: provider-specific shapes
+PASSTHROUGH: Final = ("extra_body", "generation_config")  # carry arbitrary provider parameters past every check above
+
 CITATION_INSTRUCTION: Final = (
 	"When you rely on a specific source, document or earlier message, name it. "
 	"Say plainly when you are not sure or have no source; do not invent references."
@@ -173,14 +180,15 @@ class Plan:
 	params: dict[str, Any]
 	ignored: tuple[dict[str, str], ...] = ()
 	clamped: tuple[dict[str, Any], ...] = ()
+	remove: tuple[str, ...] = ()  # parameters to take out of the call: aliases of a limit the org has capped
 
 	@property
 	def changes_more_than_temperature(self) -> bool:
 		"""The answer cache is keyed on temperature, not on the other parameters, so these calls must not use it."""
-		return any(name != "temperature" for name in self.params)
+		return bool(self.remove) or any(name != "temperature" for name in self.params)
 
 	def as_metadata(self) -> dict[str, Any]:
-		return {"applied": dict(self.params), "ignored": list(self.ignored), "clamped_params": list(self.clamped)}
+		return {"applied": dict(self.params), "ignored": list(self.ignored), "clamped_params": list(self.clamped), "removed": list(self.remove)}
 
 
 @functools.lru_cache(maxsize=512)
@@ -243,7 +251,26 @@ def plan_params(*, resolved: Resolved | None, explicit: Mapping[str, Any], suppo
 			ignored.append({"param": "reasoning_effort", "reason": reason})
 		else:
 			params["reasoning_effort"] = eff.reasoning_depth
-	return Plan(params=params, ignored=tuple(ignored), clamped=tuple(clamped))
+	remove: list[str] = []
+	cap_tokens = _cap_of(ceiling.max_response_length, MAX_TOKENS)
+	if cap_tokens is not None:
+		for alias in LENGTH_ALIASES:
+			given = explicit.get(alias)
+			if given is None:
+				continue
+			if isinstance(given, (int, float)) and not isinstance(given, bool):
+				if given > cap_tokens:
+					params[alias] = cap_tokens
+					clamped.append({"param": alias, "from": given, "to": cap_tokens})
+			else:
+				remove.append(alias)
+	if ceiling.creativity is not None:
+		remove.extend(k for k in CREATIVITY_UNMAPPED if k in explicit)
+	if ceiling.reasoning_depth is not None:
+		remove.extend(k for k in REASONING_UNMAPPED if k in explicit)
+	if any(getattr(ceiling, key) is not None for key in SCALES):
+		remove.extend(k for k in PASSTHROUGH if k in explicit)
+	return Plan(params=params, ignored=tuple(ignored), clamped=tuple(clamped), remove=tuple(remove))
 
 
 def with_citation_instruction(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

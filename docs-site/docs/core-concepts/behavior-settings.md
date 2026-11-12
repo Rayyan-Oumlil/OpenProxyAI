@@ -59,6 +59,7 @@ Send the whole object each time (`{}` clears it; `null` is refused so a clear ca
   ```
 
 - A ceiling also lowers the caller's **own** `temperature`, `max_tokens` and `reasoning_effort`. Otherwise `temperature=2` would walk around a "medium creativity" ceiling. With **no** ceiling set, a caller's raw parameters are never touched.
+- **Other names for the same limit are covered too.** While a ceiling is active: `max_completion_tokens`, `max_output_tokens`, `max_new_tokens`, `max_tokens_to_sample` and `maxOutputTokens` are lowered to the length ceiling (or removed if they are not a number); `top_p` and `top_k` are removed under a creativity ceiling; `reasoning` and `thinking` (for example `thinking.budget_tokens`) are removed under a reasoning ceiling; and `extra_body` and `generation_config`, which can carry any provider parameter, are removed under any ceiling. Each removal is listed under `removed` in the request log, and a call with a removed parameter skips the cache. With no ceiling, none of these is touched.
 - A raw parameter the caller sends always beats a **default** (it was an explicit choice) but never beats the ceiling.
 
 ## What the provider actually receives

@@ -926,6 +926,8 @@ class LLMService:
 				resolved=ctx.behavior, explicit=kwargs, supported=behavior_mod.supported_params(provider, model_name),
 			)
 			kwargs.update(ctx.behavior_plan.params)
+			for name in ctx.behavior_plan.remove:
+				kwargs.pop(name, None)
 		return kwargs
 
 	@staticmethod
