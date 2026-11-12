@@ -103,15 +103,18 @@ def main():
         check("signal off again for the rating phase", policy(routing_quality_signal="off")[0] == 200)
 
         print(f"-- rate {RATINGS} real answers per model: the cheap one badly, the strong one well")
-        landed = True
+        problems = []
         for model, thumbs in ((CHEAP, "down"), (STRONG, "up")):
             for index in range(RATINGS):
-                status, headers, _ = chat(f"quality smoke {model} {index} {os.urandom(4).hex()}", model, data_class="internal")
+                status, headers, body = chat(f"quality smoke {model} {index} {os.urandom(4).hex()}", model, data_class="internal")
                 request_id = headers.get("x-openproxyai-request-id")
-                if status != 200 or not request_id or rate(request_id, thumbs)[0] != 200:
-                    landed = False
-        check("every answer was served and its rating accepted", landed)
-
+                if status != 200 or not request_id:
+                    problems.append((model, index, "chat", status, str(body)[:120]))
+                    continue
+                rated, detail = rate(request_id, thumbs)
+                if rated != 200:
+                    problems.append((model, index, "rating", rated, str(detail)[:120]))
+        check("every answer was served and its rating accepted", not problems, problems[:3])
         print("-- feedback decides, inside the authorized set")
         status, headers, _ = chat(f"quality smoke off {os.urandom(4).hex()}", CAPABILITY)
         check("signal off ignores the feedback: still the cheaper model", headers.get("x-openproxyai-route-model") == CHEAP, headers)
