@@ -10,6 +10,7 @@ A summary of what's shipped, grouped by build phase. This tracks major capabilit
 
 ## Unreleased — November 2026
 
+- **Chat and every other endpoint now share one admission step** (policy, classification, routing, team check, refusals, rate limits), so they cannot drift apart. No behavior change for callers.
 - **Fixed: chat to a model the gateway cannot price** returned a 502 after the provider had already answered, and a stream's pricing error could leave the call unaudited. Chat now follows the same rule as every other endpoint: the answer is returned and the call is charged a flat fee, marked as an estimate.
 - **Realtime API** — `WS /v1/realtime`: the OpenAI Realtime protocol through the gateway. Text you send is checked by your policy before the provider sees it, each response is checked against your limits and billed from the usage the provider reports, the session ends when its key is revoked or time runs out, and sessions per organization are capped. Organizations that enforce response guardrails cannot use it, because a spoken answer cannot be held back. See [Realtime](/api-reference/realtime).
 - **Provider keys from AWS Secrets Manager**, beside Vault: `aws_secret_name` in place of a key, inside your organization's folder only, names not ARNs, operator-held credentials, no fallback to another source.

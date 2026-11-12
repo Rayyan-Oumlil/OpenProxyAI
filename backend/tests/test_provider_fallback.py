@@ -10,6 +10,8 @@ Verifies that:
 - _is_retryable correctly classifies retryable vs. non-retryable status codes
 """
 
+from app.services import policy_service as _policy_service_module
+from app.services import rate_limiter as _rate_limiter_module
 from decimal import Decimal
 from types import SimpleNamespace
 from uuid import uuid4
@@ -82,12 +84,12 @@ def _patch_common(monkeypatch):
 	async def _load(*a, **kw):
 		return _permissive_policy()
 
-	monkeypatch.setattr(llm_service_module.policy_store, "load", _load)
+	monkeypatch.setattr(_policy_service_module.policy_store, "load", _load)
 
 	async def _check_limits(**kw):
 		return (True, {}, None, None, None)
 
-	monkeypatch.setattr(llm_service_module.rate_limiter_service, "check_limits", _check_limits)
+	monkeypatch.setattr(_rate_limiter_module.rate_limiter_service, "check_limits", _check_limits)
 
 	async def _log(**kw):
 		pass

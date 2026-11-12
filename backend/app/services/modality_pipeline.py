@@ -27,16 +27,15 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.models.api_key import ApiKey
 from app.models.team import Team, team_members
 from app.models.user import User
 from app.services import llm_service as ls
 from app.services.classification_service import DATA_CLASS_HEADER, Classification, InvalidDataClass, classify_text
 from app.services.cost_tracker import cost_tracker_service
-from app.services.policy_service import POLICY_BLOCK_STATUS, PolicyScanLimitExceeded, policy_service, policy_store
+from app.services.policy_service import POLICY_BLOCK_STATUS, PolicyScanLimitExceeded, policy_service
 from app.services.provider_client import ProviderEndpoint
-from app.services.rate_limiter import rate_limiter_service
+from app.services.request_gate import admit
 from app.services.routing_service import RoutingDecision
 from app.services.stage_timing import timer_for_request
 from app.utils.logging import get_logger
@@ -160,42 +159,43 @@ async def run_modality(
 				content={"error": "policy_violation", "reason_code": "scan_limit_exceeded", "detail": "The request is too large to scan completely, so it was refused."},
 				headers={"X-OpenProxyAI-Gateway-Error": "true", "X-OpenProxyAI-Policy-Action": "block"},
 			)
-		with timer.stage("policy"):
-			policy_config = await policy_store.load(user.org_id, db, redis)
+		policy_config: Any = None
+
+		async def evaluate(config: Any) -> Any:
+			nonlocal policy_config, policy_metadata
+			policy_config = config
 			if modality.check is not None:
-				modality.check(request, policy_config)
-			decision = await policy_service.evaluate_text_request(model, text or "", policy_config)
-		policy_metadata = decision.as_metadata()
-		with timer.stage("classify"):
+				modality.check(request, config)
+			decision = await policy_service.evaluate_text_request(model, text or "", config)
+			policy_metadata = decision.as_metadata()
+			return decision
+
+		async def classify(config: Any) -> Classification:
+			nonlocal classification
 			try:
-				classification = await classify_text(None if modality.opaque_input(request) else text, policy_config, http_request.headers.get(DATA_CLASS_HEADER) if http_request is not None else None)
+				classification = await classify_text(None if modality.opaque_input(request) else text, config, http_request.headers.get(DATA_CLASS_HEADER) if http_request is not None else None)
 			except InvalidDataClass as exc:
 				raise HTTPException(status_code=400, detail={"error": "invalid_data_class", "detail": str(exc)}) from exc
-		if not decision.allowed:
-			refuse_log(POLICY_BLOCK_STATUS, f"policy_blocked:{decision.reason_code}")
-			return ls.LLMService._policy_block_response(decision)
-		if policy_config.routing_mode != "off":
-			with timer.stage("route"):
-				candidates, region = await ls.llm_service.routing_inputs(db, user.org_id)
-				routing = ls.route_decision(candidates, region, policy_config, classification.data_class, model)
-			if routing.blocked:
-				refuse_log(POLICY_BLOCK_STATUS, "policy_blocked:no_authorized_model")
-				return ls.LLMService._routing_block_response(routing)
-		with timer.stage("rate_limit"):
-			ok, rl_headers, limit_type, limit_detail, retry_after = await rate_limiter_service.check_limits(
-				redis=redis, org_id=str(user.org_id), user_id=str(user.id), request_tokens_estimate=max(modality.estimate_tokens(request), 1),
-				max_rpm=settings.DEFAULT_RATE_LIMIT_RPM, max_tpm=settings.DEFAULT_RATE_LIMIT_TPM,
-				max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)), user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
-				team_id=str(team_id) if team_id else None, team_budget_monthly_usd=team_budget, model=model, policy_config=policy_config,
-			)
-		rl_headers = {**rl_headers, "X-OpenProxyAI-Data-Class": classification.data_class, **ls.LLMService._route_headers(routing)}
-		if not ok:
-			refuse_log(429, f"rate_limited:{limit_type}")
-			return JSONResponse(
-				status_code=429,
-				content={"error": "rate_limit_exceeded", "limit_type": limit_type, "detail": limit_detail, "retry_after": retry_after},
-				headers={**rl_headers, "X-OpenProxyAI-Gateway-Error": "true"},
-			)
+			return classification
+
+		async def route(config: Any, classified: Classification) -> RoutingDecision:
+			nonlocal routing
+			candidates, region = await ls.llm_service.routing_inputs(db, user.org_id)
+			routing = ls.route_decision(candidates, region, config, classified.data_class, model)
+			return routing
+
+		async def between(_config: Any, _classification: Any, _routing: Any) -> Decimal | None:
+			return team_budget
+
+		gate = await admit(
+			db=db, redis=redis, user=user, model_of=lambda: model, timer=timer, evaluate=evaluate, classify=classify, route=route, between=between,
+			estimate_tokens=modality.estimate_tokens(request), team_id=team_id,
+		)
+		if gate.rl_headers is not None:
+			rl_headers = gate.rl_headers
+		if gate.refusal is not None:
+			refuse_log(gate.refusal.status_code, gate.error or "refused")
+			return gate.refusal
 
 		retries_override = ls._parse_retries_header(http_request) if http_request is not None else None
 		try:
