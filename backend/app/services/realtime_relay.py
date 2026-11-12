@@ -57,7 +57,7 @@ class _End(Exception):
 
 def texts_of(value: Any, key: str | None = None) -> list[str]:
 	"""Every string in an event except the audio payload."""
-	if key == _AUDIO_KEY:
+	if key == _AUDIO_KEY and isinstance(value, str):
 		return []
 	if isinstance(value, str):
 		return [value] if value else []
@@ -90,6 +90,7 @@ class _Pending:
 
 	def __init__(self) -> None:
 		self.count = 0
+		self.refused: set[str] = set()  # responses cancelled for the limits: nothing of theirs reaches the client
 
 
 async def _client_to_provider(client: Any, upstream: Any, hooks: Hooks, max_bytes: int, model_name: str, pending: _Pending) -> None:
@@ -124,19 +125,30 @@ async def _client_to_provider(client: Any, upstream: Any, hooks: Hooks, max_byte
 				await client.send_text(error_event("limit_exceeded", f"Response not started: {reason}", event_id))
 				continue
 			pending.count += 1
-		await upstream.send(frame)
+		await upstream.send(json.dumps(event))  # the checked event, not the raw text: a duplicated key must not read two ways
 
 
 async def _provider_to_client(client: Any, upstream: Any, hooks: Hooks, pending: _Pending) -> None:
 	while True:
 		frame = await upstream.recv()
-		event = _event_of(frame)
+		event = _event_of(frame, always=bool(pending.refused))
 		kind = event.get("type") if event else None
+		if event is not None and pending.refused:
+			response = event.get("response") if isinstance(event.get("response"), dict) else {}
+			rid = response.get("id") if kind in ("response.created", "response.done") else event.get("response_id")
+			if rid in pending.refused:
+				if kind == "response.done":
+					pending.refused.discard(rid)
+					await hooks.record_response(response)  # it was cancelled, not free
+				continue
 		if kind == "response.created" and pending.count == 0:
 			# The provider started a response nobody asked for (server-side voice detection answers on its own). It is subject to the
 			# same limits as one the client asked for: refused means cancelled, and the client is told instead of being shown it.
 			reason = await hooks.admit_response()
 			if reason:
+				rid = (event.get("response") or {}).get("id") if isinstance(event.get("response"), dict) else None
+				if isinstance(rid, str):
+					pending.refused.add(rid)
 				await upstream.send(json.dumps({"type": "response.cancel"}))
 				await client.send_text(error_event("limit_exceeded", f"Response cancelled: {reason}", None))
 				continue
@@ -149,10 +161,10 @@ async def _provider_to_client(client: Any, upstream: Any, hooks: Hooks, pending:
 			await hooks.record_response(event["response"])
 
 
-def _event_of(frame: str | bytes) -> dict | None:
+def _event_of(frame: str | bytes, always: bool = False) -> dict | None:
 	if not isinstance(frame, str) or not frame.startswith("{"):
 		return None
-	if not any(marker in frame for marker in ('"response.created"', '"response.done"', '"error"')):
+	if not always and not any(marker in frame for marker in ('"response.created"', '"response.done"', '"error"')):
 		return None
 	try:
 		event = json.loads(frame)
