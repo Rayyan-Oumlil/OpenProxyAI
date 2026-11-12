@@ -14,6 +14,7 @@ OpenProxyAI's core request path (auth, rate limiting, policy, cache, provider ro
 | `AIRGAP_MODE` | When `true`, disables everything that calls out to a third party the proxy doesn't strictly need to function: Langfuse observability, ClickHouse analytics dual-write, hosted spend reports, and Stripe metered billing sync. Use this for on-prem / air-gapped deployments. |
 | `BATCH_SPEND_ENABLED` | Enables batched request-log flushing instead of writing each request individually — reduces database write load at high volume. |
 | `VAULT_ADDR`, `VAULT_TOKEN` (or `VAULT_ROLE_ID` and `VAULT_SECRET_ID`), `VAULT_NAMESPACE`, `VAULT_KV_MOUNT`, `VAULT_PATH_PREFIX`, `VAULT_CACHE_SECONDS`, `VAULT_ALLOW_INSECURE_HTTP` | Let provider keys be read from HashiCorp Vault. See [Provider keys from Vault](/guides/secrets-from-vault). Off unless `VAULT_ADDR` and a credential are set. |
+| `AWS_SECRETS_ENABLED`, `AWS_SECRETS_REGION`, `AWS_SECRET_PREFIX`, `AWS_SECRET_CACHE_SECONDS` | Let provider keys be read from AWS Secrets Manager. See [Provider keys from Vault](/guides/secrets-from-vault). Off unless enabled. |
 | `UNPRICED_CALL_COST_USD` | Default `0.01`. Charged per unit (an image, a call) when the gateway cannot price a non-chat call, so an unpriced model still counts against budgets. |
 | `PROMETHEUS_ENABLED` | Mounts a `/metrics` endpoint for Prometheus scraping. |
 | `PROVIDER_HEALTH_CHECK_ENABLED` | Enables periodic background polling of provider health, used by the router to avoid sending traffic to a degraded provider key. |

@@ -232,6 +232,9 @@ async def create_api_key(
 	return model, full_key
 
 
+LAST_USED_WRITE_INTERVAL = timedelta(seconds=60)
+
+
 async def validate_api_key(db: AsyncSession, redis: Redis, api_key: str) -> ApiKey:
 	"""Validate API key and return hydrated model with user+org relationships.
 
@@ -279,8 +282,13 @@ async def validate_api_key(db: AsyncSession, redis: Redis, api_key: str) -> ApiK
 	if model.user.org_id != model.org_id:
 		raise INVALID_CREDENTIALS_ERROR
 
-	model.last_used_at = _utc_now().replace(tzinfo=None)
-	await db.commit()
-	await db.refresh(model)
+	# "Last used" is shown to people as a date and time, so to the minute is plenty. Writing it on every request cost an UPDATE, a
+	# commit and a re-select for each one; now only the first request in each window pays. Authorization is unaffected: every check
+	# above still runs on every request, nothing about who may call is cached.
+	now = _utc_now().replace(tzinfo=None)
+	if model.last_used_at is None or now - model.last_used_at >= LAST_USED_WRITE_INTERVAL:
+		model.last_used_at = now
+		await db.commit()
+		await db.refresh(model)
 	return model
 
