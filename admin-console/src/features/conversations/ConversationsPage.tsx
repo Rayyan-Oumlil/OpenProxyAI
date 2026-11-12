@@ -40,10 +40,19 @@ function NewConversationDialog({
   busy: boolean;
 }) {
   const { token } = useAuth();
-  const ids = { title: useId(), tags: useId(), team: useId() };
+  const ids = {
+    title: useId(),
+    tags: useId(),
+    team: useId(),
+    persona: useId(),
+    org: useId(),
+  };
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState("");
   const [teamId, setTeamId] = useState("");
+  const [persona, setPersona] = useState("");
+  const [wholeOrg, setWholeOrg] = useState(false);
+  const isAdmin = useAuth().user?.role === "admin";
   const teams = useQuery({
     queryKey: ["conversation-teams"],
     queryFn: () =>
@@ -74,9 +83,12 @@ function NewConversationDialog({
             onCreate({
               title: title.trim(),
               tags: list,
-              ...(teamId
-                ? { visibility: "team" as const, team_id: teamId }
-                : {}),
+              ...(persona.trim() ? { system_prompt: persona.trim() } : {}),
+              ...(wholeOrg
+                ? { visibility: "org" as const }
+                : teamId
+                  ? { visibility: "team" as const, team_id: teamId }
+                  : {}),
             });
           }}
         >
@@ -103,6 +115,7 @@ function NewConversationDialog({
             <select
               id={ids.team}
               value={teamId}
+              disabled={wholeOrg}
               onChange={(e) => setTeamId(e.target.value)}
             >
               <option value="">Nobody (private)</option>
@@ -112,6 +125,31 @@ function NewConversationDialog({
                 </option>
               ))}
             </select>
+          </label>
+          {isAdmin ? (
+            <label
+              className="flex items-center gap-2 text-sm"
+              htmlFor={ids.org}
+            >
+              <input
+                id={ids.org}
+                type="checkbox"
+                checked={wholeOrg}
+                onChange={(e) => setWholeOrg(e.target.checked)}
+              />
+              Share with the whole organization (read-only for everyone else)
+            </label>
+          ) : null}
+          <label className="inline-control" htmlFor={ids.persona}>
+            Standing instruction (optional)
+            <textarea
+              id={ids.persona}
+              className="textarea-short"
+              value={persona}
+              maxLength={4000}
+              onChange={(e) => setPersona(e.target.value)}
+              placeholder="e.g. You are a terse code reviewer."
+            />
           </label>
           <DialogFooter>
             <button type="button" className="btn-outline" onClick={onClose}>

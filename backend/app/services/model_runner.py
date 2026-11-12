@@ -20,6 +20,7 @@ that makes one call at a time.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
@@ -28,6 +29,7 @@ from decimal import Decimal
 from typing import Any
 
 from fastapi import HTTPException
+import litellm
 from litellm import acompletion
 from pydantic import ValidationError
 from redis.asyncio import Redis
@@ -177,20 +179,69 @@ async def plan_call(
 		return RunOutcome(error=str(exc), latency_ms=_elapsed_ms(started))
 
 
+def _call_kwargs(plan: CallPlan) -> dict[str, Any]:
+	kwargs: dict[str, Any] = {
+		"model": plan.model, "messages": plan.messages, "api_key": plan.candidate.api_key, "timeout": plan.timeout, "request_timeout": plan.timeout,
+	}
+	endpoint = ProviderEndpoint(plan.candidate.api_base, plan.candidate.is_internal) if plan.candidate.api_base else None
+	kwargs = with_endpoint(kwargs, plan.candidate.api_key, endpoint)
+	if plan.temperature is not None:
+		kwargs["temperature"] = plan.temperature
+	if plan.max_tokens is not None:
+		kwargs["max_tokens"] = plan.max_tokens
+	return kwargs
+
+
+CLIENT_GONE_STATUS = 499  # what the audit log records when the caller disconnected mid-stream
+
+
+async def stream_plan(plan: CallPlan, *, redis: Redis | None, org_id: uuid.UUID, user_id: uuid.UUID):
+	"""Make the provider call as a stream. Yields each piece of text (``str``) as it arrives, then one final ``RunOutcome``.
+
+	The call is audit-logged exactly once, whichever way it ends: complete (200, priced), failed (502), or abandoned by the caller
+	(499, with the text delivered so far estimated, because the provider charged for it). Never raises.
+	"""
+	pieces: list[str] = []
+	chunks: list[Any] = []
+	status, error, finished = 502, None, False
+	try:
+		stream = await acompletion(**_call_kwargs(plan), stream=True, stream_options={"include_usage": True})
+		async for chunk in stream:
+			chunks.append(chunk)
+			choices = getattr(chunk, "choices", None) or []
+			delta = getattr(getattr(choices[0], "delta", None), "content", None) if choices else None
+			if delta:
+				pieces.append(delta)
+				yield delta
+		status, finished = 200, True
+	except (GeneratorExit, asyncio.CancelledError):
+		status, error = CLIENT_GONE_STATUS, "the caller disconnected before the answer finished"
+		raise
+	except Exception as exc:
+		error = str(exc)
+	finally:
+		text = "".join(pieces)
+		usage = next((getattr(c, "usage", None) for c in reversed(chunks) if getattr(c, "usage", None)), None)
+		prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+		completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0) or (len(text) // 4 if text else 0)
+		try:
+			cost = cost_tracker_service.calculate_cost_usd(litellm.stream_chunk_builder(chunks, messages=plan.messages)) if finished and chunks else Decimal("0")
+		except Exception:
+			cost = Decimal("0")
+		await asyncio.shield(_log(
+			redis, plan.request_id, org_id, user_id, plan.model, plan.provider, plan.metadata, plan.started, status_code=status,
+			prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost, error=error,
+		))
+	if finished:
+		yield RunOutcome(content=text, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost_usd=cost, latency_ms=_elapsed_ms(plan.started))
+	else:
+		yield RunOutcome(error=error or "the call failed", latency_ms=_elapsed_ms(plan.started))
+
+
 async def execute_plan(plan: CallPlan, *, redis: Redis | None, org_id: uuid.UUID, user_id: uuid.UUID) -> RunOutcome:
 	"""Make the provider call, price it and audit-log it. Uses no database session, so plans can run concurrently. Never raises."""
 	try:
-		kwargs: dict[str, Any] = {
-			"model": plan.model, "messages": plan.messages, "api_key": plan.candidate.api_key, "timeout": plan.timeout, "request_timeout": plan.timeout,
-		}
-		endpoint = ProviderEndpoint(plan.candidate.api_base, plan.candidate.is_internal) if plan.candidate.api_base else None
-		kwargs = with_endpoint(kwargs, plan.candidate.api_key, endpoint)
-		if plan.temperature is not None:
-			kwargs["temperature"] = plan.temperature
-		if plan.max_tokens is not None:
-			kwargs["max_tokens"] = plan.max_tokens
-
-		response = await acompletion(**kwargs)
+		response = await acompletion(**_call_kwargs(plan))
 		usage = getattr(response, "usage", None)
 		prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
 		completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)

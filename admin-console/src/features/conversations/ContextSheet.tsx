@@ -99,6 +99,15 @@ export function ContextSheet({
                   </code>
                 </Fact>
               </dl>
+              {context.would_withhold && context.would_withhold.length > 0 ? (
+                <p className="text-sm" role="note">
+                  Routing is in preview, so everything was sent. With routing
+                  enforced, {context.would_withhold.length} earlier{" "}
+                  {context.would_withhold.length === 1 ? "message" : "messages"}{" "}
+                  (#{context.would_withhold.map((w) => w.seq).join(", #")})
+                  would have been held back from this model.
+                </p>
+              ) : null}
               <h3 className="mt-4">Held back</h3>
               {context.withheld.length === 0 ? (
                 <p className="text-muted text-sm">
