@@ -213,6 +213,11 @@ export async function mockApi(page: Page) {
     if (pathname === "/api/v1/organizations/current") return json(ORG);
     if (pathname === "/api/v1/organizations/current/policy/templates") return json(POLICY_TEMPLATES);
     if (pathname === "/api/v1/policy/preview" && method === "POST") return json(POLICY_PREVIEW);
+    if (pathname === "/api/v1/scim/token") {
+      const base = "http://localhost:8000/scim/v2";
+      if (method === "POST") return json({ configured: true, token_prefix: "scim_AbCdEf12", created_at: "2026-11-12T10:00:00", last_used_at: null, scim_base_url: base, token: "scim_exampletokenexampletokenexampletoken00", rotated: false }, 201);
+      return json({ configured: false, token_prefix: null, created_at: null, last_used_at: null, scim_base_url: base });
+    }
     if (pathname === "/api/v1/teams") return json([]);
     if (pathname === "/api/v1/mcp-servers") return json([SERVER]);
     if (pathname === "/api/v1/analytics/logs") return json({ items: [LOG_ITEM], total: 1, page: 1, page_size: 50, total_pages: 1 });

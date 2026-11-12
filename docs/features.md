@@ -105,6 +105,7 @@
 | Email/password auth | Registration, login, JWT access + refresh tokens |
 | RBAC | Three roles: `admin`, `developer`, `viewer` — enforced on all management endpoints |
 | OIDC/SSO | Per-org generic OIDC connector with auth-code flow and JIT user provisioning |
+| SCIM 2.0 provisioning | `/scim/v2` Users create/read/update/deactivate for Okta and Entra ID. Per-org hashed bearer token (create, rotate, revoke in the console). New users are viewers; roles are never settable through SCIM. Groups are not supported. Audited |
 | Invite system | SHA-256 token-secured invitations with 7-day TTL and role pre-assignment |
 | Brute-force protection | Redis-backed fixed-window counter per IP+email, 429 after threshold |
 | JWT silent refresh | Proactive token renewal 5 min before expiry, transparent to clients |
