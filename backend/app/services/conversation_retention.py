@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def retention_days(plan: str | None) -> int:
-	return PLAN_FEATURES.get((plan or "free").lower(), PLAN_FEATURES["free"])["audit_retention_days"]
+	return PLAN_FEATURES.get((plan or "community").lower(), PLAN_FEATURES["community"])["audit_retention_days"]
 
 
 async def purge_expired_conversations(now: datetime | None = None) -> int:

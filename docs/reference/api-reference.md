@@ -491,7 +491,7 @@ Prefix: `/api/v1/billing`. **JWT required.** Checkout/portal: **admin** only. We
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/v1/billing/checkout` | Body `{ "plan": "starter" \| "growth" \| "metered" }` → Stripe Checkout URL |
+| `POST` | `/api/v1/billing/checkout` | Body `{ "plan": "team" \| "business" \| "metered" }` → Stripe Checkout URL |
 | `POST` | `/api/v1/billing/portal` | Customer Portal URL for subscription self-service |
 | `POST` | `/api/v1/billing/webhook` | Stripe events (`checkout.session.completed`, invoices, subscriptions, …) |
 
