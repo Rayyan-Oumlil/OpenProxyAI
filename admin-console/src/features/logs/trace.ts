@@ -23,6 +23,8 @@ export interface Trace {
   dataClass: { name: string; source: string; entities: string[] } | null;
   /** Which registry model was authorized to serve the request, and why; null when routing was off or the row is older. */
   routing: TraceRouting | null;
+  /** The plain sentence the caller was given when the gateway refused the request; null when it did not, or for older rows. */
+  callerMessage: string | null;
 }
 
 export interface TraceRouting {
@@ -115,6 +117,9 @@ export function buildTrace(detail: RequestLogDetail): Trace {
           fallbackRefused: typeof rt.fallback_model_refused === "string" ? rt.fallback_model_refused : null,
         }
       : null;
+  const policy = isRecord(metadata.policy) ? metadata.policy : null;
+  const policyMessage = policy && policy.allowed === false && typeof policy.explanation === "string" ? policy.explanation : null;
+  const routingMessage = rt && rt.mode === "enforce" && rt.model === null && typeof rt.explanation === "string" ? rt.explanation : null;
   return {
     totalMs,
     stages,
@@ -125,5 +130,6 @@ export function buildTrace(detail: RequestLogDetail): Trace {
     taintRemoved: Array.isArray(taint.removed) ? taint.removed.filter((t): t is string => typeof t === "string") : [],
     dataClass,
     routing,
+    callerMessage: policyMessage ?? routingMessage,
   };
 }

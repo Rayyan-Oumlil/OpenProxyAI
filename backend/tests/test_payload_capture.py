@@ -103,7 +103,7 @@ def test_an_oversized_field_is_cut_and_marked():
 class FakeSession:
 	"""Records the statements that touch a table; ignores the set_config calls that scope a session to an org."""
 
-	def __init__(self, plan="free", fail=False, org_ids=()):
+	def __init__(self, plan="community", fail=False, org_ids=()):
 		self.org = SimpleNamespace(plan=plan)
 		self.fail = fail
 		self.org_ids = list(org_ids)

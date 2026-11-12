@@ -276,7 +276,7 @@ def test_create_api_key_validation_empty_name(client):
 
 def test_create_api_key_plan_limit_exceeded(client, monkeypatch):
 	user, org_id = _make_user()
-	fake_org = SimpleNamespace(plan="free", id=org_id)
+	fake_org = SimpleNamespace(plan="community", id=org_id)
 	fake_db = FakeDB(get_result=fake_org, scalar_results=[None], execute_result=5)
 	_override_auth(user)
 	_override_db(fake_db)

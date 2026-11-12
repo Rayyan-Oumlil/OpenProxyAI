@@ -76,7 +76,7 @@ def _organization(*, org_id):
         id=org_id,
         name="OpenProxy",
         slug="openproxy",
-        plan="free",
+        plan="community",
         settings={"timezone": "UTC"},
         budget_monthly_usd=None,
         is_active=True,

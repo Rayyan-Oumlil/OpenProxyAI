@@ -38,7 +38,7 @@ For each sampled request: the messages (role and text only), the answer, and a `
 
 ## How long it is kept
 
-Each row expires with your plan's audit retention (7 days on the free plan, 30 on starter, 90 on growth, 365 on enterprise). A job runs every six hours and deletes expired rows.
+Each row expires with your plan's audit retention (7 days on the Community plan, 30 on Team, 90 on Business, 365 on Enterprise). A job runs every six hours and deletes expired rows.
 
 ## Failure never affects your traffic
 

@@ -125,6 +125,27 @@ describe("buildTrace", () => {
     expect(buildTrace(detail({ request_metadata: { data_class: [] } })).dataClass).toBeNull();
   });
 
+  describe("callerMessage: the sentence the refused caller was given", () => {
+    const refused = { mode: "enforce", requested: "openai/x", model: null, reason: "not_authorized:class_too_low", authorized: [], excluded: {}, explanation: "openai/x is not approved for secret data in your organization." };
+
+    it("is the policy sentence when policy refused, ahead of any routing one", () => {
+      const trace = buildTrace(detail({ request_metadata: { policy: { allowed: false, explanation: "Blocked by policy." }, routing: refused } }));
+      expect(trace.callerMessage).toBe("Blocked by policy.");
+    });
+
+    it("is the routing sentence when enforced routing refused", () => {
+      expect(buildTrace(detail({ request_metadata: { routing: refused } })).callerMessage).toBe(refused.explanation);
+    });
+
+    it("is null when routing was only previewing (log_only), when the request was served, and for rows without one", () => {
+      expect(buildTrace(detail({ request_metadata: { routing: { ...refused, mode: "log_only" } } })).callerMessage).toBeNull();
+      expect(buildTrace(detail({ request_metadata: { routing: { ...refused, model: "openai/x", reason: "authorized" } } })).callerMessage).toBeNull();
+      expect(buildTrace(detail({ request_metadata: { routing: { ...refused, explanation: undefined } } })).callerMessage).toBeNull();
+      expect(buildTrace(detail({ request_metadata: { policy: { allowed: true } } })).callerMessage).toBeNull();
+      expect(buildTrace(detail({ request_metadata: { policy: { allowed: false, explanation: 7 } } })).callerMessage).toBeNull();
+    });
+  });
+
   it("reads the routing decision, ignoring malformed parts, and labels the route stage", () => {
     const trace = buildTrace(
       detail({

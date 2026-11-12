@@ -13,7 +13,7 @@ All tables use UUID primary keys generated server-side (`gen_random_uuid()`). Ti
 | id | UUID | PK, DEFAULT gen_random_uuid() | Unique org identifier |
 | name | VARCHAR(255) | NOT NULL | Display name (e.g., "Acme Corp") |
 | slug | VARCHAR(100) | UNIQUE, NOT NULL | URL-safe identifier (e.g., "acme-corp") |
-| plan | VARCHAR(50) | NOT NULL, DEFAULT 'free' | Feature tier: free, starter, growth, enterprise |
+| plan | VARCHAR(50) | NOT NULL, DEFAULT 'community' | Feature tier: community, team, business, enterprise, metered |
 | settings | JSONB | NOT NULL, DEFAULT '{}' | Org-wide config (policy, SSO, webhooks, etc.) |
 | budget_monthly_usd | NUMERIC(10,2) | Nullable | Monthly spend limit (optional) |
 | is_active | BOOLEAN | NOT NULL, DEFAULT true | Soft delete flag |
@@ -208,7 +208,7 @@ Cache hit:
 ```
 
 **Retention and Archival:**
-- Plans differ in retention: free=30 days, starter=90 days, growth/enterprise=365 days
+- Plans differ in retention: community=7 days, team=30, business=90, enterprise=365 (metered=90)
 - `archive_old_logs()` runs hourly, sets `archived_at` timestamp on expired logs
 - Archived logs stay in PostgreSQL but are excluded from analytics queries (WHERE archived_at IS NULL)
 - In Phase 3, logs migrate to ClickHouse for long-term storage

@@ -308,8 +308,8 @@ jobs:
             --set-env-vars="STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" \
             --set-env-vars="STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}" \
             --set-env-vars="STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
-            --set-env-vars="STRIPE_STARTER_PRICE_ID=${{ secrets.STRIPE_STARTER_PRICE_ID }}" \
-            --set-env-vars="STRIPE_GROWTH_PRICE_ID=${{ secrets.STRIPE_GROWTH_PRICE_ID }}" \
+            --set-env-vars="STRIPE_TEAM_PRICE_ID=${{ secrets.STRIPE_STARTER_PRICE_ID }}" \
+            --set-env-vars="STRIPE_BUSINESS_PRICE_ID=${{ secrets.STRIPE_GROWTH_PRICE_ID }}" \
             --set-env-vars="STRIPE_METERED_PRICE_ID=${{ secrets.STRIPE_METERED_PRICE_ID }}" \
             --set-env-vars="STRIPE_SUCCESS_URL=${{ secrets.STRIPE_SUCCESS_URL }}" \
             --set-env-vars="STRIPE_CANCEL_URL=${{ secrets.STRIPE_CANCEL_URL }}" \
