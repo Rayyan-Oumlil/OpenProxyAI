@@ -1,7 +1,7 @@
 """SCIM provisioning: per-org bearer tokens (hashed) and an external id on users.
 
 Revision ID: u6s7c8i9m0t1
-Revises: r4m5n6o7p8q9
+Revises: s5n6o7p8q9r0
 
 scim_tokens is org-scoped by row-level security (admin management). scim_token_lookup has no RLS and holds only
 hash -> org, so a request can find its org before an org is set (the same pattern as api_key_lookup).
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "u6s7c8i9m0t1"
-down_revision: Union[str, None] = "r4m5n6o7p8q9"
+down_revision: Union[str, None] = "s5n6o7p8q9r0"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
