@@ -70,7 +70,7 @@ export const apiClient = {
     request<T>(path, { method: "PATCH", body, token }),
   del: <T>(path: string, token?: string) => request<T>(path, { method: "DELETE", token }),
   getBlob: (path: string, token?: string) => requestBlob(path, { method: "GET", token }),
-  createCheckoutSession: (plan: "starter" | "growth" | "metered", token?: string) =>
+  createCheckoutSession: (plan: "team" | "business" | "metered", token?: string) =>
     request<{ checkout_url: string }>("/api/v1/billing/checkout", {
       method: "POST",
       body: { plan },

@@ -22,6 +22,7 @@ from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.utils.logging import get_logger
 from app.services import pii_detection, presidio_service
 from app.services.data_class import DATA_CLASSES, DEFAULT_DATA_CLASS
+from app.services.refusal_explanations import explain_policy
 
 logger = get_logger(__name__)
 
@@ -294,16 +295,17 @@ class PolicyDecision:
 	redacted_text: Optional[str] = None
 
 	def as_metadata(self) -> dict[str, object]:
-		return {
-			"policy": {
-				"allowed": self.allowed,
-				"action": self.action,
-				"reason_code": self.reason_code,
-				"detail": self.detail,
-				"triggered_rules": self.triggered_rules or [],
-				"mode": self._mode,
-			}
+		policy: dict[str, object] = {
+			"allowed": self.allowed,
+			"action": self.action,
+			"reason_code": self.reason_code,
+			"detail": self.detail,
+			"triggered_rules": self.triggered_rules or [],
+			"mode": self._mode,
 		}
+		if not self.allowed:
+			policy["explanation"] = explain_policy(self.reason_code)
+		return {"policy": policy}
 
 
 # ── Prompt injection patterns ─────────────────────────────────────────────────

@@ -26,7 +26,7 @@ from app.services import policy_service as policy_service_module
 # ---------------------------------------------------------------------------
 
 
-def _org(plan: str = "free"):
+def _org(plan: str = "community"):
     return SimpleNamespace(id=uuid4(), plan=plan, name="Test Org", slug="test-org")
 
 
@@ -130,23 +130,23 @@ class TestGetPlanFeature:
     """get_plan_feature returns correct values for each plan tier."""
 
     def test_free_plan_features(self):
-        org = _org("free")
+        org = _org("community")
         assert get_plan_feature(org, "max_users") == 3
         assert get_plan_feature(org, "max_api_keys") == 5
         assert get_plan_feature(org, "sso_enabled") is False
         assert get_plan_feature(org, "pii_detection") is False
         assert get_plan_feature(org, "audit_retention_days") == 7
 
-    def test_starter_plan_features(self):
-        org = _org("starter")
+    def test_team_plan_features(self):
+        org = _org("team")
         assert get_plan_feature(org, "max_users") == 50
         assert get_plan_feature(org, "max_api_keys") == 50
         assert get_plan_feature(org, "sso_enabled") is False
         assert get_plan_feature(org, "pii_detection") is True
         assert get_plan_feature(org, "audit_retention_days") == 30
 
-    def test_growth_plan_features(self):
-        org = _org("growth")
+    def test_business_plan_features(self):
+        org = _org("business")
         assert get_plan_feature(org, "max_users") == 200
         assert get_plan_feature(org, "max_api_keys") == 200
         assert get_plan_feature(org, "pii_detection") is True
@@ -169,7 +169,7 @@ class TestGetPlanFeature:
         assert get_plan_feature(org, "max_users") == 3
 
     def test_unknown_feature_returns_none(self):
-        org = _org("free")
+        org = _org("community")
         assert get_plan_feature(org, "nonexistent_feature") is None
 
 
@@ -182,30 +182,30 @@ class TestCheckUserLimit:
     """check_user_limit raises HTTP 402 when user count meets or exceeds max."""
 
     def test_free_plan_at_limit_raises_402(self):
-        org = _org("free")
+        org = _org("community")
         with pytest.raises(HTTPException) as exc_info:
             check_user_limit(org, current_count=3)
         assert exc_info.value.status_code == 402
         assert exc_info.value.detail["error"] == "plan_limit_exceeded"
         assert exc_info.value.detail["feature"] == "max_users"
-        assert exc_info.value.detail["plan"] == "free"
+        assert exc_info.value.detail["plan"] == "community"
 
     def test_free_plan_above_limit_raises_402(self):
-        org = _org("free")
+        org = _org("community")
         with pytest.raises(HTTPException) as exc_info:
             check_user_limit(org, current_count=10)
         assert exc_info.value.status_code == 402
 
     def test_free_plan_below_limit_passes(self):
-        org = _org("free")
+        org = _org("community")
         check_user_limit(org, current_count=2)  # should not raise
 
     def test_enterprise_unlimited_users_never_raises(self):
         org = _org("enterprise")
         check_user_limit(org, current_count=10_000)  # should not raise
 
-    def test_starter_plan_at_limit_raises_402(self):
-        org = _org("starter")
+    def test_team_plan_at_limit_raises_402(self):
+        org = _org("team")
         with pytest.raises(HTTPException) as exc_info:
             check_user_limit(org, current_count=50)
         assert exc_info.value.status_code == 402
@@ -221,30 +221,30 @@ class TestCheckApiKeyLimit:
     """check_api_key_limit raises HTTP 402 when key count meets or exceeds max."""
 
     def test_free_plan_at_limit_raises_402(self):
-        org = _org("free")
+        org = _org("community")
         with pytest.raises(HTTPException) as exc_info:
             check_api_key_limit(org, current_count=5)
         assert exc_info.value.status_code == 402
         assert exc_info.value.detail["error"] == "plan_limit_exceeded"
         assert exc_info.value.detail["feature"] == "max_api_keys"
-        assert exc_info.value.detail["plan"] == "free"
+        assert exc_info.value.detail["plan"] == "community"
 
     def test_free_plan_above_limit_raises_402(self):
-        org = _org("free")
+        org = _org("community")
         with pytest.raises(HTTPException) as exc_info:
             check_api_key_limit(org, current_count=20)
         assert exc_info.value.status_code == 402
 
     def test_free_plan_below_limit_passes(self):
-        org = _org("free")
+        org = _org("community")
         check_api_key_limit(org, current_count=4)  # should not raise
 
     def test_enterprise_unlimited_keys_never_raises(self):
         org = _org("enterprise")
         check_api_key_limit(org, current_count=100_000)  # should not raise
 
-    def test_growth_plan_at_limit_raises_402(self):
-        org = _org("growth")
+    def test_business_plan_at_limit_raises_402(self):
+        org = _org("business")
         with pytest.raises(HTTPException) as exc_info:
             check_api_key_limit(org, current_count=200)
         assert exc_info.value.status_code == 402
@@ -260,19 +260,19 @@ class TestAssertPlanAllows:
     """assert_plan_allows raises HTTP 402 for disabled boolean features."""
 
     def test_free_plan_pii_detection_raises_402(self):
-        org = _org("free")
+        org = _org("community")
         with pytest.raises(HTTPException) as exc_info:
             assert_plan_allows(org, "pii_detection")
         assert exc_info.value.status_code == 402
         assert exc_info.value.detail["error"] == "plan_limit_exceeded"
         assert exc_info.value.detail["feature"] == "pii_detection"
 
-    def test_starter_plan_pii_detection_passes(self):
-        org = _org("starter")
+    def test_team_plan_pii_detection_passes(self):
+        org = _org("team")
         assert_plan_allows(org, "pii_detection")  # should not raise
 
     def test_free_plan_sso_raises_402(self):
-        org = _org("free")
+        org = _org("community")
         with pytest.raises(HTTPException) as exc_info:
             assert_plan_allows(org, "sso_enabled")
         assert exc_info.value.status_code == 402
@@ -284,7 +284,7 @@ class TestAssertPlanAllows:
 
     def test_numeric_feature_does_not_raise(self):
         """Non-boolean features (like max_users=3) should not trigger 402."""
-        org = _org("free")
+        org = _org("community")
         assert_plan_allows(org, "max_users")  # 3 is not False, should not raise
 
     def test_metered_plan_pii_detection_passes(self):
@@ -294,7 +294,7 @@ class TestAssertPlanAllows:
 
 class TestIncludedTokensMonthly:
     def test_included_tokens_none_for_non_metered(self):
-        assert included_tokens_monthly_for_org(_org("growth")) is None
+        assert included_tokens_monthly_for_org(_org("business")) is None
 
     def test_included_tokens_for_metered_uses_settings(self, monkeypatch):
         monkeypatch.setattr(config_settings, "METERED_INCLUDED_TOKENS_MONTHLY", 2_000_000)
@@ -315,7 +315,7 @@ class TestInviteAcceptPlanEnforcement:
         from datetime import UTC, datetime, timedelta
 
         org_id = uuid4()
-        org = _org("free")
+        org = _org("community")
         org.id = org_id
 
         # Naive UTC to match invite_service's now (DB timestamp columns)
@@ -422,7 +422,7 @@ class TestApiKeyCreationPlanEnforcement:
     def test_free_org_6th_key_returns_402(self, client, monkeypatch):
         """Free org creating 6th API key returns HTTP 402."""
         org_id = uuid4()
-        org = _org("free")
+        org = _org("community")
         org.id = org_id
         user = _admin_user(org_id)
 
@@ -449,14 +449,14 @@ class TestApiKeyCreationPlanEnforcement:
         assert data["error"] == "plan_limit_exceeded"
         assert data["feature"] == "max_api_keys"
 
-    def test_starter_org_below_limit_does_not_block(self, client, monkeypatch):
-        """Starter org with keys below limit should not get 402."""
+    def test_team_org_below_limit_does_not_block(self, client, monkeypatch):
+        """Team org with keys below limit should not get 402."""
         from datetime import datetime, timezone
 
         from app.services import auth_service
 
         org_id = uuid4()
-        org = _org("starter")
+        org = _org("team")
         org.id = org_id
         user = _admin_user(org_id)
 
@@ -514,7 +514,7 @@ class TestPolicyPiiPlanEnforcement:
     def test_free_org_enable_pii_returns_402(self, client, monkeypatch):
         """Free org enabling pii_detection in policy returns HTTP 402."""
         org_id = uuid4()
-        org = _org("free")
+        org = _org("community")
         org.id = org_id
         user = _admin_user(org_id)
 
@@ -541,12 +541,12 @@ class TestPolicyPiiPlanEnforcement:
         data = response.json()["detail"]
         assert data["error"] == "plan_limit_exceeded"
         assert data["feature"] == "pii_detection"
-        assert data["plan"] == "free"
+        assert data["plan"] == "community"
 
-    def test_starter_org_enable_pii_succeeds(self, client, monkeypatch):
-        """Starter org enabling pii_detection in policy succeeds (starter has pii_detection=True)."""
+    def test_team_org_enable_pii_succeeds(self, client, monkeypatch):
+        """Team org enabling pii_detection in policy succeeds (team has pii_detection=True)."""
         org_id = uuid4()
-        org = _org("starter")
+        org = _org("team")
         org.id = org_id
         user = _admin_user(org_id)
         saved: list = []
@@ -592,7 +592,7 @@ class TestPolicyPiiPlanEnforcement:
     def test_patch_policy_without_pii_field_skips_plan_check(self, client, monkeypatch):
         """Patching policy without pii_detection_enabled should not trigger plan check."""
         org_id = uuid4()
-        org = _org("free")
+        org = _org("community")
         org.id = org_id
         user = _admin_user(org_id)
 
@@ -642,7 +642,7 @@ class TestPlanFeaturesIntegrity:
     """Verify the PLAN_FEATURES dict has all required tiers and keys."""
 
     def test_all_plans_present(self):
-        assert set(PLAN_FEATURES.keys()) == {"free", "starter", "growth", "enterprise", "metered"}
+        assert set(PLAN_FEATURES.keys()) == {"community", "team", "business", "enterprise", "metered"}
 
     def test_all_plans_have_same_keys(self):
         expected_keys = {
@@ -661,9 +661,9 @@ class TestPlanFeaturesIntegrity:
         assert PLAN_FEATURES["enterprise"]["max_api_keys"] == -1
 
     def test_free_plan_is_most_restrictive(self):
-        free = PLAN_FEATURES["free"]
+        free = PLAN_FEATURES["community"]
         for plan_name, features in PLAN_FEATURES.items():
-            if plan_name == "free":
+            if plan_name == "community":
                 continue
             max_u = features["max_users"]
             # Enterprise is -1 (unlimited), others should be >= free

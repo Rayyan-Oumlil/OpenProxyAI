@@ -28,8 +28,8 @@ Add these (get values from Stripe Dashboard → Developers → API keys, Product
 | `STRIPE_SECRET_KEY` | `sk_test_...` or `sk_live_...` |
 | `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` or `pk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...` (from step 1) |
-| `STRIPE_STARTER_PRICE_ID` | `price_...` (from Products) |
-| `STRIPE_GROWTH_PRICE_ID` | `price_...` |
+| `STRIPE_TEAM_PRICE_ID` | `price_...` (from Products) |
+| `STRIPE_BUSINESS_PRICE_ID` | `price_...` |
 | `STRIPE_SUCCESS_URL` | `https://admin-console-ecru.vercel.app/billing?success=1` |
 | `STRIPE_CANCEL_URL` | `https://admin-console-ecru.vercel.app/billing?canceled=1` |
 

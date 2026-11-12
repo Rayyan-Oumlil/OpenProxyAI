@@ -12,10 +12,10 @@ In the Stripe dashboard → **Products** → **Add product**:
 
 | Product name | Price | Billing |
 |---|---|---|
-| OpenProxyAI Starter | $2,500.00 | Monthly recurring |
-| OpenProxyAI Growth | $7,500.00 | Monthly recurring |
+| OpenProxyAI Team | $299.00 | Monthly recurring |
+| OpenProxyAI Business | $1,500.00 | Monthly recurring |
 
-After creating each product, copy the **Price ID** (starts with `price_`).
+After creating each product, copy the **Price ID** (starts with `price_`). Team goes in `STRIPE_TEAM_PRICE_ID`, Business in `STRIPE_BUSINESS_PRICE_ID`. If one is unset, checkout for that plan fails with a 400 that names the variable.
 
 ## 3. Get your API keys
 
@@ -46,8 +46,8 @@ After saving, copy the **Signing secret** (`whsec_...`).
 ```bash
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_STARTER_PRICE_ID=price_...
-STRIPE_GROWTH_PRICE_ID=price_...
+STRIPE_TEAM_PRICE_ID=price_...
+STRIPE_BUSINESS_PRICE_ID=price_...
 ```
 
 ## 6. Local development — test webhooks
@@ -95,7 +95,7 @@ Before going live, verify:
 
 ## 9. Enterprise plans
 
-Enterprise ($25,000+/mo) is handled manually — no Stripe price ID required. Set `org.plan = "enterprise"` directly via the admin API after confirming the contract.
+Enterprise (from $25,000/yr) is handled manually — no Stripe price ID required. Set `org.plan = "enterprise"` directly via the admin API after confirming the contract.
 
 ## 10. Usage-based metered plan (optional)
 

@@ -30,6 +30,7 @@ from app.models.request_log import RequestLog
 from app.models.request_score import RequestScore
 from app.services.ab_testing import MIN_SAMPLES_FLOOR, smoothed_rate
 from app.services.data_class import data_class_rank
+from app.services.refusal_explanations import explain_routing
 
 ROUTING_MODES: Final = ("off", "log_only", "enforce")
 QUALITY_SIGNALS: Final = ("off", "feedback")
@@ -95,6 +96,11 @@ class RoutingDecision:
 	excluded: dict[str, str]
 
 	@property
+	def explanation(self) -> str | None:
+		"""One plain sentence for the caller when no model was authorized; None when one was."""
+		return explain_routing(self.reason, self.data_class, self.requested) if self.model is None else None
+
+	@property
 	def blocked(self) -> bool:
 		"""Only enforce mode refuses a request; log_only reports the same decision and lets it through."""
 		return self.mode == "enforce" and self.model is None
@@ -102,7 +108,7 @@ class RoutingDecision:
 	def as_metadata(self) -> dict:
 		"""For the audit row: model names and reasons, never keys, endpoints or text."""
 		excluded = dict(sorted(self.excluded.items())[:MAX_EXCLUDED_IN_METADATA])
-		return {
+		metadata = {
 			"mode": self.mode,
 			"data_class": self.data_class,
 			"requested": self.requested,
@@ -111,6 +117,9 @@ class RoutingDecision:
 			"authorized": list(self.authorized),
 			"excluded": excluded,
 		}
+		if self.explanation is not None:
+			metadata["explanation"] = self.explanation
+		return metadata
 
 
 def may_leave_registry(mode: str, data_class: str, ceiling: str) -> bool:

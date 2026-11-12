@@ -41,12 +41,12 @@ async def set_plan(org_id, plan):
 
 
 def test_each_plan_has_its_own_retention_and_an_unknown_plan_gets_the_shortest():
-	assert retention_days("free") == 7 and retention_days("ENTERPRISE") == 365 and retention_days("nonsense") == 7 and retention_days(None) == 7
+	assert retention_days("community") == 7 and retention_days("ENTERPRISE") == 365 and retention_days("nonsense") == 7 and retention_days(None) == 7
 
 
 async def test_an_idle_conversation_is_deleted_with_its_turns_and_context_records_and_an_active_one_is_kept(tenants):
 	owner = await member(tenants.a)
-	await set_plan(tenants.a, "free")
+	await set_plan(tenants.a, "community")
 	old, fresh = await make(tenants.a, owner, "old", 10), await make(tenants.a, owner, "fresh", 1)
 	assert await purge_expired_conversations() >= 1
 	async with org_scoped_session(tenants.a) as db:
@@ -59,7 +59,7 @@ async def test_an_idle_conversation_is_deleted_with_its_turns_and_context_record
 async def test_the_orgs_plan_sets_how_long_a_conversation_may_idle_and_other_orgs_are_untouched(tenants):
 	owner_a, owner_b = await member(tenants.a), await member(tenants.b)
 	await set_plan(tenants.a, "enterprise")
-	await set_plan(tenants.b, "free")
+	await set_plan(tenants.b, "community")
 	a_old, b_old = await make(tenants.a, owner_a, "a", 100), await make(tenants.b, owner_b, "b", 100)
 	await purge_expired_conversations()
 	async with org_scoped_session(tenants.a) as db:

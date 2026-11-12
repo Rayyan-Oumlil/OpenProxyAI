@@ -15,7 +15,7 @@ export default function AccessControlSection() {
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Who can do what, <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>enforced at every layer.</em>
           </h2>
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>growth + enterprise</span>
+          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>business + enterprise</span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', maxWidth: 760 }}>
