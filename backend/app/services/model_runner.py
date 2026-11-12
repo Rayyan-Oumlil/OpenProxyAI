@@ -35,6 +35,7 @@ from pydantic import ValidationError
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.schemas.chat import ChatCompletionRequest
 from app.services.audit_logger import log_request
 from app.services.classification_service import Classification, classify_chat_request
@@ -192,6 +193,27 @@ def _call_kwargs(plan: CallPlan) -> dict[str, Any]:
 	return kwargs
 
 
+def _estimate_prompt_tokens(messages: list[dict[str, Any]]) -> int:
+	return max(1, sum(len(str(m.get("content", ""))) for m in messages) // 4)
+
+
+def _stream_cost(plan: CallPlan, chunks: list[Any], finished: bool, prompt_tokens: int, completion_tokens: int) -> Decimal:
+	"""Price a stream that reached the provider, however it ended. The provider charges for what it generated even when the caller
+	left or the stream broke, so an abandoned stream is priced from its tokens, never at zero (that would let spend go uncounted by
+	disconnecting). If even that cannot be priced, charge the flat per-call fallback."""
+	if finished and chunks:
+		try:
+			return cost_tracker_service.calculate_cost_usd(litellm.stream_chunk_builder(chunks, messages=plan.messages))
+		except Exception:  # noqa: BLE001
+			pass
+	try:
+		prompt_cost, completion_cost = litellm.cost_per_token(model=plan.model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
+		return Decimal(str(prompt_cost + completion_cost)).quantize(Decimal("0.000001"))
+	except Exception:  # noqa: BLE001
+		logger.warning("could not price a stream to %s; charging the flat fallback", plan.model)
+		return Decimal(str(settings.UNPRICED_CALL_COST_USD))
+
+
 CLIENT_GONE_STATUS = 499  # what the audit log records when the caller disconnected mid-stream
 
 
@@ -222,12 +244,9 @@ async def stream_plan(plan: CallPlan, *, redis: Redis | None, org_id: uuid.UUID,
 	finally:
 		text = "".join(pieces)
 		usage = next((getattr(c, "usage", None) for c in reversed(chunks) if getattr(c, "usage", None)), None)
-		prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+		prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0) or _estimate_prompt_tokens(plan.messages)
 		completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0) or (len(text) // 4 if text else 0)
-		try:
-			cost = cost_tracker_service.calculate_cost_usd(litellm.stream_chunk_builder(chunks, messages=plan.messages)) if finished and chunks else Decimal("0")
-		except Exception:
-			cost = Decimal("0")
+		cost = _stream_cost(plan, chunks, finished, prompt_tokens, completion_tokens)
 		await asyncio.shield(_log(
 			redis, plan.request_id, org_id, user_id, plan.model, plan.provider, plan.metadata, plan.started, status_code=status,
 			prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost, error=error,

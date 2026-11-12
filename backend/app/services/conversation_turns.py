@@ -219,11 +219,17 @@ async def stream_turn(prepared: PreparedTurn, redis):
 		"would_withhold": _withheld_json(prepared.preview), "estimated_tokens": package.estimated_tokens,
 	}
 	outcome: RunOutcome | None = None
-	async for item in stream_plan(prepared.plan, redis=redis, org_id=prepared.org_id, user_id=prepared.user_id):
-		if isinstance(item, RunOutcome):
-			outcome = item
-		else:
-			yield "delta", {"text": item}
+	inner = stream_plan(prepared.plan, redis=redis, org_id=prepared.org_id, user_id=prepared.user_id)
+	try:
+		async for item in inner:
+			if isinstance(item, RunOutcome):
+				outcome = item
+			else:
+				yield "delta", {"text": item}
+	finally:
+		# Closing this generator must close the provider stream now, so an abandoned call is audited and priced before this returns,
+		# not whenever the garbage collector reaches it (or never, if the process exits first).
+		await inner.aclose()
 	assert outcome is not None
 	async with org_scoped_session(prepared.org_id) as db:
 		conversation = await db.get(Conversation, prepared.conversation_id)
