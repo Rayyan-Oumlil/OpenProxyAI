@@ -71,5 +71,8 @@ BASE_URL="$API" FAKE_URL="http://localhost:9090" "$PYTHON" scripts/smoke_modalit
 # Files and batches: upload validation, per-line policy, cap, cancel, cleanup.
 BASE_URL="$API" FAKE_URL="http://localhost:9090" "$PYTHON" scripts/smoke_batches.py; check "batches: validate, run per line under policy, cancel, cleanup" $?
 
+# SCIM provisioning: the token, discovery, the user lifecycle in both IdP styles, role refusal, isolation and audit.
+BASE_URL="$API" "$PYTHON" scripts/smoke_scim.py; check "scim: token, lifecycle (Okta and Entra style), roles refused, audit, revocation" $?
+
 if [ "$failures" -ne 0 ]; then echo "$failures smoke check(s) failed"; exit 1; fi
 echo "smoke passed"

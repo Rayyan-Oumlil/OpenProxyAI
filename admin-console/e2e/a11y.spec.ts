@@ -220,6 +220,23 @@ for (const theme of ["light", "dark"] as const) {
       expect(await audit(page)).toEqual([]);
     });
 
+    test("organization settings: the SCIM card and its one-time token dialog", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/organization-settings");
+      await expect(page.getByRole("heading", { name: "User provisioning (SCIM)" })).toBeVisible();
+      await expect(page.getByText("No token")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+      await page.getByRole("button", { name: "Create token" }).click();
+      const dialog = page.getByRole("dialog", { name: "SCIM token created" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByTestId("scim-token-value")).toContainText("scim_");
+      expect(await audit(page)).toEqual([]);
+      await dialog.getByRole("button", { name: "Done" }).click();
+      await expect(dialog).toBeHidden();
+      await expect(page.getByRole("button", { name: "Create token" })).toBeFocused();
+    });
+
     test("conversations: a thread, the context drawer and the new-conversation dialog", async ({ page }) => {
       await signIn(page);
       await page.goto("/conversations/c1");
