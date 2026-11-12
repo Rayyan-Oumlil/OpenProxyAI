@@ -244,7 +244,7 @@ export type ProviderKeyResponse = {
   consecutive_failures?: number;
   last_health_check_at?: string | null;
   /** "vault" when the key is read from HashiCorp Vault and the gateway holds no copy. */
-  secret_source?: "local" | "vault";
+  secret_source?: "local" | "vault" | "aws";
   vault_path?: string | null;
 };
 
@@ -252,10 +252,12 @@ export type CreateProviderKeyRequest = {
   provider: string;
   alias?: string;
   key_alias?: string;
-  /** Send exactly one of api_key and vault_path. */
+  /** Send exactly one of api_key, vault_path and aws_secret_name. */
   api_key?: string;
   vault_path?: string;
   vault_field?: string;
+  aws_secret_name?: string;
+  aws_secret_field?: string;
   weight?: number;
   region?: string;
   api_base?: string | null;

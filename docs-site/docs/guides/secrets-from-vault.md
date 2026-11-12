@@ -47,4 +47,23 @@ Send exactly one of `api_key` and `vault_path`. `vault_field` is the field insid
 
 A Vault-backed key still has its own **data class**, **region** and **custom endpoint**, so routing treats it like any other key.
 
-Not included: writing secrets to Vault, dynamic secrets, and other secret managers (AWS Secrets Manager, GCP Secret Manager).
+## AWS Secrets Manager
+
+The same idea and the same rules, for teams on AWS. The operator turns it on and the org names a secret:
+
+| Setting | |
+|---|---|
+| `AWS_SECRETS_ENABLED` | `true` to allow it. |
+| `AWS_SECRETS_REGION` | The region (otherwise boto3's default). |
+| `AWS_SECRET_PREFIX` | The folder each organization may use. Default `openproxyai/{org_id}/`. |
+| `AWS_SECRET_CACHE_SECONDS` | Default 60. |
+
+Credentials are the gateway's own AWS identity (environment variables or an IAM role), never an org's. Give it `secretsmanager:GetSecretValue` on `openproxyai/*` and nothing else.
+
+```bash
+curl -X POST https://your-gateway/api/v1/provider-keys -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json"   -d '{"provider": "openai", "key_alias": "prod-openai", "aws_secret_name": "openproxyai/<your-org-id>/openai", "aws_secret_field": "api_key"}'
+```
+
+Send exactly one of `api_key`, `vault_path` and `aws_secret_name`. The secret may be a plain string, or JSON read by field (default `api_key`). **A name, never an ARN**: an ARN can point at another account or region, so only names inside your organization's folder are accepted, at creation and on every read. A secret that cannot be read is an error for that key and never a fall back to another source; the error carries AWS's error code, not its message.
+
+Not included: writing secrets, dynamic secrets, and GCP Secret Manager.

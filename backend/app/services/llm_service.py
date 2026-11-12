@@ -53,7 +53,7 @@ from app.services.circuit_breaker_service import (
 )
 from app.services.adaptive_sampling_service import get_error_rate, get_latency_p99
 from app.services.key_secrets import resolve_secret
-from app.services.vault_client import VaultError
+from app.services.external_secret_error import ExternalSecretError
 from app.services.eval_service import _extract_prompt_text, run_eval_hook
 from app.services.mcp_taint import ChatTaintResult, load_trust_rules, restrict_chat_request
 from app.services.policy_service import PolicyDecision, policy_service, policy_store
@@ -521,14 +521,14 @@ class LLMService:
 			for k in ordered:
 				try:
 					resolved.append(ProviderKeyCandidate(k.id, await resolve_secret(k), k.api_base, k.is_internal))
-				except VaultError as exc:
+				except ExternalSecretError as exc:
 					# Never a silent fall back: the key is skipped, the reason is logged with no secret in it, and if nothing is left the
 					# caller gets the "no provider keys" error below.
-					logger.error("provider key %s could not be read from Vault: %s", k.id, exc)
+					logger.error("provider key %s could not be read from its secret manager: %s", k.id, exc)
 			if not resolved:
 				raise HTTPException(
 					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-					detail={"error": "no_provider_key", "detail": "No provider keys available: a Vault-backed key could not be read"},
+					detail={"error": "no_provider_key", "detail": "No provider keys available: a key held in a secret manager could not be read"},
 				)
 			return resolved
 

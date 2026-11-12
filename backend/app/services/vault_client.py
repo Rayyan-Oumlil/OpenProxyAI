@@ -23,6 +23,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.config import settings
+from app.services.external_secret_error import ExternalSecretError
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -35,7 +36,7 @@ REQUEST_TIMEOUT_SECONDS = 3.0
 TOKEN_REFRESH_MARGIN_SECONDS = 30
 
 
-class VaultError(Exception):
+class VaultError(ExternalSecretError):
     """Vault could not give the secret. ``str(error)`` is safe to log and to show an admin: it never holds the secret or Vault's body."""
 
 

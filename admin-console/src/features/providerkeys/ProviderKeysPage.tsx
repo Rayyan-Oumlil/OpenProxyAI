@@ -71,7 +71,7 @@ function AddKeyModal({
   const [provider, setProvider] = useState("openai");
   const [alias, setAlias] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [source, setSource] = useState<"local" | "vault">("local");
+  const [source, setSource] = useState<"local" | "vault" | "aws">("local");
   const [vaultPath, setVaultPath] = useState("");
   const [vaultField, setVaultField] = useState("");
   const [weight, setWeight] = useState("1.0");
@@ -88,8 +88,8 @@ function AddKeyModal({
       toast.error("API key is required.");
       return;
     }
-    if (source === "vault" && !vaultPath.trim()) {
-      toast.error("The Vault path is required.");
+    if (source !== "local" && !vaultPath.trim()) {
+      toast.error(source === "vault" ? "The Vault path is required." : "The secret name is required.");
       return;
     }
     onSave({
@@ -97,7 +97,9 @@ function AddKeyModal({
       key_alias: alias.trim() || provider,
       ...(source === "vault"
         ? { vault_path: vaultPath.trim(), ...(vaultField.trim() ? { vault_field: vaultField.trim() } : {}) }
-        : { api_key: apiKey.trim() }),
+        : source === "aws"
+          ? { aws_secret_name: vaultPath.trim(), ...(vaultField.trim() ? { aws_secret_field: vaultField.trim() } : {}) }
+          : { api_key: apiKey.trim() }),
       weight: parseFloat(weight) || 1.0,
       region,
       ...(supportsEndpoint && apiBase.trim() ? { api_base: apiBase.trim() } : {}),
@@ -147,6 +149,10 @@ function AddKeyModal({
               <input type="radio" name="secret_source" checked={source === "vault"} onChange={() => setSource("vault")} />
               Read it from HashiCorp Vault
             </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" name="secret_source" checked={source === "aws"} onChange={() => setSource("aws")} />
+              Read it from AWS Secrets Manager
+            </label>
           </fieldset>
           {source === "local" ? (
             <label className="inline-control">
@@ -163,7 +169,7 @@ function AddKeyModal({
           ) : (
             <>
               <label className="inline-control">
-                Vault path
+                {source === "vault" ? "Vault path" : "Secret name"}
                 <input type="text" value={vaultPath} onChange={(e) => setVaultPath(e.target.value)} placeholder="openproxyai/<your-org-id>/openai" required />
               </label>
               <label className="inline-control">
@@ -171,7 +177,7 @@ function AddKeyModal({
                 <input type="text" value={vaultField} onChange={(e) => setVaultField(e.target.value)} placeholder="api_key" />
               </label>
               <p className="muted" style={{ fontSize: "0.82rem" }}>
-                The gateway holds no copy: it reads the key from Vault when a request needs it. The path must be inside your organization's folder.
+                The gateway holds no copy: it reads the key from {source === "vault" ? "Vault" : "AWS Secrets Manager"} when a request needs it. The {source === "vault" ? "path" : "name (not an ARN)"} must be inside your organization's folder.
               </p>
             </>
           )}
@@ -357,7 +363,7 @@ export function ProviderKeysPage() {
         </Badge>
       ),
     },
-    { key: "prefix", header: "Key prefix", mono: true, cell: (k) => (k.secret_source === "vault" ? k.key_prefix : `${k.key_prefix}…`) },
+    { key: "prefix", header: "Key prefix", mono: true, cell: (k) => (k.secret_source === "vault" || k.secret_source === "aws" ? k.key_prefix : `${k.key_prefix}…`) },
     { key: "weight", header: "Weight", align: "right", mono: true, cell: (k) => k.weight },
     ...adaptiveColumns,
     {
