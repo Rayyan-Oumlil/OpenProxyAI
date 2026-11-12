@@ -14,6 +14,7 @@ A conversation the caller may not see is a 404, never a 403, so its existence is
 from __future__ import annotations
 
 import json
+import uuid as uuid_module
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
@@ -318,10 +319,20 @@ def _raise_for_failure(result: TurnResult) -> None:
 		raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
 
 
-async def _events(prepared: PreparedTurn, redis, lock_key: str):
-	"""The SSE body. The lock is held for as long as the answer is being written and released however the stream ends."""
+async def _release(redis, lock_key: str, token: str) -> None:
+	"""Release the lock only if it is still ours: if it expired and another turn took it, deleting it would free theirs."""
+	held = await redis.get(lock_key)
+	if (held.decode() if isinstance(held, bytes) else held) == token:
+		await redis.delete(lock_key)
+
+
+async def _events(prepared: PreparedTurn, redis, lock_key: str, token: str):
+	"""The SSE body. The lock is renewed each time the answer makes progress, so it outlives a long answer but not a stalled one,
+	and it is released however the stream ends."""
 	try:
 		async for event, data in stream_turn(prepared, redis):
+			if event == "delta":
+				await redis.expire(lock_key, _TURN_LOCK_SECONDS)
 			if event in ("done", "error"):
 				result: TurnResult = data
 				if event == "done":
@@ -332,7 +343,7 @@ async def _events(prepared: PreparedTurn, redis, lock_key: str):
 			else:
 				yield _sse(event, data)
 	finally:
-		await redis.delete(lock_key)
+		await _release(redis, lock_key, token)
 
 
 @router.post("/{conversation_id}/turns", response_model=TurnExchange, status_code=status.HTTP_201_CREATED)
@@ -357,7 +368,8 @@ async def add_turn(
 		)
 
 	lock_key = f"conversation-turn:{conversation.id}"
-	if not await redis.set(lock_key, "1", nx=True, ex=_TURN_LOCK_SECONDS):
+	token = uuid_module.uuid4().hex
+	if not await redis.set(lock_key, token, nx=True, ex=_TURN_LOCK_SECONDS):
 		raise HTTPException(
 			status_code=status.HTTP_409_CONFLICT,
 			detail={"error": "turn_in_progress", "detail": "Another message in this conversation is still being answered."},
@@ -372,19 +384,19 @@ async def add_turn(
 		try:
 			prepared = await begin_turn(db, redis, conversation=conversation, **options)
 		except BaseException:
-			await redis.delete(lock_key)
+			await _release(redis, lock_key, token)
 			raise
 		if isinstance(prepared, TurnResult):  # refused, or no key: the same errors as without streaming, before any stream starts
-			await redis.delete(lock_key)
+			await _release(redis, lock_key, token)
 			_raise_for_failure(prepared)
 		return StreamingResponse(
-			_events(prepared, redis, lock_key), media_type="text/event-stream",
+			_events(prepared, redis, lock_key, token), media_type="text/event-stream",
 			headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-OpenProxyAI-Request-Id": str(prepared.plan.request_id)},
 		)
 	try:
 		result = await run_turn(db, redis, conversation=conversation, **options)
 	finally:
-		await redis.delete(lock_key)
+		await _release(redis, lock_key, token)
 	_raise_for_failure(result)
 	return _exchange(result)
 

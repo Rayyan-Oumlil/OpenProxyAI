@@ -143,3 +143,34 @@ async def test_a_second_message_while_a_stream_is_running_is_refused(org, stream
 		conversation = await start(api)
 		await api.redis.set(f"conversation-turn:{conversation}", "1", nx=True, ex=100)
 		assert (await stream_say(api, conversation, "hi")).status_code == 409
+
+
+async def test_the_lock_is_renewed_while_the_answer_is_written_and_released_only_by_its_owner(org, streaming):
+	renewals = []
+	async with as_user(org.id, org.alice) as api:
+		real = api.redis.expire
+
+		async def spy(key, seconds):
+			renewals.append((key, seconds))
+			return await real(key, seconds)
+
+		api.redis.expire = spy
+		conversation = await start(api)
+		response = await stream_say(api, conversation, "hi")
+		assert response.status_code == 200
+		assert len(renewals) == 3 and all(k == f"conversation-turn:{conversation}" for k, _ in renewals)  # once per piece of text
+		assert await api.redis.get(f"conversation-turn:{conversation}") is None
+
+
+async def test_a_turn_never_releases_a_lock_that_another_turn_now_holds(org, streaming):
+	"""If a lock expired mid-answer and a second turn took it, the first turn finishing must not free the second's lock."""
+	from app.routes import conversations as routes
+
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		key = f"conversation-turn:{conversation}"
+		await api.redis.set(key, "another-turns-token", nx=True, ex=100)
+		await routes._release(api.redis, key, "my-own-token")
+		assert await api.redis.get(key) == "another-turns-token"
+		await routes._release(api.redis, key, "another-turns-token")
+		assert await api.redis.get(key) is None
