@@ -121,6 +121,19 @@ describe("PolicyConfigPage", () => {
     expect(patch.mock.calls[0][1]).toEqual({ allow_provider_response_state: true });
   });
 
+  it("turns on the quality signal for capability routing and saves only that field", async () => {
+    mockApi();
+    renderPage();
+    await screen.findByRole("tablist");
+    fireEvent.mouseDown(tab("Data and routing"), { button: 0 });
+    const box = (await screen.findByLabelText("Prefer better-rated models for capability requests")) as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: "Save policy" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0][1]).toEqual({ routing_quality_signal: "feedback" });
+  });
+
   it("turns capture on at 10%, lets the share be set, and saves only the rate", async () => {
     mockApi();
     renderPage();

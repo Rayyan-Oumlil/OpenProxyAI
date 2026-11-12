@@ -85,11 +85,24 @@ curl -X PATCH https://api.openproxy.ai/api/v1/organizations/current/policy \
 | `data_class_map` | object | `{}` | Entity kind to class, e.g. `{"ssn": "secret"}`; overrides the built-in defaults (SSN and payment card are `confidential`). A name only has an effect if the detector can report it: `email`, `ssn` and `payment_card` out of the box, or Presidio's entity types (`US_SSN`, `PERSON`, ...) when Presidio is installed. Any other name is stored but never matches |
 | `routing_mode` | string | `off` | `off`: nothing changes. `log_only`: decide and record which registry models are authorized, never refuse. `enforce`: only models in the model registry that are cleared for the request's class may serve it (see Model registry). Turning on `enforce` needs at least one enabled model with an active provider key |
 | `max_risk_rating` | string | `high` | Registry models rated above this (`low`, `medium`, `high`) are never authorized |
+| `routing_quality_signal` | string | `off` | `off`: a `cap:NAME` request gets the cheapest, then lowest-risk, authorized model with that capability. `feedback`: among those same authorized models, prefer the one with the better `thumbs` feedback from the last 30 days (see below). Never adds a model to the authorized set |
 | `pii_entities` | array[string] | `[]` | Entity types to detect (e.g., `["EMAIL", "CREDIT_CARD", "PERSON"]`) |
 | `model_rate_limits` | object | `{}` | Per-model rate limits (see below) |
 | `prompt_injection_detection_enabled` | boolean | `false` | Detect prompt injection patterns |
 | `response_guardrails_enabled` | boolean | `false` | Check LLM responses for violations |
 | `response_pii_redact` | boolean | `false` | Redact PII from responses instead of blocking |
+
+#### Quality signal for `cap:NAME` routing
+
+With `routing_quality_signal: "feedback"`, a capability request chooses by observed quality before cost. The rules are deliberately conservative:
+
+- **Only inside the authorized set.** Data class, region, risk, allowlist and key rules are applied first, exactly as with the signal off. Feedback can change *which* authorized model is picked, never *whether* one is. A model that was ruled out stays out, however well it is rated.
+- **Source:** `thumbs` scores sent to `POST /v1/feedback`, joined to the requests of each model, over the last 30 days. Other score names and values outside 0 to 1 are ignored.
+- **Smoothed:** a model's rate is the mean of a Beta posterior (starting from a uniform prior), so a handful of ratings cannot give a model 0% or 100%. Fewer than 20 ratings counts as no signal; a model with no signal ranks as 50%, better than a known-bad model and worse than a known-good one.
+- **Clear gaps only:** every model within 5 points of the best-rated one is tied with it, and cost, then risk, then model id pick among the tied models, so one point of feedback never overrides cost.
+- **Visible:** when feedback picked a different model than cost would have, the routing reason is `capability_quality` (otherwise `capability`) in the audit row, the `X-OpenProxyAI-Route-Reason` header, the request trace and the policy preview.
+- **Cheap:** one aggregate query per org, cached for 60 seconds, and only when the setting is on. Changes to feedback take up to a minute to show.
+- Exact `provider/name` requests are never affected.
 
 ## Model Allowlist
 

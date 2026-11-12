@@ -59,7 +59,7 @@ async def preview_policy(
 		raise HTTPException(status_code=422, detail={"error": "invalid_data_class", "detail": str(exc)}) from exc
 	policy = await policy_service.evaluate_chat_request(request, enforcing)
 
-	candidates, region = await llm_service.routing_inputs(db, current_user.org_id)
+	candidates, region = await llm_service.routing_inputs(db, current_user.org_id, enforcing)
 	decision = route_decision(candidates, region, enforcing, classification.data_class, payload.model)
 	key = await db.get(LLMProviderKey, decision.key_id) if decision.key_id else None
 	fallback = None

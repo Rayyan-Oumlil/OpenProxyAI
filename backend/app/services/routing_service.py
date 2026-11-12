@@ -4,7 +4,8 @@ Pure logic plus one loader. Nothing here calls a provider. The invariants the re
 
 * a model is authorized only if it passes every rule below, in the order of ``EXCLUSION_ORDER``;
 * the chosen model is always inside the authorized set, and an unauthorized model is refused, never swapped for another;
-* every exclusion carries a reason.
+* every exclusion carries a reason;
+* the optional quality signal (``routing_quality_signal``) only reorders candidates inside the authorized set, it never adds one.
 
 A model's clearance is the lower of its own data class and its provider key's, because a key's class can be lowered after
 the model was registered. ``global`` in a model's regions means "any region", as it does for provider keys.
@@ -12,24 +13,39 @@ the model was registered. ``global`` in a model's regions means "any region", as
 
 from __future__ import annotations
 
+import math
+import time
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Final
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.llm_provider_key import LLMProviderKey
 from app.models.model_registry import ModelRegistryEntry
+from app.models.request_log import RequestLog
+from app.models.request_score import RequestScore
+from app.services.ab_testing import MIN_SAMPLES_FLOOR, smoothed_rate
 from app.services.data_class import data_class_rank
 
 ROUTING_MODES: Final = ("off", "log_only", "enforce")
+QUALITY_SIGNALS: Final = ("off", "feedback")
 RISK_LEVELS: Final = ("low", "medium", "high")
 CAPABILITY_PREFIX: Final = "cap:"
 MAX_EXCLUDED_IN_METADATA: Final = 20
 
 EXCLUSION_ORDER: Final = ("disabled", "no_key", "key_inactive", "class_too_low", "region", "risk", "not_allowed_by_policy")
+
+# Quality signal (opt-in): a model's observed satisfaction rate, from "thumbs" feedback on its requests.
+QUALITY_SCORE_NAME: Final = "thumbs"
+QUALITY_WINDOW_DAYS: Final = 30
+QUALITY_MIN_SAMPLES: Final = MIN_SAMPLES_FLOOR  # fewer ratings than this never decide anything (same floor as adaptive A/B)
+QUALITY_MARGIN: Final = 0.05  # a model within 5 points of the best-rated one is tied with it, so cost and risk decide
+QUALITY_CACHE_SECONDS: Final = 60
+_PRIOR_RATE = 0.5  # what a model with too few ratings counts as: no better and no worse than the prior
 
 _RISK_RANK = {name: index for index, name in enumerate(RISK_LEVELS)}
 _COST_RANK = {"low": 0, None: 1, "medium": 1, "high": 2}
@@ -50,6 +66,9 @@ class Candidate:
 	risk: str
 	capabilities: tuple[str, ...] = ()
 	cost_tier: str | None = None
+	# Feedback on this model's recent requests as (ratings, sum of ratings in 0..1). Only loaded when the org turns the
+	# quality signal on; None means no signal.
+	quality: tuple[int, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -61,7 +80,7 @@ class Authorization:
 @dataclass(frozen=True)
 class Route:
 	candidate: Candidate
-	reason: str  # "exact" or "capability"
+	reason: str  # "exact", "capability", or "capability_quality" (feedback picked a different model than cost would)
 
 
 @dataclass(frozen=True)
@@ -140,15 +159,43 @@ def authorize(
 	return Authorization(tuple(sorted(authorized, key=lambda c: c.model_id)), excluded)
 
 
-def choose_route(authorization: Authorization, requested: str) -> Route | None:
-	"""The model to use for ``requested`` ("provider/name" or "cap:CAPABILITY"), or None. Never a substitute."""
+def quality_score(candidate: Candidate) -> float | None:
+	"""The candidate's smoothed satisfaction rate, or None when there is too little (or malformed) feedback to use."""
+	if candidate.quality is None:
+		return None
+	n, total = candidate.quality
+	if n < QUALITY_MIN_SAMPLES or not math.isfinite(total) or not 0 <= total <= n:
+		return None
+	return smoothed_rate(n, total)
+
+
+def _effective_score(candidate: Candidate) -> float:
+	score = quality_score(candidate)
+	return _PRIOR_RATE if score is None else score
+
+
+def _by_cost(candidate: Candidate) -> tuple:
+	return (_COST_RANK[candidate.cost_tier], _RISK_RANK[candidate.risk], candidate.model_id)
+
+
+def choose_route(authorization: Authorization, requested: str, *, use_quality: bool = False) -> Route | None:
+	"""The model to use for ``requested`` ("provider/name" or "cap:CAPABILITY"), or None. Never a substitute.
+
+	With ``use_quality`` a ``cap:`` request prefers the model with the better feedback (then cost, risk, id). It chooses among
+	the authorized models only, so it can change which one is picked, never whether one is.
+	"""
 	if requested.startswith(CAPABILITY_PREFIX):
 		capability = requested[len(CAPABILITY_PREFIX):]
 		matching = [c for c in authorization.authorized if capability in c.capabilities]
 		if not matching:
 			return None
-		best = min(matching, key=lambda c: (_COST_RANK[c.cost_tier], _RISK_RANK[c.risk], c.model_id))
-		return Route(best, "capability")
+		cheapest = min(matching, key=_by_cost)
+		if not use_quality:
+			return Route(cheapest, "capability")
+		top = max(_effective_score(c) for c in matching)
+		contenders = [c for c in matching if _effective_score(c) >= top - QUALITY_MARGIN - 1e-9]  # the best and anything tied with it
+		best = min(contenders, key=_by_cost)
+		return Route(best, "capability" if best is cheapest else "capability_quality")
 	for candidate in authorization.authorized:
 		if candidate.model_id == requested:
 			return Route(candidate, "exact")
@@ -164,6 +211,7 @@ def decide(
 	max_risk: str,
 	allows_model: Callable[[str], bool],
 	requested: str,
+	quality_signal: str = "off",
 ) -> RoutingDecision | None:
 	"""The routing decision for one request, or None when routing is off for the org."""
 	if mode == "off":
@@ -171,9 +219,9 @@ def decide(
 	if mode not in ROUTING_MODES:
 		raise ValueError(f"unknown routing mode: {mode!r}")
 	authorization = authorize(candidates, data_class=data_class, org_region=org_region, max_risk=max_risk, allows_model=allows_model)
-	route = choose_route(authorization, requested)
+	route = choose_route(authorization, requested, use_quality=quality_signal == "feedback")
 	if route is not None:
-		model, key_id, reason = route.candidate.model_id, route.candidate.key_id, "authorized" if route.reason == "exact" else "capability"
+		model, key_id, reason = route.candidate.model_id, route.candidate.key_id, "authorized" if route.reason == "exact" else route.reason
 	else:
 		model, key_id = None, None
 		if requested.startswith(CAPABILITY_PREFIX):
@@ -188,8 +236,45 @@ def decide(
 	)
 
 
-async def load_candidates(db: AsyncSession, org_id: uuid.UUID) -> list[Candidate]:
-	"""The org's registry joined with the keys that serve it. The session must already be scoped to the org (RLS)."""
+_quality_cache: dict[uuid.UUID, tuple[float, dict[str, tuple[int, float]]]] = {}
+
+
+def clear_quality_cache() -> None:
+	_quality_cache.clear()
+
+
+async def load_quality(db: AsyncSession, org_id: uuid.UUID) -> dict[str, tuple[int, float]]:
+	"""Per model: (ratings, sum) of the org's recent thumbs feedback, joined to the requests it rated.
+
+	Cached for a minute per org: routing asks on every request and feedback moves slowly. Values outside 0..1 are left out
+	rather than clipped, so a stray score cannot bend a rate. The session must already be scoped to the org (RLS).
+	"""
+	now = time.monotonic()
+	cached = _quality_cache.get(org_id)
+	if cached is not None and cached[0] > now:
+		return cached[1]
+	cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=QUALITY_WINDOW_DAYS)
+	rows = await db.execute(
+		select(RequestLog.model, func.count(), func.coalesce(func.sum(RequestScore.value), 0))
+		.join(RequestScore, (RequestScore.org_id == RequestLog.org_id) & (RequestScore.request_id == RequestLog.request_id))
+		.where(
+			RequestLog.org_id == org_id, RequestScore.org_id == org_id, RequestScore.score_name == QUALITY_SCORE_NAME,
+			RequestScore.value.between(0, 1), RequestScore.created_at >= cutoff,
+		)
+		.group_by(RequestLog.model)
+	)
+	loaded = {model: (int(n), float(total)) for model, n, total in rows.all()}
+	_quality_cache[org_id] = (now + QUALITY_CACHE_SECONDS, loaded)
+	return loaded
+
+
+async def load_candidates(db: AsyncSession, org_id: uuid.UUID, *, with_quality: bool = False) -> list[Candidate]:
+	"""The org's registry joined with the keys that serve it. The session must already be scoped to the org (RLS).
+
+	``with_quality`` attaches recent feedback to each candidate (one extra, cached query); callers ask for it only when
+	the org's ``routing_quality_signal`` is on.
+	"""
+	quality = await load_quality(db, org_id) if with_quality else {}
 	rows = await db.execute(
 		select(ModelRegistryEntry, LLMProviderKey)
 		.outerjoin(LLMProviderKey, ModelRegistryEntry.provider_key_id == LLMProviderKey.id)
@@ -197,6 +282,7 @@ async def load_candidates(db: AsyncSession, org_id: uuid.UUID) -> list[Candidate
 	)
 	return [
 		Candidate(
+			quality=quality.get(entry.model_id),
 			model_id=entry.model_id,
 			provider=entry.provider,
 			enabled=entry.enabled,

@@ -41,6 +41,9 @@ BASE_URL="$API" FAKE_URL="http://localhost:9090" sh scripts/demo_traffic.sh; che
 PYTHON=$(command -v python3 || command -v python)
 BASE_URL="$API" FAKE_URL="http://localhost:9090" "$PYTHON" scripts/smoke_routing.py; check "routing: registry, modes, refusals, audit, playground" $?
 
+# The routing quality signal: feedback may reorder the authorized set for cap: requests, never widen it.
+BASE_URL="$API" "$PYTHON" scripts/smoke_quality.py; check "quality signal: feedback picks among authorized models only" $?
+
 # Feedback endpoint on the real image and database: rate an answer with an API key, read the row back.
 BASE_URL="$API" "$PYTHON" scripts/smoke_feedback.py; check "feedback: rate an answer, upsert, redaction, refusals" $?
 
