@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.schemas.chat import ChatCompletionRequest, EmbeddingRequest
 from app.utils.logging import get_logger
-from app.services import pii_detection, presidio_service
+from app.services import behavior, pii_detection, presidio_service
 from app.services.data_class import DATA_CLASSES, DEFAULT_DATA_CLASS
 
 logger = get_logger(__name__)
@@ -110,6 +110,10 @@ class PolicyConfig:
 	# /v1/responses can keep state at the provider (store=true, previous_response_id). That puts data where the org's retention, residency
 	# and routing rules do not reach, so it is refused unless an admin allows it.
 	allow_provider_response_state: bool = False
+	# Behaviour settings (creativity, reasoning_depth, max_response_length, citations): what a call is like when the caller does not say,
+	# and the most a caller may ask for. See ``services/behavior.py``. Empty = no defaults and no ceiling, today's behavior.
+	behavior_defaults: dict = field(default_factory=dict)
+	behavior_ceiling: dict = field(default_factory=dict)
 	# Enabled WebAssembly plugins ({id, name, sha256}); the module bytes live in policy_plugins. Maintained by the plugin routes.
 	wasm_plugins: list[dict] = field(default_factory=list)
 	# Set when the policy is loaded for an org (not stored): which org's plugins to read.
@@ -152,6 +156,8 @@ class PolicyConfig:
 			prompt_gate_min_items=_valid_count(data.get("prompt_gate_min_items"), 10),
 			conversations_enabled=data.get("conversations_enabled") is True,
 			allow_provider_response_state=data.get("allow_provider_response_state") is True,
+			behavior_defaults=behavior.from_stored(data.get("behavior_defaults")).as_dict(),
+			behavior_ceiling={k: v for k, v in behavior.from_stored(data.get("behavior_ceiling")).as_dict().items() if k != "citations"},
 			wasm_plugins=_valid_plugins(data.get("wasm_plugins")),
 		)
 
@@ -180,6 +186,8 @@ class PolicyConfig:
 			"prompt_gate_min_items": self.prompt_gate_min_items,
 			"conversations_enabled": self.conversations_enabled,
 			"allow_provider_response_state": self.allow_provider_response_state,
+			"behavior_defaults": self.behavior_defaults,
+			"behavior_ceiling": self.behavior_ceiling,
 			"wasm_plugins": self.wasm_plugins,
 		}
 

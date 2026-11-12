@@ -8,6 +8,7 @@ import type { ApplyTemplateRequest, OrganizationResponse, PolicyConfigRequest, P
 import { LoadingState } from "../../components/LoadingState";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/Tabs";
+import { BehaviorTab } from "./BehaviorTab";
 import { DataRoutingTab } from "./DataRoutingTab";
 import { EvaluationTab } from "./EvaluationTab";
 import { changedPolicyFields } from "./policyDiff";
@@ -66,6 +67,8 @@ const DEFAULT_POLICY: PolicyConfigRequest = {
   prompt_gate_min_items: 10,
   conversations_enabled: false,
   allow_provider_response_state: false,
+  behavior_defaults: {},
+  behavior_ceiling: {},
 };
 
 function TagInput({
@@ -196,6 +199,8 @@ function extractPolicy(org: OrganizationResponse): PolicyConfigRequest {
     prompt_gate_min_items: raw.prompt_gate_min_items ?? 10,
     conversations_enabled: raw.conversations_enabled ?? false,
     allow_provider_response_state: raw.allow_provider_response_state ?? false,
+    behavior_defaults: raw.behavior_defaults ?? {},
+    behavior_ceiling: raw.behavior_ceiling ?? {},
   };
 }
 
@@ -537,6 +542,7 @@ export function PolicyConfigPage() {
             <TabsTrigger value="enforcement">Enforcement</TabsTrigger>
             <TabsTrigger value="data">Data protection</TabsTrigger>
             <TabsTrigger value="routing">Data and routing</TabsTrigger>
+            <TabsTrigger value="behavior">Behavior</TabsTrigger>
             <TabsTrigger value="evaluation">Evaluation</TabsTrigger>
             <TabsTrigger value="limits">Rate limits</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
@@ -699,6 +705,10 @@ export function PolicyConfigPage() {
 
           <TabsContent value="routing" className="stack-form">
             <DataRoutingTab form={form} setForm={(update) => setForm(update)} isAdmin={isAdmin} unsaved={dirty} token={token!} />
+          </TabsContent>
+
+          <TabsContent value="behavior" className="stack-form">
+            <BehaviorTab form={form} setForm={(update) => setForm(update)} isAdmin={isAdmin} />
           </TabsContent>
 
           <TabsContent value="evaluation" className="stack-form">

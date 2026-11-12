@@ -28,6 +28,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.services import behavior as behavior_mod
 from app.services import llm_service as ls
 from app.services.policy_service import PolicyDecision, policy_store
 from app.services.rate_limiter import rate_limiter_service
@@ -40,6 +41,7 @@ class Gate:
 	decision: PolicyDecision | None = None
 	classification: Any = None
 	routing: Any = None
+	behavior: behavior_mod.Resolved | None = None  # what the caller and the org's defaults and ceiling settled on; None = not asked for
 	rl_headers: dict[str, str] | None = None
 	refusal: JSONResponse | None = None  # when set, answer with this and do not call the provider
 	error: str | None = None  # what to record in the audit row for that refusal
@@ -58,10 +60,12 @@ async def admit(
 	between: Callable[[Any, Any, Any], Awaitable[Decimal | None]],
 	estimate_tokens: int,
 	team_id: uuid.UUID | None,
+	behavior: Callable[[Any], behavior_mod.Resolved | None] | None = None,  # raises HTTPException(400) for a setting that is not valid
 ) -> Gate:
 	gate = Gate()
 	with timer.stage("policy"):
 		gate.config = await policy_store.load(user.org_id, db, redis)
+		gate.behavior = behavior(gate.config) if behavior is not None else None
 		gate.decision = await evaluate(gate.config)
 	with timer.stage("classify"):
 		gate.classification = await classify(gate.config)
@@ -82,7 +86,7 @@ async def admit(
 			max_daily_budget_usd=Decimal(str(settings.DEFAULT_BUDGET_DAILY_USD)), user_daily_budget_usd=getattr(user, "budget_daily_usd", None),
 			team_id=str(team_id) if team_id else None, team_budget_monthly_usd=team_budget, model=model_of(), policy_config=gate.config,
 		)
-	gate.rl_headers = {**headers, "X-OpenProxyAI-Data-Class": gate.classification.data_class, **ls.LLMService._route_headers(gate.routing)}
+	gate.rl_headers = {**headers, "X-OpenProxyAI-Data-Class": gate.classification.data_class, **ls.LLMService._route_headers(gate.routing), **behavior_headers(gate.behavior)}
 	if not ok:
 		gate.error = f"rate_limited:{limit_type}"
 		gate.refusal = JSONResponse(
@@ -91,3 +95,13 @@ async def admit(
 			headers={**gate.rl_headers, "X-OpenProxyAI-Gateway-Error": "true"},
 		)
 	return gate
+
+
+def behavior_headers(resolved: behavior_mod.Resolved | None) -> dict[str, str]:
+	"""Tell the caller what behaviour it got, and which of its requests the org's ceiling lowered."""
+	if resolved is None or not resolved.effective.as_dict():
+		return {}
+	headers = {"X-OpenProxyAI-Behavior": "; ".join(f"{k}={str(v).lower()}" for k, v in resolved.effective.as_dict().items())}
+	if resolved.clamped:
+		headers["X-OpenProxyAI-Behavior-Clamped"] = ", ".join(resolved.clamped)
+	return headers

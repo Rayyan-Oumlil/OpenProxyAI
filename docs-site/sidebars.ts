@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
         'core-concepts/caching',
         'core-concepts/policies-and-guardrails',
         'core-concepts/provider-routing',
+        'core-concepts/behavior-settings',
         'core-concepts/rate-limiting-and-budgets',
       ],
     },
