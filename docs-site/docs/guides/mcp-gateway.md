@@ -45,6 +45,8 @@ Tools from all active servers appear in one list, named `<server>__<tool>`. For 
 }
 ```
 
+**Your agent's key never leaves the gateway.** The `Authorization` header above authenticates the agent to the gateway only. The gateway does not pass it, or any other header from the agent (cookies, `X-API-Key`, the agent's `Mcp-Session-Id`, forwarding headers), to a tool server. Each server receives only the `auth_header` an admin stored for that server, or no credential at all if none was stored, and never another server's. Upstream sessions are the gateway's own. A regression test (`tests/test_mcp_token_isolation.py`) runs the real route and client against a recording server to hold this.
+
 If a server can't be reached, `tools/list` still returns the tools from the other servers. The unreachable servers are listed in `result._meta["openproxyai/unavailableServers"]`, so a single broken server never empties your agent's toolbox.
 
 ## 3. Control which tools agents can use

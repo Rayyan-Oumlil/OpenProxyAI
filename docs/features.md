@@ -151,7 +151,7 @@
 
 | Feature | Details |
 |---|---|
-| Checkout sessions | `POST /api/v1/billing/checkout` — creates Stripe Checkout for starter/growth plans |
+| Checkout sessions | `POST /api/v1/billing/checkout` — creates Stripe Checkout for team/business plans |
 | Customer portal | `POST /api/v1/billing/portal` — Stripe Customer Portal for self-serve management |
 | Webhook handler | `POST /api/v1/billing/webhook` — processes checkout.completed, invoice.paid/failed, subscription.updated/deleted |
 | Atomic idempotency | `INSERT ... ON CONFLICT DO NOTHING` on `stripe_events` table |

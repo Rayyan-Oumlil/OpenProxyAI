@@ -130,8 +130,8 @@ async def archive_old_logs() -> None:
 
             for org in orgs:
                 await set_session_org_id(session, org.id)
-                plan = (org.plan or "free").lower()
-                retention_days = PLAN_FEATURES.get(plan, PLAN_FEATURES["free"])["audit_retention_days"]
+                plan = (org.plan or "community").lower()
+                retention_days = PLAN_FEATURES.get(plan, PLAN_FEATURES["community"])["audit_retention_days"]
                 cutoff = datetime.now(UTC) - timedelta(days=retention_days)
 
                 await session.execute(

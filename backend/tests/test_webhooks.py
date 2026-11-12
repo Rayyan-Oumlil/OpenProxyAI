@@ -76,7 +76,7 @@ def _org(org_id=None, settings=None):
         id=org_id or uuid4(),
         name="Test Org",
         slug="test-org",
-        plan="growth",
+        plan="business",
         settings=settings or {},
         budget_monthly_usd=None,
         is_active=True,

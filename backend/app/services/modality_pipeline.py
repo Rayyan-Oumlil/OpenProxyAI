@@ -34,6 +34,7 @@ from app.services import llm_service as ls
 from app.services.classification_service import DATA_CLASS_HEADER, Classification, InvalidDataClass, classify_text
 from app.services.cost_tracker import cost_tracker_service
 from app.services.policy_service import POLICY_BLOCK_STATUS, PolicyScanLimitExceeded, policy_service
+from app.services.refusal_explanations import explain_policy
 from app.services.provider_client import ProviderEndpoint
 from app.services.request_gate import admit
 from app.services.routing_service import RoutingDecision
@@ -156,7 +157,7 @@ async def run_modality(
 			refuse_log(POLICY_BLOCK_STATUS, "policy_blocked:scan_limit_exceeded")
 			return JSONResponse(
 				status_code=POLICY_BLOCK_STATUS,
-				content={"error": "policy_violation", "reason_code": "scan_limit_exceeded", "detail": "The request is too large to scan completely, so it was refused."},
+				content={"error": "policy_violation", "reason_code": "scan_limit_exceeded", "detail": "The request is too large to scan completely, so it was refused.", "explanation": explain_policy("scan_limit_exceeded")},
 				headers={"X-OpenProxyAI-Gateway-Error": "true", "X-OpenProxyAI-Policy-Action": "block"},
 			)
 		policy_config: Any = None
