@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
 from starlette.requests import Request
 
 from app.dependencies import get_current_user_from_jwt, get_db, get_redis
@@ -59,7 +60,7 @@ class FakeDB:
         self.commit_count += 1
 
 
-def _make_org(org_id=None, *, plan="free", customer_id=None, subscription_id=None, sub_status=None):
+def _make_org(org_id=None, *, plan="community", customer_id=None, subscription_id=None, sub_status=None):
     return SimpleNamespace(
         id=org_id or uuid4(),
         name="Acme",
@@ -118,8 +119,8 @@ def _setup_webhook_test(monkeypatch):
 def _set_stripe_config(monkeypatch):
     monkeypatch.setattr(billing_module.settings, "STRIPE_SECRET_KEY", "sk_test_123")
     monkeypatch.setattr(billing_module.settings, "STRIPE_WEBHOOK_SECRET", "whsec_123")
-    monkeypatch.setattr(billing_module.settings, "STRIPE_STARTER_PRICE_ID", "price_starter")
-    monkeypatch.setattr(billing_module.settings, "STRIPE_GROWTH_PRICE_ID", "price_growth")
+    monkeypatch.setattr(billing_module.settings, "STRIPE_TEAM_PRICE_ID", "price_team")
+    monkeypatch.setattr(billing_module.settings, "STRIPE_BUSINESS_PRICE_ID", "price_business")
     monkeypatch.setattr(billing_module.settings, "STRIPE_METERED_PRICE_ID", "price_metered")
     monkeypatch.setattr(billing_module.settings, "STRIPE_METERED_BASE_PRICE_ID", "")
     monkeypatch.setattr(billing_module.settings, "STRIPE_SUCCESS_URL", "http://localhost:5173/billing?success=1")
@@ -147,7 +148,7 @@ def test_checkout_returns_url(client, monkeypatch):
 
     response = client.post(
         "/api/v1/billing/checkout",
-        json={"plan": "starter"},
+        json={"plan": "team"},
         headers={"Authorization": "Bearer test"},
     )
     assert response.status_code == 200
@@ -192,9 +193,51 @@ def test_checkout_metered_session_line_items(client, monkeypatch):
     assert items[1] == {"price": "price_metered"}
 
 
+def _checkout(client, monkeypatch, plan, captured=None):
+    org = _make_org()
+    user = _make_user(org.id, role="admin")
+    _override_auth(user)
+    _override_db(FakeDB(get_result=org, scalar_results=[org]))
+    monkeypatch.setattr(billing_module.stripe.Customer, "create", lambda **kwargs: {"id": "cus_123"})
+
+    def create(**kwargs):
+        if captured is not None:
+            captured.update(kwargs)
+        return {"url": "https://checkout.stripe.test/s"}
+
+    monkeypatch.setattr(billing_module.stripe.checkout.Session, "create", create)
+    return client.post("/api/v1/billing/checkout", json={"plan": plan}, headers={"Authorization": "Bearer test"})
+
+
+def test_checkout_business_uses_the_business_price(client, monkeypatch):
+    _set_stripe_config(monkeypatch)
+    captured: dict = {}
+    response = _checkout(client, monkeypatch, "business", captured)
+    assert response.status_code == 200
+    assert captured["line_items"] == [{"price": "price_business", "quantity": 1}]
+    assert captured["metadata"]["target_plan"] == "business"
+
+
+@pytest.mark.parametrize("plan,var", [("team", "STRIPE_TEAM_PRICE_ID"), ("business", "STRIPE_BUSINESS_PRICE_ID")])
+def test_checkout_without_a_price_id_fails_and_names_the_variable(client, monkeypatch, plan, var):
+    _set_stripe_config(monkeypatch)
+    monkeypatch.setattr(billing_module.settings, var, "")
+    response = _checkout(client, monkeypatch, plan)
+    assert response.status_code == 400
+    assert var in response.json()["detail"]
+
+
+@pytest.mark.parametrize("old_name", ["starter", "growth", "free"])
+def test_checkout_refuses_the_retired_plan_names(client, monkeypatch, old_name):
+    _set_stripe_config(monkeypatch)
+    response = _checkout(client, monkeypatch, old_name)
+    assert response.status_code == 400
+    assert "Unsupported plan" in response.json()["detail"]
+
+
 def test_webhook_subscription_updated_metered_plan_and_settings_cache(client, monkeypatch):
     _setup_webhook_test(monkeypatch)
-    org = _make_org(plan="free", customer_id="cus_123", subscription_id="sub_1")
+    org = _make_org(plan="community", customer_id="cus_123", subscription_id="sub_1")
     org.settings = {}
     db = FakeDB(scalar_results=[org])
     _override_db(db)
@@ -237,14 +280,14 @@ def test_checkout_requires_admin(client):
     _override_db(FakeDB(get_result=org))
     response = client.post(
         "/api/v1/billing/checkout",
-        json={"plan": "starter"},
+        json={"plan": "team"},
         headers={"Authorization": "Bearer test"},
     )
     assert response.status_code == 403
 
 
 def test_checkout_requires_auth(client):
-    response = client.post("/api/v1/billing/checkout", json={"plan": "starter"})
+    response = client.post("/api/v1/billing/checkout", json={"plan": "team"})
     assert response.status_code == 401
 
 
@@ -270,7 +313,7 @@ def test_checkout_stripe_not_configured(client, monkeypatch):
     _override_db(FakeDB(get_result=org))
     response = client.post(
         "/api/v1/billing/checkout",
-        json={"plan": "starter"},
+        json={"plan": "team"},
         headers={"Authorization": "Bearer test"},
     )
     assert response.status_code == 400
@@ -354,7 +397,7 @@ def test_webhook_idempotency(client, monkeypatch):
 
 def test_webhook_invoice_paid_syncs_plan(client, monkeypatch):
     _setup_webhook_test(monkeypatch)
-    org = _make_org(plan="free", customer_id="cus_123", sub_status="past_due")
+    org = _make_org(plan="community", customer_id="cus_123", sub_status="past_due")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
     monkeypatch.setattr(
@@ -366,7 +409,7 @@ def test_webhook_invoice_paid_syncs_plan(client, monkeypatch):
             "data": {
                 "object": {
                     "customer": "cus_123",
-                    "lines": {"data": [{"price": {"id": "price_growth"}}]},
+                    "lines": {"data": [{"price": {"id": "price_business"}}]},
                 }
             },
         },
@@ -377,14 +420,14 @@ def test_webhook_invoice_paid_syncs_plan(client, monkeypatch):
         content=b"{}",
     )
     assert response.status_code == 200
-    assert org.plan == "growth"
+    assert org.plan == "business"
     assert org.stripe_subscription_status == "active"
 
 
 def test_webhook_invoice_paid_line_price_as_string_id(client, monkeypatch):
     """Stripe often expands invoice line price to a string price id."""
     _setup_webhook_test(monkeypatch)
-    org = _make_org(plan="free", customer_id="cus_123", sub_status="past_due")
+    org = _make_org(plan="community", customer_id="cus_123", sub_status="past_due")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
     monkeypatch.setattr(
@@ -396,7 +439,7 @@ def test_webhook_invoice_paid_line_price_as_string_id(client, monkeypatch):
             "data": {
                 "object": {
                     "customer": "cus_123",
-                    "lines": {"data": [{"price": "price_starter"}]},
+                    "lines": {"data": [{"price": "price_team"}]},
                 }
             },
         },
@@ -407,12 +450,12 @@ def test_webhook_invoice_paid_line_price_as_string_id(client, monkeypatch):
         content=b"{}",
     )
     assert response.status_code == 200
-    assert org.plan == "starter"
+    assert org.plan == "team"
 
 
 def test_webhook_payment_failed_sets_past_due(client, monkeypatch):
     _setup_webhook_test(monkeypatch)
-    org = _make_org(plan="starter", customer_id="cus_123", sub_status="active")
+    org = _make_org(plan="team", customer_id="cus_123", sub_status="active")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
     monkeypatch.setattr(
@@ -436,7 +479,7 @@ def test_webhook_payment_failed_sets_past_due(client, monkeypatch):
 def test_webhook_subscription_deleted_downgrades_to_free(client, monkeypatch):
     _setup_webhook_test(monkeypatch)
     org = _make_org(
-        plan="growth",
+        plan="business",
         customer_id="cus_123",
         subscription_id="sub_123",
         sub_status="active",
@@ -458,14 +501,14 @@ def test_webhook_subscription_deleted_downgrades_to_free(client, monkeypatch):
         content=b"{}",
     )
     assert response.status_code == 200
-    assert org.plan == "free"
+    assert org.plan == "community"
     assert org.stripe_subscription_id is None
     assert org.stripe_subscription_status == "canceled"
 
 
 def test_webhook_unknown_price_id_does_not_change_plan(client, monkeypatch):
     _setup_webhook_test(monkeypatch)
-    org = _make_org(plan="starter", customer_id="cus_123")
+    org = _make_org(plan="team", customer_id="cus_123")
     db = FakeDB(scalar_results=[org])
     _override_db(db)
     monkeypatch.setattr(
@@ -488,13 +531,13 @@ def test_webhook_unknown_price_id_does_not_change_plan(client, monkeypatch):
         content=b"{}",
     )
     assert response.status_code == 200
-    assert org.plan == "starter"
+    assert org.plan == "team"
 
 
 def test_webhook_subscription_updated_syncs_plan(client, monkeypatch):
     _setup_webhook_test(monkeypatch)
     org = _make_org(
-        plan="starter",
+        plan="team",
         customer_id="cus_123",
         subscription_id="sub_123",
         sub_status="past_due",
@@ -512,7 +555,7 @@ def test_webhook_subscription_updated_syncs_plan(client, monkeypatch):
                     "id": "sub_123",
                     "customer": "cus_123",
                     "status": "active",
-                    "items": {"data": [{"price": {"id": "price_growth"}}]},
+                    "items": {"data": [{"price": {"id": "price_business"}}]},
                 }
             },
         },
@@ -523,7 +566,7 @@ def test_webhook_subscription_updated_syncs_plan(client, monkeypatch):
         content=b"{}",
     )
     assert response.status_code == 200
-    assert org.plan == "growth"
+    assert org.plan == "business"
     assert org.stripe_subscription_status == "active"
 
 

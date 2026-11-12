@@ -57,7 +57,7 @@ async def test_archive_old_logs_marks_expired_logs(monkeypatch):
     from app.main import archive_old_logs
 
     org_id = uuid4()
-    org = SimpleNamespace(id=org_id, plan="free", is_active=True)
+    org = SimpleNamespace(id=org_id, plan="community", is_active=True)
 
     executed_statements: list[object] = []
     committed = {"called": False}

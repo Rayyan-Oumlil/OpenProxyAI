@@ -102,7 +102,7 @@ async def update_current_organization(
 				status_code=status.HTTP_409_CONFLICT,
 				detail="Plan is managed by Stripe. Use the billing portal to change plans.",
 			)
-		allowed_manual_plans = {"free", "starter"}
+		allowed_manual_plans = {"community", "team"}
 		if updates["plan"] not in allowed_manual_plans:
 			raise HTTPException(
 				status_code=status.HTTP_400_BAD_REQUEST,

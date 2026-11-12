@@ -421,12 +421,12 @@ def _patch_pii(client, monkeypatch, *, plan, pii_now, body):
 
 
 def test_turning_pii_detection_on_still_needs_a_plan_that_has_it(client, monkeypatch):
-	response, saved = _patch_pii(client, monkeypatch, plan="free", pii_now=False, body={"pii_detection_enabled": True})
+	response, saved = _patch_pii(client, monkeypatch, plan="community", pii_now=False, body={"pii_detection_enabled": True})
 	assert response.status_code == 402 and response.json()["detail"]["error"] == "plan_limit_exceeded" and "config" not in saved
 
 
 def test_a_paid_plan_can_turn_pii_detection_on(client, monkeypatch):
-	response, saved = _patch_pii(client, monkeypatch, plan="starter", pii_now=False, body={"pii_detection_enabled": True})
+	response, saved = _patch_pii(client, monkeypatch, plan="team", pii_now=False, body={"pii_detection_enabled": True})
 	assert response.status_code == 200 and saved["config"].pii_detection_enabled is True
 
 

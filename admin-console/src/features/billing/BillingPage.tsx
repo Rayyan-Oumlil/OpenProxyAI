@@ -15,29 +15,29 @@ type PlanCard = {
   price: string;
   description: string;
   cta: string;
-  targetPlan?: "starter" | "growth" | "metered";
+  targetPlan?: "team" | "business" | "metered";
 };
 
 const PLAN_CARDS: PlanCard[] = [
   {
-    name: "Free",
+    name: "Community",
     price: "$0/mo",
     description: "Baseline access for evaluation and low-volume usage.",
     cta: "Current baseline",
   },
   {
-    name: "Starter",
-    price: "$2,500/mo",
+    name: "Team",
+    price: "$299/mo",
     description: "For growing teams that need policy and spend controls.",
-    cta: "Upgrade to Starter",
-    targetPlan: "starter",
+    cta: "Upgrade to Team",
+    targetPlan: "team",
   },
   {
-    name: "Growth",
-    price: "$7,500/mo",
+    name: "Business",
+    price: "$1,500/mo",
     description: "For larger teams with higher throughput and governance needs.",
-    cta: "Upgrade to Growth",
-    targetPlan: "growth",
+    cta: "Upgrade to Business",
+    targetPlan: "business",
   },
   {
     name: "Metered",
@@ -48,7 +48,7 @@ const PLAN_CARDS: PlanCard[] = [
   },
   {
     name: "Enterprise",
-    price: "Contact sales",
+    price: "From $25k/yr",
     description: "Custom contracts, security reviews, and dedicated support.",
     cta: "Contact Sales",
   },
@@ -74,7 +74,7 @@ export function BillingPage() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (plan: "starter" | "growth" | "metered") => apiClient.createCheckoutSession(plan, token!),
+    mutationFn: (plan: "team" | "business" | "metered") => apiClient.createCheckoutSession(plan, token!),
     onSuccess: (data) => {
       window.location.href = data.checkout_url;
     },

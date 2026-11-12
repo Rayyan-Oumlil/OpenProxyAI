@@ -19,7 +19,7 @@ function org(overrides: Partial<OrganizationResponse> = {}): OrganizationRespons
     id: "o1",
     name: "Demo Org",
     slug: "demo",
-    plan: "starter",
+    plan: "team",
     settings: { policy: { enforcement_mode: "enforce" } },
     budget_monthly_usd: "100",
     is_active: true,
