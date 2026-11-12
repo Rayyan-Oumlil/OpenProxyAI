@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     VAULT_CACHE_SECONDS: int = 60
     VAULT_ALLOW_INSECURE_HTTP: bool = False  # development only
 
+    # ── AWS Secrets Manager (provider keys read from it instead of stored) ──────────────────────
+    # Credentials come from the environment or the IAM role (boto3's normal chain), held by the operator, never by an org.
+    AWS_SECRETS_ENABLED: bool = False
+    AWS_SECRETS_REGION: str = ""
+    AWS_SECRET_PREFIX: str = "openproxyai/{org_id}/"  # every secret an org names must start with this; one org cannot read another's
+    AWS_SECRET_CACHE_SECONDS: int = 60
+
     # ── Provider Fallback ─────────────────────────────────────────────
     MAX_PROVIDER_FALLBACK_ATTEMPTS: int = 3
 
