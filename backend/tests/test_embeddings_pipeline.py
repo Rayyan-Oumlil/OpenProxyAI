@@ -54,7 +54,7 @@ def world(monkeypatch):
 	async def load(org_id, db, redis):
 		return seen.policy
 
-	async def routing_inputs(db, org_id):
+	async def routing_inputs(db, org_id, config=None):
 		return list(seen.registry), "us"
 
 	async def check_limits(**kwargs):

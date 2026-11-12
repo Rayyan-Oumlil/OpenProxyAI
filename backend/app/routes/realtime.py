@@ -189,7 +189,7 @@ async def realtime(ws: WebSocket) -> None:
 			return await refuse_and_log(f"policy_blocked:{decision.reason_code}")
 		routing = None
 		if config.routing_mode != "off":
-			candidates, region = await ls.llm_service.routing_inputs(db, org_id)
+			candidates, region = await ls.llm_service.routing_inputs(db, org_id, config)
 			routing = ls.route_decision(candidates, region, config, state["classification"].data_class, model)
 			if routing.blocked:
 				return await refuse_and_log("policy_blocked:no_authorized_model")

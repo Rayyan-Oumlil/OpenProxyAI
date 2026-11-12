@@ -77,7 +77,7 @@ def harness(client, monkeypatch):
 		async def fake_policy(*a, **k):
 			return PolicyConfig(routing_mode=mode)
 
-		async def fake_inputs(db, org_id):
+		async def fake_inputs(db, org_id, config=None):
 			return list(registry), region
 
 		monkeypatch.setattr(mr.cost_tracker_service, "calculate_cost_usd", lambda _response: 0)  # not what is under test

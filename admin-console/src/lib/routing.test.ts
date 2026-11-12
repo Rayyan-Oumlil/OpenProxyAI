@@ -9,6 +9,7 @@ describe("routingOutcome", () => {
   it.each([
     [{ ...base, model: "m", reason: "authorized" }, "Served by m"],
     [{ ...base, model: "m", reason: "capability", requested: "cap:CODE" }, "Chose m for cap:CODE"],
+    [{ ...base, model: "m", reason: "capability_quality", requested: "cap:CODE" }, "Chose m for cap:CODE, the best-rated authorized model"],
     [{ ...base, reason: "not_in_registry" }, "openai/gpt-4o is not in the model registry"],
     [{ ...base, reason: "not_authorized:risk" }, "openai/gpt-4o is not authorized: it is above the organization's risk ceiling"],
     [{ ...base, reason: "not_authorized:new_code" }, "openai/gpt-4o is not authorized: new_code"],
