@@ -31,6 +31,7 @@ MUTATIONS = [
 	("the raw frame is forwarded, not the checked event", RELAY, "await upstream.send(json.dumps(event))", "await upstream.send(frame)"),
 	("anything under an audio key is skipped", RELAY, "if key == _AUDIO_KEY and isinstance(value, str):", "if key == _AUDIO_KEY:"),
 	("a refused response's output is delivered", RELAY, "			if rid in pending.refused:", "			if False:"),
+	("a list under the audio key is skipped", RELAY, "texts_of(v, None if key == _AUDIO_KEY else key)", "texts_of(v, key)"),
 	("the team budget is not applied", ROUTE, "team_budget_monthly_usd=team_budget,", "team_budget_monthly_usd=None,"),
 	("the team is not on the log rows", ROUTE, "labels=labels, team_id=team_id, **fields", "labels=labels, team_id=None, **fields"),
 	("response guardrail orgs are let in", ROUTE, "		if config.response_guardrails_enabled and config.enforcement_mode.lower().strip() == \"enforce\":\n			return await refuse_and_log(\"response_guardrails_not_supported_in_realtime\")", "		pass"),

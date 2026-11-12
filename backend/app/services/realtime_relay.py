@@ -64,7 +64,7 @@ def texts_of(value: Any, key: str | None = None) -> list[str]:
 	if isinstance(value, dict):
 		return [t for k, v in value.items() for t in texts_of(v, k)]
 	if isinstance(value, list):
-		return [t for v in value for t in texts_of(v, key)]
+		return [t for v in value for t in texts_of(v, None if key == _AUDIO_KEY else key)]  # only a direct string under audio is skipped
 	return []
 
 
