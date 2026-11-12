@@ -174,3 +174,42 @@ async def test_a_turn_never_releases_a_lock_that_another_turn_now_holds(org, str
 		assert await api.redis.get(key) == "another-turns-token"
 		await routes._release(api.redis, key, "another-turns-token")
 		assert await api.redis.get(key) is None
+
+
+async def test_an_abandoned_or_broken_stream_is_priced_from_its_tokens_never_at_zero(org, upstream, streaming, monkeypatch):  # noqa: F811
+	monkeypatch.setattr(mr.litellm, "cost_per_token", lambda model, prompt_tokens, completion_tokens: (prompt_tokens * 0.001, completion_tokens * 0.002))
+	streaming.fail_after = 1
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		await stream_say(api, conversation, "hi")  # breaks after one piece
+	row = upstream.logs[0]
+	assert row["status_code"] == 502 and row["cost_usd"] > 0  # a broken stream was still generated, and charged
+
+
+async def test_when_a_stream_cannot_be_priced_at_all_the_flat_fallback_is_charged_not_zero(org, upstream, streaming, monkeypatch):  # noqa: F811
+	def unknown(**_k):
+		raise ValueError("model not in the price map")
+
+	monkeypatch.setattr(mr.litellm, "cost_per_token", unknown)
+	monkeypatch.setattr(mr.settings, "UNPRICED_CALL_COST_USD", 0.07)
+	streaming.fail_after = 1
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		await stream_say(api, conversation, "hi")
+	assert float(upstream.logs[0]["cost_usd"]) == 0.07
+
+
+async def test_a_disconnect_is_priced_too(org, upstream, streaming, monkeypatch):  # noqa: F811
+	monkeypatch.setattr(mr.litellm, "cost_per_token", lambda model, prompt_tokens, completion_tokens: (0.5, 0.5))
+	async with as_user(org.id, org.alice) as api:
+		conversation = await start(api)
+		async with org_scoped_session(org.id) as db:
+			policy = await policy_store.load(org.id, db, FakeRedis())
+			row = await db.get(Conversation, uuid.UUID(conversation))
+			prepared = await ct.begin_turn(db, api.redis, conversation=row, user_id=org.alice.id, model=GPT, content="hi", asserted_class=None, policy=policy)
+		generator = ct.stream_turn(prepared, api.redis)
+		await generator.__anext__()
+		await generator.__anext__()
+		await generator.aclose()
+		assert len(upstream.logs) == 1  # audited by the time aclose() returns, not later
+	assert upstream.logs[0]["status_code"] == mr.CLIENT_GONE_STATUS and float(upstream.logs[0]["cost_usd"]) == 1.0
