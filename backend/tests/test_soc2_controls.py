@@ -66,7 +66,7 @@ def test_data_region_field_in_org_response(client):
         id=org_id,
         name="OpenProxy",
         slug="openproxy",
-        plan="free",
+        plan="community",
         settings={},
         budget_monthly_usd=None,
         is_active=True,

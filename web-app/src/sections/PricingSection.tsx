@@ -3,27 +3,27 @@ import { APP_URL, CALENDLY_URL } from '../lib/links';
 
 const PLANS = [
   {
-    name: 'free_trial',
-    price: '$0', period: '/ 14d',
-    features: ['10K requests','10 users','all features','email support'],
+    name: 'community',
+    price: '$0', period: '/ forever',
+    features: ['3 users','5 API keys','7-day audit retention','open source, self-host'],
     cta: '$ start →', href: APP_URL, featured: false,
   },
   {
-    name: 'starter',
-    price: '$2,500', period: '/ mo',
-    features: ['100K req/mo','50 users','SSO','90-day retention'],
-    cta: '$ demo', href: CALENDLY_URL, featured: false,
+    name: 'team',
+    price: '$299', period: '/ mo',
+    features: ['50 users','PII detection','budgets + rate limits','30-day audit retention'],
+    cta: '$ start', href: APP_URL, featured: false,
   },
   {
-    name: 'growth',
-    price: '$7,500', period: '/ mo',
-    features: ['200 users','policy + DLP','SCIM','1yr retention'],
-    cta: '$ demo →', href: CALENDLY_URL, featured: true,
+    name: 'business',
+    price: '$1,500', period: '/ mo',
+    features: ['200 users','policy + DLP','MCP tool governance','90-day audit retention'],
+    cta: '$ start →', href: APP_URL, featured: true,
   },
   {
     name: 'enterprise',
-    price: 'custom', period: '',
-    features: ['unlimited','air-gapped / on-prem','7yr retention','99.99% SLA'],
+    price: 'from $25k', period: '/ yr',
+    features: ['unlimited users','SSO (OIDC)','air-gapped / on-prem','1-year audit retention'],
     cta: '$ contact', href: CALENDLY_URL, featured: false,
   },
 ];
@@ -37,7 +37,7 @@ export default function PricingSection() {
           <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
             Flat fee. <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>No token surprises.</em> Start free.
           </h2>
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>14-day trial · no card</span>
+          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>free plan · no card</span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 32 }} className="price-grid">
@@ -93,7 +93,7 @@ export default function PricingSection() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <a href={APP_URL} className="opa-btn opa-btn-primary">$ start trial →</a>
+            <a href={APP_URL} className="opa-btn opa-btn-primary">$ start free →</a>
           </div>
         </div>
       </div>
