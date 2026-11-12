@@ -147,7 +147,7 @@ test("command palette: arrow keys move the announced option, Enter navigates", a
   await page.keyboard.press("Control+k");
   const box = page.getByRole("combobox", { name: "Go to page or action" });
   await box.fill("policy");
-  const option = page.getByRole("option", { name: /Policy/ });
+  const option = page.getByRole("option", { name: "Policy Govern" });
   await expect(option).toHaveAttribute("aria-selected", "true");
   const active = await box.getAttribute("aria-activedescendant");
   expect(active).toBe(await option.getAttribute("id"));
