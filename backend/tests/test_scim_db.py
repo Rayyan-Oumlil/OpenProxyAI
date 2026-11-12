@@ -455,6 +455,43 @@ async def test_the_last_active_admin_cannot_be_deactivated_through_scim(scim):
     assert (await scim.a("DELETE", f"/Users/{user['id']}")).status_code == 204
 
 
+async def test_two_simultaneous_deactivations_never_remove_the_last_admin(scim, monkeypatch):
+    import asyncio
+
+    from app.routes import scim as scim_routes
+
+    real_log = scim_routes.log_admin_action
+
+    async def slow_log(*args, **kwargs):  # widens the gap between the admin count and the commit so the race is certain
+        await asyncio.sleep(0.4)
+        return await real_log(*args, **kwargs)
+
+    monkeypatch.setattr(scim_routes, "log_admin_action", slow_log)
+
+    first = str(scim.tenants.user_a.id)
+    second = await make_plain_user(scim.tenants.a, "admin")  # exactly two active admins
+    results = await asyncio.gather(scim.a("DELETE", f"/Users/{first}"), scim.a("DELETE", f"/Users/{second}"))
+    assert sorted(r.status_code for r in results) == [204, 400]
+    async with org_scoped_session(scim.tenants.a) as db:
+        active = (await db.scalars(select(User.id).where(User.org_id == scim.tenants.a, User.role == "admin", User.is_active.is_(True)))).all()
+    assert len(active) == 1
+
+
+async def test_deactivating_an_admin_waits_for_the_org_admin_lock(scim):
+    """The guard serializes on a per-org advisory lock: while another transaction holds it, the deactivation must wait."""
+    import asyncio
+
+    first = str(scim.tenants.user_a.id)
+    await make_plain_user(scim.tenants.a, "admin")
+    async with SystemSessionLocal() as holder:
+        await holder.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"), {"k": f"scim-admins:{scim.tenants.a}"})
+        pending = asyncio.create_task(scim.a("DELETE", f"/Users/{first}"))
+        await asyncio.sleep(1.0)
+        assert not pending.done(), "the deactivation did not wait for the lock, so concurrent requests could both pass the count"
+        await holder.commit()  # releases the lock
+    assert (await asyncio.wait_for(pending, 10)).status_code == 204
+
+
 # ── plan user limit ───────────────────────────────────────────────────────────
 
 
