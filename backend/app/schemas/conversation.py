@@ -6,7 +6,9 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
+import re
+
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from app.schemas.policy import BehaviorDefaults
 
@@ -14,7 +16,20 @@ MAX_TAGS = 10
 MAX_PER_USER = 500  # conversations one user may keep; a ceiling against runaway scripts, far above human use
 
 Title = Annotated[str, StringConstraints(min_length=1, max_length=200, strip_whitespace=True)]
-Tag = Annotated[str, StringConstraints(min_length=1, max_length=30, strip_whitespace=True)]
+MAX_SPACES_PER_USER = 50
+PRIVATE_TAG = "private"  # a conversation carrying it can never be shared (see routes/conversations.py)
+
+# Letters, digits and . # + / - _ with single inner spaces. No commas (the console splits on them), no control characters, no markup.
+_TAG_PATTERN = r"^[\w.#+/-]+(?: [\w.#+/-]+)*$"
+
+
+def _tidy(value):
+	"""Trim and collapse runs of plain spaces. Tabs and newlines are left alone so the pattern refuses them."""
+	return re.sub(" {2,}", " ", value.strip(" ")) if isinstance(value, str) else value
+
+
+Tag = Annotated[str, BeforeValidator(_tidy), StringConstraints(min_length=1, max_length=30, pattern=_TAG_PATTERN)]
+SpaceName = Annotated[str, StringConstraints(min_length=1, max_length=100, strip_whitespace=True)]
 Visibility = Literal["private", "team", "org"]
 SystemPrompt = Annotated[str, StringConstraints(min_length=1, max_length=4_000, strip_whitespace=True)]
 
@@ -35,6 +50,7 @@ class ConversationCreate(BaseModel):
 	team_id: uuid.UUID | None = None
 	tags: list[Tag] = Field(default_factory=list, max_length=MAX_TAGS)
 	system_prompt: SystemPrompt | None = None
+	space_id: uuid.UUID | None = None
 
 	@field_validator("tags")
 	@classmethod
@@ -60,6 +76,7 @@ class ConversationUpdate(BaseModel):
 	team_id: uuid.UUID | None = None
 	tags: list[Tag] | None = Field(default=None, max_length=MAX_TAGS)
 	system_prompt: SystemPrompt | None = Field(default=None, description="Send null to clear the persona.")
+	space_id: uuid.UUID | None = Field(default=None, description="Send null to take it out of its space.")
 
 	@field_validator("title", "visibility", "tags", mode="before")
 	@classmethod
@@ -81,6 +98,9 @@ class ConversationResponse(BaseModel):
 	team_id: uuid.UUID | None
 	tags: list[str]
 	system_prompt: str | None = None
+	# The space it is filed in, only when the caller may see that space (a readable conversation can sit in someone else's personal space).
+	space_id: uuid.UUID | None = None
+	space_name: str | None = None
 	owner_id: uuid.UUID
 	owner_email: str | None
 	is_owner: bool
@@ -165,3 +185,37 @@ class TeamChoice(BaseModel):
 class ModelChoice(BaseModel):
 	model_id: str
 	max_data_class: str  # the highest class this model may receive: the lower of its registry entry's and its key's
+
+
+class SpaceCreate(BaseModel):
+	model_config = ConfigDict(extra="forbid")
+
+	name: SpaceName
+	team_id: uuid.UUID | None = None
+
+
+class SpaceUpdate(BaseModel):
+	"""Only what is sent changes. ``team_id: null`` makes the space personal again."""
+
+	model_config = ConfigDict(extra="forbid")
+
+	name: SpaceName | None = None
+	team_id: uuid.UUID | None = None
+
+	@field_validator("name", mode="before")
+	@classmethod
+	def _name_not_null(cls, value):
+		if value is None:
+			raise ValueError("cannot be null; omit the field to leave it unchanged")
+		return value
+
+
+class SpaceResponse(BaseModel):
+	id: uuid.UUID
+	name: str
+	team_id: uuid.UUID | None
+	owner_id: uuid.UUID
+	is_owner: bool
+	# Only conversations the caller could already read: a space never reveals that a private conversation exists.
+	conversation_count: int
+	created_at: datetime

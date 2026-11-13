@@ -35,6 +35,7 @@ _POLICY_CACHE_KEY = "policy:config:{org_id}"
 # ── Policy config (per-org, loaded from DB / Redis) ──────────────────────────
 
 _ROUTING_MODES = ("off", "log_only", "enforce")
+_QUALITY_SIGNALS = ("off", "feedback")
 _RISK_LEVELS = ("low", "medium", "high")
 _ENTITY_NAME = re.compile(r"^[A-Za-z0-9_]{1,50}$")
 
@@ -97,6 +98,8 @@ class PolicyConfig:
 	# enforce = only models authorized for the request's data class may serve it.
 	routing_mode: str = "off"
 	max_risk_rating: str = "high"  # models rated above this are never authorized
+	# off = cap:NAME picks the cheapest authorized model; feedback = among authorized models, prefer the better-rated one.
+	routing_quality_signal: str = "off"
 	# Evaluation (Phase 3): the share of eligible requests whose redacted prompt and answer are kept for evaluation.
 	# 0 (the default) stores nothing.
 	payload_capture_sample_rate: float = 0.0
@@ -151,6 +154,7 @@ class PolicyConfig:
 			data_class_map=_clean_class_map(data.get("data_class_map")),
 			routing_mode=data.get("routing_mode") if data.get("routing_mode") in _ROUTING_MODES else "off",
 			max_risk_rating=data.get("max_risk_rating") if data.get("max_risk_rating") in _RISK_LEVELS else "high",
+			routing_quality_signal=data.get("routing_quality_signal") if data.get("routing_quality_signal") in _QUALITY_SIGNALS else "off",
 			payload_capture_sample_rate=_valid_rate(data.get("payload_capture_sample_rate")),
 			prompt_promotion_gate=data.get("prompt_promotion_gate") is True,
 			prompt_gate_min_pass_rate=_valid_threshold(data.get("prompt_gate_min_pass_rate"), 0.8),
@@ -181,6 +185,7 @@ class PolicyConfig:
 			"data_class_map": self.data_class_map,
 			"routing_mode": self.routing_mode,
 			"max_risk_rating": self.max_risk_rating,
+			"routing_quality_signal": self.routing_quality_signal,
 			"payload_capture_sample_rate": self.payload_capture_sample_rate,
 			"prompt_promotion_gate": self.prompt_promotion_gate,
 			"prompt_gate_min_pass_rate": self.prompt_gate_min_pass_rate,

@@ -22,6 +22,7 @@ export interface RoutingOutcome {
 export function routingOutcome(r: RoutingOutcome): string {
   if (r.reason === "authorized") return `Served by ${r.model}`;
   if (r.reason === "capability") return `Chose ${r.model} for ${r.requested}`;
+  if (r.reason === "capability_quality") return `Chose ${r.model} for ${r.requested}, the best-rated authorized model`;
   if (r.reason === "not_in_registry") return `${r.requested} is not in the model registry`;
   if (r.reason === "no_model_with_capability") return `No authorized model has the capability in ${r.requested}`;
   if (r.reason.startsWith("not_authorized:")) {

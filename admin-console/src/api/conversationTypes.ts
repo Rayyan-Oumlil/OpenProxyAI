@@ -10,6 +10,9 @@ export type Conversation = {
   team_id: string | null;
   tags: string[];
   system_prompt: string | null;
+  /** The space it is filed in, when the caller may see that space. */
+  space_id?: string | null;
+  space_name?: string | null;
   owner_id: string;
   owner_email: string | null;
   is_owner: boolean;
@@ -24,6 +27,7 @@ export type ConversationCreate = {
   team_id?: string | null;
   tags?: string[];
   system_prompt?: string | null;
+  space_id?: string | null;
 };
 export type ConversationUpdate = Partial<ConversationCreate>;
 
@@ -78,3 +82,16 @@ export type TurnExchange = {
 
 export type TeamChoice = { id: string; name: string };
 export type ModelChoice = { model_id: string; max_data_class: string };
+
+export type Space = {
+  id: string;
+  name: string;
+  team_id: string | null;
+  owner_id: string;
+  is_owner: boolean;
+  /** Only conversations the caller could already read. */
+  conversation_count: number;
+  created_at: string;
+};
+export type SpaceCreate = { name: string; team_id?: string | null };
+export type SpaceUpdate = Partial<SpaceCreate>;

@@ -9,6 +9,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { ErrorState } from "../../components/ErrorState";
 import { LoadingState } from "../../components/LoadingState";
 import { useAuth } from "../../state/AuthContext";
+import { ScimTokenCard } from "./ScimTokenCard";
 
 export function OrganizationSettingsPage() {
   const { token, user } = useAuth();
@@ -199,6 +200,8 @@ export function OrganizationSettingsPage() {
           </button>
         </form>
       </section>
+
+      {canManageSettings ? <ScimTokenCard /> : null}
     </section>
   );
 }

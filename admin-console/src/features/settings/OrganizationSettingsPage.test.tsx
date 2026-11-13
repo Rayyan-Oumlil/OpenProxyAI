@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OrganizationResponse } from "../../api/types";
+import { ConfirmProvider } from "../../components/ui/ConfirmDialog";
 import { OrganizationSettingsPage } from "./OrganizationSettingsPage";
 
 vi.mock("../../state/AuthContext", () => ({ useAuth: () => ({ token: "tok", user: { role: "admin" } }) }));
@@ -32,9 +33,11 @@ function org(overrides: Partial<OrganizationResponse> = {}): OrganizationRespons
 function renderPage(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <OrganizationSettingsPage />
-      </MemoryRouter>
+      <ConfirmProvider>
+        <MemoryRouter>
+          <OrganizationSettingsPage />
+        </MemoryRouter>
+      </ConfirmProvider>
     </QueryClientProvider>,
   );
   return client;

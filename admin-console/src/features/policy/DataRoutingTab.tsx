@@ -52,7 +52,7 @@ export function DataRoutingTab({
   unsaved: boolean;
   token: string;
 }) {
-  const ids = { state: useId(), cls: useId(), entity: useId(), entityClass: useId(), risk: useId() };
+  const ids = { state: useId(), cls: useId(), entity: useId(), entityClass: useId(), risk: useId(), quality: useId(), qualityHelp: useId() };
   const map = form.data_class_map ?? {};
   const [entity, setEntity] = useState("");
   const [entityClass, setEntityClass] = useState<DataClass>("confidential");
@@ -200,6 +200,25 @@ export function DataRoutingTab({
             ))}
           </select>
         </label>
+        <div className="flex items-start gap-2.5">
+          <input
+            id={ids.quality}
+            type="checkbox"
+            checked={(form.routing_quality_signal ?? "off") === "feedback"}
+            onChange={(e) => setForm((f) => ({ ...f, routing_quality_signal: e.target.checked ? "feedback" : "off" }))}
+            disabled={!isAdmin}
+            aria-describedby={ids.qualityHelp}
+            style={{ marginTop: 3 }}
+          />
+          <div>
+            <label htmlFor={ids.quality} className="font-medium" style={{ fontSize: "0.9rem" }}>
+              Prefer better-rated models for capability requests
+            </label>
+            <p id={ids.qualityHelp} className="muted" style={{ fontSize: "0.82rem" }}>
+              For <code>cap:NAME</code> requests, pick the authorized model with the best thumbs feedback from the last 30 days when the gap is clear (at least 20 ratings; models within 5 points of the best are tied and cost decides). It only chooses among models already authorized for the request. Off: the cheapest authorized model.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="surface-panel stack-form">

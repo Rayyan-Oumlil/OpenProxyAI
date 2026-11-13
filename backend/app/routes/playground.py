@@ -419,7 +419,7 @@ async def playground_compare(
     # concurrent tasks cannot share, so each model is planned in turn; the calls themselves (no session) then run together.
     # The prompt is classified and the registry loaded once for all of them.
     classification = await classify_chat_request(_CCR.model_construct(model="", messages=payload.messages), policy_config, None)
-    routing_inputs = await llm_service.routing_inputs(db, current_user.org_id) if policy_config.routing_mode != "off" else ([], "us")
+    routing_inputs = await llm_service.routing_inputs(db, current_user.org_id, policy_config) if policy_config.routing_mode != "off" else ([], "us")
     requested = behavior_mod.Behavior(**payload.behavior.model_dump(exclude_none=True)) if payload.behavior is not None else behavior_mod.Behavior()
     behavior = behavior_mod.settle(policy_config.behavior_defaults, policy_config.behavior_ceiling, requested)
     planned_messages = behavior_mod.with_citation_instruction(messages_list) if behavior is not None and behavior.effective.citations else messages_list

@@ -56,6 +56,7 @@ class PolicyConfigRequest(BaseModel):
 	data_class_map: dict[EntityName, DataClass] | None = None
 	routing_mode: Literal["off", "log_only", "enforce"] | None = None
 	max_risk_rating: Literal["low", "medium", "high"] | None = None
+	routing_quality_signal: Literal["off", "feedback"] | None = None
 	payload_capture_sample_rate: float | None = Field(default=None, ge=0, le=1)
 	prompt_promotion_gate: bool | None = None
 	prompt_gate_min_pass_rate: float | None = Field(default=None, gt=0, le=1)
@@ -65,7 +66,7 @@ class PolicyConfigRequest(BaseModel):
 	behavior_defaults: BehaviorDefaults | None = None
 	behavior_ceiling: BehaviorCeiling | None = None
 
-	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "payload_capture_sample_rate", "prompt_promotion_gate", "prompt_gate_min_pass_rate", "prompt_gate_min_items", "conversations_enabled", "allow_provider_response_state", "behavior_defaults", "behavior_ceiling", mode="before")
+	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "routing_quality_signal", "payload_capture_sample_rate", "prompt_promotion_gate", "prompt_gate_min_pass_rate", "prompt_gate_min_items", "conversations_enabled", "allow_provider_response_state", "behavior_defaults", "behavior_ceiling", mode="before")
 	@classmethod
 	def _not_null(cls, value):
 		if value is None:
@@ -98,6 +99,7 @@ class PolicyConfigResponse(BaseModel):
 	data_class_map: dict[str, str] = {}
 	routing_mode: str = "off"
 	max_risk_rating: str = "high"
+	routing_quality_signal: str = "off"
 	payload_capture_sample_rate: float = 0.0
 	prompt_promotion_gate: bool = False
 	prompt_gate_min_pass_rate: float = 0.8

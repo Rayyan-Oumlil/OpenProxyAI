@@ -72,7 +72,7 @@ async def _model_clearance(db: AsyncSession, org_id: uuid.UUID, model: str, poli
 	They differ only under ``log_only``: nothing is withheld yet, but the preview says what would be."""
 	if policy.routing_mode == "off":
 		return _UNCAPPED, None, _UNCAPPED
-	inputs = await llm_service.routing_inputs(db, org_id)
+	inputs = await llm_service.routing_inputs(db, org_id, policy)
 	entry = next((c for c in inputs[0] if c.model_id == model), None)
 	enforced = clearance(entry) if entry is not None else -1  # not in the registry: nothing is cleared; routing refuses it
 	return (enforced if policy.routing_mode == "enforce" else _UNCAPPED), inputs, enforced

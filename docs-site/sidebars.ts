@@ -43,6 +43,7 @@ const sidebars: SidebarsConfig = {
         'guides/deploying-with-docker-compose',
         'guides/deploying-with-helm',
         'guides/configuring-sso',
+        'guides/configuring-scim',
         'guides/compliance-templates',
         'guides/webhooks',
         'guides/mcp-gateway',
