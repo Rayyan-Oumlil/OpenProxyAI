@@ -5,7 +5,7 @@ description: Connect an identity provider so your org signs in through your own 
 
 # Configuring SSO
 
-Organizations on Growth and Enterprise plans can connect an identity provider (OIDC/SAML) so members sign in to the admin console through your own IdP instead of a password.
+Organizations on the Enterprise plan can connect an identity provider (OIDC/SAML) so members sign in to the admin console through your own IdP instead of a password.
 
 ## Connect a provider
 

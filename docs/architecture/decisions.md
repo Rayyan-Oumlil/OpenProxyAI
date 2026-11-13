@@ -167,8 +167,6 @@ Analytics queries (`SELECT SUM(cost_usd) GROUP BY model`) over millions of rows 
 
 This ensures EU orgs never route through US-only keys. The `global` value allows shared keys (e.g., Azure's EU-hosted endpoint accessible to all regions).
 
-**Not built (Tier 2):** Self-hosted air-gapped deployment, license key validation. Deferred until first enterprise customer requires on-premise.
-
 ---
 
 ## ADR-13: Compliance templates as frozen dataclasses

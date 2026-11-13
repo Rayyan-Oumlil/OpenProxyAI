@@ -1,6 +1,6 @@
 # OpenProxyAI — Feature Reference
 
-> Complete inventory of shipped capabilities. 755 passing backend tests across 68 test files (`cd backend && pytest`; 740 without Postgres + Redis, which the RLS and end-to-end suites need).
+> Complete inventory of shipped capabilities. The backend suite is `cd backend && pytest` (about 150 test files; the row-level-security, end-to-end and integration suites need Postgres and Redis).
 
 ---
 
@@ -61,6 +61,34 @@
 
 ---
 
+## More API Endpoints
+
+| Feature | Details |
+|---|---|
+| Shared pipeline | Embeddings, rerank, images, audio, `/v1/responses` and chat all go through one admission step (`request_gate.admit`): policy, classification, routing, team check, refusals and rate limits. A guardrail test suite every new endpoint must join keeps them identical |
+| Rerank, images, audio, Responses | `POST /v1/rerank`, `/v1/images/generations`, `/v1/audio/transcriptions`, `/v1/audio/speech`, `/v1/responses`. Audio is uninspected input, classified `confidential` unless the class map says otherwise. `/v1/responses` always sends `store=false` and refuses provider-side state unless a policy flag allows it |
+| Realtime | `WS /v1/realtime`: the OpenAI Realtime protocol through the gateway. Text is policy-checked before the provider sees it, each response is limited and billed from reported usage, the session ends when its key is revoked or time runs out, sessions per org are capped. Not available to orgs that enforce response guardrails |
+| Files and batches | `/v1/files` and `/v1/batches`: upload a JSONL file of chat requests and run it as one job. Every line goes through the governed path (policy, classification, routing, metering, audit); a bad line is a result, not a job failure; each job has a spending cap; stored content expires after 7 days |
+| Policy plugins | `/api/v1/policy-plugins` (admins): your own rule as a sandboxed WebAssembly module (wasmtime, no imports, bounded time and memory, fresh instance per call). A plugin can only add a restriction; a failing plugin blocks under `enforce` |
+| Analytics query | `POST /api/v1/analytics/query` (admins): filters, group-bys and aggregates over your request log and scores from a structured query. Every column, operator and aggregate is allowlisted, every value is bound, read-only with a 5 s timeout, always limited to your org, every query in the admin audit log |
+| Scores | `GET /api/v1/scores` (admins) and `/summary` (admins and developers, aggregates only) |
+| Secret stores | A provider key can point at a HashiCorp Vault KV v2 secret (`vault_path`) or an AWS Secrets Manager secret (`aws_secret_name`) instead of holding a copy. Each org may use only its own folder; a failure to read is an error for that key, never a fallback |
+
+---
+
+## Evaluation Loop
+
+| Feature | Details |
+|---|---|
+| Feedback | `POST /v1/feedback`: rate an answer (thumbs or a named score, optional comment stripped of PII) with an API key; idempotent per request and score name |
+| Payload capture | Opt-in (`payload_capture_sample_rate`, 0 = off) with an operator ceiling on data class. Redacted before storage |
+| Datasets | `/api/v1/datasets` (admins): build from captured traffic filtered by model, date and score, or add items by hand. Rows with PII are refused. Up to 10,000 items |
+| Evaluators and runs | `/api/v1/evaluators`, `/api/v1/eval-runs` (admins): score a candidate model on a dataset with exact match, a regex (run with a timeout) or an LLM judge, under policy, routing and a spending cap. An item that cannot be scored is an error with a reason, never a zero |
+| Adaptive A/B | An experiment with `mode: adaptive` shifts traffic toward the better variant as ratings arrive, with a traffic floor and a minimum sample size. A winner is recorded, never deployed |
+| Prompt promotion gate | With `prompt_promotion_gate` set, an edited prompt becomes a draft; an admin promotes it after a passing eval run (override needs a reason and is audited) |
+
+---
+
 ## Teams (org structure)
 
 | Feature | Details |
@@ -114,7 +142,7 @@
 | Email/password auth | Registration, login, JWT access + refresh tokens |
 | RBAC | Three roles: `admin`, `developer`, `viewer` — enforced on all management endpoints |
 | OIDC/SSO | Per-org generic OIDC connector with auth-code flow and JIT user provisioning |
-| SCIM 2.0 provisioning | `/scim/v2` Users create/read/update/deactivate for Okta and Entra ID. Per-org hashed bearer token (create, rotate, revoke in the console). New users are viewers; roles are never settable through SCIM. Manages only users it created. Groups are not supported. Audited |
+| SCIM 2.0 provisioning | `/scim/v2` Users create/read/update/deactivate for Okta and Entra ID. Per-org hashed bearer token (create, rotate, revoke in the console). New users are viewers; roles are never settable through SCIM. Manages only users it created. Audited |
 | Invite system | SHA-256 token-secured invitations with 7-day TTL and role pre-assignment |
 | Brute-force protection | Redis-backed fixed-window counter per IP+email, 429 after threshold |
 | JWT silent refresh | Proactive token renewal 5 min before expiry, transparent to clients |
@@ -168,7 +196,7 @@
 | Webhook handler | `POST /api/v1/billing/webhook` — processes checkout.completed, invoice.paid/failed, subscription.updated/deleted |
 | Atomic idempotency | `INSERT ... ON CONFLICT DO NOTHING` on `stripe_events` table |
 | Plan feature gating | `assert_plan_allows()` enforces user/key limits per tier |
-| Plan tiers | Free (3 users), Starter ($2,500/mo, 50 users), Growth ($7,500/mo, 200 users), Enterprise (manual) |
+| Plan tiers | Community (free, 3 users), Team ($299/mo, 50 users), Business ($1,500/mo, 200 users), Enterprise (from $25k/yr, unlimited users, SSO). Audit retention 7 / 30 / 90 / 365 days. Manual plan changes allow only Community; paid plans go through Stripe |
 | Metered usage (Stripe) | Optional metered price + subscription item; hourly job reports token usage to Stripe usage records; plan includes `metered` feature and `included_tokens_monthly`; admin billing shows usage vs included quota (see `docs/guides/stripe-setup.md`) |
 | Plan override guard | PATCH org with plan returns 409 when Stripe-managed |
 | Billing UI | Plan comparison cards, upgrade flow, post-checkout polling, portal redirect, metered usage summary when configured |
@@ -191,7 +219,7 @@
 | Policy analytics | Violation counts by action/reason with date range filters |
 | Policy event export | JSON + CSV download with formula injection prevention |
 | Compliance report | CSV export: policy violations, user access, key rotations, budget vs actual |
-| Prometheus metrics | 7 metric types: requests, latency, TTFT, tokens, cost, policy, rate-limit |
+| Prometheus metrics | 7 metric types: requests, latency, TTFT, tokens, cost, policy, rate-limit. `/metrics` can require a bearer token (`METRICS_BEARER_TOKEN`) because labels carry org ids and models |
 | Langfuse tracing | Optional fire-and-forget traces per request (v4 SDK, OTel transport) |
 | ClickHouse dual-write | Optional fire-and-forget log mirroring for OLAP analytics |
 

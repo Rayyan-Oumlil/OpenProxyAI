@@ -58,4 +58,4 @@ The admin console itself uses short-lived access tokens plus a refresh token, is
 
 ## SSO
 
-Organizations on Growth and Enterprise plans can connect an identity provider via `/api/v1/auth/sso/initiate` and `/api/v1/sso/connections`. Once configured, org members sign in to the admin console through your IdP instead of a password. See [Configuring SSO](/guides/configuring-sso).
+Organizations on the Enterprise plan can connect an identity provider via `/api/v1/auth/sso/initiate` and `/api/v1/sso/connections`. Once configured, org members sign in to the admin console through your IdP instead of a password. See [Configuring SSO](/guides/configuring-sso).

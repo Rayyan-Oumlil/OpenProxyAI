@@ -16,6 +16,4 @@ Semantic matching pays off most on high-volume, templated use cases — support 
 - L3 is checked after L1 and L2 exact-match tiers miss, and carries more latency than either (see [Caching](/core-concepts/caching) for the tier-by-tier latency breakdown).
 - A similarity match is an approximation, not an exact match — for use cases where a subtly different prompt must always get a fresh answer, scope L3 out for that request rather than relying on default behavior.
 
-:::info Configurable similarity threshold coming soon
-Per-team or per-request control over the L3 similarity threshold is planned. Until then, defaults are tuned org-wide.
-:::
+The L3 similarity threshold is set for the whole deployment with `SEMANTIC_CACHE_SIMILARITY_THRESHOLD` (default `0.95`). To bypass the cache for one request, send `x-openproxy-cache: skip`.

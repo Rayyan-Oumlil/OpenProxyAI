@@ -6,12 +6,13 @@ High-level map of this monorepo. Paths are from the repo root.
 |------|------|
 | `backend/` | FastAPI app: proxy (`/v1/*`), management API (`/api/v1/*`), migrations, tests |
 | `admin-console/` | React admin SPA (policy, keys, billing, teams, experiments, analytics) |
-| `web-app/` | Separate frontend (marketing or auxiliary UI — not the main admin console) |
+| `web-app/` | Marketing website (home, product, security, providers, pricing) — not the admin console |
 | `sdk/python/` | PyPI package `openproxy-ai` |
 | `sdk/typescript/` | npm package `openproxy-ai` |
 | `deploy/helm/` | Kubernetes Helm chart for backend + console |
 | `docs/` | User and operator documentation (this tree) |
-| `plans/` | Internal planning notes (e.g. deployment runbooks) |
+| `docs-site/` | Public documentation site (Docusaurus) and blog |
+| `scripts/` | Demo smoke tests (`smoke.sh`, `smoke_*.py`) and mutation checks |
 
 ## Backend (`backend/app/`)
 

@@ -704,6 +704,78 @@ Health check endpoint. Used for liveness and readiness probes.
 
 ---
 
+## Additional Endpoints
+
+Gateway endpoints take an API key (`Authorization: Bearer opai_...`) and follow the same pipeline as chat: policy, data classification, routing, rate limits, audit. Management endpoints take a console JWT. "Admin" means the `admin` role. Behavior of each feature is described in [features.md](../features.md).
+
+### Gateway (API key)
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/v1/rerank` | Rerank documents |
+| POST | `/v1/images/generations` | Generate images |
+| POST | `/v1/audio/transcriptions` | Speech to text |
+| POST | `/v1/audio/speech` | Text to speech |
+| POST | `/v1/responses` | OpenAI Responses API (`store=false` enforced) |
+| WS | `/v1/realtime` | OpenAI Realtime protocol, policy-checked per event |
+| POST, GET, DELETE | `/v1/files`, `/v1/files/{id}`, `/v1/files/{id}/content` | Upload, read and delete batch input and output files |
+| POST, GET | `/v1/batches`, `/v1/batches/{id}`; POST `/v1/batches/{id}/cancel` | Run a JSONL file of chat requests as one governed job |
+| POST | `/v1/feedback` | Rate an answer (thumbs or named score) |
+| POST, GET, DELETE | `/v1/mcp`, `/v1/mcp/{slug}` | MCP gateway (Streamable HTTP, JSON-RPC 2.0); needs the `proxy:mcp` permission |
+
+### Governance (admin)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET, POST, PATCH, DELETE | `/api/v1/model-registry`, `/{id}` | Vetted models: data class, regions, risk, retention, capabilities |
+| POST | `/api/v1/policy/preview` | What would happen to a hypothetical request |
+| GET, POST, PATCH, DELETE | `/api/v1/policy-plugins`, `/{id}` | WebAssembly policy plugins |
+| GET, POST, PATCH, DELETE | `/api/v1/mcp-servers`, `/{id}`; GET `/{id}/tools`; POST `/{id}/sync`, `/{id}/tools/{tool_id}/approve`, `/block` | Upstream MCP servers, tool pinning and review |
+| GET, POST, DELETE | `/api/v1/mcp-grants`, `/{id}` | Tool grants (allow/deny by role, team, user or key) |
+| GET, POST, PATCH, DELETE | `/api/v1/mcp-bundles`, `/{id}`; PUT, DELETE `/{id}/keys/{api_key_id}` | Virtual tool bundles attached to API keys |
+| GET, POST, DELETE | `/api/v1/mcp-trust-rules`, `/{id}` | Taint-tracking trust and sink rules |
+| GET | `/api/v1/admin/audit-log` | Admin action log |
+| POST | `/api/v1/provider-keys/{id}/rotate` | Re-encrypt a provider key |
+
+### Evaluation (admin unless noted)
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET, POST, DELETE | `/api/v1/datasets`, `/{id}`; POST `/{id}/import`, `/{id}/items`; GET `/{id}/items`; DELETE `/{id}/items/{item_id}` | Datasets and their items |
+| POST, GET, DELETE | `/api/v1/evaluators`, `/{id}` | Evaluators (exact, regex, LLM judge) |
+| POST, GET | `/api/v1/eval-runs`, `/{id}`, `/{id}/items`; POST `/{id}/cancel` | Run a candidate model over a dataset |
+| GET, POST | `/api/v1/prompt-templates/{id}/promotion`, `/promote` | Prompt promotion gate |
+| GET | `/api/v1/scores`, `/api/v1/scores/summary` | Read scores (summary also for developers) |
+| POST | `/api/v1/analytics/query`; GET `/api/v1/analytics/query/catalog` | Structured analytics query |
+
+### Conversations (opt-in per org)
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST, GET | `/api/v1/conversations` | Create and list |
+| GET, PATCH, DELETE | `/api/v1/conversations/{id}` | Read, update (title, tags, space), delete |
+| GET, POST | `/api/v1/conversations/{id}/turns` | Read turns, send a message (optionally streamed) |
+| GET | `/api/v1/conversations/{id}/turns/{turn_id}/context` | What the model was shown |
+| GET | `/api/v1/conversations/models`, `/teams` | Models and teams available to the caller |
+| POST, GET, PATCH, DELETE | `/api/v1/spaces`, `/{id}` | Project spaces |
+
+### Identity
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET, POST, DELETE | `/api/v1/scim/token` | Admin: read, create or rotate, revoke the SCIM token |
+| GET, POST, PUT, PATCH, DELETE | `/scim/v2/Users`, `/Users/{id}` | SCIM 2.0 user provisioning (Okta, Entra ID); also `ServiceProviderConfig`, `ResourceTypes`, `Schemas` |
+| GET | `/api/v1/auth/sso/initiate`, `/callback`; POST `/exchange-code` | OIDC sign-in |
+
+### Operations
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health`, `/ready` | Liveness and readiness |
+| GET | `/metrics` | Prometheus; requires a bearer token when `METRICS_BEARER_TOKEN` is set |
+
+---
+
 ## Rate Limits
 
 The proxy enforces three types of rate limits (configurable per organization):

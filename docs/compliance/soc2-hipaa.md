@@ -59,9 +59,9 @@ For healthcare (HIPAA) and government (FedRAMP) evals, see [self-hosted-security
 
 | Plan | Retention |
 |------|-----------|
-| Free | 7 days |
-| Starter | 30 days |
-| Growth | 90 days |
+| Community | 7 days |
+| Team | 30 days |
+| Business | 90 days |
 | Enterprise | 365 days |
 
 Logs older than the retention window are soft-archived (`archived_at` set).
