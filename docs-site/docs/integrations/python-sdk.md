@@ -148,3 +148,22 @@ response.gateway.model         # str — model actually used
 response.gateway.policy_action # str | None — e.g. "redacted", "flagged"
 response.gateway.policy_reason # str | None — human-readable policy note
 ```
+
+## Other gateway endpoints
+
+Version 0.2.0 adds `models`, `rerank`, `images`, `audio`, `responses`, `feedback`, `files` and `batches`, on both `OpenProxy` and `AsyncOpenProxy`. They go through the same policy, routing and audit as chat.
+
+```python
+# Rerank
+client.rerank.create("cohere/rerank-v3", "refund policy", ["doc one", "doc two"], top_n=1)
+
+# Rate an answer (request_id is the x-openproxyai-request-id response header)
+client.feedback.create(request_id, thumbs="up")
+
+# Run a file of chat requests as one governed job, capped at $5
+file = client.files.create(open("requests.jsonl", "rb").read())
+batch = client.batches.create(file["id"], max_cost_usd=5)
+client.batches.retrieve(batch["id"])["status"]
+```
+
+A policy block raises `PolicyViolationError`; its `.explanation` is one plain sentence you can show an end user.
