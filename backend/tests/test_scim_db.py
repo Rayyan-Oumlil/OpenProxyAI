@@ -134,7 +134,7 @@ async def test_admin_token_lifecycle_rotation_and_revocation(tenants):
     assert await audit_actions(tenants.a) == ["scim.token_created", "scim.token_rotated", "scim.token_revoked"]
     async with org_scoped_session(tenants.a) as db:
         entries = (await db.scalars(select(AdminAuditLog).where(AdminAuditLog.org_id == tenants.a))).all()
-        assert all("scim_" + "x" not in str(e.after) and first["token"] not in str(e.after) and rotated["token"] not in str(e.after) for e in entries)
+        assert all(first["token"] not in str(e.after) and rotated["token"] not in str(e.after) for e in entries)
 
 
 async def test_only_admins_on_a_plan_with_sso_can_manage_the_token(tenants):
