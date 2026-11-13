@@ -735,6 +735,8 @@ Gateway endpoints take an API key (`Authorization: Bearer opai_...`) and follow 
 | GET, POST, PATCH, DELETE | `/api/v1/mcp-bundles`, `/{id}`; PUT, DELETE `/{id}/keys/{api_key_id}` | Virtual tool bundles attached to API keys |
 | GET, POST, DELETE | `/api/v1/mcp-trust-rules`, `/{id}` | Taint-tracking trust and sink rules |
 | GET | `/api/v1/admin/audit-log` | Admin action log |
+| GET | `/api/v1/batch-jobs` | Every batch job of the org: status, progress, cost, cap (no contents) |
+| POST | `/api/v1/batch-jobs/{id}/cancel` | Cancel an active batch job; audited |
 | POST | `/api/v1/provider-keys/{id}/rotate` | Re-encrypt a provider key |
 
 ### Evaluation (admin unless noted)

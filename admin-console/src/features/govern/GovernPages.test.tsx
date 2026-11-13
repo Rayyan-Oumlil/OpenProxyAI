@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ui/ConfirmDialog";
 import { ScoresPage } from "../evaluation/ScoresPage";
 import { AnalyticsQueryPage, buildSpec } from "./AnalyticsQueryPage";
+import { BatchJobsPage } from "./BatchJobsPage";
 import { PolicyPluginsPage, toBase64 } from "./PolicyPluginsPage";
 
 const auth = vi.hoisted(() => ({ role: "admin" }));
@@ -303,5 +304,54 @@ describe("scores", () => {
     renderIt(<ScoresPage />);
     expect(screen.getByText(/need developer or admin/)).toBeTruthy();
     expect(get).not.toHaveBeenCalled();
+  });
+});
+
+const JOB = {
+  id: "b1",
+  status: "in_progress",
+  created_by: "ana@example.com",
+  total: 40,
+  completed: 12,
+  failed: 1,
+  cost_usd: 0.31,
+  max_cost_usd: 5,
+  error: null,
+  created_at: "2026-11-02T09:00:00Z",
+  finished_at: null,
+};
+
+describe("batch jobs", () => {
+  it("shows progress and cost for each job, and refuses anyone who is not an admin", async () => {
+    get.mockResolvedValue([JOB, { ...JOB, id: "b2", status: "budget_exceeded", completed: 60, failed: 0, total: 100, error: "The spending cap was reached." }]);
+    renderIt(<BatchJobsPage />);
+    expect(await screen.findByText("13 / 40 (1 failed)")).toBeTruthy();
+    expect(screen.getByText("Running")).toBeTruthy();
+    expect(screen.getByText("Stopped at the cap")).toBeTruthy();
+    expect(screen.getByText("The spending cap was reached.")).toBeTruthy();
+    cleanup();
+    auth.role = "developer";
+    renderIt(<BatchJobsPage />);
+    expect(screen.getByText(/need admin privileges/)).toBeTruthy();
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Cancel only on a job that is still active, and asks first", async () => {
+    get.mockResolvedValue([JOB, { ...JOB, id: "b2", status: "completed" }]);
+    post.mockResolvedValue({ ...JOB, status: "cancelled" });
+    renderIt(<BatchJobsPage />);
+    const cancel = await screen.findByRole("button", { name: /Cancel/ });
+    expect(screen.getAllByRole("button", { name: /Cancel/ })).toHaveLength(1);
+    fireEvent.click(cancel);
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel job" }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/v1/batch-jobs/b1/cancel", {}, "tok"));
+  });
+
+  it("does not cancel when the confirmation is dismissed", async () => {
+    get.mockResolvedValue([JOB]);
+    renderIt(<BatchJobsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Cancel/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Keep|Close|No|Dismiss|Back/i }));
+    expect(post).not.toHaveBeenCalled();
   });
 });
