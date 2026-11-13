@@ -33,6 +33,4 @@ Provider API keys and infrastructure credentials (`DATABASE_URL`, `SECRET_KEY`, 
 
 If you find a security issue, report it before disclosing it publicly. Include enough detail to reproduce it. Responsible disclosure is credited unless you ask otherwise.
 
-:::info Security contact and disclosure timeline coming soon
-A dedicated security contact address and formal disclosure SLA are being finalized. Until then, route reports through your normal support contact and flag them as security-sensitive.
-:::
+Route reports through your normal support contact and flag them as security-sensitive.

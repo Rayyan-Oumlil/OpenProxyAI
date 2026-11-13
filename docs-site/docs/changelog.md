@@ -8,7 +8,7 @@ sidebar_position: 100
 
 A summary of what's shipped, grouped by build phase. This tracks major capability milestones, not every individual PR.
 
-## Unreleased — November 2026
+## November 2026
 
 - **Behavior settings** — ask for `creativity`, `reasoning_depth`, `max_response_length` and `citations` in provider-neutral words (header `x-openproxy-behavior` or a `behavior` field), and set organization defaults and a ceiling in the policy. The ceiling only lowers (and also lowers a caller's own `temperature`, `max_tokens` and `reasoning_effort`), only parameters a model supports are sent, and the request log records what was applied, ignored or lowered. Applies to chat, conversation turns and the playground. See [Behavior Settings](/core-concepts/behavior-settings).
 - **Refusals now explain themselves** — a `446` response carries an `explanation`: one plain sentence for an end user ("openai/gpt-4o is not approved for confidential data in your organization."). It names only the model asked for and the request's own data class, never the keyword, pattern, plugin or registry setting involved. The request trace shows what the caller was told, and the policy preview shows what a caller would be told. Existing fields are unchanged.
@@ -66,8 +66,3 @@ A summary of what's shipped, grouped by build phase. This tracks major capabilit
 - OIDC/SSO, immutable audit log
 - Python and TypeScript SDKs
 
----
-
-:::info Granular release notes coming soon
-This page currently tracks phase-level milestones. A per-version changelog with dates and PR links is planned once release cadence stabilizes.
-:::

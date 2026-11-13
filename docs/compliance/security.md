@@ -174,9 +174,9 @@ Different plans have different retention periods:
 
 | Plan | Retention Days |
 |------|----------------|
-| Free | 7 days |
-| Starter | 30 days |
-| Growth | 90 days |
+| Community | 7 days |
+| Team | 30 days |
+| Business | 90 days |
 | Enterprise | 365 days |
 
 ---

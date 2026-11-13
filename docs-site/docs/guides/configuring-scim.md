@@ -15,7 +15,6 @@ What it does and does not do:
 | Updates name, email, `active` | Yes (PATCH and PUT). |
 | Deactivates users | Yes. `DELETE` and `active: false` both deactivate; the user's request history stays. |
 | Sets roles | **Never.** Roles are set in the admin console. A request that carries `roles` is refused, so provisioning can never grant admin. |
-| Groups | Not supported. Manage teams in OpenProxyAI. |
 | Bulk, sort, ETags, password changes | Not supported (advertised as such in `ServiceProviderConfig`). |
 
 SCIM manages **only the users it created**. Users who already exist (admins, people who signed up or were invited) are invisible to it: it cannot read, change or deactivate them, and creating a user with an existing email returns `409`. This is deliberate: SSO matches people by email, so letting an identity provider change an existing user's email would let it take over their account. There is one exception, so offboarding never fails open: `DELETE`, or a PATCH that only sets `active: false`, deactivates **any** user in your organization (the last active admin is still protected). Re-enabling, or deactivating together with other changes, works only on users SCIM created. Once someone has been promoted past viewer in the console, SCIM can no longer re-enable them (`403`).

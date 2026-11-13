@@ -402,55 +402,23 @@ GROUP BY user_id;
 
 ## Migration Chain
 
-The schema is versioned with Alembic. Migrations run automatically at startup (`alembic upgrade head`):
+The schema is versioned with Alembic (`backend/alembic/versions/`, 57 revisions). Migrations run at startup (`alembic upgrade head`). The current head is `v7w8x9y0z1a2`, a merge of the spaces and SCIM branches. List the full chain with `alembic history`.
 
-1. **54c0ed90559e** — Initial schema
-   - organizations, users, api_keys, llm_provider_keys, request_logs
-   - Materialized view mv_daily_spend
+## Tables Added After the Initial Schema
 
-2. **c4f9a12e8b7d** — GIN index on request_metadata
-   - Allows efficient JSONB queries in future
+Column-level detail for these is in their models (`backend/app/models/`). Org-scoped tables use row-level security.
 
-3. **b3e8d87fd2f1** — Add unique index to mv_daily_spend
-   - Enables concurrent refresh
+| Area | Tables |
+|---|---|
+| Teams | `teams` (members and budgets), `team_id` on `api_keys` |
+| Experiments and evaluation | `experiments`, `experiment_variants`, `request_scores`, `request_payloads`, `datasets`, `dataset_items`, `evaluators`, `eval_runs`, `eval_run_items` |
+| Governance | `model_registry`, `policy_plugins`, `admin_audit_logs` (append-only) |
+| MCP gateway | `mcp_servers`, `mcp_tools`, `mcp_tool_versions`, `mcp_bundles`, `mcp_bundle_tools`, `api_key_mcp_bundles`, `tool_grants`, `tool_trust_rules` |
+| Conversations | `conversations`, `conversation_turns`, `conversation_context_packages` (append-only), `spaces` |
+| Batches | `batch_files`, `batch_jobs`, `batch_results` |
+| Identity and billing | `scim_tokens`, `stripe_events` |
 
-4. **d4e7f12a9c3b** — Add user_invites table
-   - Invite system with SHA-256 token hashing
-
-5. **e5f8a23b4c1d** — Add SSO support
-   - sso_connections table
-   - Add sso_sub and sso_connection_id to users
-
-6. **f1a9c3e7d5b2** — Audit log immutability
-   - Add archived_at to request_logs
-   - RLS policy for immutability (Phase 3)
-
-7. **a2b3c4d5e6f7** — Add webhook_deliveries table
-   - Track webhook delivery attempts
-
-8. **b1c2d3e4f5a6** — Add model_patterns to llm_provider_keys
-   - Support model-specific key routing
-
-9. **c3d4e5f6a7b8** — Add data_region to organizations
-   - Support multi-region deployments
-
-10. **f7a8b9c0d1e2** — Add region to llm_provider_keys
-    - `region` column with CHECK constraint (`us`, `eu`, `ap`, `global`)
-    - Composite index on `(org_id, provider, is_active, region)`
-
-11. **e6f7a8b9c0d1** — Add pgvector semantic cache
-    - Creates `pgvector` extension
-    - `semantic_cache_entries` table with `VECTOR(1536)` column
-    - ivfflat index for approximate nearest neighbor search
-
-12. **e6f7a34b9d0c** — Add prompt templates
-    - `prompt_templates` table with versioning and soft-delete
-
-13. **f8a9b0c1d2e3** — Add RLS policies for multi-tenant isolation
-    - `app_user` role for application connections
-    - `get_api_key_by_hash(TEXT)` SECURITY DEFINER function for API key lookup
-    - RLS policies on: request_logs, api_keys, llm_provider_keys, webhook_deliveries, semantic_cache_entries, prompt_templates
-    - `SET LOCAL app.current_org_id` required at start of each request
+Later migrations also add: provider-key `api_base`, `max_data_class` and secret-store sources (Vault, AWS Secrets Manager); the D3 plan rename (`community`, `team`, `business`, `enterprise`); and the `app_user` role grants that make log tables append-only.
 
 ## Row-Level Security (RLS)
 

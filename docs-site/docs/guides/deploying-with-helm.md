@@ -25,6 +25,4 @@ Set `AIRGAP_MODE=true` in your values overrides to disable everything that isn't
 
 The repository's GitHub Actions workflows build and publish container images used by this chart. If you're customizing the deployment pipeline, start from `deploy/` in the repo rather than the default values file alone.
 
-:::info Full values.yaml reference coming soon
-This page covers the deployment model. A complete field-by-field `values.yaml` reference is planned — until then, treat the chart's own `values.yaml` and its inline comments as the source of truth for available options.
-:::
+For the full list of options, read the chart's own `deploy/helm/openproxy/values.yaml`; its inline comments are the reference.

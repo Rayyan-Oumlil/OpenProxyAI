@@ -25,6 +25,11 @@ POST /api/v1/organizations/current/webhooks/deliveries/{delivery_id}/retry
 
 ## Verifying webhook authenticity
 
-:::info Signature verification details coming soon
-This page will document the signing scheme used to verify that a webhook payload genuinely came from OpenProxyAI.
-:::
+Every delivery with a configured secret carries an `X-OpenProxy-Signature: sha256=<hex>` header: the HMAC-SHA256 of the raw request body, keyed with your webhook secret. Recompute it over the exact bytes you received and compare in constant time.
+
+```python
+import hmac, hashlib
+
+expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+ok = hmac.compare_digest(expected, request.headers["X-OpenProxy-Signature"])
+```

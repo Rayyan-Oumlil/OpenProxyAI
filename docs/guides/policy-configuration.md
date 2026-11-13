@@ -368,15 +368,10 @@ The response includes policy metadata in `_policy_metadata` for auditing (not in
 
 Some policy features require higher-tier plans:
 
-| Feature | Free | Starter+ | Growth+ | Enterprise |
-|---------|------|----------|---------|------------|
-| Policy enforcement | ✓ | ✓ | ✓ | ✓ |
-| Model allowlist | ✓ | ✓ | ✓ | ✓ |
-| Blocked keywords | ✓ | ✓ | ✓ | ✓ |
+| Feature | Community | Team | Business | Enterprise |
+|---------|-----------|------|----------|------------|
+| Policy enforcement, model allowlist, blocked keywords | ✓ | ✓ | ✓ | ✓ |
 | PII detection | — | ✓ | ✓ | ✓ |
-| Prompt injection detection | — | ✓ | ✓ | ✓ |
-| Response guardrails | — | ✓ | ✓ | ✓ |
-| Per-model rate limits | — | ✓ | ✓ | ✓ |
 
 Attempting to enable a feature your plan doesn't support returns:
 
@@ -384,7 +379,7 @@ Attempting to enable a feature your plan doesn't support returns:
 HTTP 402 Payment Required
 
 {
-  "detail": "Plan does not support PII detection. Upgrade to Starter or higher."
+  "detail": "Plan does not support PII detection. Upgrade to Team or higher."
 }
 ```
 
