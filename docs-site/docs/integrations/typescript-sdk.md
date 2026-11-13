@@ -122,3 +122,20 @@ response.gateway.cache        // string | undefined — cache tier that served t
 ```
 
 These are read from the `x-openproxyai-*` response headers — see [API Reference → Chat Completions](/api-reference/chat-completions) if you're calling the HTTP API directly instead of using the SDK.
+
+## Other gateway endpoints
+
+Version 0.2.0 adds `models`, `rerank`, `images`, `audio`, `responses`, `feedback`, `files` and `batches`. They go through the same policy, routing and audit as chat.
+
+```typescript
+await client.rerank.create({ model: 'cohere/rerank-v3', query: 'refund policy', documents: ['doc one', 'doc two'], top_n: 1 });
+
+// Rate an answer (requestId is the x-openproxyai-request-id response header)
+await client.feedback.create({ request_id: requestId, thumbs: 'up' });
+
+// Run a file of chat requests as one governed job, capped at $5
+const file = await client.files.create(new Blob([jsonl]));
+const batch = await client.batches.create({ input_file_id: file.id as string, max_cost_usd: 5 });
+```
+
+A policy block throws `PolicyViolationError`; its `.explanation` is one plain sentence you can show an end user.
