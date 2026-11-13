@@ -1,7 +1,6 @@
 ---
 slug: ai-vendor-security-questionnaire
 title: "The AI vendor security questionnaire, answered honestly before anyone asks"
-authors: [rayyan]
 tags: [security, product]
 description: Most security reviews for AI vendors ask a predictable set of questions. Publishing honest answers to them up front, instead of waiting for a procurement cycle to ask, is a genuinely useful exercise for both sides.
 ---

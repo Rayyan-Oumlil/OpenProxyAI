@@ -1,7 +1,6 @@
 ---
 slug: compliance-templates-not-badges
 title: "Compliance templates: policy configs, not badges"
-authors: [rayyan]
 tags: [product, security]
 description: We shipped Healthcare, Finance, and Government policy templates this phase. Here's exactly what that means, and — just as importantly — what it doesn't.
 ---

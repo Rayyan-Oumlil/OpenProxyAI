@@ -1,7 +1,6 @@
 ---
 slug: hipaa-and-llms
 title: "HIPAA and LLMs: what 'compliant' actually requires from your AI infrastructure"
-authors: [rayyan]
 tags: [security, product]
 description: HIPAA-compliant AI gets used as a marketing phrase more often than a technical one. Here's what actually has to be true about your infrastructure before that phrase means anything.
 ---

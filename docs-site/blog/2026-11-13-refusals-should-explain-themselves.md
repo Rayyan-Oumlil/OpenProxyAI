@@ -1,7 +1,6 @@
 ---
 slug: refusals-should-explain-themselves
 title: "A refusal should say why in one sentence, and never say too much"
-authors: [rayyan]
 tags: [product, security]
 description: A gateway that blocks a request owes the person behind it an answer. It also must not teach them how to get around the rule. Here is where we drew that line.
 ---

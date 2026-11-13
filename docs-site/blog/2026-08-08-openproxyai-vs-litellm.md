@@ -1,7 +1,6 @@
 ---
 slug: openproxyai-vs-litellm
 title: "OpenProxyAI vs. LiteLLM: the engine vs. the car"
-authors: [rayyan]
 tags: [product, architecture]
 description: LiteLLM and OpenProxyAI are both self-hosted proxies you run yourself — but they solve different layers of the problem, and the honest answer for a lot of teams is "both."
 ---

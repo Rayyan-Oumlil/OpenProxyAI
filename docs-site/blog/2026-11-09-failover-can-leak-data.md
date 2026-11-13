@@ -1,7 +1,6 @@
 ---
 slug: failover-can-leak-data
 title: "Your failover can leak your data: every fallback must come from the same authorized set"
-authors: [rayyan]
 tags: [security, architecture]
 description: You can route sensitive prompts only to approved models and still leak them, because the fallback path quietly sends the request somewhere else. Here are the six ways a request gets redirected, and the one rule that closes all of them.
 ---

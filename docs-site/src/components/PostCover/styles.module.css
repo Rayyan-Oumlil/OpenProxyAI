@@ -1,0 +1,120 @@
+/* The ratio is fixed up front, so a cover never moves the page while it paints. */
+.cover {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  container-type: inline-size;
+  border: 1px solid var(--op-cover-border);
+  background:
+    radial-gradient(
+      60% 80% at var(--cover-glow-x) var(--cover-glow-y),
+      rgba(53, 211, 153, 0.17),
+      transparent 70%
+    ),
+    linear-gradient(160deg, #10131a, #07080b 70%);
+}
+
+.hero {
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+}
+
+.card {
+  aspect-ratio: 19 / 10;
+  border-radius: 8px;
+}
+
+.banner {
+  aspect-ratio: 3 / 1;
+  border-radius: 12px;
+}
+
+.cover > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* A dark wash behind the words, so the drawing never fights the title. */
+.cover::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.left::after {
+  background: linear-gradient(90deg, rgba(7, 8, 11, 0.94) 30%, transparent 78%);
+}
+
+.center::after {
+  background: radial-gradient(
+    70% 85% at 50% 50%,
+    rgba(7, 8, 11, 0.9) 35%,
+    transparent 100%
+  );
+}
+
+.banner::after {
+  content: none;
+}
+
+.text {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2.4cqw;
+  padding: 6cqw;
+}
+
+.left .text {
+  align-items: flex-start;
+  padding-right: 34cqw;
+  text-align: left;
+}
+
+.center .text {
+  align-items: center;
+  padding-right: 12cqw;
+  padding-left: 12cqw;
+  text-align: center;
+}
+
+.chip {
+  padding: 0.25em 0.75em;
+  border: 1px solid rgba(226, 236, 248, 0.16);
+  border-radius: 999px;
+  background: rgba(226, 236, 248, 0.06);
+  color: #dfe5ec;
+  font-size: clamp(0.5625rem, 2.5cqw, 0.8125rem);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #eef1f4;
+  font-family: var(--op-font-display);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.titleLarge {
+  font-size: 8.4cqw;
+}
+
+.titleMedium {
+  font-size: 6.9cqw;
+}
+
+.titleSmall {
+  font-size: 5.9cqw;
+}

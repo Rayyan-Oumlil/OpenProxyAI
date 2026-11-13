@@ -1,7 +1,6 @@
 ---
 slug: multi-region-data-residency
 title: "Data residency for LLM calls: why 'which region is the model in' is the wrong first question"
-authors: [rayyan]
 tags: [security, architecture]
 description: Data residency requirements get treated as a model-hosting question. The harder part is usually everything around the model call, not the call itself.
 ---

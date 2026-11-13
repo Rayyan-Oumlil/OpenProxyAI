@@ -1,7 +1,6 @@
 ---
 slug: streaming-sse-proxy-design
 title: "Proxying streaming LLM responses: why SSE breaks the assumptions a normal API gateway makes"
-authors: [rayyan]
 tags: [engineering, architecture]
 description: A standard API gateway buffers a response, checks it, and forwards it. A streamed LLM response arrives token by token, over a connection that can stay open for a minute or more — and that difference breaks more of a typical proxy's assumptions than it first appears to.
 ---

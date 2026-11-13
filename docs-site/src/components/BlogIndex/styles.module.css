@@ -1,0 +1,353 @@
+.page {
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: var(--op-space-6) var(--op-space-6) var(--op-space-16);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Header: display title, search, feed ---------- */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--op-space-5);
+  margin-bottom: var(--op-space-8);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--op-font-display);
+  font-size: 4rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--op-space-2);
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--op-space-2);
+  height: 44px;
+  padding: 0 var(--op-space-3);
+  border: 1px solid var(--op-border-strong);
+  border-radius: 16px;
+  color: var(--op-text-muted);
+  cursor: text;
+  transition: border-color var(--op-transition);
+}
+
+.search:focus-within {
+  border-color: var(--op-accent);
+}
+
+.searchIcon {
+  flex: none;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--op-text-strong);
+  font: inherit;
+  /* 16px stops iOS zooming the page when the field takes focus. */
+  font-size: 1rem;
+}
+
+.searchInput::placeholder {
+  color: var(--op-text-muted);
+  opacity: 1;
+}
+
+.searchInput::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.kbd {
+  display: none;
+  flex: none;
+  padding: 0.1rem 0.4rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--op-surface-hover);
+  box-shadow: none;
+  color: var(--op-text-muted);
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.feed,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--op-space-2);
+  min-height: 44px;
+  padding: 0 var(--op-space-4);
+  border: 1px solid var(--op-border-strong);
+  border-radius: 16px;
+  background: var(--op-surface);
+  color: var(--op-text-strong);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--op-transition),
+    background-color var(--op-transition);
+}
+
+.feed:hover,
+.button:hover {
+  border-color: var(--op-text-subtle);
+  background: var(--op-surface-hover);
+  color: var(--op-text-strong);
+  text-decoration: none;
+}
+
+/* ---------- Topic pills: one scrolling row on a phone ---------- */
+.pills {
+  display: flex;
+  gap: var(--op-space-2);
+  margin: 0 calc(var(--op-space-6) * -1) var(--op-space-8);
+  padding: 0 var(--op-space-6);
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.pills::-webkit-scrollbar {
+  display: none;
+}
+
+.pills > li {
+  flex: none;
+}
+
+.pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 var(--op-space-4);
+  border: 1px solid var(--op-border-strong);
+  border-radius: 999px;
+  background: var(--op-surface);
+  color: var(--op-text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    color var(--op-transition),
+    border-color var(--op-transition);
+}
+
+/* The pill is 36px tall to the eye; this makes the tap area 44px. */
+.pill::after {
+  position: absolute;
+  inset: -4px 0;
+  content: '';
+}
+
+.pill:hover {
+  border-color: var(--op-text-subtle);
+  color: var(--op-text-strong);
+  text-decoration: none;
+}
+
+.pillActive,
+.pillActive:hover {
+  border-color: var(--op-text-strong);
+  background: var(--op-text-strong);
+  color: var(--op-bg);
+}
+
+/* ---------- Cards ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--op-space-12) var(--op-space-6);
+  margin: 0 0 var(--op-space-12);
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  position: relative;
+  min-width: 0;
+}
+
+.cover {
+  transition: border-color var(--op-transition);
+}
+
+.card:hover .cover {
+  border-color: var(--op-cover-border-hover);
+}
+
+.cardTitle {
+  margin: var(--op-space-4) 0 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.cardHero .cardTitle {
+  font-size: 1.875rem;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+.cardLink,
+.cardLink:hover {
+  color: var(--op-text-strong);
+  text-decoration: none;
+}
+
+.cardLink::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: '';
+}
+
+.cardLink:focus-visible {
+  outline: none;
+}
+
+.card:has(.cardLink:focus-visible) .cover {
+  outline: 2px solid var(--op-accent);
+  outline-offset: 3px;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--op-space-2);
+  margin: var(--op-space-3) 0 0;
+  color: var(--op-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta > * + *::before {
+  margin-right: var(--op-space-2);
+  content: '\00b7';
+}
+
+.more,
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--op-space-4);
+  color: var(--op-text-muted);
+}
+
+.empty {
+  padding: var(--op-space-12) 0;
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* ---------- Tablet ---------- */
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Desktop ---------- */
+@media (min-width: 997px) {
+  .page {
+    padding: var(--op-space-16) 6.5rem 6rem;
+  }
+
+  .header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--op-space-12);
+  }
+
+  .title {
+    font-size: 4.8rem;
+    text-align: left;
+  }
+
+  .tools {
+    flex-direction: row;
+  }
+
+  .search {
+    width: 13rem;
+    height: 40px;
+  }
+
+  .searchInput {
+    font-size: 0.875rem;
+  }
+
+  .kbd {
+    display: inline-block;
+  }
+
+  .feed {
+    min-height: 40px;
+  }
+
+  .pills {
+    margin: 0 0 var(--op-space-8);
+    padding: 0;
+  }
+
+  .pill {
+    height: 32px;
+    padding: 0 var(--op-space-3);
+  }
+
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--op-space-16) var(--op-space-6);
+    margin-bottom: var(--op-space-16);
+  }
+
+  .heroGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cardHero .cardTitle {
+    font-size: 2.25rem;
+    line-height: 1.25;
+    letter-spacing: -0.045em;
+  }
+}

@@ -1,7 +1,6 @@
 ---
 slug: vpc-first-architecture
 title: Why OpenProxyAI runs in your VPC, not ours
-authors: [rayyan]
 tags: [architecture, security]
 description: Most AI gateways are SaaS-first, with self-hosting as an enterprise add-on. We built it the other way around — here's why that ordering matters.
 ---

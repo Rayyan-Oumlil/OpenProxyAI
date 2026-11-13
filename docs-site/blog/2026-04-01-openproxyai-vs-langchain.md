@@ -1,7 +1,6 @@
 ---
 slug: openproxyai-vs-langchain
 title: "OpenProxyAI vs. LangChain: this isn't actually a competitor comparison"
-authors: [rayyan]
 tags: [product, architecture]
 description: LangChain vs OpenProxyAI shows up in search often enough that it's worth answering directly — the honest answer is that they sit at different layers, and most teams running LangChain in production want something like OpenProxyAI underneath it, not instead of it.
 ---

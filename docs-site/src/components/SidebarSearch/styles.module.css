@@ -1,0 +1,80 @@
+.box {
+  padding: var(--op-space-2) var(--op-space-4) var(--op-space-2);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--op-space-2);
+  height: 36px;
+  padding: 0 var(--op-space-3);
+  border: 1px solid var(--op-border-strong);
+  border-radius: 12px;
+  background: var(--op-bg);
+  color: var(--op-text-muted);
+  cursor: text;
+  transition: border-color var(--op-transition);
+}
+
+.field:focus-within {
+  border-color: var(--op-accent);
+}
+
+.icon {
+  flex: none;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--op-text-strong);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.input::placeholder {
+  color: var(--op-text-muted);
+  opacity: 1;
+}
+
+.input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.kbd {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--op-text-subtle);
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.results {
+  flex-grow: 1;
+}
+
+.count {
+  margin: 0 0 var(--op-space-2);
+  padding: 0 var(--op-space-4);
+  color: var(--op-text-subtle);
+  font-size: 0.8125rem;
+}

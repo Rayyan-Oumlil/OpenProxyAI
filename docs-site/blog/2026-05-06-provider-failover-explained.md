@@ -1,7 +1,6 @@
 ---
 slug: provider-failover-explained
 title: "Provider failover, explained: what has to happen in the seconds after a key starts erroring"
-authors: [rayyan]
 tags: [engineering, architecture]
 description: Automatic failover is easy to promise in a pitch deck and easy to get subtly wrong in implementation. Here's what the failure sequence actually requires, step by step.
 ---

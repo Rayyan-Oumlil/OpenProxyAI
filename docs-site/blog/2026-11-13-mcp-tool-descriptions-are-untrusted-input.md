@@ -1,7 +1,6 @@
 ---
 slug: mcp-tool-descriptions-are-untrusted-input
 title: "An MCP tool description is untrusted input, and so is its output"
-authors: [rayyan]
 tags: [security, engineering]
 description: Agents read tool descriptions as instructions and act on tool results. Both can be changed by whoever runs the server. Here are the four controls an MCP gateway needs, and what each one cannot catch.
 ---

@@ -1,7 +1,6 @@
 ---
 slug: openproxyai-vs-kong-ai-gateway
 title: "OpenProxyAI vs. Kong AI Gateway: AI-native vs. API gateway plus AI plugins"
-authors: [rayyan]
 tags: [product, architecture]
 description: Kong AI Gateway extends a general-purpose API gateway you may already be running. OpenProxyAI was built for exactly one job. That difference in starting point shows up in who each is the better fit for.
 ---
