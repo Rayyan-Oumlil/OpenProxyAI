@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 560" width="640" height="560" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="560" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="559" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">How v1.107.0 was published</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">LiteLLM's root-cause write-up, October 23, 2026 (UTC)</text>
+
+  <g font-size="15">
+    <rect x="24" y="88" width="592" height="72" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="114" fill="#f0b429" font-weight="600" font-size="14">1  May 27</text>
+    <text x="42" y="138" fill="#cfd5dd">An admin key is committed to a public repository and never revoked.</text>
+
+    <rect x="24" y="176" width="592" height="72" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="202" fill="#f0b429" font-weight="600" font-size="14">2  Oct 10</text>
+    <text x="42" y="226" fill="#cfd5dd">The key reads an internal API that returns an org owner's GitHub token.</text>
+
+    <rect x="24" y="264" width="592" height="72" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="290" fill="#f0b429" font-weight="600" font-size="14">3  Oct 10 to 12</text>
+    <text x="42" y="314" fill="#cfd5dd">Throwaway CI jobs send repository secrets, and two more tokens, out.</text>
+
+    <rect x="24" y="352" width="592" height="72" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="378" fill="#f0b429" font-weight="600" font-size="14">4  Oct 21, 10:08</text>
+    <text x="42" y="402" fill="#cfd5dd">The release workflow is repointed at a look-alike fork.</text>
+
+    <rect x="24" y="440" width="592" height="48" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="470" fill="#cfd5dd"><tspan fill="#f0b429" font-weight="600" font-size="14">5  11:11  </tspan>Two stolen identities trigger and approve it.</text>
+
+    <rect x="24" y="500" width="592" height="48" rx="10" fill="#0f1f19" stroke="#35d399"/>
+    <text x="42" y="530" fill="#cfd5dd"><tspan fill="#35d399" font-weight="600" font-size="14">6  11:39 to 13:23  </tspan>Malicious wheels live on PyPI.</text>
+  </g>
+
+  <g stroke="#a3abb8" stroke-width="2" fill="none">
+    <path d="M320 160 V176"/><path d="M320 248 V264"/><path d="M320 336 V352"/><path d="M320 424 V440"/><path d="M320 488 V500"/>
+  </g>
+</svg>
