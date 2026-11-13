@@ -74,6 +74,15 @@
 
 ---
 
+## Conversations (opt-in per org)
+
+| Feature | Details |
+|---|---|
+| Tags | Validated, normalized tags on a conversation. Filter the list by `tag`, search `q` (titles and tags only, never message text), or `space_id`. A `private` tag forces private visibility and blocks sharing |
+| Project spaces | `/api/v1/spaces`: an org-scoped (RLS forced) grouping of conversations. A space never widens who can read a conversation; its list and counts include only what the caller could already read. Cross-conversation context reuse is not implemented |
+
+---
+
 ## Prompt Playground
 
 | Feature | Details |
@@ -144,6 +153,9 @@
 | Response PII redaction | Replaces detected PII with `[REDACTED]` in streaming and non-streaming responses |
 | Per-org config | Stored in PostgreSQL, 60s Redis cache, instant invalidation on save |
 | Policy event logging | Every evaluation result stored in `request_metadata.policy` for analytics |
+| Behaviour settings | `creativity`, `reasoning_depth`, `max_response_length`, `citations`. Org defaults and a ceiling in the policy; a caller asks per request with the `x-openproxy-behavior` header or a `behavior` body field. The ceiling can only lower: a request above it is clamped and reported in `X-OpenProxyAI-Behavior` headers. Mapped to provider parameters in one module; unsupported parameters are recorded, not sent. While a ceiling is active, only an allowlist of request fields reaches the provider (unknown generation parameters are dropped) |
+| Quality signal for `cap:` routing | Opt-in `routing_quality_signal` (`off` default, `feedback`): among models already authorized, prefers the one with better `/v1/feedback` scores (smoothed, minimum sample). It only reorders; it never adds a model to the authorized set |
+| Plain-language refusals | A 446 body carries an `explanation` sentence for the end user (shown also on the request trace and policy preview). It names only the requested model and the data class |
 
 ---
 
@@ -238,6 +250,8 @@
 | Secret scrubbing | Webhook secret never returned in API responses |
 | Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `HSTS`, `CSP`, `Referrer-Policy`, `Permissions-Policy` |
 | Auth rate limiting | Fixed-window Redis counter per IP+email on login and invite acceptance |
+| No credential or endpoint from the request | A request body or header can never set `api_base`, `base_url`, `api_key`, `extra_headers` or similar: the endpoint and credential come only from the gateway's own provider-key record |
+| MCP token isolation | The gateway never forwards the caller's `Authorization`, cookies or session to an upstream MCP server; each server gets only its own stored credential |
 
 ---
 
