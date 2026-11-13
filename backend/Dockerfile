@@ -38,5 +38,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import httpx; r = httpx.get('http://localhost:8080/health'); r.raise_for_status()"]
 
-# Use $PORT so Cloud Run (which injects PORT=8080) works out of the box.
+# Use $PORT when the platform injects one (defaults to 8080).
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

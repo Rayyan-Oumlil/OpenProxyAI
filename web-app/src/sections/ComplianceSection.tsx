@@ -3,7 +3,7 @@ import { PAGE_MAX_WIDTH } from '../lib/layout';
 const TEMPLATES = [
   { name: 'Healthcare', tag: 'HIPAA-aligned', desc: 'PHI redaction defaults, model allowlists for clinical data, extended audit retention.' },
   { name: 'Finance', tag: 'PCI-aligned', desc: 'Cardholder data blocking, transaction-context logging, stricter rate limits by default.' },
-  { name: 'Government', tag: 'FedRAMP-aligned', desc: 'Air-gapped deployment support, data residency enforcement, 7-year retention.' },
+  { name: 'Government', tag: 'FedRAMP-aligned', desc: 'Classified-marking keyword blocking, PII redaction, 3-year audit retention. Assign US-region provider keys yourself.' },
 ];
 
 const CAPABILITIES = [

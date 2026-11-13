@@ -1,6 +1,6 @@
 # Operational Features
 
-> Background jobs and optional config for production deployments. See [deploy/env.template](../../deploy/env.template) for all env vars.
+> Background jobs and optional config for production deployments. Every setting and its default is in [backend/app/config.py](../../backend/app/config.py).
 
 ## Batched spend writes
 
