@@ -10,7 +10,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.organization import Organization
