@@ -253,6 +253,7 @@
 | Provider health | One state per key (healthy, degraded, down, not checked, disabled) with the reason, last health check, p99, error rate and effective weight; says why data is missing when health checks or adaptive load balancing are off |
 | Policy Config | Tabs for Enforcement (mode, model allowlist, blocked keywords), Data protection (PII, prompt injection, response guardrails), Rate limits (per model) and Templates (compliance quick-apply); one form, one save bar with unsaved-changes state and Discard |
 | MCP servers | Register upstream tool servers, set pin and scan mode, review each server's tools: approve, block, sync, and a field-level diff of a drifted tool against its approved definition |
+| Batch jobs | Govern > Batch jobs (admins): every `/v1/batches` job of the org with status, progress, cost against its cap and who started it, refreshing while one runs; cancel an active job (finished lines are kept and billed). Never shows file contents. `GET /api/v1/batch-jobs`, `POST /api/v1/batch-jobs/{id}/cancel`; cancels are in the admin audit log |
 | Billing | Plan cards, Stripe checkout upgrade, portal redirect, subscription status |
 | Audit Log | Paginated admin action log with before/after JSON diff |
 | Prompt Playground | Side-by-side model comparison, prompt template management, variable substitution |

@@ -25,6 +25,7 @@ const ProviderKeysPage = lazy(() => import("./features/providerkeys/ProviderKeys
 const ExperimentsPage = lazy(() => import("./features/experiments/ExperimentsPage").then((m) => ({ default: m.ExperimentsPage })));
 const ConversationsPage = lazy(() => import("./features/conversations/ConversationsPage").then((m) => ({ default: m.ConversationsPage })));
 const PolicyPluginsPage = lazy(() => import("./features/govern/PolicyPluginsPage").then((m) => ({ default: m.PolicyPluginsPage })));
+const BatchJobsPage = lazy(() => import("./features/govern/BatchJobsPage").then((m) => ({ default: m.BatchJobsPage })));
 const AnalyticsQueryPage = lazy(() => import("./features/govern/AnalyticsQueryPage").then((m) => ({ default: m.AnalyticsQueryPage })));
 const ScoresPage = lazy(() => import("./features/evaluation/ScoresPage").then((m) => ({ default: m.ScoresPage })));
 const DatasetsPage = lazy(() => import("./features/evaluation/DatasetsPage").then((m) => ({ default: m.DatasetsPage })));
@@ -85,6 +86,7 @@ export function App() {
             <Route path="experiments" element={<ExperimentsPage />} />
             <Route path="datasets" element={<DatasetsPage />} />
             <Route path="policy-plugins" element={<PolicyPluginsPage />} />
+            <Route path="batch-jobs" element={<BatchJobsPage />} />
             <Route path="analytics-query" element={<AnalyticsQueryPage />} />
             <Route path="scores" element={<ScoresPage />} />
             <Route path="evaluators" element={<EvaluatorsPage />} />

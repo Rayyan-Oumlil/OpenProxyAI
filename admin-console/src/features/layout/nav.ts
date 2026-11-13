@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Boxes,
+  Layers,
   Database,
   Building2,
   CreditCard,
@@ -60,6 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "API keys", to: "/api-keys", icon: Key },
       { label: "Model registry", to: "/model-registry", icon: Boxes },
       { label: "Policy plugins", to: "/policy-plugins", icon: Puzzle },
+      { label: "Batch jobs", to: "/batch-jobs", icon: Layers },
     ],
   },
   {

@@ -26,6 +26,7 @@ const ROUTES = [
   "/conversations",
   "/conversations/c1",
   "/policy-plugins",
+  "/batch-jobs",
   "/analytics-query",
   "/scores",
   "/teams",
@@ -282,6 +283,15 @@ for (const theme of ["light", "dark"] as const) {
       await signIn(page);
       await page.goto("/policy-plugins");
       await expect(page.getByText("no-codenames")).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+      expect(await lowContrastIcons(page)).toEqual([]);
+    });
+
+    test("batch jobs: a running job with its cancel button and a job stopped at the cap", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/batch-jobs");
+      await expect(page.getByText("ana@example.com")).toBeVisible();
+      await expect(page.getByText("Stopped at the cap")).toBeVisible();
       expect(await audit(page)).toEqual([]);
       expect(await lowContrastIcons(page)).toEqual([]);
     });
