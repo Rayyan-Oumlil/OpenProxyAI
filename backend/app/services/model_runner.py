@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.schemas.chat import ChatCompletionRequest
+from app.services import behavior as behavior_mod
 from app.services.audit_logger import log_request
 from app.services.classification_service import Classification, classify_chat_request
 from app.services.cost_tracker import cost_tracker_service
@@ -78,6 +79,7 @@ class CallPlan:
 	max_tokens: int | None
 	timeout: int
 	started: float = field(default_factory=time.perf_counter)
+	extra_params: dict[str, Any] = field(default_factory=dict)  # provider parameters that behaviour settings became for this model
 
 
 def _detail(exc: HTTPException) -> str:
@@ -120,13 +122,16 @@ async def plan_call(
 	check_policy: bool = True,
 	classification: Classification | None = None,
 	routing_inputs: RoutingInputs | None = None,
+	behavior: behavior_mod.Resolved | None = None,
 ) -> CallPlan | RunOutcome:
 	"""Authorize one call and choose its key. Returns a ``CallPlan`` to execute, or the ``RunOutcome`` that ends it.
 
 	Uses ``db``, so call it for one model at a time. ``check_policy=False`` is for a caller that has already applied the
 	org's policy to the whole request (the playground blocks the request before planning any model).
 	``classification`` and ``routing_inputs`` let a caller that plans several models for one prompt classify and load the
-	registry once instead of once per model.
+	registry once instead of once per model. ``behavior`` is the settled behaviour settings (``behavior.settle``); they become
+	parameters this model accepts, and the trace records which were applied or ignored. A citation instruction is the caller's to add
+	to ``messages`` (it is text, not a parameter).
 	"""
 	started = time.perf_counter()
 	request_id = uuid.uuid4()
@@ -169,9 +174,15 @@ async def plan_call(
 			reason = _detail(exc)
 			await _log(redis, request_id, org_id, user_id, model, provider, metadata, started, status_code=KEY_UNAVAILABLE_STATUS, error=reason)
 			return RunOutcome(error=reason, latency_ms=_elapsed_ms(started))
+		extra_params: dict[str, Any] = {}
+		if behavior is not None:
+			explicit = {k: v for k, v in (("temperature", temperature), ("max_tokens", max_tokens)) if v is not None}
+			shaped = behavior_mod.plan_params(resolved=behavior, explicit=explicit, supported=behavior_mod.supported_params(provider, model_name))
+			extra_params = shaped.params
+			metadata["behavior"] = {**behavior.as_metadata(), **shaped.as_metadata()}
 		return CallPlan(
 			request_id=request_id, model=model, provider=provider, messages=messages, candidate=candidate, metadata=metadata,
-			temperature=temperature, max_tokens=max_tokens, timeout=timeout, started=started,
+			temperature=temperature, max_tokens=max_tokens, timeout=timeout, started=started, extra_params=extra_params,
 		)
 	except HTTPException as exc:
 		return RunOutcome(error=_detail(exc), latency_ms=_elapsed_ms(started))
@@ -190,6 +201,7 @@ def _call_kwargs(plan: CallPlan) -> dict[str, Any]:
 		kwargs["temperature"] = plan.temperature
 	if plan.max_tokens is not None:
 		kwargs["max_tokens"] = plan.max_tokens
+	kwargs.update(plan.extra_params)  # behaviour settings, and the caller's own values lowered to the org's ceiling
 	return kwargs
 
 

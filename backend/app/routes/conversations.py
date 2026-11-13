@@ -43,7 +43,9 @@ from app.schemas.conversation import (
 	TurnRequest,
 	TurnResponse,
 )
+from app.services import behavior as behavior_mod
 from app.services.admin_audit_service import get_ip, log_admin_action
+from app.services.request_gate import behavior_headers
 from app.services.data_class import DATA_CLASSES
 from app.services.routing_service import clearance, load_candidates
 from app.services.conversation_turns import DEFAULT_CONTEXT_TOKENS, PreparedTurn, TurnResult, begin_turn, run_turn, stream_turn
@@ -413,7 +415,8 @@ async def _events(prepared: PreparedTurn, redis, lock_key: str, token: str):
 
 @router.post("/{conversation_id}/turns", response_model=TurnExchange, status_code=status.HTTP_201_CREATED)
 async def add_turn(
-	conversation_id: UUID, payload: TurnRequest, current_user: CurrentUser, db: AsyncSession = Depends(get_db), redis=Depends(get_redis)
+	conversation_id: UUID, payload: TurnRequest, response: Response, current_user: CurrentUser,
+	db: AsyncSession = Depends(get_db), redis=Depends(get_redis),
 ) -> TurnExchange:
 	"""Ask the model a question in this conversation. Only the owner can. See ``services/conversation_turns.py`` for the order of
 	guards; in short, the model sees only the earlier turns it is cleared for, and the reply says which it did not see."""
@@ -432,6 +435,9 @@ async def add_turn(
 			},
 		)
 
+	requested = behavior_mod.Behavior(**payload.behavior.model_dump(exclude_none=True)) if payload.behavior is not None else behavior_mod.Behavior()
+	behavior = behavior_mod.settle(policy.behavior_defaults, policy.behavior_ceiling, requested)
+
 	lock_key = f"conversation-turn:{conversation.id}"
 	token = uuid_module.uuid4().hex
 	if not await redis.set(lock_key, token, nx=True, ex=_TURN_LOCK_SECONDS):
@@ -442,7 +448,7 @@ async def add_turn(
 	options = dict(
 		user_id=current_user.id, model=payload.model, content=payload.content, asserted_class=payload.data_class, policy=policy,
 		system_prompt=payload.system_prompt or conversation.system_prompt, temperature=payload.temperature, max_tokens=payload.max_tokens,
-		token_budget=payload.max_context_tokens or DEFAULT_CONTEXT_TOKENS,
+		behavior=behavior, token_budget=payload.max_context_tokens or DEFAULT_CONTEXT_TOKENS,
 		before_call=lambda tokens: _rate_limit(redis, current_user, policy, payload.model, tokens),
 	)
 	if payload.stream:
@@ -456,13 +462,14 @@ async def add_turn(
 			_raise_for_failure(prepared)
 		return StreamingResponse(
 			_events(prepared, redis, lock_key, token), media_type="text/event-stream",
-			headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-OpenProxyAI-Request-Id": str(prepared.plan.request_id)},
+			headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-OpenProxyAI-Request-Id": str(prepared.plan.request_id), **behavior_headers(behavior)},
 		)
 	try:
 		result = await run_turn(db, redis, conversation=conversation, **options)
 	finally:
 		await _release(redis, lock_key, token)
 	_raise_for_failure(result)
+	response.headers.update(behavior_headers(behavior))
 	return _exchange(result)
 
 

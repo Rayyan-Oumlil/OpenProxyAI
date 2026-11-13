@@ -325,6 +325,25 @@ for (const theme of ["light", "dark"] as const) {
       expect(await audit(page)).toEqual([]);
     });
 
+    test("policy: the Behavior tab with a default and a ceiling set", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/policy");
+      await page.getByRole("tab", { name: "Behavior" }).click();
+      await page.getByLabel("Creativity").first().selectOption("low");
+      await page.getByLabel("Response length").nth(1).selectOption("short");
+      await page.getByLabel("Ask for citations").check();
+      expect(await audit(page)).toEqual([]);
+    });
+
+    test("playground: the optional behavior settings", async ({ page }) => {
+      await signIn(page);
+      await page.goto("/playground");
+      await page.getByText("Behavior (optional)").click();
+      await page.getByLabel("Creativity").selectOption("high");
+      await expect(page.getByText(/set by creativity \(high\)/)).toBeVisible();
+      expect(await audit(page)).toEqual([]);
+    });
+
     test("experiments: an adaptive test with its results open", async ({ page }) => {
       await signIn(page);
       await page.goto("/experiments");

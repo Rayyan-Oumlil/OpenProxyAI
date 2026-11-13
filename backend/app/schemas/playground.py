@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.schemas.policy import BehaviorDefaults
+
 
 class VariableSchemaItem(BaseModel):
     name: str
@@ -54,6 +56,7 @@ class PlaygroundCompareRequest(BaseModel):
     messages: list[Message] = Field(..., min_length=1)
     temperature: float | None = None
     max_tokens: int | None = None
+    behavior: BehaviorDefaults | None = None  # creativity, reasoning_depth, max_response_length, citations; the org's ceiling can lower them
 
 
 class PlaygroundCompareResult(BaseModel):

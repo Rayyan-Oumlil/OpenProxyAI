@@ -23,6 +23,8 @@ import {
   DialogFooter,
 } from "../../components/ui/dialog";
 import { useAuth } from "../../state/AuthContext";
+import { BehaviorControls } from "../../components/BehaviorControls";
+import type { BehaviorSettings } from "../../lib/behavior";
 import { PromotionDialog } from "./PromotionDialog";
 import { formatCost, formatLatency, cn } from "../../lib/utils";
 
@@ -68,6 +70,7 @@ function CompareTab({
   }, [loadedTemplate, onClearTemplate]);
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState<number | "">(1024);
+  const [behavior, setBehavior] = useState<BehaviorSettings>({});
   const [results, setResults] = useState<PlaygroundCompareResult[] | null>(null);
 
   const compareMutation = useMutation({
@@ -109,8 +112,10 @@ function CompareTab({
     compareMutation.mutate({
       models,
       messages,
-      temperature: temperature,
-      max_tokens: typeof maxTokens === "number" ? maxTokens : undefined,
+      // A behaviour setting replaces the matching raw value: a raw value the caller sends always wins over a setting.
+      temperature: behavior.creativity ? undefined : temperature,
+      max_tokens: behavior.max_response_length ? undefined : typeof maxTokens === "number" ? maxTokens : undefined,
+      behavior: Object.keys(behavior).length > 0 ? behavior : undefined,
     });
   }
 
@@ -170,7 +175,7 @@ function CompareTab({
       <div className="flex flex-wrap gap-6 items-center">
         <div>
           <label htmlFor={`${fieldId}-temperature`} className="block text-sm font-medium mb-1" style={{ color: "var(--muted)" }}>
-            Temperature: {temperature.toFixed(1)}
+            Temperature: {behavior.creativity ? `set by creativity (${behavior.creativity})` : temperature.toFixed(1)}
           </label>
           <input
             id={`${fieldId}-temperature`}
@@ -178,6 +183,7 @@ function CompareTab({
             min={0}
             max={2}
             step={0.1}
+            disabled={Boolean(behavior.creativity)}
             value={temperature}
             onChange={(e) => setTemperature(parseFloat(e.target.value))}
             className="w-40"
@@ -193,6 +199,7 @@ function CompareTab({
             min={1}
             max={128000}
             value={maxTokens}
+            disabled={Boolean(behavior.max_response_length)}
             onChange={(e) =>
               setMaxTokens(e.target.value === "" ? "" : parseInt(e.target.value, 10))
             }
@@ -214,6 +221,16 @@ function CompareTab({
           {compareMutation.isPending ? "Running..." : "Run"}
         </button>
       </div>
+
+      <details className="surface-panel" style={{ padding: "0.75rem 1rem" }}>
+        <summary className="text-sm font-medium" style={{ cursor: "pointer" }}>
+          Behavior (optional)
+        </summary>
+        <p className="muted" style={{ fontSize: "0.82rem", margin: "0.5rem 0" }}>
+          Provider-neutral settings. Your organization may lower them; the request log shows what each model received and what it ignored.
+        </p>
+        <BehaviorControls value={behavior} onChange={setBehavior} noneLabel="Not set" />
+      </details>
 
       {compareMutation.isPending && (
         <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${models.length}, 1fr)` }}>

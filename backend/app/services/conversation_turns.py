@@ -31,6 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation, ConversationContextPackage, ConversationTurn
+from app.services import behavior as behavior_mod
 from app.services import payload_capture
 from app.services.classification_service import Classification, classify_text
 from app.services.conversation_context import ContextPackage, Withheld, build_context
@@ -135,11 +136,17 @@ async def begin_turn(
 	system_prompt: str | None = None,
 	temperature: float | None = None,
 	max_tokens: int | None = None,
+	behavior: behavior_mod.Resolved | None = None,
 	token_budget: int = DEFAULT_CONTEXT_TOKENS,
 	before_call: Callable[[int], Awaitable[None]] | None = None,
 ) -> PreparedTurn | TurnResult:
 	"""Classify, build the context, run it through policy and routing and choose the key. A ``TurnResult`` means the turn ended here
-	(refused, or no key): nothing was sent and nothing is stored. Otherwise the caller makes the call and then finalizes."""
+	(refused, or no key): nothing was sent and nothing is stored. Otherwise the caller makes the call and then finalizes.
+
+	``behavior`` is the settled behaviour settings (``behavior.settle``). A citation instruction joins the system prompt *before* the
+	context is built, so the record of what was sent (and its hash) covers it."""
+	if behavior is not None and behavior.effective.citations:
+		system_prompt = behavior_mod.citation_system_prompt(system_prompt)
 	new_class, package, package_class, inputs, preview = await prepare_turn(
 		db, conversation=conversation, model=model, content=content, asserted_class=asserted_class,
 		policy=policy, system_prompt=system_prompt, token_budget=token_budget,
@@ -150,7 +157,7 @@ async def begin_turn(
 	planned = await plan_call(
 		db=db, redis=redis, org_id=conversation.org_id, user_id=user_id, model=model, messages=package.messages, policy_config=policy,
 		source="conversation", extra_metadata={"conversation_id": str(conversation.id), "withheld_turns": len(package.withheld)},
-		temperature=temperature, max_tokens=max_tokens, classification=package_classification, routing_inputs=inputs,
+		temperature=temperature, max_tokens=max_tokens, classification=package_classification, routing_inputs=inputs, behavior=behavior,
 	)
 	if isinstance(planned, RunOutcome):
 		return TurnResult(outcome=planned)
