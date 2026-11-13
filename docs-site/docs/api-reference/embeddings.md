@@ -20,7 +20,7 @@ OpenAI-compatible request and response shape.
 }
 ```
 
-Accepts the same headers as [Chat Completions](/api-reference/chat-completions) — `x-op-team` and `x-op-policy` apply here too, and requests pass through the same [pipeline](/core-concepts/request-pipeline) (auth, rate limit, policy, cache, route, log).
+Accepts the same headers as [Chat Completions](/api-reference/chat-completions) — `x-openproxy-team-id` applies here too (embeddings have no fallback header), and requests pass through the same [pipeline](/core-concepts/request-pipeline) (auth, rate limit, policy, cache, route, log).
 
 ## Response
 

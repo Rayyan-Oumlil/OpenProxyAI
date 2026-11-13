@@ -17,8 +17,8 @@ llm = ChatOpenAI(
     base_url="https://api.openproxy.ai/v1",
     api_key=os.environ["OPENPROXY_KEY"],
     default_headers={
-        "x-op-team": "eng-platform",
-        "x-op-policy": "pii_redact,topic_guard",
+        "x-openproxy-team-id": "00000000-0000-0000-0000-000000000000",  # your team's UUID
+        "x-openproxy-labels": '{"app": "langchain-demo"}',
     },
 )
 

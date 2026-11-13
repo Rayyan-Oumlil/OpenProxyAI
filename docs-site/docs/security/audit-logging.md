@@ -17,7 +17,7 @@ Logging happens after the response has already been returned to your application
 
 ## Retention
 
-Retention length is plan-dependent and configurable per organization — the [FedRAMP-aligned compliance template](/security/fedramp-template), for example, defaults to 7-year retention. Old logs are archived on an hourly background schedule according to your org's configured retention window.
+Retention length comes from the organization's plan: 7 days on Community, 30 on Team, 90 on Business and 365 on Enterprise. Old logs are archived on an hourly background schedule once they pass that window. The [compliance templates](/guides/compliance-templates) record a longer retention target in the policy, but they do not change this window; export the logs yourself if your framework needs more.
 
 ## Querying the audit log
 

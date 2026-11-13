@@ -28,10 +28,12 @@ Response includes the key in full exactly once — see [Authentication](/getting
 ```json
 {
   "id": "…",
-  "key": "sk_live_***",
-  "key_prefix": "sk_live_ab12",
+  "name": "prod-eng-platform",
+  "key": "opai_prod_1a2b3c4d_<32 hex characters><4 checksum characters>",
+  "key_prefix": "opai_prod_1a2b3c4d",
   "permissions": ["proxy:llm"],
   "is_active": true,
+  "expires_at": null,
   "team_id": "…",
   "created_at": "…",
   "warning": "Store this key securely. It will not be shown again."
@@ -40,8 +42,8 @@ Response includes the key in full exactly once — see [Authentication](/getting
 
 ## List
 
-`GET /api/v1/api-keys` returns every key for your organization with its prefix, permissions, and status — never the full key value again after creation.
+`GET /api/v1/api-keys` returns the keys **you** created (not every key in the organization), with prefix, permissions, expiry and status. The full key value is never shown again after creation. Only the SHA-256 hash of a key is stored.
 
 ## Delete
 
-`DELETE /api/v1/api-keys/{key_id}` immediately revokes the key. Any in-flight requests using it are not interrupted, but new requests are rejected with `401`.
+`DELETE /api/v1/api-keys/{key_id}` revokes the key by marking it inactive. You can revoke a key you created; revoking someone else's takes an admin, and otherwise the answer is `404`. New requests with a revoked key are rejected with `401`. A request already being served is not interrupted.

@@ -63,13 +63,12 @@ export default function DeploySection() {
               {'  '}api_key=os.environ[<span style={{ color: '#8bc6ff' }}>"OPENPROXY_KEY"</span>],{'\n'}
               ){'\n'}
               {'\n'}
-              <span style={{ color: 'var(--ink-3)' }}># same SDK · every provider · every policy</span>{'\n'}
+              <span style={{ color: 'var(--ink-3)' }}># same SDK · every provider · your organization's policy</span>{'\n'}
               r = client.chat.completions.create({'\n'}
               {'  '}model=<span style={{ color: '#8bc6ff' }}>"gpt-4o"</span>,{'\n'}
               {'  '}messages=[{'{'}<span style={{ color: '#8bc6ff' }}>"role"</span>:<span style={{ color: '#8bc6ff' }}>"user"</span>,<span style={{ color: '#8bc6ff' }}>"content"</span>:<span style={{ color: '#8bc6ff' }}>"hi"</span>{'}'}],{'\n'}
               {'  '}extra_headers={'{'}{'\n'}
-              {'    '}<span style={{ color: '#8bc6ff' }}>"x-op-team"</span>:   <span style={{ color: '#8bc6ff' }}>"eng-platform"</span>,{'\n'}
-              {'    '}<span style={{ color: '#8bc6ff' }}>"x-op-policy"</span>: <span style={{ color: '#8bc6ff' }}>"pii_redact,topic_guard"</span>,{'\n'}
+              {'    '}<span style={{ color: '#8bc6ff' }}>"x-openproxy-team-id"</span>: <span style={{ color: '#8bc6ff' }}>"&lt;team uuid&gt;"</span>,{'\n'}
               {'  '}{'}'},{'\n'}
               ){'\n'}
               {'\n'}

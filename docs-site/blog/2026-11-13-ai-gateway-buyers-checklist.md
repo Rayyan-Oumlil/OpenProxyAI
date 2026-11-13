@@ -33,7 +33,7 @@ A note on method. A gateway is a control point: everything passes through it, so
 
 **Test:** Create a key, then look at every place it could appear: the API response, the console, the logs, the database.
 
-**Ours:** Keys are stored encrypted, and the console lists a prefix only. A key can instead point at a secret in HashiCorp Vault or AWS Secrets Manager, in which case the gateway holds no stored copy. A compromised gateway host can still use the keys it can read at that moment. Rotation is an API call.
+**Ours:** Keys are stored encrypted, and the console lists a prefix only. A key can instead point at a secret in HashiCorp Vault or AWS Secrets Manager, in which case the gateway holds no stored copy. A compromised gateway host can still use the keys it can read at that moment. Replacing a key means creating the new one and switching the old one off, both API calls; there is no single rotate-the-secret operation.
 
 ## 5. How is one customer or business unit kept from another?
 

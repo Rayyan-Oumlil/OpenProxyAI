@@ -10,6 +10,7 @@ A summary of what's shipped, grouped by build phase. This tracks major capabilit
 
 ## November 2026
 
+- **Documentation corrected against the code.** Several pages described things the gateway does not do. The request headers are `x-openproxy-team-id` and the other `x-openproxy-*` headers, not `x-op-team` or `x-op-policy`. The policy is one organization-wide configuration with a single mode, not a set of named policies you select per request, and PII in a request blocks it rather than redacting it. A budget limit answers 429 with a `limit_type` (a streamed request that would exceed the budget answers 402). Compliance templates record a retention target but do not change how long logs are kept, which comes from the plan. The rotate endpoint for provider keys re-encrypts the stored secret; it does not replace it. API keys use the `opai_` format, and the key list returns only your own keys. The compliance template list in the API now says the same.
 - **Docs and blog redesign** — a new blog index with cover cards, topic filters and search; a cleaner article page; the docs sidebar has search and the top bar has Documentation, Guides and API Reference tabs. Posts no longer carry an author line.
 - **Docs now cover the MCP admin API, users, health checks and batch jobs** — pinning, injection scanning, grants, bundles and trust rules are explained in the [MCP gateway](/guides/mcp-gateway) guide and the [MCP admin API](/api-reference/mcp-admin).
 

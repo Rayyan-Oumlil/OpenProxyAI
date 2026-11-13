@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 380" width="640" height="380" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="380" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="379" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">One day of spend against a daily budget</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Illustrative curve. Thresholds read from the code on November 13, 2026</text>
+
+  <line x1="60" y1="90" x2="60" y2="290" stroke="#2a2f3a"/>
+  <line x1="60" y1="290" x2="616" y2="290" stroke="#2a2f3a"/>
+  <line x1="60" y1="110" x2="616" y2="110" stroke="#35d399" stroke-dasharray="6 4"/>
+  <text x="66" y="102" fill="#35d399" font-size="14">100%: daily budget, requests refused</text>
+  <line x1="60" y1="150" x2="616" y2="150" stroke="#f0b429" stroke-dasharray="6 4"/>
+  <text x="66" y="142" fill="#f0b429" font-size="14">80%: budget.alert webhook, once a day</text>
+
+  <polyline points="60,290 140,270 220,246 300,214 380,176 450,140 520,112 560,106" fill="none" stroke="#cfd5dd" stroke-width="2.5"/>
+  <circle cx="450" cy="140" r="5" fill="#f0b429"/>
+  <circle cx="520" cy="112" r="5" fill="#35d399"/>
+  <line x1="520" y1="112" x2="520" y2="290" stroke="#35d399" stroke-dasharray="3 4"/>
+  <polyline points="520,112 616,112" fill="none" stroke="#35d399" stroke-width="2.5" stroke-dasharray="2 5"/>
+
+  <text x="60" y="312" fill="#a3abb8" font-size="14">00:00 UTC</text>
+  <text x="555" y="312" fill="#a3abb8" font-size="14">00:00 UTC</text>
+  <text x="24" y="336" fill="#a3abb8" font-size="14">After 100%: HTTP 429 with Retry-After until the next midnight UTC.</text>
+  <text x="24" y="360" fill="#cfd5dd" font-size="14">Spend is added after each call ends, so the last calls can cross the line.</text>
+</svg>

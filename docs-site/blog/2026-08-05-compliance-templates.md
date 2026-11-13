@@ -17,15 +17,15 @@ What we do have is a real, useful thing that's easy to describe accurately: thre
 
 ## What's actually in each one
 
-**Healthcare** sets PHI redaction defaults tuned for clinical data, restricts which models can receive requests tagged as containing clinical content, and extends audit retention beyond the platform default.
+All three switch the policy to `enforce`, turn on PII detection, prompt-injection detection and response guardrails, and redact personal data in responses. What differs is the keyword list and the set of PII entities.
 
-**Finance** blocks cardholder-data patterns before they reach a provider, captures transaction context in the audit log, and tightens default rate limits.
+**Healthcare** blocks clinical keywords such as "diagnosis" and "medical record" and looks for entities like names, dates of birth and medical license numbers. **Finance** blocks banking keywords such as "account number" and "wire transfer" and looks for card, bank and IBAN numbers. **Government** blocks classification markings such as "top secret" and "fouo" and looks for entities including passport numbers and IP addresses.
 
-**Government** pairs with air-gapped deployment (`AIRGAP_MODE=true`) and enforces data residency with no fallback outside approved regions, plus 7-year audit retention.
+Each template also records a retention target (7 years, 1 year and 3 years). That is a record in the policy only: the log retention the system applies comes from the plan. Templates do not set rate limits, a model allowlist, data residency or air-gapped mode; those are configured separately.
 
 ## Applying one doesn't lock you in
 
-A template merges into your organization's existing policy configuration — it doesn't overwrite what you've already customized, and nothing about applying one prevents you from adjusting individual policies afterward. Turn a policy from `enforce` to `log-only` while you evaluate its false-positive rate. Tighten a threshold. Swap the model allowlist. The template is a starting point calibrated to a framework's typical requirements, not a fixed configuration you're stuck with.
+A template replaces the guardrail settings (mode, keywords, PII and injection detection, response guardrails) and keeps the rest, including your model allowlist and rate limits. Nothing about applying one prevents you from adjusting it afterward. Switch the mode to `log_only` while you evaluate the false-positive rate, edit the keyword list, change the allowlist. The template is a starting point calibrated to a framework's typical requirements, not a fixed configuration you're stuck with.
 
 ## The honest pitch
 

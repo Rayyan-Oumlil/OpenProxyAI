@@ -7,7 +7,7 @@ description: Create teams, invite members by email, and scope budgets and API ke
 
 ## Creating a team
 
-From the console, create a team and give it a name — this becomes the value used in the `x-op-team` header, or the `team_id` an API key can be scoped to. See [Rate Limiting & Budgets](/core-concepts/rate-limiting-and-budgets).
+From the console, create a team and give it a name — the team gets a UUID, which you send in the `x-openproxy-team-id` header, or tie an API key to as its `team_id`. See [Rate Limiting & Budgets](/core-concepts/rate-limiting-and-budgets).
 
 ## Inviting members
 

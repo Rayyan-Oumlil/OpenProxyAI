@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 430" width="640" height="430" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="430" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="429" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">One pooled connection, three transactions</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">The org setting lives only inside a transaction</text>
+
+  <rect x="24" y="82" width="592" height="40" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="107" fill="#cfd5dd" font-size="14" font-weight="600">Same connection from the pool, role app_user (subject to policies)</text>
+
+  <g font-size="14">
+    <rect x="24" y="138" width="184" height="196" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="40" y="164" fill="#35d399" font-weight="600">Transaction 1</text>
+    <text x="40" y="190" fill="#cfd5dd">set_config(org, A,</text>
+    <text x="40" y="210" fill="#cfd5dd">true)</text>
+    <text x="40" y="238" fill="#cfd5dd">Queries see A rows</text>
+    <text x="40" y="258" fill="#cfd5dd">only</text>
+    <text x="40" y="288" fill="#a3abb8">COMMIT: setting</text>
+    <text x="40" y="308" fill="#a3abb8">is gone</text>
+
+    <rect x="228" y="138" width="184" height="196" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="244" y="164" fill="#35d399" font-weight="600">Transaction 2</text>
+    <text x="244" y="190" fill="#cfd5dd">set_config(org, B,</text>
+    <text x="244" y="210" fill="#cfd5dd">true)</text>
+    <text x="244" y="238" fill="#cfd5dd">Queries see B rows</text>
+    <text x="244" y="258" fill="#cfd5dd">only</text>
+    <text x="244" y="288" fill="#a3abb8">COMMIT: setting</text>
+    <text x="244" y="308" fill="#a3abb8">is gone</text>
+
+    <rect x="432" y="138" width="184" height="196" rx="10" fill="#1d1710" stroke="#f0b429"/>
+    <text x="448" y="164" fill="#f0b429" font-weight="600">Transaction 3</text>
+    <text x="448" y="190" fill="#cfd5dd">Code forgot to set</text>
+    <text x="448" y="210" fill="#cfd5dd">the org</text>
+    <text x="448" y="238" fill="#f0b429">Policy matches no</text>
+    <text x="448" y="258" fill="#f0b429">row: zero results,</text>
+    <text x="448" y="278" fill="#f0b429">writes rejected</text>
+  </g>
+
+  <rect x="24" y="348" width="592" height="62" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="372" fill="#cfd5dd" font-size="14">Policy: org_id = NULLIF(current_setting(</text>
+  <text x="40" y="392" fill="#cfd5dd" font-size="14">'app.current_org_id', true), '')::uuid  (USING and WITH CHECK)</text>
+</svg>

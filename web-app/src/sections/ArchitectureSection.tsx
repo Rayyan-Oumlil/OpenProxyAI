@@ -3,7 +3,7 @@ import { PAGE_MAX_WIDTH } from '../lib/layout';
 const HOPS = [
   { n: '1', title: 'Your app', desc: 'Calls the OpenAI-compatible endpoint using your existing SDK — no new client library required.' },
   { n: '2', title: 'OpenProxyAI', desc: 'Auths, rate-limits, applies policy, checks cache, and picks a provider — all inside your own VPC.' },
-  { n: '3', title: 'Provider', desc: 'OpenAI, Anthropic, Azure, Mistral, or any of 1,600+ models — routed to on your behalf, never hardcoded in your app.' },
+  { n: '3', title: 'Provider', desc: 'OpenAI, Anthropic, Azure, Mistral and more, including your own endpoints. Routed to on your behalf, so the model choice is not hardcoded in your app.' },
 ];
 
 export default function ArchitectureSection() {

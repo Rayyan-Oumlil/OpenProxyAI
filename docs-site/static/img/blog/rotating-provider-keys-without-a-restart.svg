@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 290" width="640" height="290" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="290" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="289" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">A Vault key rotation: the cache window</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Default VAULT_CACHE_SECONDS is 60. Workers A and B are examples.</text>
+
+  <text x="200" y="98" fill="#cfd5dd" font-size="14" text-anchor="middle">t = 0</text>
+  <text x="440" y="98" fill="#cfd5dd" font-size="14" text-anchor="middle">t = 60 s</text>
+
+  <text x="24" y="132" fill="#cfd5dd" font-size="14">Vault holds</text>
+  <rect x="200" y="114" width="400" height="26" rx="4" fill="#14171e" stroke="#35d399"/>
+  <text x="212" y="132" fill="#cfd5dd" font-size="14">new value, written at t = 0</text>
+
+  <text x="24" y="172" fill="#cfd5dd" font-size="14">Worker A</text>
+  <rect x="200" y="154" width="80" height="26" rx="4" fill="#14171e" stroke="#f0b429"/>
+  <text x="212" y="172" fill="#cfd5dd" font-size="14">old</text>
+  <rect x="280" y="154" width="320" height="26" rx="4" fill="#14171e" stroke="#35d399"/>
+  <text x="292" y="172" fill="#cfd5dd" font-size="14">new value, after its cache expires</text>
+
+  <text x="24" y="212" fill="#cfd5dd" font-size="14">Worker B</text>
+  <rect x="200" y="194" width="240" height="26" rx="4" fill="#14171e" stroke="#f0b429"/>
+  <text x="212" y="212" fill="#cfd5dd" font-size="14">old value, still cached</text>
+  <rect x="440" y="194" width="160" height="26" rx="4" fill="#14171e" stroke="#35d399"/>
+  <text x="452" y="212" fill="#cfd5dd" font-size="14">new value</text>
+
+  <line x1="440" y1="104" x2="440" y2="232" stroke="#f0b429" stroke-width="2" stroke-dasharray="4 4"/>
+  <text x="24" y="262" fill="#a3abb8" font-size="14">Revoke the old key at the provider only after t = 60 s plus in-flight time.</text>
+</svg>

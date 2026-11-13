@@ -35,7 +35,7 @@ flowchart LR
 
 ## Where the two diverge in practice
 
-- **Enforcement vs. visibility.** Helicone will show you that a request contained something it shouldn't have — after the fact. OpenProxyAI can block, redact, or route around it before the provider ever sees it. If your compliance requirement is "we need to know," Helicone covers it. If it's "we need to prevent it," it doesn't, by design.
+- **Enforcement vs. visibility.** Helicone will show you that a request contained something it shouldn't have — after the fact. OpenProxyAI can block it, or route around it to a model that is cleared for that data, before the provider ever sees it. If your compliance requirement is "we need to know," Helicone covers it. If it's "we need to prevent it," it doesn't, by design.
 - **Budgets.** OpenProxyAI enforces per-team, per-model, per-dollar-per-day budgets as a hard gate (HTTP 402 when exceeded). Helicone's cost tooling is reporting-oriented — you see the spend, but stopping it requires building that logic yourself.
 - **Deployment model.** Helicone has been offered as a cloud SaaS and as open source you can self-host; Mintlify's announcement does not say how self-hosting is handled from here. OpenProxyAI is self-hosted-first — it assumes your provider keys and request bodies stay inside your VPC by default, not as an enterprise upgrade.
 - **Compliance templates.** Healthcare, Finance, and Government policy templates are native to OpenProxyAI's policy engine. Helicone doesn't have an equivalent, because policy enforcement isn't the product surface it's built around.

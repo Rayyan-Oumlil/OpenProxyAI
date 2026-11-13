@@ -21,15 +21,16 @@ POST   /api/v1/provider-keys/{key_id}/rotate
 POST /api/v1/provider-keys
 {
   "provider": "openai",
-  "key": "sk-...",
-  "weight": 0.7,
-  "data_region": "us-east"
+  "key_alias": "prod-openai",
+  "api_key": "sk-...",
+  "weight": 70,
+  "region": "us"
 }
 ```
 
-To keep the key in HashiCorp Vault instead of storing it here, send `"vault_path"` (and optionally `"vault_field"`) in place of the key: see [Provider keys from Vault](/guides/secrets-from-vault).
+Send exactly one of `api_key`, `vault_path` (HashiCorp Vault) or `aws_secret_name` (AWS Secrets Manager). With the last two the gateway keeps no copy of the key: see [Provider keys from Vault](/guides/secrets-from-vault). `api_base` points the key at a custom endpoint, and `max_data_class` and `is_internal` describe what that endpoint may receive.
 
-`weight` controls this key's share of weighted rotation relative to other keys for the same provider. `data_region` is used for [data residency](/guides/data-residency) filtering.
+`weight` is a whole number from 1 to 100 and sets this key's share of weighted rotation relative to other keys for the same provider. `region` is `us`, `eu`, `ap` or `global` and is used for [data residency](/guides/data-residency) filtering. The raw key is stored encrypted and never returned; the list shows a prefix only.
 
 ## Rotate
 
@@ -37,6 +38,8 @@ To keep the key in HashiCorp Vault instead of storing it here, send `"vault_path
 POST /api/v1/provider-keys/{key_id}/rotate
 ```
 
-Issues a replacement and invalidates the old key without a gap in routing — traffic shifts to the new key.
+This **re-encrypts the stored secret** with a fresh encryption token. The provider key itself does not change, so it does not help if the key has been exposed. Admins only. A key that lives in Vault or AWS Secrets Manager answers `409`, because it is rotated there.
+
+To replace a provider key with a new secret, create a new key with `POST`, check that it serves traffic, then switch the old one off with `PATCH` (`{"is_active": false}`) or `DELETE` it. The `PATCH` body has no field for the secret.
 
 See [Provider Routing](/core-concepts/provider-routing) for how weight and region interact with failover.
