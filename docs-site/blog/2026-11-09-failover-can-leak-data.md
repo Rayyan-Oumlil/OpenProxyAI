@@ -35,7 +35,7 @@ flowchart TD
 2. **A/B experiments.** An experiment says "send 10% of traffic to the new model." If the variant is not authorized for this request's class, it has to be dropped and the request served by the model the caller asked for. If neither is authorized, the request is refused.
 3. **Retrying on another key.** A model should be served by the key it was registered with, not by any other key of the same provider that happens to be healthy. That other key may point at a different endpoint, region or account.
 4. **The environment-key fallback.** Many gateways, when no stored key is found, fall back to a key in an environment variable. In an enforcing setup, that quietly bypasses the registry. It must not be reachable.
-5. **The semantic cache.** A cached answer must never be served across data classes, so the cache key includes the class. And building the cache's embedding is itself a call to a model the registry does not govern. Above a chosen sensitivity, skip the semantic cache.
+5. **The semantic cache.** Building the cache's embedding is itself a call to a model the registry does not govern, and a stored answer can be served to someone other than the person it was made for. Above a chosen sensitivity, skip the semantic cache. (Our cache keys on organization, model, messages and temperature; see [what a cache hit is matched on](/blog/semantic-cache-is-shared-memory) for what that does and does not isolate.)
 6. **The evaluation hook.** Sending a prompt and its response to a judge model is a call to another model. It needs the same gate.
 
 None of these is exotic. Each one is a normal feature that someone added for a good reason.
