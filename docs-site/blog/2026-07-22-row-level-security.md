@@ -1,7 +1,6 @@
 ---
 slug: row-level-security-by-construction
 title: "Row-level security: making data leaks impossible by construction"
-authors: [rayyan]
 tags: [security, engineering]
 description: Application-level tenant isolation only works if every query remembers to filter correctly, forever. We moved that guarantee into the database instead.
 ---

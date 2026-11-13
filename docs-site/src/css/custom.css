@@ -1,204 +1,826 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
-:root {
-  --ifm-color-primary: #35d399;
+/*
+ * OpenProxyAI docs and blog.
+ * 1. Tokens          5. Docs sidebar        9. Blog post
+ * 2. Base            6. Docs page          10. Footer
+ * 3. Navbar          7. Prose              11. Focus and motion
+ * 4. Mobile drawer   8. Pagination
+ *
+ * Colour rule: green (--op-accent) is only for links, the current item and focus.
+ * Everything else is one of four greys on one background.
+ */
+
+/* ---------- 1. Tokens ---------- */
+:root,
+html[data-theme='dark'] {
+  /* Surfaces */
+  --op-bg: #06070a;
+  --op-surface: #0d0f14;
+  --op-surface-hover: #14171e;
+  --op-border: #1b1f27;
+  --op-border-strong: #2a2f3a;
+
+  /* Text, all >= 4.5:1 on --op-bg and --op-surface */
+  --op-text-strong: #f4f6f8;
+  --op-text: #cfd5dd;
+  --op-text-muted: #a3abb8;
+  --op-text-subtle: #8a93a1;
+
+  --op-accent: #35d399;
+
+  /* Spacing, 4px base */
+  --op-space-1: 0.25rem;
+  --op-space-2: 0.5rem;
+  --op-space-3: 0.75rem;
+  --op-space-4: 1rem;
+  --op-space-5: 1.25rem;
+  --op-space-6: 1.5rem;
+  --op-space-8: 2rem;
+  --op-space-12: 3rem;
+  --op-space-16: 4rem;
+  --op-gutter: 1.25rem;
+
+  --op-radius: 8px;
+  --op-transition: 120ms ease-out;
+  --op-measure-docs: 38rem;
+  --op-measure-post: 41rem;
+
+  /* Infima mapping */
+  --ifm-color-primary: var(--op-accent);
   --ifm-color-primary-dark: #1fc78a;
   --ifm-color-primary-darker: #1dbc82;
   --ifm-color-primary-darkest: #189b6b;
   --ifm-color-primary-light: #51daa9;
   --ifm-color-primary-lighter: #5edeb0;
   --ifm-color-primary-lightest: #85e6c2;
-  --ifm-code-font-size: 90%;
-  --ifm-font-family-base: 'Inter', system-ui, sans-serif;
-  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, Menlo, monospace;
-  --ifm-heading-font-weight: 500;
-}
 
-[data-theme='dark'] {
-  --ifm-color-primary: #35d399;
-  --ifm-color-primary-dark: #1fc78a;
-  --ifm-color-primary-darker: #1dbc82;
-  --ifm-color-primary-darkest: #189b6b;
-  --ifm-color-primary-light: #51daa9;
-  --ifm-color-primary-lighter: #5edeb0;
-  --ifm-color-primary-lightest: #85e6c2;
+  --ifm-background-color: var(--op-bg);
+  --ifm-background-surface-color: var(--op-bg);
+  --ifm-font-color-base: var(--op-text);
+  --ifm-heading-color: var(--op-text-strong);
+  --ifm-color-emphasis-300: var(--op-border-strong);
+  --ifm-hr-background-color: var(--op-border);
+  --ifm-toc-border-color: var(--op-border);
+  --ifm-global-radius: var(--op-radius);
 
-  --ifm-background-color: #06070a;
-  --ifm-background-surface-color: #0f1117;
-  --ifm-navbar-background-color: #0b0d12;
-  --ifm-footer-background-color: #0b0d12;
-  --ifm-toc-border-color: #1c2029;
-  --ifm-color-emphasis-300: #262b36;
-  --ifm-hr-border-color: #1c2029;
-  --docusaurus-highlighted-code-line-bg: rgba(53, 211, 153, 0.1);
-}
-
-[data-theme='dark'] .navbar,
-[data-theme='dark'] .footer,
-[data-theme='dark'] .footer--dark {
-  border-top: 1px solid #1c2029;
-  background-color: #0b0d12;
-}
-
-[data-theme='dark'] .menu__link--active,
-[data-theme='dark'] .menu__link:hover {
-  background: #141720;
-}
-
-[data-theme='dark'] code {
-  background: #141720;
-}
-
-.docusaurus-mermaid-container {
-  overflow-x: auto;
-}
-
-/* ---------- Reading experience (docs and blog) ---------- */
-:root {
-  --ifm-h1-font-size: 2.25rem;
-  --ifm-h2-font-size: 1.6rem;
-  --ifm-h3-font-size: 1.25rem;
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  --ifm-font-size-base: 100%;
   --ifm-line-height-base: 1.7;
   --ifm-heading-font-weight: 600;
   --ifm-heading-line-height: 1.25;
+  --ifm-code-font-size: 0.875em;
+  --ifm-code-background: var(--op-surface-hover);
+  --ifm-code-border-radius: 5px;
+  --ifm-code-padding-horizontal: 0.35em;
+  --ifm-code-padding-vertical: 0.1em;
+  --ifm-pre-padding: 1rem;
+  --ifm-spacing-horizontal: var(--op-gutter);
+
+  --ifm-navbar-height: 3.5rem;
+  --ifm-navbar-background-color: var(--op-bg);
+  --ifm-navbar-shadow: none;
+  --ifm-navbar-link-color: var(--op-text-muted);
+  --ifm-navbar-link-hover-color: var(--op-text-strong);
+  --ifm-navbar-link-active-color: var(--op-text-strong);
+  --ifm-navbar-padding-horizontal: var(--op-gutter);
+
+  --ifm-menu-color: var(--op-text-muted);
+  --ifm-menu-color-active: var(--op-text-strong);
+  --ifm-menu-color-background-active: var(--op-surface-hover);
+  --ifm-menu-color-background-hover: var(--op-surface);
+  --ifm-menu-link-padding-horizontal: 0.75rem;
+  --ifm-menu-link-padding-vertical: 0.4rem;
+
+  --ifm-breadcrumb-color-active: var(--op-text-muted);
+  --ifm-breadcrumb-item-background-active: transparent;
+  --ifm-breadcrumb-padding-horizontal: 0;
+  --ifm-breadcrumb-spacing: 0.5rem;
+
+  --ifm-toc-link-color: var(--op-text-subtle);
+  --ifm-toc-padding-vertical: 0.3rem;
+
+  --ifm-table-border-color: var(--op-border);
+  --ifm-table-head-background: transparent;
+  --ifm-table-stripe-background: transparent;
+  --ifm-table-background: transparent;
+  --ifm-table-cell-padding: 0.75rem;
+
+  --ifm-footer-background-color: var(--op-bg);
+  --ifm-footer-link-color: var(--op-text-muted);
+  --ifm-footer-title-color: var(--op-text-strong);
+  --ifm-footer-color: var(--op-text-subtle);
+
+  --ifm-pagination-nav-border-radius: var(--op-radius);
+  --ifm-pagination-nav-color-hover: var(--op-border-strong);
+
+  --doc-sidebar-width: 17.5rem;
+  --docusaurus-highlighted-code-line-bg: rgba(53, 211, 153, 0.1);
 }
 
-/* Keep long-form text to a readable measure and balance short headings. */
-.theme-doc-markdown,
-article .markdown {
-  max-width: 72ch;
+/* ---------- 2. Base ---------- */
+html {
+  -webkit-text-size-adjust: 100%;
 }
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-wrap: break-word;
+}
+
+::selection {
+  background: rgba(53, 211, 153, 0.28);
+}
+
 h1,
 h2,
 h3 {
   text-wrap: balance;
-}
-.markdown h2 {
-  margin-top: 2.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--ifm-toc-border-color);
-}
-.markdown > h2:first-child {
-  border-top: 0;
-  padding-top: 0;
-  margin-top: 0;
-}
-.markdown table {
-  display: table;
-  width: 100%;
-  font-size: 0.9rem;
-}
-.markdown table th {
-  text-align: left;
-  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-/* ---------- Blog index ---------- */
-/* The list showed 3rem green titles; make the title a heading, not a banner. */
-.blog-list-page article header h2,
-.blog-list-page article header h1 {
-  font-size: 1.75rem;
-  line-height: 1.25;
+/* ---------- 3. Navbar ---------- */
+.navbar {
+  border-bottom: 1px solid var(--op-border);
 }
-.blog-list-page article header h2 a,
-.blog-list-page article header h1 a {
-  color: var(--ifm-font-color-base);
-  text-decoration: none;
+
+.navbar__brand {
+  min-height: 44px;
+  margin-right: var(--op-space-6);
 }
-.blog-list-page article header h2 a:hover,
-.blog-list-page article header h1 a:hover {
-  color: var(--ifm-color-primary);
+
+.navbar__logo {
+  height: 1.5rem;
 }
-.blog-list-page article {
-  padding: 1.5rem 0 1.25rem;
-  margin-bottom: 0 !important;
-  border-bottom: 1px solid var(--ifm-toc-border-color);
+
+.navbar__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--op-text-strong);
 }
-.blog-list-page article:first-of-type {
-  padding-top: 0;
-}
-/* Metadata line: quiet, with enough contrast on #06070a (>= 4.5:1). */
-.blog-list-page article header > div,
-.blog-post-page article header > div {
-  color: #a8b0bd;
+
+.navbar__link {
   font-size: 0.875rem;
+  font-weight: 500;
+  transition: color var(--op-transition);
 }
-.blog-list-page article .markdown {
-  color: #c9d0db;
+
+/* The label already says where it goes; the external-link glyph is noise here. */
+.navbar__link > svg {
+  display: none;
 }
-.blog-list-page article footer a[class*='tag'],
-.blog-list-page .theme-blog-tags-list a,
-article footer .tag_node a {
-  font-size: 0.8rem;
+
+/* ---------- 4. Mobile drawer ---------- */
+.navbar-sidebar {
+  width: min(22rem, 88vw);
+  background: var(--op-bg);
+  border-right: 1px solid var(--op-border);
+  box-shadow: none;
 }
-.blog-list-page article footer a[aria-label],
-.blog-list-page article footer a[href*='/blog/'] {
+
+.navbar-sidebar__brand {
+  border-bottom: 1px solid var(--op-border);
+  box-shadow: none;
+}
+
+.navbar-sidebar__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: calc(var(--op-space-3) * -1);
+  color: var(--op-text);
+}
+
+.navbar-sidebar__item {
+  padding: var(--op-space-3);
+}
+
+.navbar-sidebar__back {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 var(--op-space-2);
+  padding: 0 var(--op-space-3);
+  border-radius: var(--op-radius);
+  background: transparent;
+  color: var(--op-text-muted);
+  font-size: 0.875rem;
   font-weight: 500;
 }
 
-/* Sidebar: current post visible, links not cramped, touch size. */
-.theme-blog-sidebar-item .sidebarItemLink_node,
-[class*='sidebarItemLink'] {
-  display: block;
-  padding: 0.35rem 0;
+.navbar-sidebar .menu__link {
+  min-height: 44px;
+  font-size: 0.9375rem;
+}
+
+/* ---------- 5. Docs sidebar ---------- */
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--op-border) !important;
+}
+
+.theme-doc-sidebar-menu {
+  font-size: 0.875rem;
+}
+
+.menu {
+  padding: var(--op-space-4) var(--op-space-3) !important;
+}
+
+.menu__link {
+  align-items: center;
+  border-radius: 6px;
   line-height: 1.4;
-  color: #c9d0db;
+  transition: color var(--op-transition), background-color var(--op-transition);
 }
-[class*='sidebarItemLink']:hover {
-  color: var(--ifm-color-primary);
-  text-decoration: none;
+
+.menu__link:hover {
+  color: var(--op-text-strong);
 }
-[class*='sidebarItemLinkActive'] {
-  color: var(--ifm-color-primary);
+
+.menu__link--active:not(.menu__link--sublist) {
+  font-weight: 500;
+}
+
+.menu__list-item:not(:first-child) {
+  margin-top: 1px;
+}
+
+/* Section names: same size as the pages under them, set apart by weight and colour only. */
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible > .menu__link {
+  color: var(--op-text-strong);
   font-weight: 600;
 }
 
-/* ---------- Keyboard focus and motion ---------- */
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible,
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible:hover,
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible > .menu__link:hover,
+.theme-doc-sidebar-item-category-level-1 > .menu__list-item-collapsible > .menu__link--active {
+  background: transparent;
+}
+
+.theme-doc-sidebar-item-category-level-1 + .theme-doc-sidebar-item-category-level-1 {
+  margin-top: var(--op-space-3);
+}
+
+.menu__link--sublist-caret::after,
+.menu__caret::before {
+  background-size: 1.125rem 1.125rem;
+  opacity: 0.55;
+}
+
+.menu__list .menu__list {
+  margin-top: 1px;
+  padding-left: 0;
+}
+
+/* ---------- 6. Docs page ---------- */
+[class*='docItemCol'] {
+  max-width: none !important;
+}
+
+[class*='docItemContainer'] {
+  max-width: var(--op-measure-docs);
+  margin: 0 auto;
+}
+
+[class*='docMainContainer'] > .container {
+  padding-top: var(--op-space-6) !important;
+  padding-bottom: var(--op-space-12) !important;
+}
+
+.theme-doc-breadcrumbs {
+  margin-bottom: var(--op-space-4);
+}
+
+.breadcrumbs__item {
+  font-size: 0.8125rem;
+}
+
+.breadcrumbs__link {
+  color: var(--op-text-subtle);
+  font-size: inherit;
+}
+
+.breadcrumbs__link:hover {
+  background: transparent;
+  color: var(--op-text-strong);
+}
+
+.breadcrumbs__item--active .breadcrumbs__link {
+  color: var(--op-text-muted);
+}
+
+/* "On this page": a quiet list, the current section in white. */
+.table-of-contents {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.table-of-contents__left-border {
+  border-left: 1px solid var(--op-border);
+}
+
+.table-of-contents__link {
+  transition: color var(--op-transition);
+}
+
+.table-of-contents__link:hover,
+.table-of-contents__link--active,
+.table-of-contents__link--active code {
+  color: var(--op-text-strong);
+}
+
+.theme-doc-toc-mobile {
+  margin-bottom: var(--op-space-6);
+  border: 1px solid var(--op-border);
+  border-radius: var(--op-radius);
+  background: var(--op-surface) !important;
+}
+
+.theme-doc-toc-mobile > button {
+  min-height: 44px;
+  font-size: 0.875rem;
+  color: var(--op-text);
+}
+
+.theme-doc-toc-mobile .table-of-contents__link {
+  display: block;
+  padding: var(--op-space-2) 0;
+  font-size: 0.875rem;
+}
+
+/* ---------- 7. Prose (docs and blog posts) ---------- */
+.markdown {
+  --ifm-h1-font-size: 2rem;
+  --ifm-h2-font-size: 1.5rem;
+  --ifm-h3-font-size: 1.1875rem;
+  --ifm-h4-font-size: 1rem;
+  --ifm-heading-vertical-rhythm-bottom: 1;
+}
+
+.markdown h1:first-child,
+.theme-doc-markdown > header h1 {
+  --ifm-h1-font-size: 2rem;
+  margin-bottom: var(--op-space-5);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.markdown > h2 {
+  --ifm-h2-font-size: 1.5rem;
+  margin-top: var(--op-space-12);
+  margin-bottom: var(--op-space-4);
+}
+
+.markdown > h3 {
+  --ifm-h3-font-size: 1.1875rem;
+  margin-top: var(--op-space-8);
+  margin-bottom: var(--op-space-3);
+}
+
+.markdown > h4 {
+  margin-top: var(--op-space-6);
+  margin-bottom: var(--op-space-2);
+}
+
+.markdown p,
+.markdown ul,
+.markdown ol {
+  margin-bottom: var(--op-space-5);
+}
+
+.markdown li + li,
+.markdown li > ul,
+.markdown li > ol {
+  margin-top: var(--op-space-2);
+}
+
+.markdown li::marker {
+  color: var(--op-text-subtle);
+}
+
+.markdown strong {
+  color: var(--op-text-strong);
+  font-weight: 600;
+}
+
+/* Links carry an underline as well as colour, so colour is never the only cue. */
+.markdown a:not(.hash-link):not([class*='card']) {
+  text-decoration: underline;
+  text-decoration-color: rgba(53, 211, 153, 0.4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--op-transition);
+}
+
+.markdown a:not(.hash-link):hover {
+  text-decoration-color: currentColor;
+}
+
+.markdown hr {
+  height: 1px;
+  margin: var(--op-space-12) 0;
+}
+
+.markdown blockquote {
+  margin: var(--op-space-6) 0;
+  padding: 0 0 0 var(--op-space-5);
+  border-left: 2px solid var(--op-border-strong);
+  color: var(--op-text-muted);
+}
+
+.markdown img {
+  border-radius: var(--op-radius);
+}
+
+/* Inline code */
+.markdown :not(pre) > code {
+  border: 0;
+  color: var(--op-text-strong);
+  overflow-wrap: anywhere;
+}
+
+.markdown a > code {
+  color: inherit;
+}
+
+/* Code blocks */
+.theme-code-block {
+  margin-bottom: var(--op-space-6);
+  border: 1px solid var(--op-border);
+  border-radius: var(--op-radius);
+  box-shadow: none;
+}
+
+.theme-code-block pre {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.theme-code-block [class*='codeBlockTitle'] {
+  padding: var(--op-space-2) var(--op-space-4);
+  border-bottom: 1px solid var(--op-border);
+  color: var(--op-text-muted);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.75rem;
+}
+
+.theme-code-block [class*='buttonGroup'] button {
+  border-color: var(--op-border-strong);
+  background: var(--op-surface-hover);
+}
+
+.docusaurus-mermaid-container {
+  margin: var(--op-space-6) 0;
+  overflow-x: auto;
+}
+
+/* Tables: hairlines between rows, nothing else. */
+.markdown table {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--op-space-6);
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.markdown table tr {
+  border: 0;
+}
+
+.markdown table th,
+.markdown table td {
+  border: 0;
+  border-bottom: 1px solid var(--op-border);
+  vertical-align: top;
+}
+
+.markdown table th:first-child,
+.markdown table td:first-child {
+  padding-left: 0;
+}
+
+.markdown table thead tr {
+  border: 0;
+}
+
+.markdown table th {
+  color: var(--op-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Admonitions: one surface, a thin edge carries the type. */
+.theme-admonition {
+  --ifm-alert-background-color: var(--op-surface);
+  --ifm-alert-background-color-highlight: transparent;
+  --ifm-alert-foreground-color: var(--op-text);
+  --ifm-alert-border-left-width: 2px;
+  margin-bottom: var(--op-space-6);
+  padding: var(--op-space-4) var(--op-space-5);
+  border: 1px solid var(--op-border);
+  border-left: 2px solid var(--ifm-alert-border-color);
+  border-radius: var(--op-radius);
+  box-shadow: none;
+  font-size: 0.9375rem;
+}
+
+.theme-admonition [class*='admonitionHeading'] {
+  margin-bottom: var(--op-space-1);
+  color: var(--op-text-strong);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.theme-admonition [class*='admonitionIcon'] svg {
+  fill: var(--op-text-muted);
+}
+
+.theme-admonition [class*='admonitionContent'] > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- 8. Pagination (previous / next) ---------- */
+.pagination-nav {
+  gap: var(--op-space-4);
+  margin-top: var(--op-space-12);
+}
+
+.pagination-nav__link {
+  padding: var(--op-space-4) var(--op-space-5);
+  border: 1px solid var(--op-border);
+  background: transparent;
+  transition: border-color var(--op-transition);
+}
+
+.pagination-nav__sublabel {
+  margin-bottom: var(--op-space-1);
+  color: var(--op-text-subtle);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.pagination-nav__label {
+  color: var(--op-text-strong);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.pagination-nav__link--prev .pagination-nav__label::before {
+  content: '\2190\00a0';
+  color: var(--op-text-subtle);
+}
+
+.pagination-nav__link--next .pagination-nav__label::after {
+  content: '\00a0\2192';
+  color: var(--op-text-subtle);
+}
+
+/* ---------- 9. Blog post ---------- */
+.blog-post-page .container {
+  max-width: 72rem;
+  margin-top: var(--op-space-6) !important;
+  margin-bottom: var(--op-space-12) !important;
+}
+
+.blog-post-page main.col {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+  margin-left: 0;
+}
+
+.blog-post-page main > article,
+.blog-post-page main > .pagination-nav {
+  max-width: var(--op-measure-post);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.blog-post-page .markdown {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+.blog-post-page .row > .col--2 {
+  flex: 0 0 15rem;
+  max-width: 15rem;
+}
+
+.blog-post-page article > footer {
+  margin-top: var(--op-space-12);
+  padding-top: var(--op-space-6);
+  border-top: 1px solid var(--op-border);
+  font-size: 0.875rem;
+  color: var(--op-text-subtle);
+}
+
+.blog-post-page article > footer b {
+  font-weight: 500;
+}
+
+.blog-post-page article > footer ul {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--op-space-2);
+  margin: 0 0 0 var(--op-space-2);
+  vertical-align: middle;
+}
+
+.blog-post-page article > footer li {
+  margin: 0;
+}
+
+.blog-post-page article > footer li a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--op-space-3);
+  border: 1px solid var(--op-border-strong);
+  border-radius: 999px;
+  color: var(--op-text);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  transition: border-color var(--op-transition), color var(--op-transition);
+}
+
+/* Visual height stays 32px; the tap area is 44px. */
+.blog-post-page article > footer li a::after {
+  position: absolute;
+  inset: -6px 0;
+  content: '';
+}
+
+.blog-post-page article > footer li a:hover {
+  border-color: var(--op-text-subtle);
+  color: var(--op-text-strong);
+}
+
+/* ---------- 10. Footer ---------- */
+.footer,
+.footer--dark {
+  --ifm-footer-background-color: var(--op-bg);
+  --ifm-footer-link-color: var(--op-text-muted);
+  --ifm-footer-title-color: var(--op-text-strong);
+  --ifm-footer-color: var(--op-text-subtle);
+  padding: var(--op-space-12) 0 var(--op-space-8);
+  border-top: 1px solid var(--op-border);
+}
+
+/* The columns already carry the page gutter. */
+.footer > .container {
+  padding: 0;
+}
+
+.footer .row {
+  margin: 0;
+}
+
+.footer__bottom {
+  padding: 0 var(--op-gutter);
+}
+
+.footer__title {
+  margin-bottom: var(--op-space-3);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.footer__item {
+  margin-top: 0;
+}
+
+.footer__link-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  transition: color var(--op-transition);
+}
+
+.footer__link-item:hover {
+  color: var(--op-text-strong);
+  text-decoration: none;
+}
+
+.footer__link-item > svg {
+  display: none;
+}
+
+.footer__bottom {
+  margin-top: var(--op-space-8);
+  text-align: left;
+}
+
+.footer__copyright {
+  font-size: 0.8125rem;
+}
+
+/* ---------- 11. Focus and motion ---------- */
 a:focus-visible,
 button:focus-visible,
-summary:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--op-accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
+
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     scroll-behavior: auto !important;
-    transition: none !important;
-    animation: none !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
-/* ---------- Small screens ---------- */
+/* ---------- Breakpoints ---------- */
+@media (min-width: 768px) {
+  :root,
+  html[data-theme='dark'] {
+    --op-gutter: 2rem;
+  }
+
+  .markdown h1:first-child,
+  .theme-doc-markdown > header h1 {
+    --ifm-h1-font-size: 2.25rem;
+  }
+}
+
+@media (min-width: 997px) {
+  [class*='docMainContainer'] > .container {
+    padding-top: var(--op-space-8) !important;
+  }
+
+  .markdown table {
+    display: table;
+  }
+
+  .blog-post-page .container {
+    margin-top: var(--op-space-8) !important;
+  }
+}
+
+/* Wide screens: an empty column the width of "On this page" keeps the article centred. */
+@media (min-width: 1200px) {
+  .blog-post-page main.col {
+    padding-left: 15rem;
+  }
+}
+
 @media (max-width: 996px) {
-  .blog-list-page article header h2,
-  .blog-list-page article header h1 {
-    font-size: 1.5rem;
+  .navbar__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-right: var(--op-space-1);
+    margin-left: calc(var(--op-space-3) * -1);
+    color: var(--op-text);
   }
-  .theme-doc-markdown,
-  article .markdown {
-    max-width: none;
-  }
-}
 
-/* Author byline: readable size, name in body colour (green is for links and actions). */
-article header [class*='authorName'] {
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-article header [class*='authorName'] a,
-article header [class*='authorName'] {
-  color: var(--ifm-font-color-base);
-}
-article header [class*='authorTitle'] {
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  color: #a8b0bd;
-}
-.blog-list-page article footer {
-  margin-top: 0.75rem;
-}
-.blog-list-page article + article,
-.blog-list-page main > div > article {
-  margin-top: 0;
+  .menu__link,
+  .footer__link-item {
+    min-height: 44px;
+  }
+
+  .blog-post-page .row > .col--2 {
+    display: none;
+  }
+
+  .pagination-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .pagination-nav__link--next {
+    grid-column: 1;
+  }
+
+  /* The home icon is 18px wide; the tap area around it is 44px. */
+  .breadcrumbs__link {
+    position: relative;
+  }
+
+  .breadcrumbs__link::after {
+    position: absolute;
+    inset: -11px -8px;
+    content: '';
+  }
 }

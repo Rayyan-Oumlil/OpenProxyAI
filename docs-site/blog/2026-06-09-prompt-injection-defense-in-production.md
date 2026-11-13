@@ -1,7 +1,6 @@
 ---
 slug: prompt-injection-defense-in-production
 title: "Prompt injection defense in production: what detection actually catches"
-authors: [rayyan]
 tags: [security, engineering]
 description: Prompt injection detection gets pitched as a solved problem by a lot of vendors. It isn't — it's a probabilistic filter with real false-negative and false-positive rates, and pretending otherwise sets the wrong expectations.
 ---

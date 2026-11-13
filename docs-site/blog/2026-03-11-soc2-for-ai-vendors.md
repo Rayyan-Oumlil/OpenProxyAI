@@ -1,7 +1,6 @@
 ---
 slug: soc2-for-ai-vendors
 title: "SOC 2 for AI vendors: what the report actually covers (and what it doesn't)"
-authors: [rayyan]
 tags: [security, product]
 description: A SOC 2 report gets treated as a pass/fail security checkbox in a lot of vendor reviews. It's more specific than that, and knowing what it actually attests to matters when the vendor is routing your prompts to a third-party model.
 ---

@@ -1,7 +1,6 @@
 ---
 slug: how-semantic-caching-works
 title: "How semantic caching actually works (and where it quietly breaks)"
-authors: [rayyan]
 tags: [engineering, architecture]
 description: Exact-match caching is easy to reason about and catches almost nothing. Semantic caching catches a lot more — and introduces a failure mode most explanations skip over entirely.
 ---

@@ -3,19 +3,14 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 /**
- * Creating a sidebar enables you to:
- - create an ordered group of docs
- - render a sidebar for each doc of that group
- - provide next/previous navigation
-
- The sidebars can be generated from the filesystem, or explicitly defined here.
-
- Create as many sidebars as you want.
+ * Three sidebars, one per top-bar tab (Documentation, Guides, API Reference).
+ * Sections are always open: the label is a heading, not a toggle.
  */
 const sidebars: SidebarsConfig = {
   docsSidebar: [
     {
       type: 'category',
+      collapsible: false,
       label: 'Getting Started',
       items: [
         'getting-started/introduction',
@@ -26,6 +21,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      collapsible: false,
       label: 'Core Concepts',
       items: [
         'core-concepts/request-pipeline',
@@ -38,6 +34,51 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      collapsible: false,
+      label: 'Security & Compliance',
+      items: [
+        'security/trust-center',
+        'security/audit-logging',
+        'security/row-level-security',
+        'security/hipaa-template',
+        'security/pci-template',
+        'security/fedramp-template',
+      ],
+    },
+    {
+      type: 'category',
+      collapsible: false,
+      label: 'Integrations',
+      items: [
+        'integrations/openai-sdk-compatibility',
+        'integrations/python-sdk',
+        'integrations/typescript-sdk',
+        'integrations/langchain',
+      ],
+    },
+    {
+      type: 'category',
+      collapsible: false,
+      label: 'Admin Console',
+      items: [
+        'admin-console/overview',
+        'admin-console/managing-teams',
+        'admin-console/managing-policies',
+        'admin-console/evaluating-changes',
+        'admin-console/billing',
+      ],
+    },
+    {
+      type: 'category',
+      collapsible: false,
+      label: 'Resources',
+      items: ['changelog'],
+    },
+  ],
+  guidesSidebar: [
+    {
+      type: 'category',
+      collapsible: false,
       label: 'Guides',
       items: [
         'guides/deploying-with-docker-compose',
@@ -59,30 +100,11 @@ const sidebars: SidebarsConfig = {
         'guides/policy-plugins',
       ],
     },
+  ],
+  apiSidebar: [
     {
       type: 'category',
-      label: 'Security & Compliance',
-      items: [
-        'security/trust-center',
-        'security/audit-logging',
-        'security/row-level-security',
-        'security/hipaa-template',
-        'security/pci-template',
-        'security/fedramp-template',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Integrations',
-      items: [
-        'integrations/openai-sdk-compatibility',
-        'integrations/python-sdk',
-        'integrations/typescript-sdk',
-        'integrations/langchain',
-      ],
-    },
-    {
-      type: 'category',
+      collapsible: false,
       label: 'API Reference',
       items: [
         'api-reference/overview',
@@ -106,18 +128,6 @@ const sidebars: SidebarsConfig = {
         'api-reference/webhooks-api',
       ],
     },
-    {
-      type: 'category',
-      label: 'Admin Console',
-      items: [
-        'admin-console/overview',
-        'admin-console/managing-teams',
-        'admin-console/managing-policies',
-        'admin-console/evaluating-changes',
-        'admin-console/billing',
-      ],
-    },
-    'changelog',
   ],
 };
 

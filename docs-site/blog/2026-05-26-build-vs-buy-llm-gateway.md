@@ -1,7 +1,6 @@
 ---
 slug: build-vs-buy-llm-gateway
 title: "Build vs. buy an LLM gateway: what the first six months actually look like"
-authors: [rayyan]
 tags: [architecture, engineering]
 description: The pricing page version of this argument is a table. This is the longer version — what actually happens, month by month, when a team decides to build their own instead of buying one.
 ---

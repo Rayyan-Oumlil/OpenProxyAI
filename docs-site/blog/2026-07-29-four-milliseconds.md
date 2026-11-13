@@ -1,7 +1,6 @@
 ---
 slug: four-milliseconds
 title: What actually happens in the four milliseconds before your LLM call
-authors: [rayyan]
 tags: [engineering, architecture]
 description: A request to gpt-4o passes through six stages before it ever reaches OpenAI. Here's what each one is actually doing, and why the order isn't arbitrary.
 ---

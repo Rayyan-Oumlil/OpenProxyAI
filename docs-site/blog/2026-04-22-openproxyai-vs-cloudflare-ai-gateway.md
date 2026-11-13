@@ -1,7 +1,6 @@
 ---
 slug: openproxyai-vs-cloudflare-ai-gateway
 title: "OpenProxyAI vs. Cloudflare AI Gateway: edge simplicity vs. compliance-grade control"
-authors: [rayyan]
 tags: [product, architecture]
 description: Cloudflare AI Gateway is the fastest path from zero to a working LLM gateway, running on infrastructure you don't operate. That speed comes from the same design choice that makes it the wrong fit once compliance requirements show up.
 ---

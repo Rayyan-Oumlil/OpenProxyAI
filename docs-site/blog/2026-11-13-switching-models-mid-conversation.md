@@ -1,7 +1,6 @@
 ---
 slug: switching-models-mid-conversation
 title: "Switching models mid-conversation can leak the history you already sent"
-authors: [rayyan]
 tags: [security, architecture]
 description: A conversation is data too. If a confidential turn can reach a model that is only cleared for internal data after a switch, your routing rules were bypassed by the history. Here is the rule we use.
 ---

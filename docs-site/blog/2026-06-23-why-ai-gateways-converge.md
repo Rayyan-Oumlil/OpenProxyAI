@@ -1,7 +1,6 @@
 ---
 slug: why-ai-gateways-converge
 title: "Why every AI gateway ends up building the same six things"
-authors: [rayyan]
 tags: [architecture, product]
 description: Look at enough LLM proxies — the ones that started as routers, the ones that started as observability tools, the ones that started as guardrail products — and they all converge on roughly the same feature set. That's not a coincidence.
 ---

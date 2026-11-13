@@ -1,7 +1,6 @@
 ---
 slug: why-your-ai-bill-is-unpredictable
 title: "Why your AI bill is unpredictable (it's rarely the sticker price)"
-authors: [rayyan]
 tags: [engineering, product]
 description: Per-token pricing looks simple on a provider's pricing page. It stops looking simple the moment a multi-turn conversation, a retry loop, or a verbose system prompt gets involved. Here's what actually drives the variance.
 ---

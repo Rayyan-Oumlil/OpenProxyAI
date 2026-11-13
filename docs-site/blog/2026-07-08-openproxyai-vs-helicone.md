@@ -1,7 +1,6 @@
 ---
 slug: openproxyai-vs-helicone
 title: "OpenProxyAI vs. Helicone: control plane vs. observability layer"
-authors: [rayyan]
 tags: [product, architecture]
 description: Helicone is excellent at showing you what your LLM traffic is doing. OpenProxyAI is built to also decide what that traffic is allowed to do. Here's where the line actually falls.
 ---

@@ -4,6 +4,12 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+// One Dark colours on the site's own surface (--op-surface in custom.css).
+const codeTheme = {
+  ...prismThemes.oneDark,
+  plain: {...prismThemes.oneDark.plain, backgroundColor: '#0d0f14'},
+};
+
 const config: Config = {
   title: 'OpenProxyAI Docs',
   tagline: 'The control plane for enterprise AI',
@@ -45,9 +51,9 @@ const config: Config = {
           routeBasePath: 'blog',
           blogTitle: 'OpenProxyAI Blog',
           blogDescription: 'Engineering notes on running an LLM control plane — architecture, security, and what actually happens inside the request pipeline.',
-          postsPerPage: 10,
-          blogSidebarTitle: 'Recent posts',
-          blogSidebarCount: 10,
+          // One page holds every post, so the search box on the index covers all of them.
+          postsPerPage: 'ALL',
+          blogSidebarCount: 0,
           showReadingTime: true,
           feedOptions: {
             type: ['rss', 'atom'],
@@ -127,7 +133,19 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'docsSidebar',
           position: 'left',
-          label: 'Docs',
+          label: 'Documentation',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'guidesSidebar',
+          position: 'left',
+          label: 'Guides',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'apiSidebar',
+          position: 'left',
+          label: 'API Reference',
         },
         {
           to: '/blog',
@@ -172,8 +190,8 @@ const config: Config = {
       copyright: `© ${new Date().getFullYear()} OpenProxyAI`,
     },
     prism: {
-      theme: prismThemes.oneDark,
-      darkTheme: prismThemes.oneDark,
+      theme: codeTheme,
+      darkTheme: codeTheme,
     },
   } satisfies Preset.ThemeConfig,
 };

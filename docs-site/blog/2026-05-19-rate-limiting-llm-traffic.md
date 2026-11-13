@@ -1,7 +1,6 @@
 ---
 slug: rate-limiting-llm-traffic
 title: "Rate limiting LLM traffic: why requests-per-minute alone isn't enough"
-authors: [rayyan]
 tags: [engineering, architecture]
 description: A rate limiter built for a REST API and pointed at an LLM endpoint will pass every check and still let a single request blow your budget. Here's why token-based limits have to sit alongside request-based ones, not instead of them.
 ---

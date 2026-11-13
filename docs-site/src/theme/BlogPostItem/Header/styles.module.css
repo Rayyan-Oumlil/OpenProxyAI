@@ -1,0 +1,86 @@
+.header {
+  margin-bottom: var(--op-space-8);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--op-space-2);
+  min-height: 44px;
+  margin-bottom: var(--op-space-4);
+  color: var(--op-text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color var(--op-transition);
+}
+
+.back:hover {
+  color: var(--op-text-strong);
+  text-decoration: none;
+}
+
+.title {
+  margin: 0;
+  text-align: center;
+  font-family: var(--op-font-display);
+  font-size: 2.25rem;
+  font-weight: 400;
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 var(--op-space-2);
+  margin: var(--op-space-6) 0 var(--op-space-4);
+  color: var(--op-text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta > * + *::before {
+  margin-right: var(--op-space-2);
+  content: '\00b7';
+}
+
+.cover {
+  margin-top: var(--op-space-8);
+}
+
+.subtitle {
+  max-width: 40rem;
+  margin: var(--op-space-5) auto 0;
+  color: var(--op-text-muted);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  text-align: center;
+  text-wrap: balance;
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 3.25rem;
+    line-height: 1.05;
+  }
+
+  .subtitle {
+    font-size: 1.1875rem;
+  }
+}
+
+/* On wide screens the heading is wider than the text column, as on Resend. */
+@media (min-width: 1100px) {
+  .header {
+    position: relative;
+    left: 50%;
+    width: 56rem;
+    transform: translateX(-50%);
+  }
+
+  .back {
+    margin-left: 0;
+  }
+}

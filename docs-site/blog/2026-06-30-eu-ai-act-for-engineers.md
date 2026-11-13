@@ -1,7 +1,6 @@
 ---
 slug: eu-ai-act-for-engineers
 title: "The EU AI Act, for engineering teams (not lawyers)"
-authors: [rayyan]
 tags: [security, architecture]
 description: The EU AI Act's legal analysis is well covered elsewhere. This is the version aimed at the team that actually has to build the logging, oversight, and documentation it requires.
 ---

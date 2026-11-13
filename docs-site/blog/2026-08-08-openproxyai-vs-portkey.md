@@ -1,7 +1,6 @@
 ---
 slug: openproxyai-vs-portkey
 title: "OpenProxyAI vs. Portkey: where self-hosting stops being free"
-authors: [rayyan]
 tags: [product, security]
 description: Portkey publishes an open-source gateway you can run yourself. What sits behind a hosted app or an Enterprise plan is the control plane around it. Here is where that leaves the comparison.
 ---
