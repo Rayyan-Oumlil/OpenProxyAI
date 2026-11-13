@@ -76,9 +76,15 @@ class AsyncOpenProxy:
         raise RuntimeError("Max retries exceeded")
 
     async def _stream(self, path: str, json_body: dict) -> AsyncStream:
-        response = self._http.stream("POST", path, json=json_body)
-        ctx = await response.__aenter__()
-        return AsyncStream(ctx)
+        request = self._http.build_request("POST", path, json=json_body)
+        response = await self._http.send(request, stream=True)
+        if response.status_code >= 400:
+            try:
+                await response.aread()
+                _raise_for_status(response)
+            finally:
+                await response.aclose()
+        return AsyncStream(response)
 
     async def close(self):
         await self._http.aclose()

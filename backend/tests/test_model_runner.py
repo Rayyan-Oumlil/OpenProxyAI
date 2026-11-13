@@ -140,3 +140,23 @@ async def test_a_failure_to_write_the_audit_log_does_not_lose_the_answer(world, 
 async def test_a_malformed_model_name_is_an_error_outcome(world):
 	outcome = await run(world, model="gpt-4o-mini")  # no provider prefix
 	assert outcome.error and outcome.refused is False and world.calls == []
+
+
+async def test_a_model_the_gateway_cannot_price_still_returns_its_answer_at_the_flat_fee_and_is_marked_estimated(world, monkeypatch):
+	"""The provider already answered: throwing the answer away (a 502) would waste the spend and fail every line of a batch."""
+	from app.config import settings
+
+	def unpriced(_response):
+		raise Exception("This model isn't mapped yet.")
+
+	monkeypatch.setattr(runner.cost_tracker_service, "calculate_cost_usd", unpriced)
+	outcome = await run(world)
+	flat = Decimal(str(settings.UNPRICED_CALL_COST_USD))
+	assert outcome.error is None and outcome.content == "4" and outcome.cost_usd == flat and flat > 0
+	[log] = world.logs
+	assert log["status_code"] == 200 and log["cost_usd"] == flat and log["request_metadata"]["cost_estimated"] is True
+
+
+async def test_a_priced_call_is_not_marked_estimated(world):
+	await run(world)
+	assert "cost_estimated" not in world.logs[0]["request_metadata"]
