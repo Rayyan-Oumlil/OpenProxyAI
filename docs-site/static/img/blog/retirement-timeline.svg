@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 250" width="640" height="250" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="250" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="249" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Two retirements, 28 days</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">From each provider's deprecation page, November 13, 2026</text>
+
+  <line x1="50" y1="140" x2="590" y2="140" stroke="#2a2f3a" stroke-width="2"/>
+  <line x1="50" y1="140" x2="378" y2="140" stroke="#35d399" stroke-width="4"/>
+  <line x1="378" y1="140" x2="590" y2="140" stroke="#f0b429" stroke-width="4"/>
+
+  <circle cx="50" cy="140" r="8" fill="#06070a" stroke="#f4f6f8" stroke-width="2"/>
+  <text x="24" y="104" fill="#f4f6f8" font-size="16" font-weight="600">Nov 13</text>
+  <text x="24" y="176" fill="#a3abb8" font-size="14">today</text>
+
+  <circle cx="378" cy="140" r="8" fill="#35d399"/>
+  <text x="378" y="104" fill="#f4f6f8" font-size="16" font-weight="600" text-anchor="middle">Nov 30</text>
+  <text x="378" y="176" fill="#cfd5dd" font-size="14" text-anchor="middle">Claude Sonnet 4.5</text>
+  <text x="378" y="198" fill="#a3abb8" font-size="14" text-anchor="middle">retires</text>
+
+  <circle cx="590" cy="140" r="8" fill="#f0b429"/>
+  <text x="616" y="104" fill="#f4f6f8" font-size="16" font-weight="600" text-anchor="end">Dec 11</text>
+  <text x="616" y="176" fill="#cfd5dd" font-size="14" text-anchor="end">GPT-5 and o3</text>
+  <text x="616" y="198" fill="#a3abb8" font-size="14" text-anchor="end">shut down</text>
+
+  <text x="214" y="128" fill="#a3abb8" font-size="14" text-anchor="middle">17 days</text>
+  <text x="484" y="128" fill="#a3abb8" font-size="14" text-anchor="middle">11 more</text>
+</svg>
