@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
     AUTH_RATE_LIMIT_MAX_ATTEMPTS: int = 12
     AUTH_RATE_LIMIT_WINDOW_SECONDS: int = 300
+    # Per-address ceilings on top of the per-(address, email) limits: one address cannot sweep many emails or create
+    # unlimited organizations. Counted per AUTH_RATE_LIMIT_WINDOW_SECONDS.
+    AUTH_IP_RATE_LIMIT_MAX_ATTEMPTS: int = 100
+    REGISTER_IP_RATE_LIMIT_MAX_ATTEMPTS: int = 10
 
     # ── Database ─────────────────────────────────────────────────────
     DATABASE_URL: str = (
@@ -172,6 +176,8 @@ class Settings(BaseSettings):
 
     # ── Prometheus ───────────────────────────────────────────────────
     PROMETHEUS_ENABLED: bool = True
+    # When set, GET /metrics requires "Authorization: Bearer <token>". The labels include org ids and models.
+    METRICS_BEARER_TOKEN: str = ""
 
     # ── Air-gap mode (Data Residency Tier 2) ─────────────────────────
     # When True: no outbound telemetry (Langfuse, ClickHouse, spend reports, Stripe metered sync).

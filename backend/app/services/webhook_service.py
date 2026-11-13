@@ -10,12 +10,12 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.organization import Organization
 from app.models.webhook_delivery import WebhookDelivery
 from app.utils.ssrf import is_private_or_local_ip as _is_private_or_local_ip  # noqa: F401  (re-exported for callers)
+from app.services.provider_client import guarded_http_client
 from app.utils.ssrf import resolve_safe_url as _resolve_safe_url
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,9 @@ async def _deliver(url: str, payload: dict, secret: str) -> tuple[str, int | Non
         headers["X-OpenProxy-Signature"] = _sign_payload(body, secret)
 
     last_status: int | None = None
-    async with httpx.AsyncClient(timeout=10) as client:
+    # The guarded client connects only to an address it resolved and checked itself, so a hostname that
+    # answers differently the second time (DNS rebinding) cannot reach a private address.
+    async with guarded_http_client(internal=False, timeout=10.0) as client:
         for attempt in range(_MAX_RETRIES):
             try:
                 response = await client.post(url, content=body, headers=headers)
