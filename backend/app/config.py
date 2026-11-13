@@ -172,6 +172,8 @@ class Settings(BaseSettings):
 
     # ── Prometheus ───────────────────────────────────────────────────
     PROMETHEUS_ENABLED: bool = True
+    # When set, GET /metrics requires "Authorization: Bearer <token>". The labels include org ids and models.
+    METRICS_BEARER_TOKEN: str = ""
 
     # ── Air-gap mode (Data Residency Tier 2) ─────────────────────────
     # When True: no outbound telemetry (Langfuse, ClickHouse, spend reports, Stripe metered sync).
