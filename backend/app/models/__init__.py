@@ -19,12 +19,14 @@ from app.models.dataset import Dataset, DatasetItem
 from app.models.evaluation import EvalRun, EvalRunItem, Evaluator
 from app.models.mcp_server import McpServer
 from app.models.mcp_tool import McpTool, McpToolVersion
+from app.models.scim_token import ScimToken
 from app.models.tool_grant import ToolGrant
 from app.models.tool_trust_rule import ToolTrustRule
 from app.models.mcp_bundle import ApiKeyMcpBundle, McpBundle, McpBundleTool
 from app.models.model_registry import ModelRegistryEntry
 from app.models.prompt_template import PromptTemplate
 from app.models.conversation import Conversation, ConversationContextPackage, ConversationTurn
+from app.models.space import Space
 from app.models.policy_plugin import PolicyPlugin
 from app.models.batch import BatchFile, BatchJob, BatchResult
 
@@ -35,6 +37,7 @@ __all__ = [
     "Conversation",
     "ConversationTurn",
     "ConversationContextPackage",
+    "Space",
     "PolicyPlugin",
     "BatchFile",
     "BatchJob",
@@ -62,6 +65,7 @@ __all__ = [
     "McpServer",
     "McpTool",
     "McpToolVersion",
+    "ScimToken",
     "ToolGrant",
     "ToolTrustRule",
     "McpBundle",

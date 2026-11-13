@@ -334,6 +334,8 @@ export type PolicyConfigRequest = {
   routing_mode?: RoutingMode;
   /** Registry models rated above this are never authorized */
   max_risk_rating?: Rating;
+  /** off: a capability request (cap:NAME) gets the cheapest authorized model; feedback: the better-rated one when ratings show a clear gap */
+  routing_quality_signal?: QualitySignal;
   /** Share (0 to 1) of delivered requests whose redacted prompt and answer are kept for evaluation. 0 stores nothing. */
   payload_capture_sample_rate?: number;
   /** An edited prompt template becomes a draft that needs a passing eval run (or an audited override) to go live */
@@ -351,6 +353,7 @@ export type PolicyConfigRequest = {
 };
 
 export type RoutingMode = "off" | "log_only" | "enforce";
+export type QualitySignal = "off" | "feedback";
 
 export type PolicyPreviewRequest = {
   model: string;

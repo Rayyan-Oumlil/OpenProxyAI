@@ -393,6 +393,7 @@ def route_decision(candidates: list, region: str, config, data_class: str, model
 	return decide(
 		candidates, mode=config.routing_mode, data_class=data_class, org_region=region, max_risk=config.max_risk_rating,
 		allows_model=lambda m: policy_service.is_model_on_allowlist(m, config), requested=model,
+		quality_signal=config.routing_quality_signal,
 	)
 
 
@@ -710,9 +711,13 @@ class LLMService:
 		)
 
 	@staticmethod
-	async def routing_inputs(db: AsyncSession, org_id: uuid.UUID) -> tuple[list, str]:
-		"""The org's routable registry and its data region (one query each; the session is already org-scoped)."""
-		return await load_candidates(db, org_id), await org_data_region(db, org_id)
+	async def routing_inputs(db: AsyncSession, org_id: uuid.UUID, config=None) -> tuple[list, str]:
+		"""The org's routable registry and its data region (one query each; the session is already org-scoped).
+
+		Pass the org's policy ``config`` so the registry carries model feedback when ``routing_quality_signal`` is on.
+		"""
+		with_quality = config is not None and config.routing_quality_signal == "feedback"
+		return await load_candidates(db, org_id, with_quality=with_quality), await org_data_region(db, org_id)
 
 	async def _decide_route(self, ctx: _RequestContext, db: AsyncSession) -> None:
 		"""Decide which registry model may serve this request; in enforce mode, also constrain how it is served.
@@ -724,7 +729,7 @@ class LLMService:
 		"""
 		config = ctx.policy_config
 		mode = config.routing_mode
-		candidates, region = await self.routing_inputs(db, ctx.user.org_id)
+		candidates, region = await self.routing_inputs(db, ctx.user.org_id, config)
 
 		def decide_for(model: str) -> RoutingDecision:
 			return route_decision(candidates, region, config, ctx.classification.data_class, model)
