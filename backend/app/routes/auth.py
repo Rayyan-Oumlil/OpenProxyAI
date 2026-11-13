@@ -44,6 +44,20 @@ async def _reset_auth_rate_limit(ip: str, email: str, redis: Redis) -> None:
     await redis.delete(f"auth:attempts:{ip}:{email}")
 
 
+async def _enforce_ip_limit(redis: Redis, scope: str, ip: str, limit: int) -> None:
+	"""Count every attempt from one address, whatever email it names."""
+	key = f"auth:ip:{scope}:{ip}"
+	count = await redis.incr(key)
+	if count == 1:
+		await redis.expire(key, settings.AUTH_RATE_LIMIT_WINDOW_SECONDS)
+	if count > limit:
+		raise HTTPException(
+			status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+			detail="Too many authentication attempts",
+			headers={"Retry-After": str(settings.AUTH_RATE_LIMIT_WINDOW_SECONDS)},
+		)
+
+
 @router.post("/register", response_model=TokenResponse)
 async def register(
 	payload: RegisterRequest,
@@ -51,7 +65,9 @@ async def register(
 	db: AsyncSession = Depends(get_db),
 	redis: Redis = Depends(get_redis),
 ) -> TokenResponse:
-	rate_key = f"register:{payload.email.lower()}:{request.client.host if request.client else 'unknown'}"
+	client_ip = get_real_ip(request)
+	await _enforce_ip_limit(redis, "register", client_ip, settings.REGISTER_IP_RATE_LIMIT_MAX_ATTEMPTS)
+	rate_key = f"register:{payload.email.lower()}:{client_ip}"
 	await enforce_auth_rate_limit(redis, rate_key)
 
 	user = await create_user(
@@ -77,6 +93,7 @@ async def login(
 	db: AsyncSession = Depends(get_db),
 	redis: Redis = Depends(get_redis),
 ) -> TokenResponse:
+	await _enforce_ip_limit(redis, "login", get_real_ip(request), settings.AUTH_IP_RATE_LIMIT_MAX_ATTEMPTS)
 	await _check_auth_rate_limit(get_real_ip(request), payload.email, redis)
 
 	user = await authenticate_user(db=db, email=payload.email, password=payload.password)
