@@ -116,7 +116,8 @@ async def revoke_api_key(
 	model = await db.scalar(
 		select(ApiKey).where(ApiKey.id == key_id, ApiKey.org_id == current_user.org_id)
 	)
-	if model is None:
+	# Anyone may revoke their own key; revoking someone else's takes an admin. 404, not 403, so an id does not confirm a key.
+	if model is None or (current_user.role != "admin" and model.user_id != current_user.id):
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
 
 	model.is_active = False

@@ -903,3 +903,25 @@ def test_retry_delivery_unsafe_url_rejected(client, monkeypatch):
 def test_retry_delivery_requires_auth(client):
 	response = client.post(f"/api/v1/organizations/current/webhooks/deliveries/{uuid4()}/retry")
 	assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "webhook",
+    ["http://169.254.169.254/hook", "https://127.0.0.1/hook", "https://localhost/hook", "ftp://example.com/x", "not a url"],
+)
+def test_update_org_spend_report_webhook_must_be_a_public_https_url(client, monkeypatch, webhook):
+    org_id = uuid4()
+    org = _make_org(org_id)
+    user = _make_user(org_id, role="admin")
+
+    _noop_audit(monkeypatch)
+    _override_auth(user)
+    _override_db(FakeDB(scalar_result=org))
+
+    response = client.patch(
+        "/api/v1/organizations/current",
+        json={"settings": {"spend_report": {"webhook": webhook}}},
+        headers={"Authorization": "Bearer test"},
+    )
+    assert response.status_code == 400
+    assert "webhook" in response.json()["detail"].lower()

@@ -1,5 +1,6 @@
 """Organization settings endpoints."""
 
+import asyncio
 import dataclasses
 import math
 import uuid
@@ -38,6 +39,8 @@ def _policy_response(config: PolicyConfig) -> PolicyConfigResponse:
 	return PolicyConfigResponse(**dataclasses.asdict(config))
 
 
+from app.utils.ssrf import is_safe_https_url
+
 router = APIRouter(prefix="/api/v1/organizations", tags=["Organizations"])
 
 
@@ -74,6 +77,22 @@ def _sanitize_settings_for_response(settings: dict) -> dict:
 	if isinstance(webhooks, dict):
 		safe["webhooks"] = {k: v for k, v in webhooks.items() if k != "secret"}
 	return safe
+
+
+def _require_public_spend_report_webhook(settings_patch: dict) -> None:
+	"""The spend report posts to this URL from the gateway: it must be https and resolve to a public address."""
+	spend = settings_patch.get("spend_report")
+	candidates = [settings_patch.get("spend_report_webhook")]
+	if isinstance(spend, dict):
+		candidates.append(spend.get("webhook"))
+	for url in candidates:
+		if url in (None, ""):
+			continue
+		if not isinstance(url, str) or not is_safe_https_url(url):
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail="Spend report webhook must be an https URL that resolves to a public address",
+			)
 
 
 @router.patch("/current", response_model=OrganizationResponse)
@@ -125,6 +144,7 @@ async def update_current_organization(
 					status_code=status.HTTP_400_BAD_REQUEST,
 					detail=f"Cannot set '{reserved_key}' via this endpoint. Use the dedicated /{reserved_key} endpoint.",
 				)
+		await asyncio.to_thread(_require_public_spend_report_webhook, settings_patch)
 		merged_settings = dict(model.settings or {})
 		merged_settings.update(settings_patch)
 		model.settings = merged_settings

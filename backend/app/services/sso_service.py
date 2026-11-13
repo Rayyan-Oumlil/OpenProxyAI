@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import secrets
@@ -21,6 +22,8 @@ from app.models.sso_connection import SSOConnection
 from app.models.user import User
 from app.services.auth_service import create_access_token, create_refresh_token
 from app.services.crypto_service import decrypt, encrypt
+from app.services.provider_client import guarded_http_client
+from app.utils.ssrf import resolve_safe_url
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +42,12 @@ async def create_sso_connection(
     domain_hint: str | None,
 ) -> SSOConnection:
     """Encrypt client_secret and persist the SSO connection."""
+    issuer_is_public, _ = await asyncio.to_thread(resolve_safe_url, issuer_url)
+    if not issuer_is_public:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="issuer_url must be an https URL that resolves to a public address",
+        )
     encrypted = encrypt(client_secret)
     connection = SSOConnection(
         org_id=org_id,
@@ -85,10 +94,24 @@ async def delete_sso_connection(
 async def _fetch_oidc_config(issuer_url: str) -> dict[str, Any]:
     """Fetch OIDC discovery document from {issuer}/.well-known/openid-configuration."""
     discovery_url = f"{issuer_url.rstrip('/')}/.well-known/openid-configuration"
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.get(discovery_url)
-        response.raise_for_status()
-        return response.json()
+    try:
+        # The issuer is set by an org admin and fetched server-side: connect only to public addresses.
+        async with guarded_http_client(internal=False, timeout=10.0) as client:
+            response = await client.get(discovery_url)
+            response.raise_for_status()
+            return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("OIDC discovery failed for %s: %s", issuer_url, exc)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="IdP discovery failed") from exc
+
+
+def require_public_https_endpoint(url: str, label: str) -> None:
+    """An endpoint named by a discovery document is attacker-influenced: it must be https and public."""
+    if not isinstance(url, str) or not resolve_safe_url(url)[0]:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"IdP discovery returned an unusable {label}",
+        )
 
 
 def _get_allowed_redirect_uri() -> str:
@@ -129,7 +152,8 @@ async def initiate_sso(
         )
 
     oidc_config = await _fetch_oidc_config(conn.issuer_url)
-    authorization_endpoint = oidc_config["authorization_endpoint"]
+    authorization_endpoint = oidc_config.get("authorization_endpoint")
+    await asyncio.to_thread(require_public_https_endpoint, authorization_endpoint, "authorization_endpoint")
 
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
@@ -190,10 +214,11 @@ async def handle_sso_callback(
         )
 
     oidc_config = await _fetch_oidc_config(conn.issuer_url)
-    token_endpoint = oidc_config["token_endpoint"]
+    token_endpoint = oidc_config.get("token_endpoint")
+    await asyncio.to_thread(require_public_https_endpoint, token_endpoint, "token_endpoint")
 
     client_secret = decrypt(conn.client_secret_encrypted)
-    async with httpx.AsyncClient(timeout=15) as http:
+    async with guarded_http_client(internal=False, timeout=15.0) as http:
         token_response = await http.post(
             token_endpoint,
             data={
@@ -226,6 +251,7 @@ async def handle_sso_callback(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="IdP discovery missing jwks_uri",
         )
+    await asyncio.to_thread(require_public_https_endpoint, jwks_uri, "jwks_uri")
     claims = _verify_and_decode_id_token(
         id_token=id_token,
         jwks_uri=jwks_uri,

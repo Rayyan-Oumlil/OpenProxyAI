@@ -93,11 +93,12 @@ class GuardedTransport(httpx.AsyncBaseTransport):
 
 def guarded_http_client(
 	*, internal: bool, resolver: Resolver | None = None, verify=True, inner: httpx.AsyncBaseTransport | None = None,
+	timeout: httpx.Timeout | float | None = None,
 ) -> httpx.AsyncClient:
 	return httpx.AsyncClient(
 		transport=GuardedTransport(internal=internal, inner=inner, resolver=resolver, verify=verify),
 		follow_redirects=False,
-		timeout=_TIMEOUT,
+		timeout=_TIMEOUT if timeout is None else timeout,
 	)
 
 
