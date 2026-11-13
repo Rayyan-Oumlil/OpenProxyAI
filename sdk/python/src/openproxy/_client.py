@@ -16,6 +16,16 @@ from .resources.chat import SyncChatResource
 from .resources.embeddings import SyncEmbeddingsResource
 from .resources.api_keys import SyncApiKeysResource
 from .resources.analytics import SyncAnalyticsResource
+from .resources.gateway import (
+    SyncModelsResource,
+    SyncRerankResource,
+    SyncImagesResource,
+    SyncAudioResource,
+    SyncResponsesResource,
+    SyncFeedbackResource,
+    SyncFilesResource,
+    SyncBatchesResource,
+)
 
 
 class OpenProxy:
@@ -31,13 +41,21 @@ class OpenProxy:
         self.base_url = base_url.rstrip("/")
         self._http = httpx.Client(
             base_url=self.base_url,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {api_key}"},
             timeout=timeout,
         )
         self.chat = SyncChatResource(self)
         self.embeddings = SyncEmbeddingsResource(self)
         self.api_keys = SyncApiKeysResource(self)
         self.analytics = SyncAnalyticsResource(self)
+        self.models = SyncModelsResource(self)
+        self.rerank = SyncRerankResource(self)
+        self.images = SyncImagesResource(self)
+        self.audio = SyncAudioResource(self)
+        self.responses = SyncResponsesResource(self)
+        self.feedback = SyncFeedbackResource(self)
+        self.files = SyncFilesResource(self)
+        self.batches = SyncBatchesResource(self)
 
     def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
         for attempt in range(MAX_RETRIES + 1):

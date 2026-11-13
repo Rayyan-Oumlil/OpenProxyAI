@@ -18,9 +18,11 @@ class AuthError(OpenProxyError):
 class PolicyViolationError(OpenProxyError):
     """HTTP 446 — request or response blocked by policy (older gateways used 403)."""
 
-    def __init__(self, message: str, reason_code: str | None = None, triggered_rules: list[str] | None = None, status_code: int = 446, **kwargs):
+    def __init__(self, message: str, reason_code: str | None = None, triggered_rules: list[str] | None = None, status_code: int = 446, explanation: str | None = None, **kwargs):
         super().__init__(message, status_code=status_code, **kwargs)
         self.reason_code = reason_code
+        # One plain sentence the gateway writes for an end user; safe to show.
+        self.explanation = explanation
         self.triggered_rules = triggered_rules or []
 
 

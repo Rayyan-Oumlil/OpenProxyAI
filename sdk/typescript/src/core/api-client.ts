@@ -12,6 +12,10 @@ export interface RequestOptions {
   method: string;
   path: string;
   body?: unknown;
+  /** Multipart upload; the runtime sets the content type and boundary. */
+  form?: FormData;
+  /** Return the body as bytes instead of parsing JSON (audio, file content). */
+  raw?: boolean;
   stream?: boolean;
 }
 
@@ -43,7 +47,7 @@ async function parseError(response: Response): Promise<OpenProxyError> {
   if (status === 446 || (status === 403 && errorCode === 'policy_violation')) {
     const reason = (body['reason_code'] as string) ?? 'unknown';
     const rules = (body['triggered_rules'] as string[]) ?? [];
-    return new PolicyViolationError(reason, rules, status);
+    return new PolicyViolationError(reason, rules, status, body['explanation'] as string | undefined);
   }
 
   if (status === 401 || status === 403) {
@@ -86,20 +90,22 @@ export class APIClient {
 
   async request<T>(options: RequestOptions): Promise<{ data: T; gateway: GatewayMeta }> {
     const url = `${this.baseUrl}${options.path}`;
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.apiKey}`,
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = { Authorization: `Bearer ${this.apiKey}` };
+    if (options.form === undefined) headers['Content-Type'] = 'application/json';
+    const body =
+      options.form ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined);
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const response = await fetch(url, {
         method: options.method,
         headers,
-        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+        body,
       });
 
       if (response.ok) {
-        const data = (await response.json()) as T;
+        const data = (options.raw
+          ? new Uint8Array(await response.arrayBuffer())
+          : await response.json()) as T;
         const gateway = extractGatewayMeta(response.headers);
         return { data, gateway };
       }

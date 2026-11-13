@@ -41,6 +41,7 @@ def _raise_for_status(response: httpx.Response) -> None:
         raise PolicyViolationError(
             detail,
             reason_code=body.get("reason_code"),
+            explanation=body.get("explanation"),
             triggered_rules=body.get("triggered_rules", []),
             status_code=response.status_code,
             response=body,
