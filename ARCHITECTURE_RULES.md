@@ -1,7 +1,7 @@
-# OpenProxyAI — Project Context
+# OpenProxyAI — Architecture Rules
 
 ## What This Is
-Enterprise LLM proxy / AI control plane. Sits between org users and LLM providers (OpenAI, Anthropic, Azure, Mistral, etc.). Single API key, full audit trail, policy enforcement, cost control, compliance.
+Enterprise LLM gateway / AI control plane. Sits between applications and LLM providers (OpenAI, Anthropic, Azure, Mistral, etc.) and MCP tool servers. Single API key, full audit trail, policy enforcement, data-class routing, cost control, compliance.
 
 ## Stack
 | Layer | Technology |
@@ -13,7 +13,7 @@ Enterprise LLM proxy / AI control plane. Sits between org users and LLM provider
 | Analytics | ClickHouse 24 (sidecar — may fail silently) |
 | Observability | Langfuse, Prometheus (sidecars — may fail silently) |
 | Admin UI | React + Vite + TypeScript + shadcn/ui (`admin-console/`) |
-| Deploy | Docker Compose (local), Helm chart (prod) |
+| Deploy | Docker Compose (local and demo), Helm chart (self-hosted Kubernetes) |
 
 ## Dev Commands
 
@@ -56,7 +56,7 @@ backend/
     models/          # SQLAlchemy ORM models
     schemas/         # Pydantic request/response schemas
     middleware/      # cors.py, request_id.py, timing.py
-  alembic/versions/  # 30 migration files
+  alembic/versions/  # 57 migration files
 admin-console/
   src/
     api/             # Typed API client
@@ -64,20 +64,28 @@ admin-console/
     features/        # Feature-scoped components
     state/           # AuthContext and global state
     lib/             # Utilities (jwt.ts, etc.)
-deploy/              # Helm chart, GitHub Actions CI/CD
+deploy/              # Helm chart, cluster issuer
+docs/  docs-site/   # Operator docs; public site and blog
+scripts/             # Demo smoke tests (smoke.sh, smoke_*.py)
+web-app/             # Marketing website
 sdk/                 # Python + TypeScript SDKs
 ```
 
 ## Request Pipeline (every request, in order)
 ```
-Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Store → Log (async)
+Auth → request_gate.admit (policy, classify, route, team check, rate limit; refusals) → Cache Check → LiteLLM → Cache Store → Log (async)
 ```
+`request_gate.admit` is the one admission step shared by chat and every other endpoint (embeddings, rerank, images, audio, Responses, batch lines, conversation turns, eval runs). Chat keeps its own experiments, cache, templates, taint and streaming around it. `tests/test_chat_parity.py` and `scripts/mutate_gate.py` guard that they stay identical.
 
 ## Key Files
 | File | Purpose |
 |---|---|
 | `backend/app/routes/proxy.py` | Core proxy endpoints (`/v1/chat/completions`, `/v1/embeddings`, `/v1/models`) |
 | `backend/app/services/llm_service.py` | LiteLLM wrapper, provider key rotation, experiments, streaming |
+| `backend/app/services/request_gate.py` | The shared admission step (policy, classification, routing, refusals, rate limits) |
+| `backend/app/services/modality_pipeline.py` + `modalities.py` | Embeddings, rerank, images, audio, Responses through the gate |
+| `backend/app/services/routing_service.py` | Authorized-set routing from the model registry |
+| `backend/app/services/model_runner.py` | One governed call path for eval runs, batches and conversations |
 | `backend/app/services/policy_service.py` | Hook system (`before_request` / `after_request` guardrails), `evaluate_tool_call` for MCP |
 | `backend/app/routes/mcp.py` + `services/mcp_gateway.py` | MCP gateway (`POST /v1/mcp`): aggregation, tool policy, audit |
 | `backend/app/services/cache_service.py` | 3-tier cache (L1 TTLCache, L2 Redis, L3 pgvector semantic) |
@@ -87,19 +95,8 @@ Auth → Rate Limit → Policy (hooks) → Cache Check → LiteLLM → Cache Sto
 | `backend/app/config.py` | `PLAN_FEATURES` dict, `AIRGAP_MODE` flag, all env-based settings |
 | `backend/app/main.py` | Lifespan (DB + Redis init), APScheduler jobs, middleware stack |
 
-## Migration Chain (30 files; regenerate with `cd backend && alembic history`)
-```
-54c0ed90559e → b3e8d87fd2f1 → c4f9a12e8b7d → d4e7f12a9c3b → e5f8a23b4c1d
-→ f1a9c3e7d5b2 → a2b3c4d5e6f7 → a3b4c5d6e7f8 → b1c2d3e4f5a6 → c3d4e5f6a7b8
-→ e6f7a8b9c0d1 → d4e5f6a7b8c9 → e6f7a34b9d0c (branchpoint)
-    ├─ f7a8b9c0d1e2 → g8b9c0d1e2f3 → h9c0d1e2f3a4 → i0d1e2f3a4b5 → j1e2f3a4b5c6
-    └─ f8a9b0c1d2e3 (RLS policies)
-→ k2f3a4b5c6d7 (merge) → l3g4h5i6j7k8 → m4h5i6j7k8l9 → n5i6j7k8l9m0
-→ o6j7k8l9m0n1 → q8l9m0n1o2p3 → r9m0n1o2p3q4 → s0n1o2p3q4r5 → t1o2p3q4r5s6
-→ u2p3q4r5s6t7 (mcp_servers) → v3q4r5s6t7u8 (request_scores RLS)
-→ w4r5s6t7u8v9 (proxy:mcp backfill) → x5s6t7u8v9w0 (mcp_tools pinning) → y6t7u8v9w0x1 (scan_mode)
-→ z7u8v9w0x1y2 (tool_grants) → a8v9w0x1y2z3 (mcp_bundles) → b9w0x1y2z3a4 (tool_trust_rules) → c0x1y2z3a4b5 (provider key api_base, max_data_class) → d1y2z3a4b5c6 (model_registry) → e1z2a3b4c5d6 (registry key link is same-org, head)
-```
+## Migrations
+Alembic, 57 revisions in `backend/alembic/versions/`. List the chain with `cd backend && alembic history`; the head is a merge (`v7w8x9y0z1a2`). Two branches must never both end in a head: if `alembic heads` shows more than one, add a merge revision. See `docs/architecture/database-schema.md`.
 
 ## Architecture Rules (Critical)
 
@@ -126,6 +123,16 @@ Core services (DB, Redis, LiteLLM, policy, rate limiting) **must** fail hard.
 
 ### LiteLLM Usage
 Use `litellm.acompletion()` and `litellm.aembedding()` as library calls. Do NOT replicate their proxy server pattern.
+
+### Governance Rules (no silent anything)
+- **One admission step.** A new endpoint that sends anything to a model joins `request_gate.admit` and the guardrail suite in `tests/test_modalities_pipeline.py`. Grep every `acompletion`, `aembedding` and outbound `httpx` call when adding a guard: a path that bypasses it is the usual bug.
+- **Every fallback comes from the authorized set.** Routing returns the requested model if authorized, otherwise nothing. No silent fallback, no experiment-variant swap that skips the check. An empty set is a 446 with zero upstream calls.
+- **Fail closed on unknown shapes.** Walk whole structures, not one field; an unknown value counts as the most restrictive; use `fullmatch` for allowlist regexes.
+- **Long-lived work re-checks per unit.** Streams, batches, realtime sessions and conversations re-apply budget, owner status and policy per unit of work, not once at the start.
+- **Outbound calls use the guarded client.** Provider endpoints, MCP servers, webhooks and Vault go through `guarded_http_client` (validated address, no redirects, TLS against the hostname). A request body never chooses an endpoint or credentials.
+- **Refusals carry two things:** a stable `reason_code` and a one-sentence `explanation` that names no rule detail (`refusal_explanations.py`).
+- **Never price at zero.** An unpriced model or a broken stream is charged from its tokens or a flat estimate, and audited.
+- **Admin visibility without content.** Admin pages show metadata, counts and cost, never message or file contents.
 
 ### Provider Key Rotation
 Multiple provider keys per provider — weighted random rotation in `llm_service.py`. Keys stored in `llm_provider_keys` table with `data_region` for data residency filtering.
@@ -165,3 +172,5 @@ Multiple provider keys per provider — weighted random rotation in `llm_service
 - **Never** fork or replicate LiteLLM's proxy server — use it as a library only
 - **Never** add a new route without wiring it in `main.py` via `app.include_router()`
 - **Never** change a migration file after it has been applied — always create a new one
+- **Never** put a test-fixture password literal in a commit (generate it per run); the secret scan covers history
+- **Never** claim "WCAG compliant": say "automated WCAG 2.1 A/AA checks pass"

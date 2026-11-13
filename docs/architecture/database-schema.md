@@ -406,19 +406,489 @@ The schema is versioned with Alembic (`backend/alembic/versions/`, 57 revisions)
 
 ## Tables Added After the Initial Schema
 
-Column-level detail for these is in their models (`backend/app/models/`). Org-scoped tables use row-level security.
+Generated from the SQLAlchemy models (`backend/app/models/`), so it matches the code. Org-scoped tables use row-level security. Later migrations also add columns to the tables above (provider-key `api_base`, `max_data_class` and secret-store sources, request-log routing and stage metadata, plan names `community`, `team`, `business`, `enterprise`); the models are the reference for those. `admin_audit_logs`, `conversation_context_packages` and the request log are append-only for the application role.
 
-| Area | Tables |
-|---|---|
-| Teams | `teams` (members and budgets), `team_id` on `api_keys` |
-| Experiments and evaluation | `experiments`, `experiment_variants`, `request_scores`, `request_payloads`, `datasets`, `dataset_items`, `evaluators`, `eval_runs`, `eval_run_items` |
-| Governance | `model_registry`, `policy_plugins`, `admin_audit_logs` (append-only) |
-| MCP gateway | `mcp_servers`, `mcp_tools`, `mcp_tool_versions`, `mcp_bundles`, `mcp_bundle_tools`, `api_key_mcp_bundles`, `tool_grants`, `tool_trust_rules` |
-| Conversations | `conversations`, `conversation_turns`, `conversation_context_packages` (append-only), `spaces` |
-| Batches | `batch_files`, `batch_jobs`, `batch_results` |
-| Identity and billing | `scim_tokens`, `stripe_events` |
+### Teams
 
-Later migrations also add: provider-key `api_base`, `max_data_class` and secret-store sources (Vault, AWS Secrets Manager); the D3 plan rename (`community`, `team`, `business`, `enterprise`); and the `app_user` role grants that make log tables append-only.
+#### Table: teams
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| name | varchar(255) | no |  |
+| budget_monthly_usd | numeric(10, 2) | yes |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+| created_at | timestamp without time zone | no | default now() |
+| updated_at | timestamp without time zone | no | default now() |
+
+#### Table: team_members
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| team_id | uuid | no | primary key; -> teams.id (CASCADE) |
+| user_id | uuid | no | primary key; -> users.id (CASCADE) |
+
+### Experiments and scoring
+
+#### Table: experiments
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| name | varchar(255) | no |  |
+| target_model | varchar(100) | no |  |
+| is_active | boolean | no | default true |
+| mode | varchar(10) | no | default static |
+| metric | varchar(100) | yes |  |
+| min_samples_per_variant | integer | no | default 30 |
+| delta | numeric(5, 4) | no | default 0.0100 |
+| weight_floor | integer | no | default 5 |
+| winner_variant_id | uuid | yes | -> experiment_variants.id (SET NULL) |
+| stopped_reason | varchar(20) | yes |  |
+| adaptive_error | text | yes |  |
+| adaptive_updated_at | timestamp without time zone | yes |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+| created_at | timestamp without time zone | no | default now() |
+| updated_at | timestamp without time zone | no | default now() |
+
+#### Table: experiment_variants
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| experiment_id | uuid | no | -> experiments.id (CASCADE) |
+| model | varchar(100) | no |  |
+| traffic_weight | integer | no | default 50 |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: request_scores
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| request_id | uuid | no |  |
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| experiment_id | uuid | yes | -> experiments.id (CASCADE) |
+| variant_id | uuid | yes | -> experiment_variants.id (CASCADE) |
+| score_name | varchar(100) | no |  |
+| value | numeric(10, 4) | no |  |
+| source | varchar(20) | no | default console |
+| comment | text | yes |  |
+| user_id | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: request_payloads
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| request_id | uuid | no |  |
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| messages | jsonb | no |  |
+| output | text | no |  |
+| redacted | boolean | no | default false |
+| created_at | timestamp without time zone | no | default now() |
+| expires_at | timestamp with time zone | no |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+### Datasets and evaluation
+
+#### Table: datasets
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| name | varchar(100) | no |  |
+| description | varchar(500) | yes |  |
+| created_by | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: dataset_items
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| dataset_id | uuid | no | -> datasets.id (CASCADE) |
+| request_id | uuid | yes |  |
+| messages | jsonb | no |  |
+| output | text | yes |  |
+| expected | text | yes |  |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: evaluators
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| name | varchar(100) | no |  |
+| type | varchar(20) | no |  |
+| config | jsonb | no |  |
+| created_by | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: eval_runs
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| dataset_id | uuid | yes | -> datasets.id (SET NULL) |
+| evaluator_id | uuid | yes | -> evaluators.id (SET NULL) |
+| evaluator_snapshot | jsonb | no |  |
+| prompt_template_id | uuid | yes | -> prompt_templates.id (SET NULL) |
+| prompt_fingerprint | varchar(64) | yes |  |
+| candidate_model | varchar(100) | no |  |
+| system_prompt | text | yes |  |
+| status | varchar(20) | no | default queued |
+| total_items | integer | no | default 0 |
+| completed_items | integer | no | default 0 |
+| failed_items | integer | no | default 0 |
+| passed_items | integer | no | default 0 |
+| score_sum | numeric(14, 4) | no | default 0 |
+| cost_usd | numeric(12, 6) | no | default 0 |
+| max_cost_usd | numeric(12, 6) | no |  |
+| error | text | yes |  |
+| created_by | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| started_at | timestamp without time zone | yes |  |
+| finished_at | timestamp without time zone | yes |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: eval_run_items
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| run_id | uuid | no | -> eval_runs.id (CASCADE) |
+| dataset_item_id | uuid | yes | -> dataset_items.id (SET NULL) |
+| output | text | yes |  |
+| score | numeric(6, 4) | yes |  |
+| passed | boolean | yes |  |
+| reason | text | yes |  |
+| error | text | yes |  |
+| cost_usd | numeric(12, 6) | no | default 0 |
+| latency_ms | integer | yes |  |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+### Governance
+
+#### Table: model_registry
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> llm_provider_keys.org_id (SET NULL (provider_key_id)); -> organizations.id (CASCADE) |
+| model_id | varchar(200) | no |  |
+| provider | varchar(50) | no |  |
+| provider_key_id | uuid | yes | -> llm_provider_keys.id (SET NULL (provider_key_id)) |
+| max_data_class | varchar(20) | no | default internal |
+| regions | json | no |  |
+| risk_rating | varchar(10) | no | default medium |
+| retention_days | integer | yes |  |
+| trains_on_data | boolean | no | default false |
+| capabilities | json | no |  |
+| cost_tier | varchar(10) | yes |  |
+| owner | varchar(200) | yes |  |
+| enabled | boolean | no | default true |
+| created_at | timestamp without time zone | no | default now() |
+| updated_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_model_registry_risk`: `risk_rating IN ('low', 'medium', 'high')`
+
+Check `ck_model_registry_cost_tier`: `cost_tier IS NULL OR cost_tier IN ('low', 'medium', 'high')`
+
+Check `ck_model_registry_data_class`: `max_data_class IN ('public', 'internal', 'confidential', 'secret')`
+
+Check `ck_model_registry_retention`: `retention_days IS NULL OR retention_days >= 0`
+
+#### Table: policy_plugins
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| name | varchar(60) | no |  |
+| module | bytea | no |  |
+| sha256 | varchar(64) | no |  |
+| size_bytes | integer | no |  |
+| enabled | boolean | no | default true |
+| created_by | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_policy_plugins_size`: `size_bytes > 0 AND size_bytes <= 1048576`
+
+#### Table: admin_audit_logs
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| actor_id | uuid | yes | -> users.id (SET NULL) |
+| actor_email | varchar(255) | no |  |
+| action | varchar(100) | no |  |
+| resource_type | varchar(50) | no |  |
+| resource_id | varchar(255) | yes |  |
+| before | jsonb | yes |  |
+| after | jsonb | yes |  |
+| ip_address | varchar(45) | yes |  |
+| created_at | timestamp with time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+### MCP gateway
+
+#### Table: mcp_servers
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| name | varchar(40) | no |  |
+| url | text | no |  |
+| auth_header_encrypted | text | yes |  |
+| pin_mode | varchar(10) | no | default warn |
+| scan_mode | varchar(10) | no | default log |
+| is_active | boolean | no | default true |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: mcp_tools
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| server_id | uuid | no | -> mcp_servers.id (CASCADE) |
+| name | varchar(200) | no |  |
+| definition | jsonb | no |  |
+| current_hash | varchar(64) | no |  |
+| approved_hash | varchar(64) | yes |  |
+| approved_snapshot | jsonb | yes |  |
+| status | varchar(10) | no | default pending |
+| approved_by | uuid | yes | -> users.id (SET NULL) |
+| approved_at | timestamp without time zone | yes |  |
+| first_seen_at | timestamp without time zone | no | default now() |
+| last_seen_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_mcp_tools_status`: `status IN ('pending', 'approved', 'drifted', 'blocked')`
+
+#### Table: mcp_tool_versions
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| tool_id | uuid | no | -> mcp_tools.id (CASCADE) |
+| hash | varchar(64) | no |  |
+| definition | jsonb | no |  |
+| seen_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: mcp_bundles
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| slug | varchar(40) | no |  |
+| name | varchar(100) | no |  |
+| description | text | yes |  |
+| is_active | boolean | no | default true |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_mcp_bundles_slug`: `slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' AND char_length(slug) <= 40`
+
+#### Table: mcp_bundle_tools
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| bundle_id | uuid | no | -> mcp_bundles.id (CASCADE) |
+| tool_pattern | varchar(200) | no |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: api_key_mcp_bundles
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| api_key_id | uuid | no | primary key; -> api_keys.id (CASCADE) |
+| bundle_id | uuid | no | primary key; -> mcp_bundles.id (CASCADE) |
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| created_at | timestamp without time zone | no | default now() |
+
+#### Table: tool_grants
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| subject_type | varchar(10) | no |  |
+| subject_id | varchar(64) | no |  |
+| tool_pattern | varchar(200) | no |  |
+| effect | varchar(5) | no |  |
+| created_by | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_tool_grants_effect`: `effect IN ('allow', 'deny')`
+
+Check `ck_tool_grants_subject_type`: `subject_type IN ('role', 'team', 'user', 'api_key')`
+
+#### Table: tool_trust_rules
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| tool_pattern | varchar(200) | no |  |
+| rule | varchar(20) | no |  |
+| created_by | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_tool_trust_rules_rule`: `rule IN ('trusted_output', 'sink')`
+
+### Conversations
+
+#### Table: conversations
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| owner_id | uuid | no | -> users.id (CASCADE) |
+| team_id | uuid | yes | -> teams.id (SET NULL) |
+| title | varchar(200) | no |  |
+| system_prompt | text | yes |  |
+| visibility | varchar(10) | no | default private |
+| tags | jsonb | no | default [] |
+| space_id | uuid | yes | -> spaces.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| updated_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_conversations_visibility`: `visibility IN ('private', 'team', 'org')`
+
+#### Table: conversation_turns
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| conversation_id | uuid | no | -> conversations.id (CASCADE) |
+| seq | integer | no |  |
+| role | varchar(10) | no |  |
+| content | text | no |  |
+| data_class | varchar(20) | no |  |
+| model | varchar(100) | yes |  |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_conversation_turns_role`: `role IN ('user', 'assistant')`
+
+#### Table: conversation_context_packages
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| conversation_id | uuid | no | -> conversations.id (CASCADE) |
+| assistant_turn_id | uuid | yes | -> conversation_turns.id (SET NULL) |
+| model | varchar(100) | no |  |
+| data_class | varchar(20) | no |  |
+| routing_mode | varchar(10) | no |  |
+| included_turn_ids | jsonb | no |  |
+| withheld | jsonb | no |  |
+| would_withhold | jsonb | no | default [] |
+| estimated_tokens | integer | no |  |
+| payload_sha256 | varchar(64) | no |  |
+| outcome | varchar(10) | no |  |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: spaces
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| owner_id | uuid | no | -> users.id (CASCADE) |
+| team_id | uuid | yes | -> teams.id (SET NULL) |
+| name | varchar(100) | no |  |
+| created_at | timestamp without time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+### Batches
+
+#### Table: batch_files
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| user_id | uuid | no | -> users.id (CASCADE) |
+| filename | varchar(255) | no |  |
+| purpose | varchar(10) | no |  |
+| size_bytes | integer | no |  |
+| line_count | integer | no |  |
+| content | bytea | no |  |
+| created_at | timestamp without time zone | no | default now() |
+| expires_at | timestamp without time zone | no |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_batch_files_purpose`: `purpose IN ('batch', 'output')`
+
+Check `ck_batch_files_size`: `size_bytes >= 0 AND size_bytes <= 16777216`
+
+#### Table: batch_jobs
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| user_id | uuid | no | -> users.id (CASCADE) |
+| input_file_id | uuid | yes | -> batch_files.id (SET NULL) |
+| output_file_id | uuid | yes | -> batch_files.id (SET NULL) |
+| endpoint | varchar(40) | no |  |
+| status | varchar(20) | no | default validating |
+| total | integer | no |  |
+| completed | integer | no | default 0 |
+| failed | integer | no | default 0 |
+| cost_usd | numeric(12, 6) | no | default 0 |
+| max_cost_usd | numeric(12, 6) | no |  |
+| error | text | yes |  |
+| metadata | jsonb | no | default {} |
+| created_at | timestamp without time zone | no | default now() |
+| started_at | timestamp without time zone | yes |  |
+| finished_at | timestamp without time zone | yes |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+Check `ck_batch_jobs_status`: `status IN ('validating', 'in_progress', 'completed', 'failed', 'cancelled', 'budget_exceeded')`
+
+#### Table: batch_results
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| job_id | uuid | no | -> batch_jobs.id (CASCADE) |
+| idx | integer | no |  |
+| custom_id | varchar(64) | no |  |
+| status_code | integer | no |  |
+| body | jsonb | yes |  |
+| error | text | yes |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+### Identity and billing
+
+#### Table: scim_tokens
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| org_id | uuid | no | -> organizations.id (CASCADE) |
+| token_prefix | varchar(16) | no |  |
+| token_hash | varchar(64) | no |  |
+| created_by | uuid | yes | -> users.id (SET NULL) |
+| created_at | timestamp without time zone | no | default now() |
+| last_used_at | timestamp without time zone | yes |  |
+| revoked_at | timestamp without time zone | yes |  |
+| id | uuid | no | primary key; default gen_random_uuid() |
+
+#### Table: stripe_events
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| event_id | varchar(255) | no |  |
+| processed_at | timestamp with time zone | no | default now() |
+| id | uuid | no | primary key; default gen_random_uuid() |
 
 ## Row-Level Security (RLS)
 

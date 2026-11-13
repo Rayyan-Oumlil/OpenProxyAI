@@ -55,7 +55,7 @@ In OpenProxyAI these are separate code paths with one shared decision behind the
 Honesty matters more than the claim:
 
 - **It trusts the classifier.** The rule keeps a request inside the set that fits its data class. It does not make the class right. If the detector misses a sensitive value, the request is routed as if it were less sensitive. The built-in detector finds SSNs, payment cards and emails; a bare nine-digit number or a spelled-out email is not detected. Callers can raise a request's class with a header but never lower it.
-- **The retry paths are not yet property-tested end to end.** The decision is tested with random inputs. Random upstream failures across every retry path is a test I would add next.
+- **The retry paths are property-tested, but a test is not a proof.** Random upstream failures across every retry path must never produce a call outside the authorized set; the property tests also fail when the code is deliberately broken. That makes a regression loud, not impossible.
 - **It only governs traffic that goes through it.** A gateway cannot stop someone calling a provider directly. That needs network controls too.
 
 ## Questions to ask any gateway
