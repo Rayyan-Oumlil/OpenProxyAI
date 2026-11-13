@@ -43,9 +43,9 @@ const LABEL: Record<BatchStatus, string> = {
   cancelled: "Cancelled",
   budget_exceeded: "Stopped at the cap",
 };
-const VARIANT: Record<BatchStatus, "success" | "error" | "warning" | "muted" | "policy"> = {
-  validating: "policy",
-  in_progress: "policy",
+const VARIANT: Record<BatchStatus, "default" | "success" | "error" | "warning" | "muted"> = {
+  validating: "default",
+  in_progress: "default",
   completed: "success",
   failed: "error",
   cancelled: "muted",
@@ -54,6 +54,39 @@ const VARIANT: Record<BatchStatus, "success" | "error" | "warning" | "muted" | "
 
 export const isActive = (job: BatchJob) =>
   job.status === "validating" || job.status === "in_progress";
+
+/** Lines run so far as a bar, with the numbers beside it so colour is never the only signal. */
+export function JobProgress({ job }: { job: BatchJob }) {
+  const done = job.completed + job.failed;
+  const pct = (n: number) => (job.total > 0 ? Math.min(100, (n / job.total) * 100) : 0);
+  return (
+    <div className="job-progress">
+      <div
+        className="job-progress__track"
+        role="progressbar"
+        aria-label={`Lines run for the batch job started by ${job.created_by ?? "a deleted user"}`}
+        aria-valuemin={0}
+        aria-valuemax={job.total}
+        aria-valuenow={done}
+        aria-valuetext={`${done} of ${job.total} lines${job.failed ? `, ${job.failed} failed` : ""}`}
+      >
+        <span className="job-progress__ok" style={{ width: `${pct(job.completed)}%` }} />
+        <span className="job-progress__failed" style={{ width: `${pct(job.failed)}%` }} />
+      </div>
+      <span className="job-progress__text">
+        {done} / {job.total}
+        {job.failed ? ` (${job.failed} failed)` : ""}
+      </span>
+    </div>
+  );
+}
+
+/** One short status sentence for assistive technology; it changes when the count of running jobs does, without moving focus. */
+export function runningAnnouncement(jobs: BatchJob[] | undefined): string {
+  const running = jobs?.filter(isActive).length ?? 0;
+  if (running === 0) return "No batch jobs are running.";
+  return `${running} batch ${running === 1 ? "job is" : "jobs are"} running.`;
+}
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -103,16 +136,14 @@ export function BatchJobsPage() {
     {
       key: "progress",
       header: "Lines",
-      align: "right",
-      mono: true,
-      cell: (j) =>
-        `${j.completed + j.failed} / ${j.total}${j.failed ? ` (${j.failed} failed)` : ""}`,
+      cell: (j) => <JobProgress job={j} />,
     },
     {
       key: "cost",
       header: "Cost / cap",
       align: "right",
       mono: true,
+      nowrap: true,
       cell: (j) => `${formatCost(j.cost_usd)} / ${formatCost(j.max_cost_usd)}`,
     },
     {
@@ -133,7 +164,7 @@ export function BatchJobsPage() {
         isActive(j) ? (
           <button
             type="button"
-            className="btn-outline btn-small"
+            className="btn-outline btn-small job-cancel"
             disabled={cancel.isPending}
             onClick={async () => {
               if (
@@ -159,6 +190,9 @@ export function BatchJobsPage() {
         title="Batch jobs"
         description="Jobs your applications started with /v1/batches. Every line ran under your policy, routing and budget; this page shows progress and cost, never the content."
       />
+      <p role="status" aria-atomic="true" className="sr-only">
+        {runningAnnouncement(jobs.data)}
+      </p>
       <DataTable
         caption="Batch jobs"
         columns={columns}

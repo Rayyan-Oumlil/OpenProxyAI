@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfirmProvider } from "../../components/ui/ConfirmDialog";
 import { ScoresPage } from "../evaluation/ScoresPage";
 import { AnalyticsQueryPage, buildSpec } from "./AnalyticsQueryPage";
-import { BatchJobsPage } from "./BatchJobsPage";
+import { BatchJobsPage, runningAnnouncement } from "./BatchJobsPage";
 import { PolicyPluginsPage, toBase64 } from "./PolicyPluginsPage";
 
 const auth = vi.hoisted(() => ({ role: "admin" }));
@@ -326,6 +326,10 @@ describe("batch jobs", () => {
     get.mockResolvedValue([JOB, { ...JOB, id: "b2", status: "budget_exceeded", completed: 60, failed: 0, total: 100, error: "The spending cap was reached." }]);
     renderIt(<BatchJobsPage />);
     expect(await screen.findByText("13 / 40 (1 failed)")).toBeTruthy();
+    const bar = screen.getAllByRole("progressbar")[0];
+    expect(bar.getAttribute("aria-valuenow")).toBe("13");
+    expect(bar.getAttribute("aria-valuemax")).toBe("40");
+    expect(bar.getAttribute("aria-valuetext")).toBe("13 of 40 lines, 1 failed");
     expect(screen.getByText("Running")).toBeTruthy();
     expect(screen.getByText("Stopped at the cap")).toBeTruthy();
     expect(screen.getByText("The spending cap was reached.")).toBeTruthy();
@@ -353,5 +357,15 @@ describe("batch jobs", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Cancel/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Keep|Close|No|Dismiss|Back/i }));
     expect(post).not.toHaveBeenCalled();
+  });
+});
+
+describe("runningAnnouncement", () => {
+  it("says how many jobs run, in one sentence, and when none do", () => {
+    const job = (status: string) => ({ ...JOB, status }) as never;
+    expect(runningAnnouncement(undefined)).toBe("No batch jobs are running.");
+    expect(runningAnnouncement([job("completed")])).toBe("No batch jobs are running.");
+    expect(runningAnnouncement([job("in_progress")])).toBe("1 batch job is running.");
+    expect(runningAnnouncement([job("validating"), job("in_progress"), job("failed")])).toBe("2 batch jobs are running.");
   });
 });

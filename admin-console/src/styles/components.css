@@ -1422,3 +1422,39 @@ textarea:focus-visible {
   display: grid;
   gap: var(--space-3);
 }
+
+/* Batch jobs: lines run so far. Numbers sit beside the bar so colour is never the only signal. */
+.job-progress {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 9rem;
+}
+
+.job-progress__track {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+}
+
+.job-progress__ok {
+  background: var(--accent);
+}
+
+.job-progress__failed {
+  background: var(--err);
+}
+
+.job-progress__text {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 0.75rem);
+}
+
+/* Touch targets: 44px on touch screens. */
+@media (pointer: coarse) {
+  .job-cancel {
+    min-height: 44px;
+  }
+}
