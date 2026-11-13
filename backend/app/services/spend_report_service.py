@@ -10,6 +10,7 @@ import httpx
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.provider_client import guarded_http_client
 from app.config import settings
 from app.database import AsyncSessionLocal, set_session_org_id
 from app.models.organization import Organization
@@ -106,7 +107,7 @@ Total tokens: {total_tokens:,}
 
 async def _send_to_slack(webhook_url: str, payload: dict) -> bool:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with guarded_http_client(internal=False, timeout=10.0) as client:
             r = await client.post(webhook_url, json=payload)
             return r.status_code == 200
     except Exception as e:
