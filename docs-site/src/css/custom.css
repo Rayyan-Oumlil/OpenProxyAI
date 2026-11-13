@@ -52,3 +52,153 @@
 .docusaurus-mermaid-container {
   overflow-x: auto;
 }
+
+/* ---------- Reading experience (docs and blog) ---------- */
+:root {
+  --ifm-h1-font-size: 2.25rem;
+  --ifm-h2-font-size: 1.6rem;
+  --ifm-h3-font-size: 1.25rem;
+  --ifm-line-height-base: 1.7;
+  --ifm-heading-font-weight: 600;
+  --ifm-heading-line-height: 1.25;
+}
+
+/* Keep long-form text to a readable measure and balance short headings. */
+.theme-doc-markdown,
+article .markdown {
+  max-width: 72ch;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+.markdown h2 {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--ifm-toc-border-color);
+}
+.markdown > h2:first-child {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+.markdown table {
+  display: table;
+  width: 100%;
+  font-size: 0.9rem;
+}
+.markdown table th {
+  text-align: left;
+  font-weight: 600;
+}
+
+/* ---------- Blog index ---------- */
+/* The list showed 3rem green titles; make the title a heading, not a banner. */
+.blog-list-page article header h2,
+.blog-list-page article header h1 {
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+.blog-list-page article header h2 a,
+.blog-list-page article header h1 a {
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+}
+.blog-list-page article header h2 a:hover,
+.blog-list-page article header h1 a:hover {
+  color: var(--ifm-color-primary);
+}
+.blog-list-page article {
+  padding: 1.5rem 0 1.25rem;
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+.blog-list-page article:first-of-type {
+  padding-top: 0;
+}
+/* Metadata line: quiet, with enough contrast on #06070a (>= 4.5:1). */
+.blog-list-page article header > div,
+.blog-post-page article header > div {
+  color: #a8b0bd;
+  font-size: 0.875rem;
+}
+.blog-list-page article .markdown {
+  color: #c9d0db;
+}
+.blog-list-page article footer a[class*='tag'],
+.blog-list-page .theme-blog-tags-list a,
+article footer .tag_node a {
+  font-size: 0.8rem;
+}
+.blog-list-page article footer a[aria-label],
+.blog-list-page article footer a[href*='/blog/'] {
+  font-weight: 500;
+}
+
+/* Sidebar: current post visible, links not cramped, touch size. */
+.theme-blog-sidebar-item .sidebarItemLink_node,
+[class*='sidebarItemLink'] {
+  display: block;
+  padding: 0.35rem 0;
+  line-height: 1.4;
+  color: #c9d0db;
+}
+[class*='sidebarItemLink']:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+[class*='sidebarItemLinkActive'] {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+/* ---------- Keyboard focus and motion ---------- */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 996px) {
+  .blog-list-page article header h2,
+  .blog-list-page article header h1 {
+    font-size: 1.5rem;
+  }
+  .theme-doc-markdown,
+  article .markdown {
+    max-width: none;
+  }
+}
+
+/* Author byline: readable size, name in body colour (green is for links and actions). */
+article header [class*='authorName'] {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+article header [class*='authorName'] a,
+article header [class*='authorName'] {
+  color: var(--ifm-font-color-base);
+}
+article header [class*='authorTitle'] {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #a8b0bd;
+}
+.blog-list-page article footer {
+  margin-top: 0.75rem;
+}
+.blog-list-page article + article,
+.blog-list-page main > div > article {
+  margin-top: 0;
+}
