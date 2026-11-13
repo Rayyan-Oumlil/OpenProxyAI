@@ -254,3 +254,30 @@ def test_a_body_api_key_never_replaces_the_orgs_key(e2e_client, upstream, make_t
     e2e_client.post(CHAT, json=_body(api_key="sk-attacker"), headers=tenant.headers)
     [call] = upstream_calls(upstream)
     assert call["authorization"] == "Bearer sk-good"
+
+
+# ── no endpoint lets a body choose the provider endpoint or credentials ─────
+
+EVIL = "http://127.0.0.1:9/v1"
+
+
+def test_embeddings_ignores_a_body_endpoint(e2e_client, upstream, make_tenant):
+    tenant = _tenant(make_tenant)
+    response = e2e_client.post("/v1/embeddings", json={"model": "openai/text-embedding-3-small", "input": "hi", "api_base": EVIL, "base_url": EVIL}, headers=tenant.headers)
+    assert response.status_code == 200
+    [call] = upstream_calls(upstream)
+    assert call["authorization"] == "Bearer sk-good"
+
+
+@pytest.mark.parametrize("path,body", [
+    ("/v1/rerank", {"model": "cohere/rerank-english-v3.0", "query": "q", "documents": ["a", "b"]}),
+    ("/v1/images/generations", {"model": "openai/dall-e-3", "prompt": "a cat"}),
+    ("/v1/responses", {"model": "openai/gpt-4o-mini", "input": "hi"}),
+    ("/v1/audio/speech", {"model": "openai/tts-1", "input": "hi", "voice": "alloy"}),
+])
+@pytest.mark.parametrize("field", ["api_base", "base_url", "extra_headers"])
+def test_other_endpoints_reject_a_body_endpoint_and_make_no_call(e2e_client, upstream, make_tenant, path, body, field):
+    tenant = _tenant(make_tenant)
+    response = e2e_client.post(path, json={**body, field: EVIL if field != "extra_headers" else {"x": "y"}}, headers=tenant.headers)
+    assert response.status_code in (400, 422)
+    assert upstream_calls(upstream) == []
