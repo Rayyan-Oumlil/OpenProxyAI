@@ -29,7 +29,10 @@ class RequestIdMiddleware:
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers: list[Any] = list(message.get("headers", []))
-                headers.append((b"x-openproxyai-request-id", rid.encode()))
+                # A route that already stamped its own id (chat, modalities, conversations) wins: a second header would
+                # reach clients as "id1, id2", which POST /v1/feedback cannot parse.
+                if not any(name.lower() == b"x-openproxyai-request-id" for name, _ in headers):
+                    headers.append((b"x-openproxyai-request-id", rid.encode()))
                 message["headers"] = headers
             await send(message)
 

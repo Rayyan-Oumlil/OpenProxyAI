@@ -276,9 +276,11 @@ async def execute_plan(plan: CallPlan, *, redis: Redis | None, org_id: uuid.UUID
 		usage = getattr(response, "usage", None)
 		prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
 		completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-		cost = cost_tracker_service.calculate_cost_usd(response)
+		# The provider has answered. A model LiteLLM cannot price is charged the flat fee and marked an estimate, never turned into a failure.
+		cost, estimated = cost_tracker_service.price_or_fallback(response)
+		metadata = {**plan.metadata, "cost_estimated": True} if estimated else plan.metadata
 		content = (getattr(response.choices[0].message, "content", "") or "") if response.choices else ""
-		await _log(redis, plan.request_id, org_id, user_id, plan.model, plan.provider, plan.metadata, plan.started, status_code=200,
+		await _log(redis, plan.request_id, org_id, user_id, plan.model, plan.provider, metadata, plan.started, status_code=200,
 		           prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost=cost)
 		return RunOutcome(content=content, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, cost_usd=cost, latency_ms=_elapsed_ms(plan.started))
 	except Exception as exc:

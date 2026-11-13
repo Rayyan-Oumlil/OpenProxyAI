@@ -10,6 +10,10 @@ A summary of what's shipped, grouped by build phase. This tracks major capabilit
 
 ## November 2026
 
+- **Fixed (found by testing against a real model):** batch lines, eval runs and conversation turns to a model the gateway cannot price used to fail with a 502 after the provider had already answered. They now return the answer and charge the flat fee, marked as an estimate, as chat does.
+- **Fixed:** every response carried two `X-OpenProxyAI-Request-Id` headers in different formats, which clients saw as "id1, id2" and which `POST /v1/feedback` rejected. There is now one, and it is the id written in the audit log.
+- **Fixed (Python SDK):** `stream=True` failed with `StreamClosed` on a real connection, and the async stream stopped after its first chunk. A refusal on a streamed request now raises the typed error before any chunk.
+
 - **Batch jobs page** — Govern > Batch jobs shows every batch job in your organization with progress, cost against its cap and who started it, and lets an admin cancel a running one. It never shows file contents.
 - **SDKs 0.2.0** — Python and TypeScript SDKs now cover models, rerank, images, audio, Responses, feedback, files and batches, and a policy block exposes the plain-language `explanation`.
 - **CI only** — the repository no longer ships a cloud deploy workflow; pushes and pull requests run tests and builds.

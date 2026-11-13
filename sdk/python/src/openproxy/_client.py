@@ -76,10 +76,17 @@ class OpenProxy:
         raise RuntimeError("Max retries exceeded")
 
     def _stream(self, path: str, json_body: dict) -> SyncStream:
-        response = self._http.stream("POST", path, json=json_body)
-        # Enter the context manager to get the actual response
-        ctx = response.__enter__()
-        return SyncStream(ctx)
+        # send(stream=True) hands back an open response that this object owns. (Entering http.stream() and dropping
+        # the context manager lets the garbage collector close the connection mid-iteration.)
+        request = self._http.build_request("POST", path, json=json_body)
+        response = self._http.send(request, stream=True)
+        if response.status_code >= 400:
+            try:
+                response.read()
+                _raise_for_status(response)
+            finally:
+                response.close()
+        return SyncStream(response)
 
     def close(self):
         self._http.close()

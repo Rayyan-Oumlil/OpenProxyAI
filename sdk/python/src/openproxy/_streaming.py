@@ -55,10 +55,13 @@ class SyncStream:
         self._gateway = _extract_gateway_meta(response.headers)
 
     def __iter__(self) -> Iterator[ChatCompletionChunk]:
-        for line in self._response.iter_lines():
-            chunk = _parse_chunk(line, self._gateway)
-            if chunk is not None:
-                yield chunk
+        try:
+            for line in self._response.iter_lines():
+                chunk = _parse_chunk(line, self._gateway)
+                if chunk is not None:
+                    yield chunk
+        finally:
+            self._response.close()
 
     def __enter__(self):
         return self
@@ -71,15 +74,18 @@ class AsyncStream:
     def __init__(self, response: "httpx.Response"):
         self._response = response
         self._gateway = _extract_gateway_meta(response.headers)
+        # One line iterator for the whole stream: httpx refuses a second aiter_lines() on a response already being read.
+        self._lines = response.aiter_lines()
 
     def __aiter__(self) -> "AsyncStream":
         return self
 
     async def __anext__(self) -> ChatCompletionChunk:
-        async for line in self._response.aiter_lines():
+        async for line in self._lines:
             chunk = _parse_chunk(line, self._gateway)
             if chunk is not None:
                 return chunk
+        await self._response.aclose()
         raise StopAsyncIteration
 
     async def __aenter__(self):
