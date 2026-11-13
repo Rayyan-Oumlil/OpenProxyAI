@@ -14,25 +14,25 @@ export default function AuditTrailSection() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} className="audit-grid">
           <div className="opa-card">
-            <div className="opa-card-head"><span>audit_log · entry #48213</span><span>immutable</span></div>
+            <div className="opa-card-head"><span>audit_log · example entry</span><span>append-only</span></div>
             <pre style={{ padding: 18, fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink)', overflow: 'auto' }}>
               <span style={{ color: 'var(--ink-3)' }}>request_id</span>{'  req_01J3K9A2XM\n'}
               <span style={{ color: 'var(--ink-3)' }}>org</span>{'         acme-corp\n'}
               <span style={{ color: 'var(--ink-3)' }}>team</span>{'        eng-platform\n'}
               <span style={{ color: 'var(--ink-3)' }}>user</span>{'        m.patel@acme.com\n'}
               <span style={{ color: 'var(--ink-3)' }}>model</span>{'       gpt-4o\n'}
-              <span style={{ color: 'var(--ink-3)' }}>policy</span>{'      pii_redact: 1 span redacted\n'}
+              <span style={{ color: 'var(--ink-3)' }}>policy</span>{'      enforce · pass\n'}
               <span style={{ color: 'var(--ink-3)' }}>cost_usd</span>{'    0.0124\n'}
               <span style={{ color: 'var(--ink-3)' }}>logged_at</span>{'   2026-08-08T03:35:41Z\n'}
-              <span style={{ color: 'var(--accent)' }}>replay</span>{'      available'}
+              <span style={{ color: 'var(--accent)' }}>replay</span>{'      open the trace'}
             </pre>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, justifyContent: 'center' }}>
             <p style={{ color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-              Every field above is captured for every request — not sampled, not aggregated after the fact. The full original request and the redacted version sent upstream are both stored, so an auditor can see exactly what left your network and exactly what a policy changed before it did.
+              Every field above is recorded for every request: not sampled, not aggregated after the fact. By default the log keeps metadata (model, tokens, cost, status and the policy decision), not what users typed. Keeping redacted samples of prompts and answers is an opt-in you turn on yourself.
             </p>
             <p style={{ color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-              Entries are replay-able: given a request ID, you can reconstruct the full pipeline decision — which policy fired, which cache tier was checked, which provider key served it — months later, without relying on anyone's memory of what happened.
+              Open a request by its ID to see the pipeline decision: which check fired, which cache tier answered, which route was chosen, what it cost. Entries are append-only, and logs are archived once they pass the retention window of your plan.
             </p>
           </div>
         </div>

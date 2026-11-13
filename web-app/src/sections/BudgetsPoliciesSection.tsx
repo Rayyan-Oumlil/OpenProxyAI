@@ -9,13 +9,14 @@ const BUDGETS = [
   { team: 'marketing',    pct: 42, s: 'ok',   amt: '$38 / $90'   },
 ];
 
+// The organization policy, in the order the checks run. One mode (off, log_only or enforce) covers all of them.
 const POLICIES = [
-  { name: 'pii_redact',   mode: 'enforce',  desc: 'regex + dlp-v4',       hits: 1842, s: 'ok'   },
-  { name: 'secrets_scan', mode: 'enforce',  desc: 'response side',          hits: 611, s: 'ok'   },
-  { name: 'topic_guard',  mode: 'enforce',  desc: 'legal·medical·harm',     hits: 248, s: 'ok'   },
-  { name: 'injection',    mode: 'enforce',  desc: 'score > 0.8 block',       hits: 57, s: 'ok'   },
-  { name: 'model_allow',  mode: 'enforce',  desc: 'gpt-4o,claude·sonnet',    hits: 33, s: 'ok'   },
-  { name: 'jailbreak_lm', mode: 'log-only', desc: 'small classifier',         hits: 9,  s: 'warn' },
+  { name: 'model allowlist',     desc: 'exact model names',                 step: 1, s: 'ok' },
+  { name: 'blocked keywords',    desc: 'case-insensitive match',            step: 2, s: 'ok' },
+  { name: 'PII detection',       desc: 'email · SSN · card, or Presidio',   step: 3, s: 'ok' },
+  { name: 'prompt injection',    desc: 'classifier, or regex fallback',     step: 4, s: 'ok' },
+  { name: 'response guardrails', desc: 'keywords · PII redacted in output', step: 5, s: 'ok' },
+  { name: 'MCP tool lists',      desc: 'allow and block patterns',          step: 6, s: 'ok' },
 ];
 
 function statColor(s: string) {
@@ -56,7 +57,7 @@ export default function BudgetsPoliciesSection() {
           {/* Daily budgets — radial gauges */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18, fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
-              <span>daily budgets</span><span>reset 00:00 UTC</span>
+              <span>daily budgets · example data</span><span>reset 00:00 UTC</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 20 }} className="gauge-grid">
               {BUDGETS.map(b => (
@@ -71,18 +72,17 @@ export default function BudgetsPoliciesSection() {
 
           {/* Active policies */}
           <div className="opa-card">
-            <div className="opa-card-head"><span>active policies</span><span>6 enforcing · 1 log-only</span></div>
+            <div className="opa-card-head"><span>organization policy</span><span>one mode: off · log_only · enforce</span></div>
             <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
               {POLICIES.map(p => (
                 <div key={p.name} className="policy-row" style={{
-                  display: 'grid', gridTemplateColumns: '130px 80px 1fr auto', gap: 10,
+                  display: 'grid', gridTemplateColumns: '150px 56px 1fr', gap: 10,
                   alignItems: 'center', padding: '8px', border: '1px solid var(--line)',
                   borderRadius: 6, background: 'var(--panel-2)',
                 }}>
                   <span style={{ color: p.s === 'ok' ? 'var(--accent)' : 'var(--warn)' }}>{p.name}</span>
-                  <span style={{ fontSize: 10.5, color: p.mode === 'enforce' ? 'var(--accent)' : 'var(--warn)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{p.mode}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>step {p.step}</span>
                   <span style={{ color: 'var(--ink-3)' }}>{p.desc}</span>
-                  <span style={{ color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{p.hits.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -96,10 +96,9 @@ export default function BudgetsPoliciesSection() {
           .gauge-grid { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
         }
         @media (max-width: 640px) {
-          /* name, mode and hit count on one line; the description wraps underneath */
-          .policy-row { grid-template-columns: minmax(0,1fr) auto auto !important; }
+          /* name and step on one line; the description wraps underneath */
+          .policy-row { grid-template-columns: minmax(0,1fr) auto !important; }
           .policy-row > :nth-child(3) { grid-column: 1 / -1; order: 3; overflow-wrap: anywhere; }
-          .policy-row > :nth-child(4) { order: 2; }
         }
       `}</style>
     </section>

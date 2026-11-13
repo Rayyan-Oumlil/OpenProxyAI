@@ -19,8 +19,8 @@ description: Standard and OpenProxyAI-specific HTTP status codes, and the SDK ex
 
 | Code | Meaning | SDK exception |
 |---|---|---|
-| `402` | Budget exceeded | `BudgetExceededError` |
-| `429` | Rate limit hit (requests/min or tokens/min) | `RateLimitError` |
+| `402` | A streamed request whose estimated cost is more than the remaining daily budget (`budget_exceeded`) | `BudgetExceededError` |
+| `429` | A rate or budget limit was reached. The body's `limit_type` says which; see [Rate limiting & budgets](/core-concepts/rate-limiting-and-budgets) | `RateLimitError` |
 | `446` | Blocked by an enforcing policy | `PolicyViolationError` |
 
 These map directly to the request pipeline stages that can reject a request — see [Request Pipeline](/core-concepts/request-pipeline).

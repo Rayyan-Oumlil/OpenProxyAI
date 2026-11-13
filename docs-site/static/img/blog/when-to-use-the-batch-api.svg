@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="400" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="399" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Life of a batch, and where the cost cap stops it</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">OpenProxyAI, read from the code on November 13, 2026</text>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a3abb8"/></marker></defs>
+
+  <rect x="24" y="150" width="130" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="89" y="174" fill="#f4f6f8" font-size="15" font-weight="600" text-anchor="middle">validating</text>
+  <text x="89" y="194" fill="#a3abb8" font-size="14" text-anchor="middle">batch created</text>
+
+  <rect x="214" y="150" width="130" height="56" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="279" y="174" fill="#f4f6f8" font-size="15" font-weight="600" text-anchor="middle">in_progress</text>
+  <text x="279" y="194" fill="#a3abb8" font-size="14" text-anchor="middle">4 lines at a time</text>
+
+  <line x1="154" y1="178" x2="210" y2="178" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="89" y="226" fill="#a3abb8" font-size="14" text-anchor="middle">file already checked</text>
+  <text x="89" y="244" fill="#a3abb8" font-size="14" text-anchor="middle">whole at upload</text>
+
+  <rect x="450" y="86" width="166" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="533" y="113" fill="#cfd5dd" font-size="15" font-weight="600" text-anchor="middle">completed</text>
+  <rect x="450" y="150" width="166" height="56" rx="10" fill="#241c08" stroke="#f0b429"/>
+  <text x="533" y="174" fill="#f0b429" font-size="15" font-weight="600" text-anchor="middle">budget_exceeded</text>
+  <text x="533" y="194" fill="#cfd5dd" font-size="14" text-anchor="middle">cost reached the cap</text>
+  <rect x="450" y="226" width="166" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="533" y="253" fill="#cfd5dd" font-size="15" font-weight="600" text-anchor="middle">cancelled</text>
+  <rect x="450" y="290" width="166" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="533" y="317" fill="#cfd5dd" font-size="15" font-weight="600" text-anchor="middle">failed</text>
+
+  <path d="M344 164 L400 164 L400 108 L446 108" fill="none" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M344 178 L446 178" fill="none" stroke="#f0b429" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M344 192 L400 192 L400 248 L446 248" fill="none" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M279 206 L279 312 L446 312" fill="none" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <text x="344" y="98" fill="#a3abb8" font-size="14">all lines ran</text>
+  <text x="366" y="170" fill="#f0b429" font-size="14">cap hit</text>
+  <text x="290" y="266" fill="#a3abb8" font-size="14">user or admin</text>
+  <text x="290" y="334" fill="#a3abb8" font-size="14">owner gone or stalled</text>
+
+  <text x="24" y="362" fill="#cfd5dd" font-size="14">Finished lines are kept and billed in every end state.</text>
+  <text x="24" y="382" fill="#a3abb8" font-size="14">A bad line is a result, not a failure of the batch.</text>
+</svg>

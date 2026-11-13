@@ -142,14 +142,14 @@ class TemplateListItem(TypedDict):
 _TEMPLATE_LIST: list[TemplateListItem] = [
 	{
 		"name": "healthcare_hipaa",
-		"description": "HIPAA-aligned guardrails for healthcare: PHI protection, PII redaction, 7-year audit retention.",
+		"description": "HIPAA-aligned guardrails for healthcare: clinical keywords, PHI entities, response redaction. Not a certification.",
 		"configures": [
 			"Enforcement mode: enforce",
 			"Blocked keywords: diagnosis, patient name, medical record, prescription, treatment plan",
-			"PII detection + redaction enabled",
+			"PII detection enabled; PII in responses is redacted",
 			"Prompt injection detection",
 			"Response guardrails with PII redaction",
-			"Audit retention: 7 years (HIPAA)",
+			"Retention target recorded: 7 years (log retention follows your plan)",
 		],
 	},
 	{
@@ -158,22 +158,22 @@ _TEMPLATE_LIST: list[TemplateListItem] = [
 		"configures": [
 			"Enforcement mode: enforce",
 			"Blocked keywords: account number, routing number, wire transfer, swift code, trading strategy, insider",
-			"PII detection + redaction enabled",
+			"PII detection enabled; PII in responses is redacted",
 			"Prompt injection detection",
 			"Response guardrails with PII redaction",
-			"Audit retention: 1 year",
+			"Retention target recorded: 1 year (log retention follows your plan)",
 		],
 	},
 	{
 		"name": "government_fedramp",
-		"description": "Government guardrails (not a FedRAMP authorization): classification-marking keywords, PII redaction, 3-year audit retention.",
+		"description": "Government guardrails (not a FedRAMP authorization): classification-marking keywords, PII entities, response redaction.",
 		"configures": [
 			"Enforcement mode: enforce",
 			"Blocked keywords: classified, top secret, secret//noforn, controlled unclassified, fouo",
-			"PII detection + redaction enabled",
+			"PII detection enabled; PII in responses is redacted",
 			"Prompt injection detection",
 			"Response guardrails with PII redaction",
-			"Audit retention: 3 years",
+			"Retention target recorded: 3 years (log retention follows your plan)",
 		],
 	},
 ]

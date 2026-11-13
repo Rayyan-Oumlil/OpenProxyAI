@@ -33,8 +33,8 @@ The response includes the key exactly once:
 ```json
 {
   "id": "…",
-  "key": "sk_live_***",
-  "key_prefix": "sk_live_ab12",
+  "key": "opai_prod_1a2b3c4d_<32 hex characters><4 checksum characters>",
+  "key_prefix": "opai_prod_1a2b3c4d",
   "permissions": ["proxy:llm"],
   "warning": "Store this key securely. It will not be shown again."
 }
@@ -42,15 +42,11 @@ The response includes the key exactly once:
 
 ## Permissions
 
-Keys are scoped by permission string. The default and most common is `proxy:llm`, which allows calling `/v1/chat/completions`, `/v1/embeddings`, and `/v1/models`. Keys can optionally be tied to a `team_id`, which ties the key's usage to that team's budget automatically instead of requiring an `x-op-team` header on every request.
+Keys are scoped by permission string. The default and most common is `proxy:llm`, which allows calling `/v1/chat/completions`, `/v1/embeddings`, and `/v1/models`. Keys can optionally be tied to a `team_id`, which ties the key's usage to that team's budget automatically instead of requiring an `x-openproxy-team-id` header on every request.
 
-## Rotating a key
+## Replacing an application key
 
-```
-POST /api/v1/provider-keys/{key_id}/rotate
-```
-
-Rotation issues a new key and invalidates the old one. Rotate immediately if a key may have been exposed — for example, committed to a repository or logged in plaintext.
+There is no rotate call for application keys. Create a new key, switch your application to it, then revoke the old one with `DELETE /api/v1/api-keys/{key_id}`. Do it immediately if a key may have been exposed, for example committed to a repository or logged in plaintext. Provider keys are a separate thing; see [Provider Keys](/api-reference/provider-keys).
 
 ## Session auth (admin console)
 

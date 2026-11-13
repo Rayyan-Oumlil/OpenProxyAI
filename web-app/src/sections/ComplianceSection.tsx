@@ -1,13 +1,13 @@
 import { PAGE_MAX_WIDTH } from '../lib/layout';
 
 const TEMPLATES = [
-  { name: 'Healthcare', tag: 'HIPAA-aligned', desc: 'PHI redaction defaults, model allowlists for clinical data, extended audit retention.' },
+  { name: 'Healthcare', tag: 'HIPAA-aligned', desc: 'Clinical keywords and PHI entities in enforce mode, response redaction. Set your own model allowlist.' },
   { name: 'Finance', tag: 'PCI-aligned', desc: 'Cardholder data blocking, transaction-context logging, stricter rate limits by default.' },
   { name: 'Government', tag: 'FedRAMP-aligned', desc: 'Classified-marking keyword blocking, PII redaction, 3-year audit retention. Assign US-region provider keys yourself.' },
 ];
 
 const CAPABILITIES = [
-  { title: 'Immutable audit trail', desc: 'Every request, response, and policy decision is logged and replay-able. Nothing is edited or deleted after the fact.' },
+  { title: 'Append-only audit trail', desc: 'Every request and policy decision is logged with its cost and routing outcome. Entries are append-only, and logs are archived after your plan’s retention window.' },
   { title: 'Org-level data isolation', desc: 'Every database query is scoped to your organization at the row level — no query can accidentally return another org’s data.' },
   { title: 'Data residency controls', desc: 'Route requests only through provider keys in approved regions, enforced at request time.' },
 ];

@@ -30,11 +30,11 @@ The bearer API key is verified and resolved to an organization, and — if the k
 
 ## 2. Rate limit
 
-Three limits are checked together: requests per minute, tokens per minute, and dollars per day. A request that exceeds any of them is rejected with `429`. See [Rate Limiting & Budgets](/core-concepts/rate-limiting-and-budgets).
+Request, token and dollar limits are checked together at the organization, user and team level. A request that exceeds any of them is rejected with `429`, and the body's `limit_type` says which. See [Rate Limiting & Budgets](/core-concepts/rate-limiting-and-budgets).
 
 ## 3. Policy
 
-Guardrail policies named in the `x-op-policy` header (or configured as defaults for the team) run against the request. This includes PII redaction, secrets scanning, topic guarding, and prompt-injection detection. A request blocked by an `enforce`-mode policy returns `446`; `log-only` policies record a hit but let the request through. See [Policies & Guardrails](/core-concepts/policies-and-guardrails).
+The organization's policy runs against the request: model allowlist, blocked keywords, PII detection and prompt-injection detection, in that order. A request that fails an `enforce`-mode check returns `446`; in `log_only` mode the hit is recorded and the request goes through. See [Policies & Guardrails](/core-concepts/policies-and-guardrails).
 
 ## 4. Cache
 

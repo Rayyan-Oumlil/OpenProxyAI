@@ -28,8 +28,13 @@ OpenAI-compatible request and response shape. Any field the OpenAI API accepts i
 | Header | Required | Description |
 |---|---|---|
 | `Authorization` | Yes | `Bearer <api-key>` |
-| `x-op-team` | If key isn't team-scoped | Attributes cost to a team's budget |
-| `x-op-policy` | No | Comma-separated policy names to apply — see [Policies & Guardrails](/core-concepts/policies-and-guardrails) |
+| `x-openproxy-team-id` | If the key isn't tied to a team | The team's UUID. Attributes the request to that team's limits and budget. A value that is not a UUID is refused with 400 |
+| `x-openproxy-data-class` | No | Raises the request's data class (`public`, `internal`, `confidential`, `secret`). It can raise the class, never lower it |
+| `x-openproxy-cache` | No | `skip`, `no-store` or `no-cache`. `skip` bypasses the cache for this request in both directions — see [Caching](/core-concepts/caching) |
+| `x-openproxy-fallback-model` | No | A backup model to try if the first fails. Under enforced routing it is ignored unless it is authorized for the request |
+| `x-openproxy-retries` | No | An integer from 0 to 5: the most fallback attempts for this request |
+| `x-openproxy-labels` | No | A JSON object of up to 10 string keys and values (each up to 64 characters), recorded on the request log and filterable there |
+| `x-openproxy-session-id` | No | Groups requests into a session (up to 64 characters) |
 | `x-openproxy-behavior` | No | Provider-neutral settings such as `creativity=low; max_response_length=short` (or a `behavior` field in the body) — see [Behavior Settings](/core-concepts/behavior-settings). The response reports what applied in `X-OpenProxyAI-Behavior`, and `X-OpenProxyAI-Behavior-Clamped` when your organization's ceiling lowered a request |
 
 ## Response
@@ -42,4 +47,4 @@ Set `"stream": true` for a server-sent-events stream of `ChatCompletionChunk` ob
 
 ## Errors
 
-See [Errors & Status Codes](/api-reference/errors-and-status-codes) — `402` (budget), `429` (rate limit), `446` (policy block) are specific to OpenProxyAI; everything else follows standard HTTP semantics.
+See [Errors & Status Codes](/api-reference/errors-and-status-codes) — `429` (a rate or budget limit; the body's `limit_type` says which), `402` (a streamed request that would exceed the daily budget) and `446` (policy or routing block) are specific to OpenProxyAI; everything else follows standard HTTP semantics.

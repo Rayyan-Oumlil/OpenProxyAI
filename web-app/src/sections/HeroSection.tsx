@@ -10,7 +10,7 @@ const POLS: [string, 'ok'|'redact'|'cache'|'block'][] = [
 
 interface FeedRow { time: string; team: string; model: string; tokens: string; lat: string; pol: string; pillKind: 'ok'|'redact'|'cache'|'block'; st: string; id: number; }
 
-const STATUS_TEXT = { ok:'200 OK', cache:'CACHE', redact:'REDACT', block:'BLOCK 446' };
+const STATUS_TEXT = { ok:'200 OK', cache:'CACHE', redact:'LOGGED', block:'BLOCK 446' };
 
 function makeRow(id: number, t = new Date()): FeedRow {
   const [pol, pillKind] = POLS[Math.floor(Math.random() * POLS.length)];
@@ -74,7 +74,7 @@ export default function HeroSection() {
               The <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>control plane</em> for enterprise AI. One gateway. Every model. Every audit.
             </h1>
             <p style={{ fontFamily: 'var(--sans)', fontSize: 15, lineHeight: 1.55, color: 'var(--ink-2)', margin: 0, maxWidth: '52ch' }}>
-              OpenProxyAI routes, governs, and logs every LLM call across your org. 1,600+ models behind one API — with policy enforcement, PII redaction, cost attribution, and a replay-able audit trail.
+              OpenProxyAI routes, governs, and logs every LLM call across your org. Many providers behind one OpenAI-compatible API, with policy enforcement, data-class routing, cost attribution and an audit trail.
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               <a href={APP_URL} className="opa-btn opa-btn-primary">$ start trial →</a>

@@ -7,11 +7,11 @@ import AccessControlSection from '../sections/AccessControlSection';
 function AuditPreviewVisual() {
   return (
     <div className="opa-card" style={{ overflow: 'hidden' }}>
-      <div className="opa-card-head"><span>audit_log · entry #48213</span><span style={{ color: 'var(--accent)' }}>immutable</span></div>
+      <div className="opa-card-head"><span>audit_log · example entry</span><span style={{ color: 'var(--accent)' }}>append-only</span></div>
       <pre style={{ padding: 16, fontSize: 12, lineHeight: 1.8, color: 'var(--ink)', margin: 0 }}>
         <span style={{ color: 'var(--ink-3)' }}>request_id</span>{'  req_01J3K9A2XM\n'}
-        <span style={{ color: 'var(--ink-3)' }}>policy</span>{'      pii_redact: 1 span\n'}
-        <span style={{ color: 'var(--accent)' }}>replay</span>{'      available'}<span className="term-cursor" />
+        <span style={{ color: 'var(--ink-3)' }}>policy</span>{'      enforce · pass\n'}
+        <span style={{ color: 'var(--accent)' }}>replay</span>{'      open the trace'}<span className="term-cursor" />
       </pre>
     </div>
   );

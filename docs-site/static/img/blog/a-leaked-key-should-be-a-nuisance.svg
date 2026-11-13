@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 290" width="640" height="290" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="290" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="289" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">The first ten minutes of a key leak</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">An example schedule, not a measurement</text>
+
+  <line x1="70" y1="140" x2="610" y2="140" stroke="#2a2f3a" stroke-width="2"/>
+  <line x1="70" y1="140" x2="310" y2="140" stroke="#f0b429" stroke-width="4"/>
+  <line x1="310" y1="140" x2="610" y2="140" stroke="#35d399" stroke-width="4"/>
+
+  <circle cx="70" cy="140" r="8" fill="#f0b429"/>
+  <text x="70" y="112" fill="#f4f6f8" font-size="16" font-weight="600" text-anchor="middle">min 0</text>
+  <text x="70" y="176" fill="#cfd5dd" font-size="14" text-anchor="middle">Key is public</text>
+  <text x="70" y="198" fill="#a3abb8" font-size="14" text-anchor="middle">in a repo</text>
+
+  <circle cx="190" cy="140" r="8" fill="#14171e" stroke="#f0b429" stroke-width="2"/>
+  <text x="190" y="112" fill="#f4f6f8" font-size="16" font-weight="600" text-anchor="middle">min 2</text>
+  <text x="190" y="176" fill="#cfd5dd" font-size="14" text-anchor="middle">Find its id</text>
+  <text x="190" y="198" fill="#a3abb8" font-size="14" text-anchor="middle">overview by_key</text>
+
+  <circle cx="310" cy="140" r="8" fill="#35d399"/>
+  <text x="310" y="112" fill="#f4f6f8" font-size="16" font-weight="600" text-anchor="middle">min 4</text>
+  <text x="310" y="176" fill="#cfd5dd" font-size="14" text-anchor="middle">DELETE the key</text>
+  <text x="310" y="198" fill="#a3abb8" font-size="14" text-anchor="middle">204 returned</text>
+
+  <circle cx="430" cy="140" r="8" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="430" y="112" fill="#f4f6f8" font-size="16" font-weight="600" text-anchor="middle">min 5</text>
+  <text x="430" y="176" fill="#cfd5dd" font-size="14" text-anchor="middle">Next call: 401</text>
+  <text x="430" y="198" fill="#a3abb8" font-size="14" text-anchor="middle">no cache</text>
+
+  <circle cx="550" cy="140" r="8" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="550" y="112" fill="#f4f6f8" font-size="16" font-weight="600" text-anchor="middle">min 10</text>
+  <text x="550" y="176" fill="#cfd5dd" font-size="14" text-anchor="middle">Query logs by</text>
+  <text x="550" y="198" fill="#a3abb8" font-size="14" text-anchor="middle">api_key_id</text>
+
+  <line x1="70" y1="238" x2="310" y2="238" stroke="#f0b429" stroke-width="3"/>
+  <text x="190" y="262" fill="#f0b429" font-size="14" text-anchor="middle">Still works, within scope</text>
+  <line x1="310" y1="238" x2="610" y2="238" stroke="#35d399" stroke-width="3"/>
+  <text x="460" y="262" fill="#35d399" font-size="14" text-anchor="middle">Rejected on every new request</text>
+</svg>

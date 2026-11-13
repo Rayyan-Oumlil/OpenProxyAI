@@ -28,11 +28,11 @@ Same for the TypeScript/JavaScript `openai` package — pass `baseURL` in the cl
 Optional headers extend the request without breaking compatibility with the underlying OpenAI client:
 
 ```
-x-op-team:   eng-platform
-x-op-policy: pii_redact,topic_guard
+x-openproxy-team-id: 00000000-0000-0000-0000-000000000000
+x-openproxy-labels:  {"app": "my-service"}
 ```
 
-See [Rate Limiting & Budgets](/core-concepts/rate-limiting-and-budgets) for `x-op-team`, and [Policies & Guardrails](/core-concepts/policies-and-guardrails) for `x-op-policy`.
+See [Rate Limiting & Budgets](/core-concepts/rate-limiting-and-budgets) for `x-openproxy-team-id`, and [Chat Completions](/api-reference/chat-completions) for the full list of request headers. Guardrails come from the organization's [policy](/core-concepts/policies-and-guardrails), not from a header.
 
 ## Calling non-OpenAI models
 

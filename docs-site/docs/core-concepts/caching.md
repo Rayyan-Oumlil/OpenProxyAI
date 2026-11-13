@@ -37,7 +37,7 @@ Cache behavior can be overridden per request with a header — for example, to f
 
 ## What gets cached
 
-The cache key is derived from the (post-redaction) request content — model, messages, and relevant parameters. Policy redaction happens *before* the cache check, so a cached entry never contains the raw PII that was stripped from the original request.
+The exact-match key is a hash of the organization, model, messages and temperature. A request that policy blocks never reaches the provider, so it is never cached. Response guardrails, when enabled, run before an answer is stored, so a stored answer is the one the caller saw. With the policy in `log_only` or `off`, a prompt that contains personal data is cached as sent. See [what a cache hit is matched on](/blog/semantic-cache-is-shared-memory).
 
 ## Cache metrics
 

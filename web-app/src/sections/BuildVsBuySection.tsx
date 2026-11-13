@@ -2,8 +2,8 @@ import { PAGE_MAX_WIDTH } from '../lib/layout';
 
 const ROWS = [
   { item: 'Multi-provider routing + failover', build: '2-4 weeks eng time', buy: 'included' },
-  { item: 'PII redaction & policy engine', build: '3-6 weeks + ongoing tuning', buy: 'included' },
-  { item: 'Immutable audit log + compliance export', build: '2-3 weeks', buy: 'included' },
+  { item: 'PII detection & policy engine', build: '3-6 weeks + ongoing tuning', buy: 'included' },
+  { item: 'Append-only audit log + compliance export', build: '2-3 weeks', buy: 'included' },
   { item: 'Semantic caching', build: '2-4 weeks', buy: 'included' },
   { item: 'Ongoing maintenance as providers change', build: 'indefinite', buy: 'included' },
 ];

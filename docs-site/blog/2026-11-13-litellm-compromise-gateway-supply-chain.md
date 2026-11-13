@@ -49,7 +49,7 @@ What does reduce the damage if a gateway host is compromised:
 
 - **Keys do not have to live in the gateway at all.** A provider key can point at a secret in HashiCorp Vault or AWS Secrets Manager. The gateway then holds no stored copy; it reads the key when a request needs it and keeps it in memory briefly. A host that is compromised still exposes what it can read at that moment, but not a database full of keys at rest. See [provider keys from Vault](/guides/secrets-from-vault).
 - **The console never shows a key back.** Keys are listed by prefix only.
-- **Rotation is one call.** A provider key is replaced through `/api/v1/provider-keys/{id}/rotate`, and a leaked application key is revoked at `/api/v1/api-keys`. Practicing this before an incident is the point.
+- **Replacing a key takes a few calls, and you should practice them.** To replace a provider key, create a new one with the new secret, check it serves traffic, then switch the old one off. (The `rotate` endpoint only re-encrypts the stored secret. It does not change the provider's key.) A leaked application key is revoked with `DELETE /api/v1/api-keys/{id}`. Practicing this before an incident is the point.
 - **Outbound requests that an admin or an identity provider can steer only go to public addresses**, so a stolen admin session cannot be used to point the gateway at your internal network.
 
 ![The OpenProxyAI provider keys page: one OpenAI key listed with its alias, region, maximum data class, a key prefix, weight, circuit state and status. The full key is not shown.](/img/blog/console-provider-keys.png)
@@ -63,7 +63,7 @@ Use this on whatever you run today.
 3. **Build from source you have read, in a pipeline you control.** The compromised wheels did not match the official source tag. Compare what you install with what you reviewed.
 4. **Limit what a compromised process can reach.** Give the gateway's cloud role only the secrets it needs. Restrict its outbound network to the provider endpoints you use, so stolen data has nowhere to go.
 5. **Keep provider keys out of the gateway's database if you can.** Use Vault or a cloud secrets manager, scoped per organization.
-6. **Rehearse rotation.** Know which of your keys the gateway can reach, how long it takes to rotate each, and who does it. LiteLLM's own incident started with a key nobody rotated.
+6. **Rehearse replacing keys.** Know which of your keys the gateway can reach, how long it takes to rotate each, and who does it. LiteLLM's own incident started with a key nobody rotated.
 7. **If you ran an affected version, do not start with `pip install`.** Any Python start in the environment runs the malicious startup files again, including pip. Delete them first, then reinstall a known-good pinned version, ideally in a rebuilt environment.
 
 ## Sources

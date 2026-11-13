@@ -53,7 +53,7 @@ An illustration, made up for this post: one person asks for a summary of a named
 - **Both cache tiers are off by default.** An operator turns them on, and the semantic tier also needs an embedding endpoint the operator configures.
 - **The embedding call never uses an ambient key.** It goes only to the endpoint the operator set, and is skipped entirely in air-gapped mode and for organizations whose data region is not in the shared-key list.
 - **Some requests never touch the cache.** Anything with tools, functions or a structured-output format skips it, because the key does not cover those fields. So does a request whose behavior settings change anything beyond temperature.
-- **Policy redaction happens before the cache.** A stored entry holds the redacted prompt, never the raw value that was removed.
+- **Policy runs before the cache.** In `enforce` mode a request that fails policy, including one containing personal data, is refused and never stored. Response guardrails run before an answer is stored. In `log_only` mode or with policy off, a prompt is stored as sent.
 - **Under enforced routing, the semantic tier is skipped above a data-class ceiling** (`OFF_REGISTRY_MAX_DATA_CLASS`, default `internal`), because building the embedding is a call to a model the registry does not govern.
 - **Entries expire**, and the semantic tier is capped per organization.
 - **A caller can bypass it.** The header `x-openproxy-cache: skip` skips the cache for that request, in both directions.

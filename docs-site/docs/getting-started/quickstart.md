@@ -51,13 +51,13 @@ response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "hello"}],
     extra_headers={
-        "x-op-team": "eng-platform",
-        "x-op-policy": "pii_redact,topic_guard",
+        "x-openproxy-team-id": "00000000-0000-0000-0000-000000000000",  # your team's UUID
+        "x-openproxy-labels": '{"app": "quickstart"}',
     },
 )
 ```
 
-The `x-op-team` header attributes cost to a team's budget. `x-op-policy` selects which guardrail policies apply to this request — see [Policies & Guardrails](/core-concepts/policies-and-guardrails).
+The `x-openproxy-team-id` header attributes the request to a team's limits and budget (use your team's real UUID, or leave it out if your key is already tied to a team). `x-openproxy-labels` tags the request in the log. Guardrails are not chosen per request: the organization's policy applies to every call — see [Policies & Guardrails](/core-concepts/policies-and-guardrails).
 
 ## 5. Verify it worked
 
