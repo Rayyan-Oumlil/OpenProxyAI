@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from app.services.data_class import DataClass
 
@@ -14,6 +14,27 @@ ToolPattern = Annotated[str, StringConstraints(min_length=1, max_length=200, str
 
 # Name of a detected kind of PII, e.g. "ssn" or "US_SSN".
 EntityName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_]{1,50}$")]
+
+
+class BehaviorDefaults(BaseModel):
+	"""What a call is like when the caller says nothing. Send the whole object; an omitted entry means no default for it."""
+
+	model_config = ConfigDict(extra="forbid")
+
+	creativity: Literal["low", "medium", "high"] | None = None
+	reasoning_depth: Literal["low", "medium", "high"] | None = None
+	max_response_length: Literal["short", "medium", "long"] | None = None
+	citations: bool | None = None
+
+
+class BehaviorCeiling(BaseModel):
+	"""The most a caller may ask for (and the most their own temperature, max_tokens or reasoning_effort may amount to)."""
+
+	model_config = ConfigDict(extra="forbid")
+
+	creativity: Literal["low", "medium", "high"] | None = None
+	reasoning_depth: Literal["low", "medium", "high"] | None = None
+	max_response_length: Literal["short", "medium", "long"] | None = None
 
 
 class PolicyConfigRequest(BaseModel):
@@ -42,8 +63,10 @@ class PolicyConfigRequest(BaseModel):
 	prompt_gate_min_items: int | None = Field(default=None, ge=1, le=100_000)
 	conversations_enabled: bool | None = None
 	allow_provider_response_state: bool | None = None
+	behavior_defaults: BehaviorDefaults | None = None
+	behavior_ceiling: BehaviorCeiling | None = None
 
-	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "routing_quality_signal", "payload_capture_sample_rate", "prompt_promotion_gate", "prompt_gate_min_pass_rate", "prompt_gate_min_items", "conversations_enabled", "allow_provider_response_state", mode="before")
+	@field_validator("default_data_class", "routing_mode", "max_risk_rating", "routing_quality_signal", "payload_capture_sample_rate", "prompt_promotion_gate", "prompt_gate_min_pass_rate", "prompt_gate_min_items", "conversations_enabled", "allow_provider_response_state", "behavior_defaults", "behavior_ceiling", mode="before")
 	@classmethod
 	def _not_null(cls, value):
 		if value is None:
@@ -83,6 +106,8 @@ class PolicyConfigResponse(BaseModel):
 	prompt_gate_min_items: int = 10
 	conversations_enabled: bool = False
 	allow_provider_response_state: bool = False
+	behavior_defaults: dict = {}
+	behavior_ceiling: dict = {}
 
 
 class ApplyTemplateRequest(BaseModel):

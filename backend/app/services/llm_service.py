@@ -30,6 +30,7 @@ from app.models.organization import Organization
 from app.models.team import Team, team_members
 from app.models.user import User
 from app.schemas.chat import ChatCompletionRequest, Message, _substitute_variables
+from app.services import behavior as behavior_mod
 from app.services import cache_service
 from app.services.policy_service import POLICY_BLOCK_STATUS
 from app.services.refusal_explanations import explain_policy
@@ -358,6 +359,8 @@ class _RequestContext:
 	route_key_id: uuid.UUID | None = None  # enforce: the registry key that serves the model, and the only key used
 	fallback_key_id: uuid.UUID | None = None  # enforce: the same, for an authorized x-openproxy-fallback-model
 	stages: StageTimer | None = None
+	behavior: behavior_mod.Resolved | None = None  # the behaviour settings for this call, after the org's defaults and ceiling
+	behavior_plan: behavior_mod.Plan | None = None  # the provider parameters they became for the model last called
 
 	def __post_init__(self) -> None:
 		if self.stages is None:
@@ -367,6 +370,8 @@ class _RequestContext:
 def _build_request_metadata(ctx: _RequestContext, extra: dict | None = None) -> dict:
 	"""Build request_metadata for logging, merging policy_metadata, experiment_info, session_id."""
 	metadata = {**(ctx.policy_metadata or {})}
+	if ctx.behavior is not None:
+		metadata["behavior"] = {**ctx.behavior.as_metadata(), **(ctx.behavior_plan.as_metadata() if ctx.behavior_plan else {})}
 	stages = ctx.stages.as_list() if ctx.stages else []
 	if stages:
 		metadata = {**metadata, "stages": stages}
@@ -868,9 +873,21 @@ class LLMService:
 				ctx.team_budget_monthly_usd = team.budget_monthly_usd
 			return ctx.team_budget_monthly_usd
 
+		def settle_behavior(config: Any) -> behavior_mod.Resolved | None:
+			try:
+				header = ctx.http_request.headers.get(behavior_mod.HEADER) if ctx.http_request is not None else None
+				requested = behavior_mod.merge(
+					behavior_mod.from_mapping(ctx.request.behavior) if ctx.request.behavior is not None else behavior_mod.Behavior(),
+					behavior_mod.parse_header(header),
+				)
+			except behavior_mod.InvalidBehavior as exc:
+				raise HTTPException(status_code=400, detail={"error": "invalid_behavior", "detail": str(exc)}) from exc
+			ctx.behavior = behavior_mod.settle(getattr(config, "behavior_defaults", None), getattr(config, "behavior_ceiling", None), requested)
+			return ctx.behavior
+
 		gate = await admit(
 			db=db, redis=ctx.redis, user=ctx.user, model_of=lambda: ctx.request.model, timer=ctx.stages, evaluate=evaluate, classify=classify,
-			route=route, between=between, estimate_tokens=estimate_tokens(ctx.request), team_id=ctx.team_id,
+			route=route, between=between, estimate_tokens=estimate_tokens(ctx.request), team_id=ctx.team_id, behavior=settle_behavior,
 		)
 		if gate.rl_headers is not None:
 			ctx.rl_headers = gate.rl_headers
@@ -895,9 +912,29 @@ class LLMService:
 				headers={**ctx.rl_headers, **(exc.headers or {})},
 			) from exc
 
-		ctx.kwargs = ctx.request.model_dump(exclude_none=True)
-		ctx.kwargs.update({"model": ctx.request.model, "timeout": 30, "request_timeout": 30})
+		if ctx.behavior is not None and ctx.behavior.effective.citations:
+			ctx.request = ctx.request.model_copy(update={"messages": [
+				Message.model_validate(m) for m in behavior_mod.with_citation_instruction([m.model_dump() for m in ctx.request.messages])
+			]})
+		ctx.kwargs = self._provider_kwargs(ctx, ctx.request.model)
 		return None
+
+	@staticmethod
+	def _provider_kwargs(ctx: _RequestContext, model: str) -> dict[str, Any]:
+		"""What to send the provider for ``model``: the request as the caller made it, plus the behaviour settings as parameters this
+		model accepts (the caller's own temperature, max_tokens and reasoning_effort win, lowered to the org's ceiling if it has one)."""
+		# What the caller sent, minus anything that would choose the endpoint or the credentials: those are the gateway's to set.
+		kwargs = ctx.request.model_dump(exclude_none=True, exclude={"behavior", *behavior_mod.TRANSPORT_FIELDS})
+		if ctx.behavior is not None:
+			provider, model_name = split_model(model)
+			ctx.behavior_plan = behavior_mod.plan_params(
+				resolved=ctx.behavior, explicit=kwargs, supported=behavior_mod.supported_params(provider, model_name),
+			)
+			kwargs.update(ctx.behavior_plan.params)
+			for name in ctx.behavior_plan.remove:
+				kwargs.pop(name, None)
+		kwargs.update({"model": model, "timeout": 30, "request_timeout": 30})  # the gateway's own settings, after every check above
+		return kwargs
 
 	@staticmethod
 	async def _execute_with_fallback(
@@ -1025,8 +1062,7 @@ class LLMService:
 					redis=ctx.redis, max_attempts=ctx.max_fallback_attempts,
 					only_key_id=ctx.fallback_key_id,
 				)
-				ctx.kwargs = ctx.request.model_dump(exclude_none=True)
-				ctx.kwargs.update({"model": ctx.fallback_model, "timeout": 30, "request_timeout": 30, "stream": True})
+				ctx.kwargs = {**self._provider_kwargs(ctx, ctx.fallback_model), "stream": True}
 				with ctx.stages.stage("upstream"):
 					(stream, first_chunk), fb_count, provider_key_id = await self._execute_with_fallback(
 						ctx.candidate_keys, _stream_call, ctx.fallback_model, tag=" (stream+fallback-model)", redis=ctx.redis,
@@ -1195,14 +1231,17 @@ class LLMService:
 		db: AsyncSession,
 	) -> JSONResponse:
 		"""Cache check, fallback call, response guardrail, cost/log, return."""
-		cache_override = "skip" if _is_cache_unsafe(ctx.request) else _parse_cache_override(ctx.http_request)
+		# The cache key covers model, messages and temperature. A behaviour setting that changes anything else (reasoning effort, length)
+		# would be answered from an entry made without it, so those calls skip the cache.
+		skip_cache = _is_cache_unsafe(ctx.request) or (ctx.behavior_plan is not None and ctx.behavior_plan.changes_more_than_temperature)
+		cache_override = "skip" if skip_cache else _parse_cache_override(ctx.http_request)
 		# Cache check — failure must never block a real LLM call
 		try:
 			cache_messages = [
 				m.model_dump() if hasattr(m, "model_dump") else m
 				for m in ctx.request.messages
 			]
-			cache_temperature = getattr(ctx.request, "temperature", None)
+			cache_temperature = ctx.kwargs.get("temperature")
 			with ctx.stages.stage("cache"):
 				cached_body, cache_tier = await cache_service.get(
 					ctx.redis,
@@ -1274,8 +1313,7 @@ class LLMService:
 					redis=ctx.redis, max_attempts=ctx.max_fallback_attempts,
 					only_key_id=ctx.fallback_key_id,
 				)
-				ctx.kwargs = ctx.request.model_dump(exclude_none=True)
-				ctx.kwargs.update({"model": ctx.fallback_model, "timeout": 30, "request_timeout": 30})
+				ctx.kwargs = self._provider_kwargs(ctx, ctx.fallback_model)
 				with ctx.stages.stage("upstream"):
 					response, fb_count, provider_key_id = await self._execute_with_fallback(
 						ctx.candidate_keys, _call, ctx.fallback_model, redis=ctx.redis,
@@ -1323,7 +1361,7 @@ class LLMService:
 				m.model_dump() if hasattr(m, "model_dump") else m
 				for m in ctx.request.messages
 			]
-			cache_temperature = getattr(ctx.request, "temperature", None)
+			cache_temperature = ctx.kwargs.get("temperature")
 			asyncio.create_task(
 				cache_service.set(
 					ctx.redis,

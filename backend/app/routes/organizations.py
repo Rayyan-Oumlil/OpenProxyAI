@@ -177,6 +177,9 @@ async def update_policy_config(
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 	updates = payload.model_dump(exclude_unset=True)
+	for key in ("behavior_defaults", "behavior_ceiling"):  # an entry sent as null means "none": store nothing for it
+		if key in updates:
+			updates[key] = {k: v for k, v in updates[key].items() if v is not None}
 	current = await policy_store.load(current_user.org_id, db, redis)
 
 	if updates.get("routing_mode") == "enforce" and current.routing_mode != "enforce":
