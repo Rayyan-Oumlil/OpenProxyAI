@@ -1,5 +1,6 @@
 """API key management route tests — list, create, revoke."""
 
+import pytest
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
@@ -356,3 +357,44 @@ def test_revoke_api_key_wrong_org_returns_404(client):
 def test_revoke_api_key_requires_auth(client):
 	response = client.delete(f"/api/v1/api-keys/{uuid4()}")
 	assert response.status_code == 401
+
+
+@pytest.mark.parametrize("role", ["viewer", "developer"])
+def test_a_non_admin_cannot_revoke_another_users_key(client, role):
+	user, org_id = _make_user(role=role)
+	key = _fake_api_key(org_id, user_id=uuid4())  # belongs to someone else in the same org
+
+	fake_db = FakeDB(get_result=key)
+	_override_auth(user)
+	_override_db(fake_db)
+
+	response = client.delete(f"/api/v1/api-keys/{key.id}", headers={"Authorization": "Bearer test"})
+	assert response.status_code == 404
+	assert key.is_active is True
+	assert not fake_db.committed
+
+
+def test_an_admin_can_revoke_another_users_key(client):
+	user, org_id = _make_user(role="admin")
+	key = _fake_api_key(org_id, user_id=uuid4())
+
+	fake_db = FakeDB(get_result=key)
+	_override_auth(user)
+	_override_db(fake_db)
+
+	response = client.delete(f"/api/v1/api-keys/{key.id}", headers={"Authorization": "Bearer test"})
+	assert response.status_code == 204
+	assert key.is_active is False
+
+
+def test_a_non_admin_can_revoke_their_own_key(client):
+	user, org_id = _make_user(role="viewer")
+	key = _fake_api_key(org_id, user_id=user.id)
+
+	fake_db = FakeDB(get_result=key)
+	_override_auth(user)
+	_override_db(fake_db)
+
+	response = client.delete(f"/api/v1/api-keys/{key.id}", headers={"Authorization": "Bearer test"})
+	assert response.status_code == 204
+	assert key.is_active is False
