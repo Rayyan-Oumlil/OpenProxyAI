@@ -1,6 +1,6 @@
 # Operational Features
 
-> Background jobs and optional config for production deployments. See [deploy/gcp/env.template](../../deploy/gcp/env.template) for all env vars.
+> Background jobs and optional config for production deployments. See [deploy/env.template](../../deploy/env.template) for all env vars.
 
 ## Batched spend writes
 

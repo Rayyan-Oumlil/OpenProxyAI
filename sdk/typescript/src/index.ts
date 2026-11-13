@@ -11,4 +11,10 @@ export {
 } from './core/errors.js';
 
 export type { ChatCompletion, ChatCompletionChunk, ChatCompletionCreateParams, Message, GatewayMeta } from './types/chat.js';
+export type {
+  BatchCreateParams,
+  FeedbackParams,
+  FileInput,
+  RerankParams,
+} from './resources/gateway.js';
 export type { UsageOverview } from './types/analytics.js';

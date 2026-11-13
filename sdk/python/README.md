@@ -120,7 +120,7 @@ try:
 except AuthError:
     print("Invalid API key")
 except PolicyViolationError as e:
-    print(f"Blocked by policy: {e.reason_code} — rules: {e.triggered_rules}")
+    print(f"Blocked by policy: {e.reason_code} — {e.explanation}")  # explanation is one plain sentence, safe to show a user
 except BudgetExceededError as e:
     print(f"Daily budget exceeded. Retry after {e.retry_after}s")
 except RateLimitError as e:
@@ -157,6 +157,27 @@ except ProviderError as e:
 |--------|-------------|
 | `.overview(period_days=30)` | Get usage overview |
 | `.logs(page=1, page_size=50, **filters)` | Query request logs |
+
+### Other gateway endpoints
+
+Each goes through the same policy, routing and audit as chat. Every resource also exists on `AsyncOpenProxy` with `await`.
+
+| Resource | Methods |
+|--------|-------------|
+| `client.models` | `.list()` |
+| `client.rerank` | `.create(model, query, documents, top_n=None, return_documents=True)` |
+| `client.images` | `.generate(model, prompt, **options)` |
+| `client.audio` | `.speech(model, input, voice, **options)` returns bytes; `.transcribe(model, file, **fields)` |
+| `client.responses` | `.create(model, input, **options)` |
+| `client.feedback` | `.create(request_id, thumbs=None, value=None, score_name=None, comment=None)` |
+| `client.files` | `.create(file, purpose="batch")`, `.retrieve(id)`, `.content(id)`, `.delete(id)` |
+| `client.batches` | `.create(input_file_id, max_cost_usd=None, metadata=None)`, `.retrieve(id)`, `.list(limit=20)`, `.cancel(id)` |
+
+```python
+file = client.files.create(open("requests.jsonl", "rb").read())
+batch = client.batches.create(file["id"], max_cost_usd=5)
+print(client.batches.retrieve(batch["id"])["status"])
+```
 
 ## Gateway Metadata
 

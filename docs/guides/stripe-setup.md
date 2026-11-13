@@ -84,7 +84,6 @@ Before going live, verify:
    ```
    Replace with your actual admin-console URL if different.
 
-3. **GitHub secrets** — For CI/CD deployments, add all Stripe env vars as GitHub secrets so they are passed to Cloud Run.
 
 ## 8. Test mode vs. production
 

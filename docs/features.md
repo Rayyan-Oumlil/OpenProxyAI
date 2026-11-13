@@ -291,7 +291,7 @@
 | Seeded demo | `docker-compose.demo.yml`: own Postgres and Redis, a fake OpenAI-compatible upstream (no provider key, no cost), migrations, a demo organization with policy, a budget-limited user and a pinned MCP server, the console, and a traffic job. [Run it](./getting-started/demo.md); [3-minute walkthrough](./getting-started/walkthrough.md). `scripts/smoke.sh` boots it from nothing and checks it over HTTP; the same check runs in CI |
 | Helm chart | Backend + frontend deployments, HPA (2-10 replicas), PDB, ServiceMonitor, init-container migrations |
 | Frontend Docker | Multi-stage nginx build with SPA fallback |
-| CI/CD | GitHub Actions on push to main: test → build → push to GCP Artifact Registry → migrations as a Cloud Run job → deploy to Cloud Run. The Helm chart is for self-hosted installs |
+| CI/CD | GitHub Actions on push and PR: backend tests (migrations, row-level security, end-to-end), console lint, types, unit and Playwright/axe suites, website build, and the demo smoke test. Nothing deploys automatically; the Helm chart is for self-hosted installs |
 | cert-manager | LetsEncrypt ClusterIssuer for automatic TLS |
 | Kubernetes | Ingress, ConfigMap, ServiceAccount, bundled PostgreSQL + Redis subcharts |
 | Customer-cluster install | [customer-cluster-install.md](./guides/customer-cluster-install.md) — use your PostgreSQL/Redis, no managed deps |

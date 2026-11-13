@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "admin-console/**"
+      - "web-app/**"
+      - "docker-compose.demo.yml"
+      - "scripts/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "admin-console/**"
+      - "web-app/**"
+      - "docker-compose.demo.yml"
+      - "scripts/**"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+# Read-only by default: jobs run repo code (pip/npm).
+permissions:
+  contents: read
+
+jobs:
+  # ── Test ────────────────────────────────────────────────────────────────────
+  test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # pgvector: the migration chain creates the semantic cache's vector column.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: openproxyai_test
+          POSTGRES_USER: openproxyai
+          POSTGRES_PASSWORD: testpassword
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff
+      - name: Lint (ruff, real-error rules from backend/ruff.toml)
+        run: ruff check .
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
+        run: alembic upgrade head
+      # Unit tests plus the end-to-end pipeline suite (real app, Postgres, Redis, fake OpenAI upstream).
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
+          APP_ENV: test
+          E2E_TESTS_REQUIRED: "1"
+        run: python -m pytest tests/ -q --tb=short -m "not integration"
+      - name: Integration tests on real Postgres (row-level security, MCP pinning and grants, model registry, datasets)
+        env:
+          DATABASE_URL: postgresql+asyncpg://openproxyai:testpassword@localhost:5432/openproxyai_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-ci-only-min-32-chars
+          APP_ENV: test
+          RLS_TESTS_REQUIRED: "1"
+        # The CI login role is a superuser, which is exactly the case these tests must survive.
+        # Every test marked `integration`, not just the RLS file: the others were never run in CI before.
+        run: python -m pytest tests/ -q --tb=short -m integration -rs
+
+  # ── Frontends (build + tests only; nothing here deploys) ────────────────────
+  admin-console:
+    name: Admin Console (typecheck, build, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin-console/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build # tsc -b (typecheck) && vite build
+      - run: npm test
+      - name: Install the website's dependencies (e2e/website.spec.ts serves it)
+        run: npm ci
+        working-directory: web-app
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Smoke test (mocked API)
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: admin-console-playwright-report
+          path: admin-console/playwright-report
+          retention-days: 7
+
+  # Boots the seeded demo stack from scratch and checks it over HTTP (docker-compose.demo.yml, scripts/smoke.sh).
+  demo-smoke:
+    name: Demo smoke (docker compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/smoke.sh
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.demo.yml logs --no-color --tail 200
+
+  web-app:
+    name: Web App (typecheck, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web-app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build

@@ -18,12 +18,15 @@ export class AuthError extends OpenProxyError {
 export class PolicyViolationError extends OpenProxyError {
   readonly reasonCode: string;
   readonly triggeredRules: string[];
+  /** One plain sentence written for an end user; safe to show. */
+  readonly explanation?: string;
 
-  constructor(reasonCode: string, triggeredRules: string[] = [], status = 446) {
+  constructor(reasonCode: string, triggeredRules: string[] = [], status = 446, explanation?: string) {
     super(`Policy violation: ${reasonCode}`, status);
     this.name = 'PolicyViolationError';
     this.reasonCode = reasonCode;
     this.triggeredRules = triggeredRules;
+    this.explanation = explanation;
   }
 }
 

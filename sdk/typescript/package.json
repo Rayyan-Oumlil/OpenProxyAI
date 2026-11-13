@@ -1,6 +1,6 @@
 {
   "name": "openproxy-ai",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TypeScript SDK for OpenProxyAI — the enterprise LLM gateway",
   "type": "module",
   "main": "./dist/cjs/index.js",
@@ -26,5 +26,5 @@
     "@types/node": "^20.0.0"
   },
   "files": ["dist"],
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

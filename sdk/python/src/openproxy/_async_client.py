@@ -16,6 +16,16 @@ from .resources.chat import AsyncChatResource
 from .resources.embeddings import AsyncEmbeddingsResource
 from .resources.api_keys import AsyncApiKeysResource
 from .resources.analytics import AsyncAnalyticsResource
+from .resources.gateway import (
+    AsyncModelsResource,
+    AsyncRerankResource,
+    AsyncImagesResource,
+    AsyncAudioResource,
+    AsyncResponsesResource,
+    AsyncFeedbackResource,
+    AsyncFilesResource,
+    AsyncBatchesResource,
+)
 
 
 class AsyncOpenProxy:
@@ -31,13 +41,21 @@ class AsyncOpenProxy:
         self.base_url = base_url.rstrip("/")
         self._http = httpx.AsyncClient(
             base_url=self.base_url,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {api_key}"},
             timeout=timeout,
         )
         self.chat = AsyncChatResource(self)
         self.embeddings = AsyncEmbeddingsResource(self)
         self.api_keys = AsyncApiKeysResource(self)
         self.analytics = AsyncAnalyticsResource(self)
+        self.models = AsyncModelsResource(self)
+        self.rerank = AsyncRerankResource(self)
+        self.images = AsyncImagesResource(self)
+        self.audio = AsyncAudioResource(self)
+        self.responses = AsyncResponsesResource(self)
+        self.feedback = AsyncFeedbackResource(self)
+        self.files = AsyncFilesResource(self)
+        self.batches = AsyncBatchesResource(self)
 
     async def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
         for attempt in range(MAX_RETRIES + 1):
