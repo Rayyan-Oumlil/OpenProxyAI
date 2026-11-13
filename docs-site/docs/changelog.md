@@ -10,6 +10,9 @@ A summary of what's shipped, grouped by build phase. This tracks major capabilit
 
 ## November 2026
 
+- **Docs and blog redesign** — a new blog index with cover cards, topic filters and search; a cleaner article page; the docs sidebar has search and the top bar has Documentation, Guides and API Reference tabs. Posts no longer carry an author line.
+- **Docs now cover the MCP admin API, users, health checks and batch jobs** — pinning, injection scanning, grants, bundles and trust rules are explained in the [MCP gateway](/guides/mcp-gateway) guide and the [MCP admin API](/api-reference/mcp-admin).
+
 - **Fixed (found by testing against a real model):** batch lines, eval runs and conversation turns to a model the gateway cannot price used to fail with a 502 after the provider had already answered. They now return the answer and charge the flat fee, marked as an estimate, as chat does.
 - **Fixed:** every response carried two `X-OpenProxyAI-Request-Id` headers in different formats, which clients saw as "id1, id2" and which `POST /v1/feedback` rejected. There is now one, and it is the id written in the audit log.
 - **Fixed (Python SDK):** `stream=True` failed with `StreamClosed` on a real connection, and the async stream stopped after its first chunk. A refusal on a streamed request now raises the typed error before any chunk.
