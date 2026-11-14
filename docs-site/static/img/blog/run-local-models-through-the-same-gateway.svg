@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 310" width="640" height="310" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="310" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="309" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Sensitive prompts stay on your own model</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Same gateway, same policy, same budget. Different destination.</text>
+
+  <rect x="24" y="92" width="150" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="116" fill="#cfd5dd" font-size="14">Request</text>
+  <text x="36" y="136" fill="#a3abb8" font-size="14">contains an SSN</text>
+
+  <rect x="214" y="92" width="190" height="56" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="226" y="116" fill="#cfd5dd" font-size="14">Gateway classifies it</text>
+  <text x="226" y="136" fill="#35d399" font-size="14">confidential</text>
+
+  <line x1="174" y1="120" x2="214" y2="120" stroke="#cfd5dd" stroke-width="2"/>
+
+  <rect x="444" y="92" width="172" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="456" y="116" fill="#cfd5dd" font-size="14">Cloud model</text>
+  <text x="456" y="136" fill="#a3abb8" font-size="14">cleared: internal</text>
+
+  <rect x="444" y="178" width="172" height="56" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="456" y="202" fill="#cfd5dd" font-size="14">Local model</text>
+  <text x="456" y="222" fill="#a3abb8" font-size="14">cleared: confidential</text>
+
+  <line x1="404" y1="112" x2="444" y2="112" stroke="#f0b429" stroke-width="2" stroke-dasharray="4 4"/>
+  <text x="414" y="104" fill="#f0b429" font-size="14">no</text>
+  <line x1="404" y1="130" x2="424" y2="130" stroke="#35d399" stroke-width="2"/>
+  <line x1="424" y1="130" x2="424" y2="206" stroke="#35d399" stroke-width="2"/>
+  <line x1="424" y1="206" x2="444" y2="206" stroke="#35d399" stroke-width="2"/>
+
+  <text x="24" y="270" fill="#cfd5dd" font-size="14">If the local model is down, the request is refused (HTTP 446).</text>
+  <text x="24" y="292" fill="#a3abb8" font-size="14">It is never quietly sent to the cloud model.</text>
+</svg>

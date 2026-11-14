@@ -11,7 +11,7 @@
 
   <g font-size="15">
     <rect x="24" y="86" width="592" height="150" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="42" y="114" fill="#f4f6f8" font-weight="600" font-size="16">2025-11-25  (what our gateway speaks)</text>
+    <text x="42" y="114" fill="#f4f6f8" font-weight="600" font-size="16">2025-11-25</text>
     <rect x="42" y="132" width="120" height="44" rx="8" fill="#0d0f14" stroke="#2a2f3a"/>
     <text x="102" y="160" fill="#cfd5dd" text-anchor="middle">Agent</text>
     <rect x="252" y="132" width="120" height="44" rx="8" fill="#0d0f14" stroke="#35d399"/>

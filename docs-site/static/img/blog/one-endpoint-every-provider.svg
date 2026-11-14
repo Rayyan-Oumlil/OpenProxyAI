@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">One endpoint, many providers</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">The app never changes. The gateway chooses.</text>
+
+  <rect x="24" y="96" width="150" height="110" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="124" fill="#cfd5dd" font-size="14">Your app</text>
+  <text x="36" y="146" fill="#a3abb8" font-size="14">OpenAI SDK</text>
+  <text x="36" y="166" fill="#a3abb8" font-size="14">one base URL</text>
+  <text x="36" y="186" fill="#a3abb8" font-size="14">one gateway key</text>
+
+  <rect x="226" y="84" width="180" height="134" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="238" y="110" fill="#f4f6f8" font-size="14" font-weight="600">Gateway</text>
+  <text x="238" y="134" fill="#cfd5dd" font-size="14">Policy and budgets</text>
+  <text x="238" y="156" fill="#cfd5dd" font-size="14">Model registry</text>
+  <text x="238" y="178" fill="#cfd5dd" font-size="14">Weighted routing</text>
+  <text x="238" y="200" fill="#cfd5dd" font-size="14">Failover</text>
+
+  <rect x="458" y="84" width="158" height="36" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="470" y="107" fill="#cfd5dd" font-size="14">Provider A</text>
+  <rect x="458" y="132" width="158" height="36" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="470" y="155" fill="#cfd5dd" font-size="14">Provider B</text>
+  <rect x="458" y="180" width="158" height="38" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="470" y="204" fill="#cfd5dd" font-size="14">Backup or local</text>
+
+  <line x1="174" y1="151" x2="226" y2="151" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="406" y1="130" x2="458" y2="102" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="406" y1="151" x2="458" y2="150" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="406" y1="172" x2="458" y2="199" stroke="#f0b429" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <text x="24" y="256" fill="#a3abb8" font-size="14">Swap a model: change the registry entry or the key,</text>
+  <text x="24" y="278" fill="#a3abb8" font-size="14">not the application. Dashed: used when the first choice fails.</text>
+</svg>

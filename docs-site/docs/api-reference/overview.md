@@ -45,14 +45,8 @@ Every proxy response includes gateway metadata as response headers, regardless o
 | Header | Meaning |
 |---|---|
 | `x-openproxyai-request-id` | Unique ID for this request, for correlating with the audit log |
-| `x-openproxyai-provider` | Upstream provider actually used |
-| `x-openproxyai-model` | Model actually used |
-| `x-openproxyai-cost-usd` | Cost of this request in USD |
 | `x-openproxyai-latency-ms` | Total latency including proxy overhead |
-| `x-openproxyai-ttft-ms` | Time to first token (streaming requests) |
-| `x-openproxyai-cache` | Which cache tier served this response, if any |
-| `x-openproxyai-policy-action` | Policy action taken, if any (e.g. `redacted`) |
-| `x-openproxyai-policy-reason` | Human-readable reason for the policy action |
+| `x-openproxy-cache` | Which cache tier served this response, if any |
 
 ## Sections
 

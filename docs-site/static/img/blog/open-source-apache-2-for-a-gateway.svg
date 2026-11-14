@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">What Apache-2.0 gives you, and asks of you</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">A summary of the license text, not legal advice.</text>
+
+  <rect x="24" y="84" width="296" height="176" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="38" y="112" fill="#35d399" font-size="14" font-weight="600">You may</text>
+  <text x="38" y="138" fill="#cfd5dd" font-size="14">Use it, including commercially</text>
+  <text x="38" y="162" fill="#cfd5dd" font-size="14">Read and change the code</text>
+  <text x="38" y="186" fill="#cfd5dd" font-size="14">Run it on your own servers</text>
+  <text x="38" y="210" fill="#cfd5dd" font-size="14">Redistribute it, modified or not</text>
+  <text x="38" y="234" fill="#cfd5dd" font-size="14">Rely on a patent license</text>
+
+  <rect x="332" y="84" width="284" height="176" rx="10" fill="#14171e" stroke="#f0b429"/>
+  <text x="346" y="112" fill="#f0b429" font-size="14" font-weight="600">You must</text>
+  <text x="346" y="138" fill="#cfd5dd" font-size="14">Keep the license and notices</text>
+  <text x="346" y="162" fill="#cfd5dd" font-size="14">Mark files you changed</text>
+  <text x="346" y="194" fill="#a3abb8" font-size="14">Note: the license grants no</text>
+  <text x="346" y="214" fill="#a3abb8" font-size="14">trademark rights and comes</text>
+  <text x="346" y="234" fill="#a3abb8" font-size="14">with no warranty.</text>
+</svg>

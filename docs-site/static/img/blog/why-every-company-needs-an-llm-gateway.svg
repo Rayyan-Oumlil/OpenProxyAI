@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 380" width="640" role="img" aria-labelledby="t d">
+  <title id="t">Direct provider calls compared with one gateway</title>
+  <desc id="d">Left: applications call providers directly, each with its own keys. Right: applications call one gateway, which applies policy, budgets, caching, failover and audit, then calls the providers.</desc>
+  <rect x="0.5" y="0.5" width="639" height="379" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">Direct calls versus one gateway</text>
+
+    <text x="24" y="70" font-weight="600" fill="#f0b429">Before</text>
+    <rect x="24" y="84" width="120" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="112" fill="#f4f6f8">App A</text>
+    <rect x="24" y="148" width="120" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="176" fill="#f4f6f8">App B</text>
+    <rect x="24" y="212" width="120" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="240" fill="#f4f6f8">App C</text>
+    <rect x="196" y="120" width="116" height="104" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="210" y="148" fill="#f4f6f8">Providers</text>
+    <text x="210" y="172" fill="#a3abb8">Each app holds</text>
+    <text x="210" y="192" fill="#a3abb8">its own keys</text>
+    <g stroke="#f0b429" stroke-width="1.5" fill="none">
+      <path d="M144 106 L196 140"/><path d="M144 106 L196 190"/>
+      <path d="M144 170 L196 150"/><path d="M144 170 L196 200"/>
+      <path d="M144 234 L196 160"/><path d="M144 234 L196 210"/>
+    </g>
+
+    <text x="344" y="70" font-weight="600" fill="#35d399">After</text>
+    <rect x="344" y="84" width="76" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="356" y="112" fill="#f4f6f8">App A</text>
+    <rect x="344" y="148" width="76" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="356" y="176" fill="#f4f6f8">App B</text>
+    <rect x="344" y="212" width="76" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="356" y="240" fill="#f4f6f8">App C</text>
+    <rect x="452" y="84" width="164" height="172" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="466" y="112" font-weight="600" fill="#f4f6f8">Gateway</text>
+    <text x="466" y="140" fill="#a3abb8">Policy</text>
+    <text x="466" y="162" fill="#a3abb8">Budgets, limits</text>
+    <text x="466" y="184" fill="#a3abb8">Cache, failover</text>
+    <text x="466" y="206" fill="#a3abb8">Data-class routing</text>
+    <text x="466" y="228" fill="#a3abb8">Audit log</text>
+    <g stroke="#35d399" stroke-width="1.5" fill="none">
+      <path d="M420 106 L452 130"/><path d="M420 170 L452 170"/><path d="M420 234 L452 210"/>
+    </g>
+
+    <rect x="24" y="286" width="592" height="68" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="312" font-weight="600" fill="#f4f6f8">Result</text>
+    <text x="40" y="334" fill="#a3abb8">One key per app, one rule set, one bill by team, one record of every call.</text>
+  </g>
+</svg>

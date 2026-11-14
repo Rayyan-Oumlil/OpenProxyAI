@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 340" width="640" height="340" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="340" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="339" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Same SDK, one new hop</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Before: direct. After: through the gateway.</text>
+
+  <text x="24" y="98" fill="#a3abb8" font-size="14">Before</text>
+  <rect x="24" y="108" width="160" height="48" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="138" fill="#f4f6f8" font-size="14" font-weight="600">Your app</text>
+  <line x1="184" y1="132" x2="256" y2="132" stroke="#a3abb8" stroke-width="2"/>
+  <rect x="256" y="108" width="160" height="48" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="272" y="138" fill="#f4f6f8" font-size="14" font-weight="600">One provider</text>
+
+  <text x="24" y="196" fill="#35d399" font-size="14">After</text>
+  <rect x="24" y="206" width="160" height="48" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="236" fill="#f4f6f8" font-size="14" font-weight="600">Your app</text>
+  <line x1="184" y1="230" x2="216" y2="230" stroke="#a3abb8" stroke-width="2"/>
+  <rect x="216" y="198" width="208" height="64" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="232" y="224" fill="#35d399" font-size="14" font-weight="600">OpenProxyAI</text>
+  <text x="232" y="248" fill="#cfd5dd" font-size="14">Same API, one URL</text>
+  <line x1="424" y1="230" x2="456" y2="230" stroke="#a3abb8" stroke-width="2"/>
+  <rect x="456" y="198" width="160" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="472" y="224" fill="#f4f6f8" font-size="14" font-weight="600">Any provider</text>
+  <text x="472" y="248" fill="#cfd5dd" font-size="14">With failover</text>
+
+  <rect x="24" y="280" width="592" height="40" rx="10" fill="#1d1710" stroke="#f0b429"/>
+  <text x="40" y="305" fill="#f0b429" font-size="14" font-weight="600">Added: policy, budgets, cache, audit log</text>
+</svg>

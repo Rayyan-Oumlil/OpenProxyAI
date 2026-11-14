@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="400" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="399" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">From 20x themes to controls you run</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Evidence, produced continuously, inside your boundary</text>
+
+  <text x="24" y="98" fill="#a3abb8" font-size="14">What reviewers look for</text>
+  <text x="344" y="98" fill="#a3abb8" font-size="14">Gateway control</text>
+
+  <rect x="24" y="108" width="296" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="139" fill="#f4f6f8" font-size="14" font-weight="600">Identity and access</text>
+  <rect x="344" y="108" width="272" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="360" y="139" fill="#35d399" font-size="14" font-weight="600">SSO, SCIM, roles</text>
+
+  <rect x="24" y="172" width="296" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="203" fill="#f4f6f8" font-size="14" font-weight="600">Data separation</text>
+  <rect x="344" y="172" width="272" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="360" y="203" fill="#35d399" font-size="14" font-weight="600">Data classes, regions</text>
+
+  <rect x="24" y="236" width="296" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="267" fill="#f4f6f8" font-size="14" font-weight="600">Continuous evidence</text>
+  <rect x="344" y="236" width="272" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="360" y="267" fill="#35d399" font-size="14" font-weight="600">Write-once audit log</text>
+
+  <rect x="24" y="300" width="296" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="331" fill="#f4f6f8" font-size="14" font-weight="600">Real-time analytics</text>
+  <rect x="344" y="300" width="272" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="360" y="331" fill="#35d399" font-size="14" font-weight="600">Dashboards, budget alerts</text>
+
+  <text x="24" y="382" fill="#f0b429" font-size="14" font-weight="600">Templates and controls, not a certification.</text>
+</svg>

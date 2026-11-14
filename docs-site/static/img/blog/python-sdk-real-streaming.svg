@@ -1,26 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" role="img" aria-label="A mocked response arrives as a finished body that can be read any number of times. A real streamed response is an open connection that can be read once and breaks if it is closed or iterated twice.">
-  <rect x="1" y="1" width="638" height="398" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
-  <text x="24" y="38" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="600" fill="#f4f6f8">Mocked response vs real stream</text>
-
-  <text x="24" y="76" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#f0b429">Test with a mock</text>
-  <rect x="24" y="90" width="150" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
-  <text x="36" y="123" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">SDK request</text>
-  <rect x="226" y="90" width="390" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
-  <text x="238" y="114" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">Whole body already in memory</text>
-  <text x="238" y="134" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#a3abb8">no socket, nothing to close</text>
-  <line x1="174" y1="118" x2="224" y2="118" stroke="#f0b429" stroke-width="2"/>
-  <text x="24" y="172" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#a3abb8">Reading it twice works. Closing it early costs nothing.</text>
-
-  <line x1="24" y1="196" x2="616" y2="196" stroke="#1b1f27"/>
-
-  <text x="24" y="226" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="600" fill="#35d399">Real connection</text>
-  <rect x="24" y="240" width="150" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
-  <text x="36" y="273" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">SDK request</text>
-  <rect x="226" y="240" width="390" height="56" rx="8" fill="#14171e" stroke="#35d399"/>
-  <text x="238" y="264" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">Open connection, chunks arrive over time</text>
-  <text x="238" y="284" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#a3abb8">one reader, one pass</text>
-  <line x1="174" y1="268" x2="224" y2="268" stroke="#35d399" stroke-width="2"/>
-  <text x="24" y="324" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">Close it early: StreamClosed. Start a second line iterator:</text>
-  <text x="24" y="344" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">the async stream stopped after the first chunk.</text>
-  <text x="24" y="376" font-family="Inter, system-ui, sans-serif" font-size="14" fill="#a3abb8">Fix: the stream object owns the response, one iterator, close in finally.</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">A stream is an open connection</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Python SDK, sync and async</text>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a3abb8"/></marker></defs>
+  <rect x="24" y="90" width="130" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="89" y="118" fill="#f4f6f8" font-size="15" font-weight="600" text-anchor="middle">SDK request</text>
+  <text x="89" y="138" fill="#a3abb8" font-size="14" text-anchor="middle">stream=True</text>
+  <rect x="254" y="90" width="190" height="64" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="349" y="118" fill="#f4f6f8" font-size="15" font-weight="600" text-anchor="middle">Open connection</text>
+  <text x="349" y="138" fill="#a3abb8" font-size="14" text-anchor="middle">chunks arrive over time</text>
+  <rect x="504" y="90" width="112" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="560" y="118" fill="#f4f6f8" font-size="15" font-weight="600" text-anchor="middle">Your app</text>
+  <text x="560" y="138" fill="#a3abb8" font-size="14" text-anchor="middle">token by token</text>
+  <line x1="154" y1="122" x2="250" y2="122" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="444" y1="122" x2="500" y2="122" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="24" y="200" fill="#cfd5dd" font-size="14">The stream object owns the connection.</text>
+  <text x="24" y="224" fill="#cfd5dd" font-size="14">One reader, one pass, every chunk delivered.</text>
+  <text x="24" y="248" fill="#cfd5dd" font-size="14">The connection closes when iteration ends.</text>
+  <text x="24" y="272" fill="#cfd5dd" font-size="14">Refusals arrive as typed errors, before the first chunk.</text>
 </svg>

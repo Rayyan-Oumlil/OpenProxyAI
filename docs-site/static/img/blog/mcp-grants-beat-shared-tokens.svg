@@ -4,34 +4,27 @@
   <rect x="0.5" y="0.5" width="639" height="519" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
   <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
     <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">Each layer can only remove tools</text>
-
     <rect x="24" y="56" width="592" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="40" y="83">All tools from active upstream servers, named server__tool</text>
+    <text x="40" y="83">All tools from your connected tool servers</text>
     <path d="M320 104 L312 112 L328 112 Z" fill="#35d399"/>
-
     <rect x="24" y="116" width="592" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="40" y="142" font-weight="600" fill="#f4f6f8">1. Organization policy: blocked list wins, then allowlist</text>
-    <text x="40" y="164" fill="#a3abb8">Refused call: reason_code tool_blocked</text>
+    <text x="40" y="142" font-weight="600" fill="#f4f6f8">1. Organization policy</text>
+    <text x="40" y="164" fill="#a3abb8">Blocked tools always win</text>
     <path d="M320 184 L312 192 L328 192 Z" fill="#35d399"/>
-
     <rect x="24" y="196" width="592" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="40" y="222" font-weight="600" fill="#f4f6f8">2. Grants for role, team, user, API key: deny wins</text>
-    <text x="40" y="244" fill="#a3abb8">Allow grants are opt-in. tool_grant_denied, tool_not_granted</text>
+    <text x="40" y="222" font-weight="600" fill="#f4f6f8">2. Grants for role, team, user, API key</text>
+    <text x="40" y="244" fill="#a3abb8">Deny always wins</text>
     <path d="M320 264 L312 272 L328 272 Z" fill="#35d399"/>
-
     <rect x="24" y="276" width="592" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="40" y="302" font-weight="600" fill="#f4f6f8">3. Request scope header: intersection only</text>
-    <text x="40" y="324" fill="#a3abb8">X-OpenProxy-MCP-Tools. Asking for more changes nothing: tool_out_of_scope</text>
+    <text x="40" y="302" font-weight="600" fill="#f4f6f8">3. Per-request scope</text>
+    <text x="40" y="324" fill="#a3abb8">A client can ask for less, never more</text>
     <path d="M320 344 L312 352 L328 352 Z" fill="#35d399"/>
-
     <rect x="24" y="356" width="592" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="40" y="382" font-weight="600" fill="#f4f6f8">4. Bundle endpoint /v1/mcp/slug: the key's only door</text>
-    <text x="40" y="404" fill="#a3abb8">tool_not_in_bundle. Bare /v1/mcp answers 403 for a confined key</text>
+    <text x="40" y="382" font-weight="600" fill="#f4f6f8">4. Bundle endpoint</text>
+    <text x="40" y="404" fill="#a3abb8">A confined key has one door</text>
     <path d="M320 424 L312 432 L328 432 Z" fill="#35d399"/>
-
     <rect x="24" y="436" width="592" height="44" rx="10" fill="#14171e" stroke="#35d399"/>
     <text x="40" y="463" fill="#35d399" font-weight="600">Tools this caller can list and call</text>
-
-    <text x="24" y="504" fill="#a3abb8">Checked in this order on every call. A denied call never reaches the upstream.</text>
+    <text x="24" y="504" fill="#a3abb8">Checked on every call. A denied call never reaches the tool server.</text>
   </g>
 </svg>

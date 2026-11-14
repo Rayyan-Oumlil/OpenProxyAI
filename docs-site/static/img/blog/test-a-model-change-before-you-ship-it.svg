@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 260" width="640" height="260" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="260" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="259" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">From real traffic to a decision you can defend</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">The gateway records the winner, you switch</text>
+
+  <rect x="24" y="86" width="130" height="92" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="114" fill="#f4f6f8" font-size="14" font-weight="600">Examples</text>
+  <text x="38" y="138" fill="#cfd5dd" font-size="14">redacted sample</text>
+  <text x="38" y="158" fill="#a3abb8" font-size="14">of real traffic</text>
+
+  <rect x="178" y="86" width="130" height="92" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="192" y="114" fill="#f4f6f8" font-size="14" font-weight="600">Eval run</text>
+  <text x="192" y="138" fill="#cfd5dd" font-size="14">scored answers</text>
+  <text x="192" y="158" fill="#a3abb8" font-size="14">with a cost cap</text>
+
+  <rect x="332" y="86" width="130" height="92" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="346" y="114" fill="#f4f6f8" font-size="14" font-weight="600">Experiment</text>
+  <text x="346" y="138" fill="#cfd5dd" font-size="14">live traffic split</text>
+  <text x="346" y="158" fill="#a3abb8" font-size="14">fixed or adaptive</text>
+
+  <rect x="486" y="86" width="130" height="92" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="500" y="114" fill="#35d399" font-size="14" font-weight="600">You decide</text>
+  <text x="500" y="138" fill="#cfd5dd" font-size="14">winner recorded</text>
+  <text x="500" y="158" fill="#a3abb8" font-size="14">not auto-applied</text>
+
+  <path d="M154 132 H176 M308 132 H330 M462 132 H484" stroke="#35d399" stroke-width="2"/>
+  <text x="24" y="214" fill="#cfd5dd" font-size="14">Ratings from your app steer an adaptive test toward the better model.</text>
+  <text x="24" y="238" fill="#f0b429" font-size="14">Nothing changes your production model on its own.</text>
+</svg>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" role="img" aria-labelledby="t d">
+  <title id="t">Approval boundary for an agent near payment actions</title>
+  <desc id="d">An agent with a read-only key reaches lookup tools through the gateway. A refund tool sits behind a second key used by an approval service after a person approves. All calls are recorded in the audit log.</desc>
+  <rect x="0.5" y="0.5" width="639" height="399" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">Two keys, two bundles, one log</text>
+
+    <rect x="24" y="64" width="150" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="90" font-weight="600" fill="#f4f6f8">Agent</text>
+    <text x="38" y="112" fill="#a3abb8">read-only key</text>
+
+    <rect x="24" y="236" width="150" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="262" font-weight="600" fill="#f4f6f8">Approval service</text>
+    <text x="38" y="284" fill="#a3abb8">second key</text>
+
+    <rect x="24" y="152" width="150" height="56" rx="10" fill="#14171e" stroke="#f0b429" stroke-width="2"/>
+    <text x="38" y="176" font-weight="600" fill="#f4f6f8">A person</text>
+    <text x="38" y="196" fill="#f0b429">approves or not</text>
+
+    <rect x="226" y="64" width="190" height="236" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="321" y="92" text-anchor="middle" font-weight="600" fill="#f4f6f8">Gateway</text>
+    <text x="242" y="122" fill="#a3abb8">Grants and bundles</text>
+    <text x="242" y="148" fill="#a3abb8">Card number checks</text>
+    <text x="242" y="174" fill="#a3abb8">Sink tools refuse</text>
+    <text x="242" y="196" fill="#a3abb8">after untrusted output</text>
+    <text x="242" y="228" fill="#a3abb8">Refused calls get a</text>
+    <text x="242" y="250" fill="#a3abb8">clear error, logged</text>
+
+    <rect x="468" y="64" width="150" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="482" y="90" font-weight="600" fill="#f4f6f8">Lookup tools</text>
+    <text x="482" y="112" fill="#a3abb8">order status</text>
+
+    <rect x="468" y="236" width="150" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="482" y="262" font-weight="600" fill="#f4f6f8">Refund tool</text>
+    <text x="482" y="284" fill="#f0b429">side effects</text>
+
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M174 96 L226 96"/>
+      <path d="M416 96 L468 96"/>
+      <path d="M174 268 L226 268"/>
+      <path d="M416 268 L468 268"/>
+    </g>
+    <path d="M99 152 L99 132 M99 152 L94 144 M99 152 L104 144" stroke="#f0b429" stroke-width="2" fill="none"/>
+    <path d="M99 208 L99 232 M99 232 L94 224 M99 232 L104 224" stroke="#f0b429" stroke-width="2" fill="none"/>
+
+    <rect x="24" y="324" width="592" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="346" font-weight="600" fill="#f4f6f8">Audit log</text>
+    <text x="40" y="366" fill="#a3abb8">Every call: who, which key, which tool, the decision, the status</text>
+  </g>
+</svg>

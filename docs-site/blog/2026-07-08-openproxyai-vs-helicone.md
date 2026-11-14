@@ -40,8 +40,6 @@ flowchart LR
 - **Deployment model.** Helicone has been offered as a cloud SaaS and as open source you can self-host; Mintlify's announcement does not say how self-hosting is handled from here. OpenProxyAI is self-hosted-first — it assumes your provider keys and request bodies stay inside your VPC by default, not as an enterprise upgrade.
 - **Compliance templates.** Healthcare, Finance, and Government policy templates are native to OpenProxyAI's policy engine. Helicone doesn't have an equivalent, because policy enforcement isn't the product surface it's built around.
 
-## Where Helicone is the better call
+## When each fits
 
-If you already have your own routing, rate limiting, and guardrails — or you genuinely don't need them yet — and what's missing is *visibility*, Helicone's prompt experimentation and session-replay tooling is more mature than anything OpenProxyAI ships for that specific job, though it is no longer on an announced feature roadmap. Plenty of teams run Helicone in front of a homegrown router purely for the observability layer, and that's a completely reasonable setup.
-
-The honest split: Helicone if you need to see what's happening. OpenProxyAI if you need something with the authority to say no.
+If visibility is the only gap and you already run your own routing and guardrails, an observability tool can be enough. If you also need something with the authority to enforce policy, route by data class, cap spend and keep an audit trail, that is what OpenProxyAI is built for.

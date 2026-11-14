@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" role="img" aria-labelledby="t d">
+  <title id="t">High-risk AI Act dates move, the work to start does not</title>
+  <desc id="d">Stand-alone high-risk systems move from August 2026 to 2 December 2027. Systems embedded in products move to 2 August 2028. Three things to build now: audit trail, data rules, review path.</desc>
+  <rect x="0.5" y="0.5" width="639" height="399" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">Provisional deal, 7 May 2026</text>
+
+    <rect x="24" y="62" width="150" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="86" fill="#a3abb8">Stand-alone</text>
+    <text x="38" y="106" font-weight="600" fill="#f4f6f8">Aug 2026</text>
+    <path d="M178 90 L262 90" stroke="#f0b429" stroke-width="2" fill="none"/>
+    <path d="M262 90 L254 85 M262 90 L254 95" stroke="#f0b429" stroke-width="2" fill="none"/>
+    <rect x="270" y="62" width="346" height="56" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="286" y="86" fill="#a3abb8">High-risk rules apply from</text>
+    <text x="286" y="106" font-weight="600" fill="#f4f6f8">2 December 2027</text>
+
+    <rect x="24" y="134" width="150" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="158" fill="#a3abb8">Embedded in</text>
+    <text x="38" y="178" fill="#a3abb8">products</text>
+    <path d="M178 162 L262 162" stroke="#f0b429" stroke-width="2" fill="none"/>
+    <path d="M262 162 L254 157 M262 162 L254 167" stroke="#f0b429" stroke-width="2" fill="none"/>
+    <rect x="270" y="134" width="346" height="56" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="286" y="158" fill="#a3abb8">High-risk rules apply from</text>
+    <text x="286" y="178" font-weight="600" fill="#f4f6f8">2 August 2028</text>
+
+    <text x="24" y="226" font-size="16" font-weight="600" fill="#f4f6f8">What the delay does not change: start these now</text>
+
+    <rect x="24" y="242" width="190" height="118" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="268" font-weight="600" fill="#35d399">1 Audit trail</text>
+    <text x="38" y="292" fill="#a3abb8">Who called, which</text>
+    <text x="38" y="312" fill="#a3abb8">model, what policy</text>
+    <text x="38" y="332" fill="#a3abb8">decided, the cost</text>
+
+    <rect x="225" y="242" width="190" height="118" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="239" y="268" font-weight="600" fill="#35d399">2 Data rules</text>
+    <text x="239" y="292" fill="#a3abb8">Which data class may</text>
+    <text x="239" y="312" fill="#a3abb8">reach which model,</text>
+    <text x="239" y="332" fill="#a3abb8">in which region</text>
+
+    <rect x="426" y="242" width="190" height="118" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="440" y="268" font-weight="600" fill="#35d399">3 Review path</text>
+    <text x="440" y="292" fill="#a3abb8">People read the log,</text>
+    <text x="440" y="312" fill="#a3abb8">and test rule changes</text>
+    <text x="440" y="332" fill="#a3abb8">before they enforce</text>
+
+    <text x="24" y="384" fill="#a3abb8">Provisional: formal adoption was still pending.</text>
+  </g>
+</svg>

@@ -19,4 +19,4 @@ Remove a member from a team without deleting their org account entirely — usef
 
 ## Setting a team's budget
 
-Each team has its own daily dollar budget, requests/min, and tokens/min limits, visible and editable from the team's settings page — the same limits enforced at the rate-limit stage of the [request pipeline](/core-concepts/request-pipeline).
+Each team has its own monthly dollar budget, set from the Teams page. Team request and token rates are counted per team against the ceiling set in the organization policy. Both are enforced at the rate-limit stage of the [request pipeline](/core-concepts/request-pipeline).
