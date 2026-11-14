@@ -6,7 +6,7 @@ import type {Props as BlogListProps} from '@theme/BlogListPage';
 import SearchIcon from '@site/src/components/SearchIcon';
 import {useFocusShortcut} from '@site/src/hooks/useFocusShortcut';
 import PostCard, {type Post} from './PostCard';
-import {BLOG_PATH, FEED_PATH, TOPICS} from './topics';
+import {BLOG_PATH, TOPICS} from './topics';
 import styles from './styles.module.css';
 
 const HERO_COUNT = 2;
@@ -81,22 +81,6 @@ export default function BlogIndex({
               Ctrl K
             </kbd>
           </label>
-          <Link to={FEED_PATH} className={styles.feed} target="_blank">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.25"
-              strokeLinecap="round"
-              aria-hidden="true"
-              focusable="false">
-              <path d="M5 11a8 8 0 0 1 8 8M5 4a15 15 0 0 1 15 15" />
-              <circle cx="5.5" cy="18.5" r="1.25" fill="currentColor" />
-            </svg>
-            RSS feed
-          </Link>
         </div>
       </header>
 
