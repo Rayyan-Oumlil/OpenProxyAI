@@ -1,0 +1,32 @@
+# OpenProxyAI
+
+> OpenProxyAI is an open-source (Apache-2.0), self-hosted LLM gateway. One OpenAI-compatible endpoint for every provider, with policy enforcement, budgets and rate limits, data-class routing, caching, failover, an MCP gateway, evals, SSO and SCIM, and an append-only audit trail.
+
+## Start here
+- [Introduction](https://docs.openproxyai.com/getting-started/introduction): what the gateway does
+- [Quickstart](https://docs.openproxyai.com/getting-started/quickstart): run it with Docker in minutes
+- [Authentication](https://docs.openproxyai.com/getting-started/authentication)
+
+## Core concepts
+- [Request pipeline](https://docs.openproxyai.com/core-concepts/request-pipeline): how each request is checked and routed
+- [Policies and guardrails](https://docs.openproxyai.com/core-concepts/policies-and-guardrails)
+- [Provider routing](https://docs.openproxyai.com/core-concepts/provider-routing)
+- [Caching](https://docs.openproxyai.com/core-concepts/caching)
+- [Rate limiting and budgets](https://docs.openproxyai.com/core-concepts/rate-limiting-and-budgets)
+
+## Security
+- [Trust center](https://docs.openproxyai.com/security/trust-center)
+- [Audit logging](https://docs.openproxyai.com/security/audit-logging)
+- [Data residency](https://docs.openproxyai.com/security/data-residency)
+
+## Reference and guides
+- [API reference](https://docs.openproxyai.com/api-reference/overview)
+- [Deployment](https://docs.openproxyai.com/guides/deployment)
+- [SSO and SCIM](https://docs.openproxyai.com/guides/sso-and-scim)
+- [MCP gateway](https://docs.openproxyai.com/guides/mcp-gateway)
+
+## Blog
+- [All posts](https://docs.openproxyai.com/blog)
+
+## Source
+- [GitHub](https://github.com/Rayyan-Oumlil/OpenProxyAI)

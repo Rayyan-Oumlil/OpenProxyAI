@@ -8,7 +8,7 @@ import PricingSection from '../sections/PricingSection';
 import MobileExplore from '../sections/MobileExplore';
 
 export default function HomePage() {
-  useEffect(() => { document.title = 'OpenProxyAI · The control plane for enterprise AI'; }, []);
+  useEffect(() => { document.title = 'OpenProxyAI | Open-source LLM gateway for enterprise AI'; }, []);
 
   return (
     <>

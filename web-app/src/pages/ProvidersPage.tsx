@@ -25,7 +25,7 @@ function HealthGridVisual() {
 }
 
 export default function ProvidersPage() {
-  useEffect(() => { document.title = 'Providers · OpenProxyAI'; }, []);
+  useEffect(() => { document.title = 'Providers and models | OpenProxyAI'; }, []);
 
   return (
     <>

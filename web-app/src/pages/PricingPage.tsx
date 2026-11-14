@@ -28,7 +28,7 @@ function FlatFeeVisual() {
 }
 
 export default function PricingPage() {
-  useEffect(() => { document.title = 'Pricing · OpenProxyAI'; }, []);
+  useEffect(() => { document.title = 'Pricing | OpenProxyAI'; }, []);
 
   return (
     <>

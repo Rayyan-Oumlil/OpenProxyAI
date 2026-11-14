@@ -38,7 +38,7 @@ function LatencyBudgetVisual() {
 }
 
 export default function ProductPage() {
-  useEffect(() => { document.title = 'Product · OpenProxyAI'; }, []);
+  useEffect(() => { document.title = 'Product | OpenProxyAI'; }, []);
 
   return (
     <>
