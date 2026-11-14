@@ -1,5 +1,6 @@
 ---
 slug: retry-storms-recover-from-a-provider-outage
+image: /img/blog/og/retry-storms-recover-from-a-provider-outage.png
 title: "Retry storms: recover from a provider outage without causing a second one"
 tags: [engineering, product]
 description: "When a model provider degrades, well-meant retries from every layer of your stack can pile on and keep it down. How to back off, cap attempts and fail over, and what OpenProxyAI does for you."

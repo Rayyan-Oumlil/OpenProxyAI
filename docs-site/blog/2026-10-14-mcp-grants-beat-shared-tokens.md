@@ -1,5 +1,6 @@
 ---
 slug: mcp-grants-beat-shared-tokens
+image: /img/blog/og/mcp-grants-beat-shared-tokens.png
 title: "Per-user, per-tool grants beat one shared MCP service token"
 tags: [security, architecture]
 description: A shared MCP token makes every agent as powerful as the most powerful user. How per-subject grants, deny-wins rules, request scoping and bundles shrink the blast radius.

@@ -1,5 +1,6 @@
 ---
 slug: do-you-need-a-gateway-with-one-provider
+image: /img/blog/og/do-you-need-a-gateway-with-one-provider.png
 title: "Do you need an LLM gateway if you only use one provider?"
 tags: [product, architecture]
 description: "Using a single model provider is a fine place to start. A gateway still earns its place on day one with policy, key custody, cost visibility and audit, and it makes a future second provider a small change."

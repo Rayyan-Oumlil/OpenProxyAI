@@ -1,5 +1,6 @@
 ---
 slug: hipaa-security-rule-overhaul-delayed-to-2027
+image: /img/blog/og/hipaa-security-rule-overhaul-delayed-to-2027.png
 title: "HIPAA Security Rule overhaul slips to July 2027: what AI teams do now"
 tags: [security, product]
 description: "HHS now targets July 2027 for the final HIPAA Security Rule update, up from May 2026. The rule you follow today has not changed. Here is how to use the extra time to get your LLM traffic under control."

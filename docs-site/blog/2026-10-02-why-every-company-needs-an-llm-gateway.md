@@ -1,5 +1,6 @@
 ---
 slug: why-every-company-needs-an-llm-gateway
+image: /img/blog/og/why-every-company-needs-an-llm-gateway.png
 title: "Why every company that uses LLMs needs a gateway"
 tags: [architecture, product]
 description: "Direct calls to model providers work fine for a prototype. At company scale they scatter keys, hide costs and leave no record. Here is what goes wrong, and how one gateway fixes each problem."

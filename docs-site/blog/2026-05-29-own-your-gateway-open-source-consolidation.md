@@ -1,5 +1,6 @@
 ---
 slug: own-your-gateway
+image: /img/blog/og/own-your-gateway.png
 title: "Open source gateways and consolidation: why owning yours matters"
 tags: [architecture, product]
 description: "Portkey open-sourced its gateway in March 2026, and Palo Alto Networks closed its acquisition of Portkey in May. What it means for teams that put one service in front of every model call."

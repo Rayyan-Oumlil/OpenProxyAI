@@ -1,5 +1,6 @@
 ---
 slug: protect-every-prompt-end-to-end
+image: /img/blog/og/protect-every-prompt-end-to-end.png
 title: "Follow one prompt through OpenProxyAI: seven checkpoints before and after the model"
 tags: [security, product]
 description: "What happens between your app and the model? A plain-words walk through one request: key, limits, policy, cache, routing, response checks and the audit log, with what each stage can stop."

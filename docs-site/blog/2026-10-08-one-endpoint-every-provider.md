@@ -1,5 +1,6 @@
 ---
 slug: one-endpoint-every-provider
+image: /img/blog/og/one-endpoint-every-provider.png
 title: "One endpoint for every model provider, and no code change to swap models"
 tags: [product, architecture]
 description: "Point your existing OpenAI SDK at one gateway and reach every provider. Weighted routing, automatic failover and a model registry let you change models without touching application code."

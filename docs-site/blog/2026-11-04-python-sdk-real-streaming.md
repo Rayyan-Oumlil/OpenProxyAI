@@ -1,5 +1,6 @@
 ---
 slug: python-sdk-real-streaming
+image: /img/blog/og/python-sdk-real-streaming.png
 title: "Real streaming in the Python SDK, token by token"
 tags: [engineering]
 description: How the OpenProxyAI Python SDK streams chat completions token by token, in both sync and async clients, and what SDK authors should test against a real connection.

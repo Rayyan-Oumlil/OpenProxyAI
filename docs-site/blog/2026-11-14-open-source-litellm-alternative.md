@@ -1,5 +1,6 @@
 ---
 slug: open-source-litellm-alternative
+image: /img/blog/og/open-source-litellm-alternative.png
 title: "Looking for an open-source LiteLLM alternative? Eight questions to ask"
 tags: [product, architecture]
 description: "LiteLLM is a widely used open-source proxy and SDK. If security, finance or compliance now has a say in AI usage, here are eight questions to ask any gateway, and how OpenProxyAI answers each."

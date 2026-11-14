@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 270" width="640" height="270" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="270" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="269" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Test a rule on real traffic first</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Evidence before refusals</text>
+
+  <rect x="24" y="86" width="136" height="112" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="112" fill="#f0b429" font-size="14" font-weight="600">1. Log-only</text>
+  <text x="38" y="136" fill="#cfd5dd" font-size="14">save the rule</text>
+  <text x="38" y="158" fill="#cfd5dd" font-size="14">requests pass</text>
+
+  <rect x="176" y="86" width="136" height="112" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="190" y="112" fill="#f0b429" font-size="14" font-weight="600">2. Read hits</text>
+  <text x="190" y="136" fill="#cfd5dd" font-size="14">by reason</text>
+  <text x="190" y="158" fill="#cfd5dd" font-size="14">open real rows</text>
+
+  <rect x="328" y="86" width="136" height="112" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="342" y="112" fill="#f0b429" font-size="14" font-weight="600">3. Preview</text>
+  <text x="342" y="136" fill="#cfd5dd" font-size="14">edge cases</text>
+  <text x="342" y="158" fill="#cfd5dd" font-size="14">nothing sent</text>
+
+  <rect x="480" y="86" width="136" height="112" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="494" y="112" fill="#35d399" font-size="14" font-weight="600">4. Enforce</text>
+  <text x="494" y="136" fill="#cfd5dd" font-size="14">446 plus a</text>
+  <text x="494" y="158" fill="#cfd5dd" font-size="14">plain reason</text>
+
+  <path d="M160 142 H174 M312 142 H326 M464 142 H478" stroke="#35d399" stroke-width="2"/>
+  <text x="24" y="232" fill="#cfd5dd" font-size="14">The preview sends no request, writes no audit row, uses no budget.</text>
+  <text x="24" y="254" fill="#a3abb8" font-size="14">Keep reading the activity after you enforce.</text>
+</svg>

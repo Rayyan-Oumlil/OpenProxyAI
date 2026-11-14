@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">The golden path</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Easy to start, safe by default.</text>
+
+  <rect x="24" y="92" width="170" height="130" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="118" fill="#f4f6f8" font-size="14" font-weight="600">New service</text>
+  <text x="36" y="142" fill="#cfd5dd" font-size="14">OpenAI SDK</text>
+  <text x="36" y="164" fill="#cfd5dd" font-size="14">New base URL</text>
+  <text x="36" y="186" fill="#cfd5dd" font-size="14">Key tied to a team</text>
+  <text x="36" y="208" fill="#a3abb8" font-size="14">No provider key</text>
+
+  <rect x="244" y="80" width="200" height="154" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="256" y="106" fill="#f4f6f8" font-size="14" font-weight="600">Gateway, on by default</text>
+  <text x="256" y="130" fill="#cfd5dd" font-size="14">Policy and guardrails</text>
+  <text x="256" y="152" fill="#cfd5dd" font-size="14">Team limits and budgets</text>
+  <text x="256" y="174" fill="#cfd5dd" font-size="14">Cost on every response</text>
+  <text x="256" y="196" fill="#cfd5dd" font-size="14">Audit log</text>
+  <text x="256" y="218" fill="#cfd5dd" font-size="14">Approved models only</text>
+
+  <rect x="494" y="92" width="122" height="36" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="506" y="115" fill="#cfd5dd" font-size="14">Provider A</text>
+  <rect x="494" y="138" width="122" height="36" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="506" y="161" fill="#cfd5dd" font-size="14">Provider B</text>
+  <rect x="494" y="184" width="122" height="38" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="506" y="208" fill="#cfd5dd" font-size="14">Local model</text>
+
+  <line x1="194" y1="157" x2="244" y2="157" stroke="#35d399" stroke-width="2"/>
+  <line x1="444" y1="140" x2="494" y2="110" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="444" y1="157" x2="494" y2="156" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="444" y1="174" x2="494" y2="203" stroke="#f0b429" stroke-width="2" stroke-dasharray="4 4"/>
+
+  <text x="24" y="270" fill="#a3abb8" font-size="14">Changing a rule in one place reaches every service.</text>
+</svg>

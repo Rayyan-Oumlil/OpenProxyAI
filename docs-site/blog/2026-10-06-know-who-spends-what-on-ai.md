@@ -1,5 +1,6 @@
 ---
 slug: know-who-spends-what-on-ai
+image: /img/blog/og/know-who-spends-what-on-ai.png
 title: "Know who spends what on AI: team budgets, user limits and alerts"
 tags: [product, engineering]
 description: "Attribute every model call to a team, user and key, set budgets that stop overspend, and get a webhook at 80 percent of the daily budget. A practical guide for finance and platform leads."

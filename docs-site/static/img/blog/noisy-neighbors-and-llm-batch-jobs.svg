@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Two lanes, one gateway</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Bulk work gets a cap, not the live lane.</text>
+
+  <rect x="24" y="92" width="150" height="56" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="36" y="116" fill="#f4f6f8" font-size="14" font-weight="600">Support chat</text>
+  <text x="36" y="136" fill="#a3abb8" font-size="14">live, a person waits</text>
+
+  <rect x="24" y="180" width="150" height="56" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="36" y="204" fill="#f4f6f8" font-size="14" font-weight="600">Data team batch</text>
+  <text x="36" y="224" fill="#a3abb8" font-size="14">nobody waits</text>
+
+  <rect x="214" y="84" width="230" height="72" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="226" y="108" fill="#cfd5dd" font-size="14">Team ceiling per minute</text>
+  <text x="226" y="130" fill="#cfd5dd" font-size="14">Organization limits</text>
+  <text x="226" y="148" fill="#a3abb8" font-size="14">429 names the limit</text>
+
+  <rect x="214" y="172" width="230" height="72" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="226" y="196" fill="#cfd5dd" font-size="14">Cost cap for the job</text>
+  <text x="226" y="218" fill="#cfd5dd" font-size="14">Bounded concurrency</text>
+  <text x="226" y="236" fill="#a3abb8" font-size="14">Daily budgets still apply</text>
+
+  <rect x="484" y="112" width="132" height="100" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="496" y="138" fill="#f4f6f8" font-size="14" font-weight="600">Providers</text>
+  <text x="496" y="162" fill="#cfd5dd" font-size="14">Policy on every</text>
+  <text x="496" y="182" fill="#cfd5dd" font-size="14">call, metered</text>
+  <text x="496" y="202" fill="#cfd5dd" font-size="14">and audited</text>
+
+  <line x1="174" y1="120" x2="214" y2="120" stroke="#35d399" stroke-width="2"/>
+  <line x1="174" y1="208" x2="214" y2="208" stroke="#f0b429" stroke-width="2"/>
+  <line x1="444" y1="120" x2="484" y2="145" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="444" y1="208" x2="484" y2="180" stroke="#cfd5dd" stroke-width="2"/>
+
+  <text x="24" y="276" fill="#a3abb8" font-size="14">One team over its ceiling does not slow another.</text>
+</svg>

@@ -1,5 +1,6 @@
 ---
 slug: a-bank-rolls-out-an-ai-assistant
+image: /img/blog/og/a-bank-rolls-out-an-ai-assistant.png
 title: "A hypothetical bank rolls out an AI assistant: one gateway, three teams, one plan"
 tags: [product, security]
 description: "A walkthrough of a made-up bank launching an internal AI assistant, showing what security, finance and platform teams each need from a gateway and how OpenProxyAI covers it. Not a customer story."

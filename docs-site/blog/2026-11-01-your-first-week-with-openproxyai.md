@@ -1,5 +1,6 @@
 ---
 slug: your-first-week-with-openproxyai
+image: /img/blog/og/your-first-week-with-openproxyai.png
 title: "Your first week with OpenProxyAI: a five-day rollout plan"
 tags: [product, engineering]
 description: "A practical plan for adopting an AI gateway in five working days: run the demo, set up keys and teams, watch policy in log-only mode, add budgets and routing, then enforce and review."

@@ -1,5 +1,6 @@
 ---
 slug: put-coding-agents-behind-a-gateway
+image: /img/blog/og/put-coding-agents-behind-a-gateway.png
 title: "Put your coding agents behind a gateway: budgets, visibility and policy"
 tags: [product, security]
 description: "Coding assistants in the IDE and the terminal send your code to a model all day. Point them at one OpenAI-compatible endpoint to get per-team budgets, a usage log and policy, without changing the tool."

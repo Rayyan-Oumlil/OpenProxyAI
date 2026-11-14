@@ -1,5 +1,6 @@
 ---
 slug: promote-prompts-through-a-quality-gate
+image: /img/blog/og/promote-prompts-through-a-quality-gate.png
 title: "Promote prompts through a quality gate: no live edit without a passing eval"
 tags: [product, engineering]
 description: "Treat prompts like production code. Edits become drafts, a draft must pass an evaluation on your own dataset before it goes live, and every promotion or override is written to the audit log."

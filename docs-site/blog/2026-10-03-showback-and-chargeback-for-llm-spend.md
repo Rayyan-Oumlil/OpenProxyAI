@@ -1,5 +1,6 @@
 ---
 slug: showback-and-chargeback-for-llm-spend
+image: /img/blog/og/showback-and-chargeback-for-llm-spend.png
 title: "Showback and chargeback for LLM spend: label every request, report by team"
 tags: [product, engineering]
 description: "Turn one shared AI invoice into a per-team report. Tag requests with labels, tie keys and users to teams, set monthly budgets, and pull spend by team, user, key and model for finance."

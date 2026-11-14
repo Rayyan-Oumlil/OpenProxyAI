@@ -1,0 +1,133 @@
+.page {
+  padding: var(--op-space-12) var(--op-gutter) var(--op-space-16);
+}
+
+.wrap {
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: -0.02em;
+  color: var(--op-text-strong);
+  margin: 0 0 var(--op-space-4);
+}
+
+.lede {
+  color: var(--op-text-muted);
+  max-width: 40rem;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  margin: 0 0 var(--op-space-8);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--op-space-6);
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.card {
+  background: var(--op-surface);
+  border: 1px solid var(--op-border);
+  border-radius: var(--op-radius);
+  padding: var(--op-space-6);
+}
+
+.h2 {
+  font-size: 1.125rem;
+  color: var(--op-text-strong);
+  margin: 0 0 var(--op-space-4);
+}
+
+.field {
+  display: grid;
+  gap: var(--op-space-1);
+  margin-bottom: var(--op-space-4);
+}
+
+.field label {
+  color: var(--op-text);
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.field input {
+  background: var(--op-bg);
+  color: var(--op-text-strong);
+  border: 1px solid var(--op-border-strong);
+  border-radius: 6px;
+  padding: 0.625rem 0.75rem;
+  font: inherit;
+  min-height: 44px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--op-accent);
+  outline-offset: 2px;
+}
+
+.hint {
+  color: var(--op-text-subtle);
+  font-size: 0.8125rem;
+}
+
+.note {
+  color: var(--op-text-subtle);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  margin: var(--op-space-4) 0 0;
+}
+
+.results {
+  margin: 0;
+  display: grid;
+  gap: var(--op-space-3);
+}
+
+.results > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--op-space-4);
+  padding-bottom: var(--op-space-3);
+  border-bottom: 1px solid var(--op-border);
+}
+
+.results dt {
+  color: var(--op-text-muted);
+}
+
+.results dd {
+  margin: 0;
+  color: var(--op-text-strong);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.big dd {
+  font-size: 1.75rem;
+  color: var(--op-accent);
+}
+
+.next {
+  margin-top: var(--op-space-12);
+  max-width: 40rem;
+}
+
+.next p,
+.next li {
+  color: var(--op-text);
+  line-height: 1.6;
+}

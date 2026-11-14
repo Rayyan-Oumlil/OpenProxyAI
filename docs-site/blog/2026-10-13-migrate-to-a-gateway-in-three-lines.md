@@ -1,5 +1,6 @@
 ---
 slug: migrate-to-a-gateway-in-three-lines
+image: /img/blog/og/migrate-to-a-gateway-in-three-lines.png
 title: "Migrate to an AI gateway in three lines: keep your OpenAI SDK"
 tags: [product, engineering]
 description: "OpenProxyAI speaks the OpenAI API. Change the base URL, the key and optionally the model name, and your app gains policy, budgets, caching, failover and an audit log. Here is what stays the same."

@@ -1,5 +1,6 @@
 ---
 slug: agent-identity-entra-okta
+image: /img/blog/og/agent-identity-entra-okta.png
 title: "Agent identity is here from Entra and Okta. Pair it with per-agent keys"
 tags: [security, product]
 description: "Microsoft Entra Agent ID and Okta for AI Agents give agents first-class identities. Here is what each vendor says, and how SSO, SCIM and one API key per agent fit around them."

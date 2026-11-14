@@ -1,5 +1,6 @@
 ---
 slug: nist-nsa-cisa-agent-incident-readiness
+image: /img/blog/og/nist-nsa-cisa-agent-incident-readiness.png
 title: "NIST, NSA and CISA publish ten practices for when an AI agent goes off script"
 tags: [security, product]
 description: "On 16 October 2026 NIST, the NSA and CISA issued voluntary guidance on incident readiness for AI agents. See the ten practices and how a gateway turns several of them into controls."

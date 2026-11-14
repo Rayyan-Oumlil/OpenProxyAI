@@ -1,5 +1,6 @@
 ---
 slug: a-leaked-key-should-be-a-nuisance
+image: /img/blog/og/a-leaked-key-should-be-a-nuisance.png
 title: "Keys will leak: design so a leaked application key is a nuisance, not a breach"
 tags: [security, engineering]
 description: How to set up OpenProxyAI so a leaked application key has a small reach, and a ten minute incident walkthrough that ends with the key revoked and the activity reviewed.

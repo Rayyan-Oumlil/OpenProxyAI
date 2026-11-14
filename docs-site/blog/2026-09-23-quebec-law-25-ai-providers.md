@@ -1,5 +1,6 @@
 ---
 slug: quebec-law-25-ai-providers
+image: /img/blog/og/quebec-law-25-ai-providers.png
 title: "Quebec's Law 25 and AI providers: what to settle before personal data leaves"
 tags: [security, product]
 description: "Since 22 September 2023, key Law 25 rules apply, including a privacy impact assessment before personal information leaves Quebec. A neutral guide for teams that send prompts to AI providers."

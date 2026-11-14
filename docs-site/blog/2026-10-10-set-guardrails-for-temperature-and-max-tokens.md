@@ -1,5 +1,6 @@
 ---
 slug: set-guardrails-for-temperature-and-max-tokens
+image: /img/blog/og/set-guardrails-for-temperature-and-max-tokens.png
 title: "Set guardrails for temperature and max tokens, once, for every team"
 tags: [product, engineering]
 description: "Let apps ask for creativity, reasoning depth and answer length in plain words, and set organization defaults and a ceiling. A runaway temperature or a huge max_tokens stops being a billing surprise."

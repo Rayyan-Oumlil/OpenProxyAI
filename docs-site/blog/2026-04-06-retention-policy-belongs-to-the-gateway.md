@@ -1,5 +1,6 @@
 ---
 slug: retention-policy-belongs-to-the-gateway
+image: /img/blog/og/retention-policy-belongs-to-the-gateway.png
 title: "Team-wide zero data retention shows who should own retention policy"
 tags: [security, product]
 description: "Vercel added team-wide Zero Data Retention to its AI Gateway on April 6, 2026. The news makes a bigger point: retention is a decision for whoever runs the gateway. Here is how OpenProxyAI keeps that decision in your hands."

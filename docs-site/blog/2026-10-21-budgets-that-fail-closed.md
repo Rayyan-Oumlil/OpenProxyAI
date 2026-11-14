@@ -1,5 +1,6 @@
 ---
 slug: budgets-that-fail-closed
+image: /img/blog/og/budgets-that-fail-closed.png
 title: "What should happen at 100% of an LLM budget? Choose it before it happens"
 tags: [engineering, product]
 description: "Hard stop, degrade to a cheaper model, or alert only: what each does to production traffic at 100% of a spend limit, and how OpenProxyAI gives you a clear stop with an early warning."

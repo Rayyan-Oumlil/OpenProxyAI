@@ -1,5 +1,6 @@
 ---
 slug: run-your-gateway-from-your-own-registry
+image: /img/blog/og/run-your-gateway-from-your-own-registry.png
 title: "Run your gateway from your own registry and upgrade on your schedule"
 tags: [security, engineering]
 description: "The gateway sees every prompt, so it should run only the code you chose. Mirror images into your registry, pin by digest, and upgrade when you decide. OpenProxyAI is Apache-2.0 and built for it."

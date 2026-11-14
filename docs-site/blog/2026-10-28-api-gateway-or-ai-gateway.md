@@ -1,5 +1,6 @@
 ---
 slug: api-gateway-or-ai-gateway
+image: /img/blog/og/api-gateway-or-ai-gateway.png
 title: "API gateway or AI gateway: do you need both?"
 tags: [architecture, product]
 description: "A general API gateway protects and routes traffic. An AI gateway understands prompts, tokens, models and cost. Here is where the first one stops, where the second starts, and how they fit together."

@@ -1,5 +1,6 @@
 ---
 slug: catch-personal-data-before-it-leaves
+image: /img/blog/og/catch-personal-data-before-it-leaves.png
 title: "Catch personal data before it leaves: PII checks you can trust before you enforce"
 tags: [security, product]
 description: "Detect emails, card numbers and ID numbers in prompts before they reach a model provider. Start in log-only mode, move to enforce when the hits look right, and give users a refusal they can understand."

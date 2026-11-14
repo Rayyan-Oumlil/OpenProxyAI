@@ -1,5 +1,6 @@
 ---
 slug: mcp-exposed-servers-and-weak-auth
+image: /img/blog/og/mcp-exposed-servers-and-weak-auth.png
 title: "CSA on the MCP security crisis: how to put tool servers behind one door"
 tags: [security, architecture]
 description: "A Cloud Security Alliance research note dated May 4, 2026 describes exposed MCP servers, optional authentication and unguarded tool definitions. Here is what it says and how OpenProxyAI's MCP gateway answers each point."

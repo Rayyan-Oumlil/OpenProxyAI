@@ -1,5 +1,6 @@
 ---
 slug: when-to-use-the-batch-api
+image: /img/blog/og/when-to-use-the-batch-api.png
 title: "When to push LLM work into the batch API, and what changes when you do"
 tags: [engineering, product]
 description: When a pile of LLM calls belongs in a batch job instead of a loop, and how OpenProxyAI's batch API gives that work a start, an end, a cost ceiling and full policy coverage on every line.

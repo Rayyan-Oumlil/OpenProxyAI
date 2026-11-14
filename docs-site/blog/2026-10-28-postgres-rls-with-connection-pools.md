@@ -1,5 +1,6 @@
 ---
 slug: postgres-rls-with-connection-pools
+image: /img/blog/og/postgres-rls-with-connection-pools.png
 title: "Row-level security and connection pools: the mistakes that leak across tenants"
 tags: [security, engineering]
 description: "Row-level security is easy to demo and easy to get wrong behind a connection pool. How OpenProxyAI keeps every tenant's data scoped to the request, even when connections are shared."

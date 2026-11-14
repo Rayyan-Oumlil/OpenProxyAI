@@ -1,5 +1,6 @@
 ---
 slug: fedramp-20x-ai-and-consolidated-rules
+image: /img/blog/og/fedramp-20x-ai-and-consolidated-rules.png
 title: "FedRAMP 20x and the 2026 Consolidated Rules: a plan for AI platform teams"
 tags: [security, product]
 description: "FedRAMP 20x asks for continuous evidence, not paperwork, and the Consolidated Rules for 2026 are now public. Here is what that means for teams running LLMs near federal work, and which controls to build first."

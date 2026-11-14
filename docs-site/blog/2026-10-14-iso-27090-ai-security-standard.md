@@ -1,5 +1,6 @@
 ---
 slug: iso-27090-ai-security-standard
+image: /img/blog/og/iso-27090-ai-security-standard.png
 title: "ISO/IEC 27090 is out: security guidance for AI systems, and the runtime layer"
 tags: [security, product]
 description: "ISO published ISO/IEC 27090 on 14 October 2026, guidance on threats to AI systems themselves. See what it covers and which runtime controls a gateway gives you to act on it."

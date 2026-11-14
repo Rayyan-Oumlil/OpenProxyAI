@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 310" width="640" height="310" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="310" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="309" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Two layers of retention</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">The provider promise and your own record</text>
+
+  <rect x="24" y="86" width="284" height="170" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="114" fill="#f0b429" font-size="14" font-weight="600">Provider layer</text>
+  <text x="40" y="140" fill="#cfd5dd" font-size="14">Set by your agreement</text>
+  <text x="40" y="164" fill="#cfd5dd" font-size="14">Recorded per model in</text>
+  <text x="40" y="184" fill="#cfd5dd" font-size="14">the registry</text>
+  <text x="40" y="208" fill="#cfd5dd" font-size="14">Data classes limit which</text>
+  <text x="40" y="228" fill="#cfd5dd" font-size="14">models see what</text>
+
+  <rect x="332" y="86" width="284" height="170" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="348" y="114" fill="#35d399" font-size="14" font-weight="600">Your layer</text>
+  <text x="348" y="140" fill="#cfd5dd" font-size="14">Metadata only by default</text>
+  <text x="348" y="164" fill="#cfd5dd" font-size="14">Payload capture: off</text>
+  <text x="348" y="188" fill="#cfd5dd" font-size="14">Retention follows your plan</text>
+  <text x="348" y="212" fill="#cfd5dd" font-size="14">Admin changes always logged</text>
+  <text x="348" y="236" fill="#cfd5dd" font-size="14">Rows are not edited later</text>
+
+  <text x="24" y="286" fill="#a3abb8" font-size="14">Answer each layer separately. Prove the second one from your own log.</text>
+</svg>

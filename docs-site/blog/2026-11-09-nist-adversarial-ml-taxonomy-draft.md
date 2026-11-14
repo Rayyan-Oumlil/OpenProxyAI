@@ -1,5 +1,6 @@
 ---
 slug: nist-adversarial-ml-taxonomy-draft
+image: /img/blog/og/nist-adversarial-ml-taxonomy-draft.png
 title: "NIST drafts a shared vocabulary for attacks on AI agents. Comments close 18 December"
 tags: [security, product]
 description: "On 9 November 2026 NIST released a draft taxonomy of adversarial machine learning, with a focus on agentic systems. Use its attacker-capability lens to map your own gateway controls."

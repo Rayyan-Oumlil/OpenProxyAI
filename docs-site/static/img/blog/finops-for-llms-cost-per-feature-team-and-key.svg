@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">One log, three views of cost</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Attribute at request time, not at invoice time.</text>
+
+  <rect x="24" y="92" width="170" height="120" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="118" fill="#f4f6f8" font-size="14" font-weight="600">Each request carries</text>
+  <text x="36" y="144" fill="#cfd5dd" font-size="14">A team</text>
+  <text x="36" y="166" fill="#cfd5dd" font-size="14">A key per app</text>
+  <text x="36" y="188" fill="#cfd5dd" font-size="14">Labels (feature)</text>
+
+  <rect x="234" y="92" width="150" height="120" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="246" y="118" fill="#f4f6f8" font-size="14" font-weight="600">Gateway</text>
+  <text x="246" y="144" fill="#cfd5dd" font-size="14">Prices the call</text>
+  <text x="246" y="166" fill="#cfd5dd" font-size="14">Writes the log</text>
+  <text x="246" y="188" fill="#cfd5dd" font-size="14">Checks budgets</text>
+
+  <rect x="424" y="84" width="192" height="36" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="436" y="107" fill="#cfd5dd" font-size="14">Spend by team</text>
+  <rect x="424" y="130" width="192" height="36" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="436" y="153" fill="#cfd5dd" font-size="14">Spend by key</text>
+  <rect x="424" y="176" width="192" height="36" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="436" y="199" fill="#cfd5dd" font-size="14">Log by label value</text>
+
+  <line x1="194" y1="152" x2="234" y2="152" stroke="#35d399" stroke-width="2"/>
+  <line x1="384" y1="130" x2="424" y2="102" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="384" y1="152" x2="424" y2="148" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="384" y1="174" x2="424" y2="194" stroke="#f0b429" stroke-width="2"/>
+
+  <rect x="24" y="236" width="592" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="261" fill="#cfd5dd" font-size="14">Then: month-end forecast, 80 percent alert, reconcile with the provider.</text>
+</svg>
