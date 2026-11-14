@@ -1,5 +1,6 @@
 ---
 slug: pci-ssc-ai-guidance-agents-cardholder-data
+image: /img/blog/og/pci-ssc-ai-guidance-agents-cardholder-data.png
 title: "PCI SSC's new AI guidance: approval and least agency for agents"
 tags: [security, engineering]
 description: "The PCI Security Standards Council published Security Considerations for AI Systems on 7 October 2026. What it asks of agents near cardholder data, and how a gateway puts tool limits, approval boundaries and logs in one place."

@@ -1,5 +1,6 @@
 ---
 slug: sso-and-scim-for-ai-access
+image: /img/blog/og/sso-and-scim-for-ai-access.png
 title: "SSO and SCIM for AI access: onboard and offboard through your IdP"
 tags: [security, product]
 description: "Give people access to AI models through the identity provider you already run. Sign-in through SSO, automatic accounts and instant offboarding through SCIM, with roles that provisioning can never escalate."

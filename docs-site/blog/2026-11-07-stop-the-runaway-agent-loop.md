@@ -1,5 +1,6 @@
 ---
 slug: stop-the-runaway-agent-loop
+image: /img/blog/og/stop-the-runaway-agent-loop.png
 title: "Stop the runaway agent loop: budgets and rate limits that act before the invoice"
 tags: [product, engineering]
 description: "An agent stuck in a loop can burn a month of budget overnight. Give each agent its own key and team, set per-minute and dollar ceilings, and teach the agent to read the 429 that comes back."

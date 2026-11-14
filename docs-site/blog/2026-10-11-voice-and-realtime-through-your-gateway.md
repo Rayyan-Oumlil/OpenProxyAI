@@ -1,5 +1,6 @@
 ---
 slug: voice-and-realtime-through-your-gateway
+image: /img/blog/og/voice-and-realtime-through-your-gateway.png
 title: "Voice and realtime AI through your gateway, with policy, limits and billing"
 tags: [product, security]
 description: "Live voice sessions are long, hard to inspect and easy to leave ungoverned. See how OpenProxyAI relays OpenAI Realtime sessions while still applying your policy, limits, cost tracking and key revocation."

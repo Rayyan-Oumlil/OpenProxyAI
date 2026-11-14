@@ -1,5 +1,6 @@
 ---
 slug: nist-ai-agent-standards-initiative
+image: /img/blog/og/nist-ai-agent-standards-initiative.png
 title: "NIST's AI agent standards initiative: what it means for identity and logs"
 tags: [security, product]
 description: "NIST's CAISI launched an AI Agent Standards Initiative with identity and authorization at its core. Here is what NIST said, and how per-agent keys, grants and an audit trail already give you a head start."

@@ -1,5 +1,6 @@
 ---
 slug: openai-compatible-is-not-identical
+image: /img/blog/og/openai-compatible-is-not-identical.png
 title: "OpenAI-compatible is not the same as identical: what a gateway smooths over"
 tags: [engineering, product]
 description: "Many providers speak an OpenAI-style API, and the details still differ: tool calls, streaming, usage numbers, errors and parameters. Here is what a gateway can smooth over, and what to test yourself."

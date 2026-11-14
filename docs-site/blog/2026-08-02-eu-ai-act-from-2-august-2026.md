@@ -1,5 +1,6 @@
 ---
 slug: eu-ai-act-from-2-august-2026
+image: /img/blog/og/eu-ai-act-from-2-august-2026.png
 title: "EU AI Act, 2 August 2026: what applies today and what moved to 2027"
 tags: [security, product]
 description: "The AI Act becomes applicable on 2 August 2026, with exceptions. A plain guide to what applies now, what the Digital Omnibus moved, and the records a gateway helps you keep."

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 310" width="640" height="310" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="310" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="309" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Send a slice, watch it, undo it fast</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">An example split of 95 and 5 percent</text>
+
+  <rect x="24" y="96" width="128" height="96" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="124" fill="#f4f6f8" font-size="14" font-weight="600">Your apps</text>
+  <text x="40" y="150" fill="#cfd5dd" font-size="14">Same model</text>
+  <text x="40" y="170" fill="#cfd5dd" font-size="14">name as before</text>
+
+  <line x1="152" y1="144" x2="196" y2="144" stroke="#35d399" stroke-width="2"/>
+
+  <rect x="196" y="96" width="168" height="96" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="212" y="124" fill="#35d399" font-size="14" font-weight="600">Gateway split</text>
+  <text x="212" y="150" fill="#cfd5dd" font-size="14">Picks per request</text>
+  <text x="212" y="170" fill="#cfd5dd" font-size="14">Policy still applies</text>
+
+  <line x1="364" y1="144" x2="396" y2="118" stroke="#35d399" stroke-width="2"/>
+  <line x1="364" y1="144" x2="396" y2="172" stroke="#f0b429" stroke-width="2"/>
+
+  <rect x="396" y="96" width="220" height="44" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="412" y="124" fill="#cfd5dd" font-size="14">Current model, 95%</text>
+  <rect x="396" y="150" width="220" height="44" rx="10" fill="#14171e" stroke="#f0b429"/>
+  <text x="412" y="178" fill="#f0b429" font-size="14">Candidate, 5%</text>
+
+  <text x="24" y="226" fill="#a3abb8" font-size="14">Compare per model: requests, latency, cost, policy blocks, ratings</text>
+
+  <rect x="24" y="242" width="592" height="52" rx="10" fill="#1d1710" stroke="#f0b429"/>
+  <text x="40" y="274" fill="#cfd5dd" font-size="14">Rollback: stop the experiment and traffic returns to the current model.</text>
+</svg>

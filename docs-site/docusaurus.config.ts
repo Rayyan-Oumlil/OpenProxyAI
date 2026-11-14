@@ -229,6 +229,7 @@ const config: Config = {
             {label: 'Getting Started', to: '/'},
             {label: 'API Reference', to: '/api-reference/overview'},
             {label: 'Blog', to: '/blog'},
+            {label: 'LLM cost calculator', to: '/tools/llm-cost-calculator'},
           ],
         },
         {

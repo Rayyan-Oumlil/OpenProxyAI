@@ -1,5 +1,6 @@
 ---
 slug: give-every-team-its-own-limits
+image: /img/blog/og/give-every-team-its-own-limits.png
 title: "Give every team its own AI budget and rate limits, so one team cannot drain the rest"
 tags: [product, engineering]
 description: "Organizations, teams and keys let you cap spend and traffic where it belongs. Set a monthly budget per team, rate ceilings per team, and see who used what."

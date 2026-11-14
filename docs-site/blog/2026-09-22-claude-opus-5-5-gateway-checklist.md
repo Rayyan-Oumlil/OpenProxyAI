@@ -1,5 +1,6 @@
 ---
 slug: claude-opus-5-5-gateway-checklist
+image: /img/blog/og/claude-opus-5-5-gateway-checklist.png
 title: "Claude Opus 5.5 is out: a launch-day checklist for your gateway"
 tags: [product, engineering]
 description: "Anthropic released Claude Opus 5.5 on 22 September 2026 at lower prices. Here is how a platform team can add a new model safely: registry, data classes, a small canary, evaluation and budgets."

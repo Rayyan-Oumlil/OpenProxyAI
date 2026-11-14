@@ -1,5 +1,6 @@
 ---
 slug: open-source-apache-2-for-a-gateway
+image: /img/blog/og/open-source-apache-2-for-a-gateway.png
 title: "Why OpenProxyAI is Apache-2.0, and what that gives you"
 tags: [product, architecture]
 description: "A gateway sees every prompt and holds your provider credentials. Here is what an Apache-2.0 license gives you, what self-hosting puts under your control, and how to contribute."

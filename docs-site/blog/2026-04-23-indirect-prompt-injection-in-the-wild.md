@@ -1,5 +1,6 @@
 ---
 slug: indirect-prompt-injection-in-the-wild
+image: /img/blog/og/indirect-prompt-injection-in-the-wild.png
 title: "Prompt injection in the wild: Google's web scan and how to bound your agents"
 tags: [security, product]
 description: "Google scanned the public web and reported a 32% relative rise in malicious indirect prompt injection between November 2025 and February 2026. Here is what it found and how to limit what an injected agent can do."

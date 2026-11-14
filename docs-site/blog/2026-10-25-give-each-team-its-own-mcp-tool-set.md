@@ -1,5 +1,6 @@
 ---
 slug: give-each-team-its-own-mcp-tool-set
+image: /img/blog/og/give-each-team-its-own-mcp-tool-set.png
 title: "Give each team its own MCP tool set, from one gateway"
 tags: [product, security]
 description: "Register your MCP tool servers once, then expose a separate set of tools to each team with bundles and grants. Support gets support tools, finance gets finance tools, and nobody gets the rest."

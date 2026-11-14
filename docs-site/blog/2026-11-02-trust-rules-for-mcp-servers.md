@@ -1,5 +1,6 @@
 ---
 slug: trust-rules-for-mcp-servers
+image: /img/blog/og/trust-rules-for-mcp-servers.png
 title: "Trust rules for MCP servers: an allowlist you can review"
 tags: [security, product]
 description: "Treat every MCP tool server as untrusted until a person approves it. Build a short, reviewable allowlist of servers, tools, grants and trust rules, and keep an audit trail of every change."

@@ -1,5 +1,6 @@
 ---
 slug: see-your-ai-usage-at-a-glance
+image: /img/blog/og/see-your-ai-usage-at-a-glance.png
 title: "See your AI usage at a glance: spend by model, team, key and user"
 tags: [product]
 description: "The OpenProxyAI dashboard answers the questions finance and platform leads ask every week: how much did we spend, on which models, for which teams, and are we on budget."

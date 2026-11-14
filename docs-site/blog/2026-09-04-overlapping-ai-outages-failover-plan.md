@@ -1,5 +1,6 @@
 ---
 slug: overlapping-ai-outages-failover-plan
+image: /img/blog/og/overlapping-ai-outages-failover-plan.png
 title: "Several AI services failed on September 3: a failover plan that holds up"
 tags: [architecture, engineering]
 description: "On September 3, 2026, ChatGPT, Claude and Grok had overlapping outages, with Gemini users also reporting problems. What the reports say, what they do not, and how to build an approved fallback plan."

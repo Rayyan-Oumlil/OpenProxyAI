@@ -1,5 +1,6 @@
 ---
 slug: ai-gateway-market-2026
+image: /img/blog/og/ai-gateway-market-2026.png
 title: "The AI gateway market in 2026: three releases, and what buyers should ask"
 tags: [architecture, product]
 description: "Envoy AI Gateway 1.0, Kong AI Gateway 2.0 and Bifrost 2.0 all shipped in 2026. What each announced, what the releases have in common, and six questions to ask before you pick a gateway."

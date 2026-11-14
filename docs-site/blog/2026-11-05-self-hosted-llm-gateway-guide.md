@@ -1,5 +1,6 @@
 ---
 slug: self-hosted-llm-gateway-guide
+image: /img/blog/og/self-hosted-llm-gateway-guide.png
 title: "Self-hosted LLM gateway: what it is, when you need one, how to choose"
 tags: [architecture, product]
 description: "A plain guide to the self-hosted LLM gateway: what it does, why teams run their own, what to expect from one, eight questions to evaluate it, and how to try OpenProxyAI in about five minutes."

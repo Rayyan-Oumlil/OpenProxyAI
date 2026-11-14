@@ -1,5 +1,6 @@
 ---
 slug: a2a-one-year-governed-endpoint
+image: /img/blog/og/a2a-one-year-governed-endpoint.png
 title: "A2A turns one: what a Linux Foundation agent standard means for your gateway"
 tags: [architecture, product]
 description: "The Linux Foundation marked one year of the Agent2Agent protocol on April 9, 2026, with more than 150 supporting organizations. What it means for teams running agents, and where a governed endpoint fits."

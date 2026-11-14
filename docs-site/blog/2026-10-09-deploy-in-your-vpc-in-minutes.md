@@ -1,5 +1,6 @@
 ---
 slug: deploy-in-your-vpc-in-minutes
+image: /img/blog/og/deploy-in-your-vpc-in-minutes.png
 title: "Run an LLM gateway inside your own network, starting in minutes"
 tags: [architecture, product]
 description: "Self-hosting a gateway should not need a vendor call. See the demo stack on your laptop, what stays inside your network, and the path from demo to a production deployment."

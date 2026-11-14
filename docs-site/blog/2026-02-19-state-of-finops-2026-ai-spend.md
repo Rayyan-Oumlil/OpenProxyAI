@@ -1,5 +1,6 @@
 ---
 slug: state-of-finops-2026-ai-spend
+image: /img/blog/og/state-of-finops-2026-ai-spend.png
 title: "State of FinOps 2026: 98% now manage AI spend, and visibility is the hard part"
 tags: [product, security]
 description: "The FinOps Foundation's State of FinOps 2026 survey reports that 98% of respondents manage AI spend. Here is what the survey says about visibility and allocation, and how budgets, labels and attribution answer it."

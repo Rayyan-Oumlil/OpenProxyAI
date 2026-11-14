@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 310" width="640" height="310" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="310" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="309" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">One change in the directory, access ends</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">What happens when a person is marked inactive</text>
+
+  <rect x="24" y="88" width="168" height="120" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="114" fill="#f4f6f8" font-size="14" font-weight="600">Identity provider</text>
+  <text x="40" y="140" fill="#cfd5dd" font-size="14">Person leaves</text>
+  <text x="40" y="164" fill="#cfd5dd" font-size="14">Marked inactive</text>
+  <text x="40" y="188" fill="#35d399" font-size="14">SCIM update sent</text>
+
+  <line x1="192" y1="148" x2="224" y2="148" stroke="#35d399" stroke-width="2"/>
+  <polygon points="224,142 236,148 224,154" fill="#35d399"/>
+
+  <rect x="236" y="88" width="188" height="120" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="252" y="114" fill="#35d399" font-size="14" font-weight="600">Stops on next call</text>
+  <text x="252" y="140" fill="#cfd5dd" font-size="14">Console sessions</text>
+  <text x="252" y="164" fill="#cfd5dd" font-size="14">Their API keys</text>
+  <text x="252" y="188" fill="#cfd5dd" font-size="14">Their running batches</text>
+
+  <rect x="436" y="88" width="180" height="120" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="452" y="114" fill="#f4f6f8" font-size="14" font-weight="600">Kept</text>
+  <text x="452" y="140" fill="#cfd5dd" font-size="14">Request history</text>
+  <text x="452" y="164" fill="#cfd5dd" font-size="14">Audit entries</text>
+  <text x="452" y="188" fill="#cfd5dd" font-size="14">Other people's keys</text>
+
+  <rect x="24" y="228" width="592" height="62" rx="10" fill="#1d1710" stroke="#f0b429"/>
+  <text x="40" y="254" fill="#f0b429" font-size="14" font-weight="600">Before the first leaver</text>
+  <text x="40" y="276" fill="#cfd5dd" font-size="14">Move production keys to an owner who will stay.</text>
+</svg>

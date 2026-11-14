@@ -1,5 +1,6 @@
 ---
 slug: build-chat-features-on-governed-conversations
+image: /img/blog/og/build-chat-features-on-governed-conversations.png
 title: "Build chat features on conversations the gateway governs for you"
 tags: [product, engineering]
 description: "Let the gateway keep chat history, share it with a team, stream answers, and decide which earlier messages each model may see, so your app does not have to build any of that safely by itself."

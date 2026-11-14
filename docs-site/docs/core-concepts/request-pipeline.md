@@ -38,7 +38,7 @@ The organization's policy runs against the request: model allowlist, blocked key
 
 ## 4. Cache
 
-The (possibly redacted) request is checked against the 3-tier cache — L1 in-memory, L2 Redis, L3 semantic — in that order. A hit short-circuits the pipeline and returns immediately, skipping the provider call entirely. See [Caching](/core-concepts/caching).
+The request is checked against the 3-tier cache — L1 in-memory, L2 Redis, L3 semantic — in that order. A hit short-circuits the pipeline and returns immediately, skipping the provider call entirely. See [Caching](/core-concepts/caching).
 
 ## 5. Route
 

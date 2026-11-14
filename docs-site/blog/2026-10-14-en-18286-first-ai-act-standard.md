@@ -1,5 +1,6 @@
 ---
 slug: en-18286-first-ai-act-standard
+image: /img/blog/og/en-18286-first-ai-act-standard.png
 title: "EN 18286 is the first AI Act standard. Here is the evidence it will ask for"
 tags: [security, product]
 description: "On 14 October 2026 the EU cited its first harmonised standard for the AI Act, a quality management standard. See what it covers and which evidence a gateway can produce for it."

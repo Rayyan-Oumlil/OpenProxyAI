@@ -1,5 +1,6 @@
 ---
 slug: run-quality-checks-on-every-model-change
+image: /img/blog/og/run-quality-checks-on-every-model-change.png
 title: "Run quality checks on every model change, like any other release"
 tags: [product, engineering]
 description: "Make model and prompt changes a routine release check: keep a saved test set, score every candidate with the same evaluator, compare pass rate and cost, and gate prompts until they pass."

@@ -1,5 +1,6 @@
 ---
 slug: data-class-taxonomy-people-use
+image: /img/blog/og/data-class-taxonomy-people-use.png
 title: "Designing a data-class scheme that people will actually use"
 tags: [architecture, security]
 description: Four ordered data classes, a detector that can only raise them, and a model registry that compares ranks. How a short scale turns data sensitivity into routing decisions, with a worked example.

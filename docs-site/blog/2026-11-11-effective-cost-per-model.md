@@ -1,5 +1,6 @@
 ---
 slug: effective-cost-per-model
+image: /img/blog/og/effective-cost-per-model.png
 title: "List price is not what you pay: measure the effective cost per model"
 tags: [product, engineering]
 description: "Price per token is only the start. Cache hits, prompt length, model mix and batch work change what a model really costs you. How to measure effective cost per model from your own traffic."

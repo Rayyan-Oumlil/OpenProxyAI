@@ -1,5 +1,6 @@
 ---
 slug: nist-cosais-control-overlays
+image: /img/blog/og/nist-cosais-control-overlays.png
 title: "NIST's AI control overlays: what exists, and what your team can do now"
 tags: [security, product]
 description: "NIST is building SP 800-53 overlays for securing AI systems, with use cases for assistants and agents. Here is what the project page shows today and how a gateway turns the same ideas into controls you can run."

@@ -1,5 +1,6 @@
 ---
 slug: make-the-gateway-the-only-door
+image: /img/blog/og/make-the-gateway-the-only-door.png
 title: "Make the gateway the only door to your AI providers"
 tags: [security, architecture]
 description: "A gateway only governs the traffic that goes through it. Here is how to close the side doors with network egress rules, and how OpenProxyAI keeps the front door worth using."

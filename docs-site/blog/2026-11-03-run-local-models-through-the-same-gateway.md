@@ -1,5 +1,6 @@
 ---
 slug: run-local-models-through-the-same-gateway
+image: /img/blog/og/run-local-models-through-the-same-gateway.png
 title: "Run local models through the same gateway, with the same policies and budgets"
 tags: [product, security]
 description: "Ollama, vLLM and other self-hosted endpoints can sit behind the same OpenAI-compatible API as your cloud models, with the same policy checks, budgets and audit trail, and a clearance level for sensitive data."

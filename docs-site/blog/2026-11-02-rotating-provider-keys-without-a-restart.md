@@ -1,5 +1,6 @@
 ---
 slug: rotating-provider-keys-without-a-restart
+image: /img/blog/og/rotating-provider-keys-without-a-restart.png
 title: "Rotating provider keys without a restart"
 tags: [security, engineering]
 description: How to replace an OpenAI or Anthropic key held by the gateway with no restart and no dropped requests, for keys stored in the gateway, in HashiCorp Vault or in AWS Secrets Manager.

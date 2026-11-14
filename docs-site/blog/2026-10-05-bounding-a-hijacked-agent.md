@@ -1,5 +1,6 @@
 ---
 slug: bounding-a-hijacked-agent
+image: /img/blog/og/bounding-a-hijacked-agent.png
 title: "You cannot stop every prompt injection, but you can cap what a hijacked agent does"
 tags: [security, engineering]
 description: Assume some prompt injection gets through. How OpenProxyAI caps spend, call rate, tool reach and side effects at the gateway, so a persuaded agent still has a small ceiling.

@@ -1,5 +1,6 @@
 ---
 slug: cut-your-llm-bill-with-caching-safely
+image: /img/blog/og/cut-your-llm-bill-with-caching-safely.png
 title: "Cut your LLM bill with caching, and keep it safe: exact, semantic and isolated"
 tags: [product, engineering]
 description: "A request answered from a cache costs nothing at the provider. How exact and semantic caching work in OpenProxyAI, why entries never cross organizations, and when to leave the semantic tier off."

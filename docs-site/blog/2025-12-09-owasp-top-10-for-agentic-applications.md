@@ -1,5 +1,6 @@
 ---
 slug: owasp-top-10-for-agentic-applications
+image: /img/blog/og/owasp-top-10-for-agentic-applications.png
 title: "OWASP's Top 10 for Agentic Applications: the five risks a gateway can reduce"
 tags: [security, product]
 description: "OWASP published its first Top 10 for Agentic Applications on December 9, 2025. Here is what the list says, and which of its risks a gateway's keys, tool rules, pinning, limits and audit trail help with."

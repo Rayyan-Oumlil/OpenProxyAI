@@ -1,5 +1,6 @@
 ---
 slug: add-your-own-checks-with-policy-plugins
+image: /img/blog/og/add-your-own-checks-with-policy-plugins.png
 title: "Add your own checks to the gateway with sandboxed policy plugins"
 tags: [security, product]
 description: "Block project codenames, internal ticket formats or any rule only your company knows. Write a small WebAssembly module, upload it, and it runs on every request in a sandbox that can only add restrictions."

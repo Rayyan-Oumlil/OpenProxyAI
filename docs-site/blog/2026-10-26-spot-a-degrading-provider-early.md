@@ -1,5 +1,6 @@
 ---
 slug: spot-a-degrading-provider-early
+image: /img/blog/og/spot-a-degrading-provider-early.png
 title: "Spot a degrading provider before the status page does"
 tags: [engineering, product]
 description: "Status pages lag the real world. Your own traffic does not. Which error and latency signals to watch per provider, and how OpenProxyAI turns them into a health view and queries you can act on."

@@ -1,5 +1,6 @@
 ---
 slug: an-audit-trail-your-auditor-can-read
+image: /img/blog/og/an-audit-trail-your-auditor-can-read.png
 title: "An AI audit trail your auditor can actually read"
 tags: [security, product]
 description: "What OpenProxyAI records for every model and tool call, how admins search and export it, how long each plan keeps it, and how to answer an auditor's question in minutes instead of days."

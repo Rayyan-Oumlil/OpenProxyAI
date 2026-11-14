@@ -1,5 +1,6 @@
 ---
 slug: roll-out-guardrails-without-breaking-teams
+image: /img/blog/og/roll-out-guardrails-without-breaking-teams.png
 title: "Roll out AI guardrails without breaking teams: log first, then enforce"
 tags: [product, security]
 description: "Turn on guardrails in log-only mode, read the policy activity to find noisy rules, then enforce with plain-language refusals. A rollout plan that keeps developers on your side."

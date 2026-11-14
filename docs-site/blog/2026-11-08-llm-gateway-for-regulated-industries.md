@@ -1,5 +1,6 @@
 ---
 slug: llm-gateway-for-regulated-industries
+image: /img/blog/og/llm-gateway-for-regulated-industries.png
 title: "An LLM gateway for regulated teams: HIPAA, PCI, FedRAMP and the EU AI Act"
 tags: [security, product]
 description: "How an LLM gateway gives HIPAA, PCI DSS, FedRAMP-aligned and EU AI Act teams enforceable controls and audit evidence for AI traffic, and what the compliance templates in OpenProxyAI set for you."

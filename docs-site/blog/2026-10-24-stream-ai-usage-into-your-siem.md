@@ -1,5 +1,6 @@
 ---
 slug: stream-ai-usage-into-your-siem
+image: /img/blog/og/stream-ai-usage-into-your-siem.png
 title: "Stream AI usage into your SIEM and observability stack, without touching the request path"
 tags: [security, engineering]
 description: "Send one OpenTelemetry span per model call and a security event for every block, budget stop or rate limit to your SIEM. No prompts leave the gateway, and a slow collector never slows a request."

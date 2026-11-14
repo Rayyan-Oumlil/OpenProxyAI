@@ -1,5 +1,6 @@
 ---
 slug: openproxyai-vs-openrouter
+image: /img/blog/og/openproxyai-vs-openrouter.png
 title: "OpenProxyAI vs. OpenRouter: access versus control"
 tags: [product, architecture]
 description: "OpenRouter solves access: one hosted endpoint for many models. OpenProxyAI solves control: policy, budgets and audit inside your own network. Here is how to tell which problem you have, and when you need both."

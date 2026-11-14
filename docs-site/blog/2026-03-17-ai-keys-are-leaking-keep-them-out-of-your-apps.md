@@ -1,5 +1,6 @@
 ---
 slug: ai-keys-are-leaking-keep-them-out-of-your-apps
+image: /img/blog/og/ai-keys-are-leaking-keep-them-out-of-your-apps.png
 title: "AI service keys leaked 81% more in 2025. Keep provider keys out of your apps"
 tags: [security, product]
 description: "GitGuardian's State of Secrets Sprawl 2026 counts 1,275,105 leaked AI service secrets in 2025, up 81%. Here is how a gateway keeps provider keys out of apps and makes the keys apps do hold short-lived and revocable."

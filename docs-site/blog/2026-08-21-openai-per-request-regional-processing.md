@@ -1,5 +1,6 @@
 ---
 slug: openai-per-request-regional-processing
+image: /img/blog/og/openai-per-request-regional-processing.png
 title: "OpenAI adds per-request regional processing: what it means for your region policy"
 tags: [security, product]
 description: "OpenAI API customers can now choose regional processing for a single request. Storage region and inference region are different things, so here is how to keep your own rules in front of both."

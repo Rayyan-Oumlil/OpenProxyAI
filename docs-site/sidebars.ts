@@ -58,7 +58,7 @@ const sidebars: SidebarsConfig = {
       'admin-console/managing-your-organization',
       group('Quality and batch work', ['admin-console/evaluating-changes', 'admin-console/batch-jobs'], false),
     ]),
-    section('Resources', ['changelog']),
+    section('Resources', ['resources/glossary', 'resources/faq', 'resources/compare', 'changelog']),
   ],
   guidesSidebar: [
     section('Guides', [

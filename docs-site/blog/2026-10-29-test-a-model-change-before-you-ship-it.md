@@ -1,5 +1,6 @@
 ---
 slug: test-a-model-change-before-you-ship-it
+image: /img/blog/og/test-a-model-change-before-you-ship-it.png
 title: "Test a model change on real examples before you ship it"
 tags: [product, engineering]
 description: "Use captured traffic, datasets, scored eval runs and adaptive experiments to find out whether a new model or prompt is better, with a cost cap and a recorded winner you choose to apply."

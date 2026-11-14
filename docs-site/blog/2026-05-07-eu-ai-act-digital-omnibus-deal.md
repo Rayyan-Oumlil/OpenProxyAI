@@ -1,5 +1,6 @@
 ---
 slug: eu-ai-act-digital-omnibus-deal
+image: /img/blog/og/eu-ai-act-digital-omnibus-deal.png
 title: "EU AI Act: high-risk rules slip to 2027. Build the logging now"
 tags: [security, engineering]
 description: "EU negotiators struck a provisional deal on 7 May 2026 that moves high-risk AI Act obligations to December 2027 and August 2028. What changed, what did not, and the engineering work worth starting anyway."

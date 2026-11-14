@@ -1,5 +1,6 @@
 ---
 slug: shadow-ai-needs-a-governed-front-door
+image: /img/blog/og/shadow-ai-needs-a-governed-front-door.png
 title: "Only 30% can detect shadow AI. Give every AI call one governed front door"
 tags: [security, product]
 description: "A Smarsh and FTI Consulting study found 55% of enterprises deploying AI but only 26% with governance that keeps pace. See how one governed endpoint gives you visibility, policy and budgets across teams."

@@ -1,5 +1,6 @@
 ---
 slug: answers-from-models-without-a-price
+image: /img/blog/og/answers-from-models-without-a-price.png
 title: "Never lose a model's answer because you cannot price it"
 tags: [engineering, architecture]
 description: An unlisted model never costs you an answer. The call completes, a flat fee is charged, and the cost is flagged as an estimate so budgets keep working.

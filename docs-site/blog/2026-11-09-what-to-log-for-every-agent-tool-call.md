@@ -1,5 +1,6 @@
 ---
 slug: what-to-log-for-every-agent-tool-call
+image: /img/blog/og/what-to-log-for-every-agent-tool-call.png
 title: "What to log for every agent tool call, and where OpenProxyAI records it"
 tags: [security, engineering]
 description: "A tool call by an agent should leave a record that answers who, under what permission, with which tool version, what the policy decided and what it cost. Here is the minimum, mapped to OpenProxyAI."
