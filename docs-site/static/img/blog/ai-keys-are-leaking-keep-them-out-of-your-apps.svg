@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 290" width="640" height="290" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="290" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="289" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Provider keys stay behind the gateway</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Apps only ever hold an application key</text>
+
+  <rect x="24" y="90" width="172" height="86" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="118" fill="#f4f6f8" font-size="14" font-weight="600">Your apps</text>
+  <text x="40" y="142" fill="#cfd5dd" font-size="14">hold app keys only</text>
+  <text x="40" y="162" fill="#a3abb8" font-size="14">can expire, revocable</text>
+
+  <rect x="234" y="90" width="172" height="86" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="250" y="118" fill="#35d399" font-size="14" font-weight="600">Gateway</text>
+  <text x="250" y="142" fill="#cfd5dd" font-size="14">key checked each call</text>
+  <text x="250" y="162" fill="#a3abb8" font-size="14">policy and budgets</text>
+
+  <rect x="444" y="90" width="172" height="86" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="460" y="118" fill="#f4f6f8" font-size="14" font-weight="600">Provider keys</text>
+  <text x="460" y="142" fill="#cfd5dd" font-size="14">encrypted, or kept in</text>
+  <text x="460" y="162" fill="#a3abb8" font-size="14">Vault or AWS secrets</text>
+
+  <path d="M196 133 H232" stroke="#35d399" stroke-width="2"/>
+  <path d="M406 133 H442" stroke="#35d399" stroke-width="2"/>
+
+  <text x="24" y="214" fill="#cfd5dd" font-size="14">App key leaks: revoke it, and the next call is refused with a 401.</text>
+  <text x="24" y="238" fill="#cfd5dd" font-size="14">Provider key never leaves the gateway, so it is not in any repo or app.</text>
+  <text x="24" y="262" fill="#f0b429" font-size="14">Budgets cap what a leaked app key can spend before you revoke it.</text>
+</svg>

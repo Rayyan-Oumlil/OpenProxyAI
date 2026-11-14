@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">One governed endpoint for every AI call</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Same path for teams, apps and agents</text>
+
+  <rect x="24" y="86" width="150" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="111" fill="#cfd5dd" font-size="14">Team apps</text>
+  <rect x="24" y="136" width="150" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="161" fill="#cfd5dd" font-size="14">Internal tools</text>
+  <rect x="24" y="186" width="150" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="211" fill="#cfd5dd" font-size="14">Agents</text>
+
+  <rect x="230" y="86" width="190" height="140" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="246" y="114" fill="#35d399" font-size="14" font-weight="600">OpenProxyAI</text>
+  <text x="246" y="140" fill="#cfd5dd" font-size="14">who called, which model</text>
+  <text x="246" y="162" fill="#cfd5dd" font-size="14">cost and policy result</text>
+  <text x="246" y="184" fill="#cfd5dd" font-size="14">allowlist, PII, budgets</text>
+  <text x="246" y="206" fill="#a3abb8" font-size="14">logged on every call</text>
+
+  <rect x="476" y="86" width="140" height="140" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="492" y="114" fill="#f4f6f8" font-size="14" font-weight="600">Providers</text>
+  <text x="492" y="140" fill="#cfd5dd" font-size="14">approved models</text>
+  <text x="492" y="162" fill="#cfd5dd" font-size="14">only</text>
+
+  <path d="M174 106 H228 M174 156 H228 M174 206 H228" stroke="#35d399" stroke-width="2"/>
+  <path d="M420 156 H474" stroke="#35d399" stroke-width="2"/>
+
+  <text x="24" y="262" fill="#f0b429" font-size="14">Study: 30% report comprehensive shadow AI detection (Smarsh, FTI).</text>
+  <text x="24" y="284" fill="#a3abb8" font-size="14">A single front door turns unseen AI use into a log you can read.</text>
+</svg>

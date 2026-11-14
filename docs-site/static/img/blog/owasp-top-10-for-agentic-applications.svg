@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 430" width="640" height="430" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="430" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="429" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Five agent risks a gateway can reduce</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Risk from the OWASP list, and the control that applies</text>
+  <g font-size="14">
+    <rect x="24" y="82" width="290" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="106" fill="#f4f6f8" font-weight="600">Agent Goal Hijack</text>
+    <text x="42" y="126" fill="#a3abb8">ASI01</text>
+    <text x="324" y="115" fill="#35d399" font-size="18">→</text>
+    <rect x="350" y="82" width="266" height="56" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="364" y="106" fill="#cfd5dd">Prompt checks, result scanning</text>
+    <text x="364" y="126" fill="#f0b429">Reduces the risk, not a cure</text>
+
+    <rect x="24" y="148" width="290" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="172" fill="#f4f6f8" font-weight="600">Tool Misuse and Exploitation</text>
+    <text x="42" y="192" fill="#a3abb8">ASI02</text>
+    <text x="324" y="181" fill="#35d399" font-size="18">→</text>
+    <rect x="350" y="148" width="266" height="56" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="364" y="172" fill="#cfd5dd">Tool allow lists and grants</text>
+    <text x="364" y="192" fill="#a3abb8">Audit row for every call</text>
+
+    <rect x="24" y="214" width="290" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="238" fill="#f4f6f8" font-weight="600">Identity and Privilege Abuse</text>
+    <text x="42" y="258" fill="#a3abb8">ASI03</text>
+    <text x="324" y="247" fill="#35d399" font-size="18">→</text>
+    <rect x="350" y="214" width="266" height="56" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="364" y="238" fill="#cfd5dd">Scoped keys, per-caller grants</text>
+    <text x="364" y="258" fill="#a3abb8">Agent key stays at the gateway</text>
+
+    <rect x="24" y="280" width="290" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="304" fill="#f4f6f8" font-weight="600">Agentic Supply Chain</text>
+    <text x="42" y="324" fill="#a3abb8">Vulnerabilities (ASI04)</text>
+    <text x="324" y="313" fill="#35d399" font-size="18">→</text>
+    <rect x="350" y="280" width="266" height="56" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="364" y="304" fill="#cfd5dd">Tool pinning, drift detection</text>
+    <text x="364" y="324" fill="#a3abb8">Only approved definitions served</text>
+
+    <rect x="24" y="346" width="290" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="370" fill="#f4f6f8" font-weight="600">Cascading Failures</text>
+    <text x="42" y="390" fill="#a3abb8">ASI08</text>
+    <text x="324" y="379" fill="#35d399" font-size="18">→</text>
+    <rect x="350" y="346" width="266" height="56" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="364" y="370" fill="#cfd5dd">Rate limits, budgets, failover</text>
+    <text x="364" y="390" fill="#f0b429">Bounds the blast radius</text>
+  </g>
+</svg>

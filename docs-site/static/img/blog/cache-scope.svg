@@ -1,37 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 460" width="640" height="460" font-family="Inter, system-ui, sans-serif">
-  <rect width="640" height="460" rx="12" fill="#0d0f14"/>
-  <rect x="0.5" y="0.5" width="639" height="459" rx="11.5" fill="none" stroke="#1b1f27"/>
-  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">What a cache hit is matched on</text>
-  <text x="24" y="64" fill="#a3abb8" font-size="14">OpenProxyAI, read from the code on November 13, 2026</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 330" width="640" height="330" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="330" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="329" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">How a cache hit is matched</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Every hit stays inside one organization</text>
 
   <g font-size="15">
-    <rect x="24" y="86" width="592" height="116" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="42" y="114" fill="#f4f6f8" font-weight="600" font-size="16">Exact tiers (in-memory and Redis)</text>
-    <text x="42" y="140" fill="#cfd5dd">One SHA-256 over four things, so a hit needs all four to be identical:</text>
+    <rect x="24" y="86" width="592" height="100" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="114" fill="#f4f6f8" font-weight="600" font-size="16">Exact match</text>
+    <text x="42" y="138" fill="#cfd5dd" font-size="14">Same organization, model, messages and temperature</text>
     <g font-size="14" font-weight="600" fill="#35d399">
-      <rect x="42" y="152" width="96" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="90" y="172" text-anchor="middle">org</text>
-      <rect x="148" y="152" width="96" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="196" y="172" text-anchor="middle">model</text>
-      <rect x="254" y="152" width="110" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="309" y="172" text-anchor="middle">messages</text>
-      <rect x="374" y="152" width="130" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="439" y="172" text-anchor="middle">temperature</text>
+      <rect x="42" y="150" width="96" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="90" y="169" text-anchor="middle">org</text>
+      <rect x="148" y="150" width="96" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="196" y="169" text-anchor="middle">model</text>
+      <rect x="254" y="150" width="110" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="309" y="169" text-anchor="middle">messages</text>
+      <rect x="374" y="150" width="130" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="439" y="169" text-anchor="middle">temperature</text>
     </g>
 
-    <rect x="24" y="218" width="592" height="116" rx="10" fill="#14171e" stroke="#2a2f3a"/>
-    <text x="42" y="246" fill="#f4f6f8" font-weight="600" font-size="16">Semantic tier (pgvector), off by default</text>
-    <text x="42" y="272" fill="#cfd5dd">The nearest stored entry that passes a filter and a similarity bar:</text>
+    <rect x="24" y="202" width="592" height="100" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="42" y="230" fill="#f4f6f8" font-weight="600" font-size="16">Semantic match (optional, you turn it on)</text>
+    <text x="42" y="254" fill="#cfd5dd" font-size="14">Same organization and model, close enough in meaning</text>
     <g font-size="14" font-weight="600" fill="#35d399">
-      <rect x="42" y="284" width="96" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="90" y="304" text-anchor="middle">org</text>
-      <rect x="148" y="284" width="96" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="196" y="304" text-anchor="middle">model</text>
-      <rect x="254" y="284" width="120" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="314" y="304" text-anchor="middle">not expired</text>
-      <rect x="384" y="284" width="200" height="30" rx="15" fill="#0f1f19" stroke="#35d399"/><text x="484" y="304" text-anchor="middle">similarity at least 0.95</text>
-    </g>
-
-    <rect x="24" y="350" width="592" height="86" rx="10" fill="#1d1710" stroke="#f0b429"/>
-    <text x="42" y="378" fill="#f0b429" font-weight="600" font-size="16">Not part of either match</text>
-    <g font-size="14" font-weight="600" fill="#f0b429">
-      <rect x="42" y="392" width="80" height="30" rx="15" fill="#14171e" stroke="#f0b429"/><text x="82" y="412" text-anchor="middle">user</text>
-      <rect x="132" y="392" width="80" height="30" rx="15" fill="#14171e" stroke="#f0b429"/><text x="172" y="412" text-anchor="middle">team</text>
-      <rect x="222" y="392" width="100" height="30" rx="15" fill="#14171e" stroke="#f0b429"/><text x="272" y="412" text-anchor="middle">API key</text>
-      <rect x="332" y="392" width="100" height="30" rx="15" fill="#14171e" stroke="#f0b429"/><text x="382" y="412" text-anchor="middle">data class</text>
+      <rect x="42" y="266" width="96" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="90" y="285" text-anchor="middle">org</text>
+      <rect x="148" y="266" width="96" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="196" y="285" text-anchor="middle">model</text>
+      <rect x="254" y="266" width="150" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="329" y="285" text-anchor="middle">fresh entry</text>
+      <rect x="414" y="266" width="160" height="28" rx="14" fill="#0f1f19" stroke="#35d399"/><text x="494" y="285" text-anchor="middle">tunable similarity</text>
     </g>
   </g>
 </svg>

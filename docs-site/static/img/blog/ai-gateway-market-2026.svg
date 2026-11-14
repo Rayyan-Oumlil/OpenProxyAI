@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 330" width="640" height="330" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="330" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="329" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Three 2026 releases, six buyer questions</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Dates are from each project's own announcement.</text>
+
+  <rect x="24" y="82" width="188" height="64" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="106" fill="#cfd5dd" font-size="14">Envoy AI Gateway 1.0</text>
+  <text x="36" y="130" fill="#35d399" font-size="14">2026-06-23</text>
+
+  <rect x="226" y="82" width="188" height="64" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="238" y="106" fill="#cfd5dd" font-size="14">Kong AI Gateway 2.0 GA</text>
+  <text x="238" y="130" fill="#35d399" font-size="14">2026-09-01</text>
+
+  <rect x="428" y="82" width="188" height="64" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="440" y="106" fill="#cfd5dd" font-size="14">Bifrost 2.0</text>
+  <text x="440" y="130" fill="#35d399" font-size="14">2026-09-15</text>
+
+  <line x1="320" y1="150" x2="320" y2="172" stroke="#f0b429" stroke-width="2"/>
+  <text x="24" y="192" fill="#f4f6f8" font-size="14" font-weight="600">What a buyer should ask of any of them</text>
+
+  <rect x="24" y="204" width="296" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="229" fill="#cfd5dd" font-size="14">1. Where does it run?</text>
+  <rect x="332" y="204" width="284" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="344" y="229" fill="#cfd5dd" font-size="14">2. Who can use which model?</text>
+  <rect x="24" y="252" width="296" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="277" fill="#cfd5dd" font-size="14">3. Which agent tools are exposed?</text>
+  <rect x="332" y="252" width="284" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="344" y="277" fill="#cfd5dd" font-size="14">4. What does a call cost, per who?</text>
+  <text x="24" y="316" fill="#a3abb8" font-size="14">5. Who is allowed in?   6. What license, and who owns the code?</text>
+</svg>

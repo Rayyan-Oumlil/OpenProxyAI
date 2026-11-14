@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" role="img" aria-labelledby="t d">
+  <title id="t">From a request to a readable audit record</title>
+  <desc id="d">A request passes through the gateway and becomes one audit row with who, what, decision and cost. Admins filter it in the console, open a trace, and export a report. Retention depends on the plan.</desc>
+  <rect x="0.5" y="0.5" width="639" height="359" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">One call, one record</text>
+
+    <rect x="24" y="60" width="130" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="86" font-weight="600" fill="#f4f6f8">Request</text>
+    <text x="38" y="108" fill="#a3abb8">model or tool</text>
+
+    <rect x="190" y="60" width="130" height="64" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="204" y="86" font-weight="600" fill="#f4f6f8">Gateway</text>
+    <text x="204" y="108" fill="#a3abb8">decides, answers</text>
+
+    <rect x="356" y="60" width="260" height="140" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="372" y="86" font-weight="600" fill="#f4f6f8">Audit record</text>
+    <text x="372" y="112" fill="#a3abb8">Who: org, user, key, team</text>
+    <text x="372" y="134" fill="#a3abb8">What: model, tool, tokens</text>
+    <text x="372" y="156" fill="#a3abb8">Decision: policy, routing</text>
+    <text x="372" y="178" fill="#a3abb8">Outcome: status, cost, time</text>
+
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M154 92 L190 92"/>
+      <path d="M320 92 L356 92"/>
+    </g>
+
+    <rect x="24" y="224" width="186" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="38" y="250" font-weight="600" fill="#f4f6f8">Search</text>
+    <text x="38" y="272" fill="#a3abb8">filters, trace view</text>
+
+    <rect x="227" y="224" width="186" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="241" y="250" font-weight="600" fill="#f4f6f8">Export</text>
+    <text x="241" y="272" fill="#a3abb8">CSV, JSON, SIEM</text>
+
+    <rect x="430" y="224" width="186" height="64" rx="10" fill="#14171e" stroke="#f0b429" stroke-width="2"/>
+    <text x="444" y="250" font-weight="600" fill="#f4f6f8">Retention</text>
+    <text x="444" y="272" fill="#f0b429">7, 30, 90, 365 days</text>
+
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M486 200 L486 212 L117 212 L117 224"/>
+      <path d="M320 212 L320 224"/>
+      <path d="M486 212 L523 212 L523 224"/>
+    </g>
+
+    <text x="24" y="326" fill="#a3abb8">Prompt text is not kept in the record by default.</text>
+  </g>
+</svg>

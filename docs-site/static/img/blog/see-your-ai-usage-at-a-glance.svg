@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="360" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="359" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">The dashboard, top to bottom</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Range: 7, 30 or 90 days. Admins can filter by team</text>
+
+  <rect x="24" y="80" width="140" height="48" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="109" fill="#cfd5dd" font-size="14">Requests</text>
+  <rect x="176" y="80" width="140" height="48" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="190" y="109" fill="#cfd5dd" font-size="14">Cost</text>
+  <rect x="328" y="80" width="140" height="48" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="342" y="109" fill="#cfd5dd" font-size="14">Tokens</text>
+  <rect x="480" y="80" width="136" height="48" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="494" y="109" fill="#cfd5dd" font-size="14">Latency</text>
+
+  <rect x="24" y="140" width="140" height="48" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="38" y="169" fill="#cfd5dd" font-size="14">Success rate</text>
+  <rect x="176" y="140" width="140" height="48" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="190" y="169" fill="#cfd5dd" font-size="14">Blocked</text>
+  <rect x="328" y="140" width="140" height="48" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="342" y="169" fill="#cfd5dd" font-size="14">Flagged</text>
+  <rect x="480" y="140" width="136" height="48" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="494" y="169" fill="#cfd5dd" font-size="14">Cache hits</text>
+
+  <rect x="24" y="200" width="592" height="40" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="40" y="225" fill="#cfd5dd" font-size="14">Budget burn-down this month, with projection</text>
+
+  <rect x="24" y="252" width="592" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="277" fill="#cfd5dd" font-size="14">Daily trend: requests and cost</text>
+
+  <rect x="24" y="304" width="184" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="329" fill="#cfd5dd" font-size="14">Top models</text>
+  <rect x="220" y="304" width="184" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="234" y="329" fill="#cfd5dd" font-size="14">By team</text>
+  <rect x="416" y="304" width="200" height="40" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="430" y="329" fill="#cfd5dd" font-size="14">By key and user</text>
+</svg>

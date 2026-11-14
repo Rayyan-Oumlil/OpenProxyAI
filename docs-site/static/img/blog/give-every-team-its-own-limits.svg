@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 290" width="640" height="290" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="290" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="289" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Limits at two levels, checked together</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Illustrative teams, not real data</text>
+
+  <rect x="24" y="82" width="592" height="52" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="40" y="106" fill="#35d399" font-size="14" font-weight="600">Organization</text>
+  <text x="40" y="124" fill="#cfd5dd" font-size="14">daily budget, requests and tokens per minute</text>
+
+  <rect x="24" y="154" width="184" height="86" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="180" fill="#f4f6f8" font-size="14" font-weight="600">Support team</text>
+  <text x="40" y="202" fill="#cfd5dd" font-size="14">own monthly budget</text>
+  <text x="40" y="222" fill="#a3abb8" font-size="14">own rate counters</text>
+
+  <rect x="228" y="154" width="184" height="86" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="244" y="180" fill="#f4f6f8" font-size="14" font-weight="600">Data team</text>
+  <text x="244" y="202" fill="#cfd5dd" font-size="14">own monthly budget</text>
+  <text x="244" y="222" fill="#a3abb8" font-size="14">own rate counters</text>
+
+  <rect x="432" y="154" width="184" height="86" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="448" y="180" fill="#f4f6f8" font-size="14" font-weight="600">Intern sandbox</text>
+  <text x="448" y="202" fill="#cfd5dd" font-size="14">own monthly budget</text>
+  <text x="448" y="222" fill="#a3abb8" font-size="14">own rate counters</text>
+
+  <path d="M116 154 V134 M320 154 V134 M524 154 V134" stroke="#2a2f3a" stroke-width="2"/>
+  <text x="24" y="270" fill="#f0b429" font-size="14">A call must pass the organization and its team. One team cannot starve another.</text>
+</svg>

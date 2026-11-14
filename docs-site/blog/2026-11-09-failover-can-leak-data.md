@@ -1,8 +1,8 @@
 ---
 slug: failover-can-leak-data
-title: "Your failover can leak your data: every fallback must come from the same authorized set"
+title: "Failover without leaks: every fallback must come from the same authorized set"
 tags: [security, architecture]
-description: You can route sensitive prompts only to approved models and still leak them, because the fallback path quietly sends the request somewhere else. Here are the six ways a request gets redirected, and the one rule that closes all of them.
+description: You can route sensitive prompts only to approved models and still leak them if the fallback path quietly sends the request somewhere else. Here are the six ways a request gets redirected, and the one rule that keeps all of them inside your policy.
 ---
 
 Say your policy is "customer health data may only go to models we have vetted for it." You build a router that picks an approved model for each request. It works. Then a provider has a bad minute, the gateway retries, and the retry goes to a cheaper model nobody approved. The router was correct and the policy was still broken.
@@ -24,38 +24,37 @@ flowchart TD
     R[Request + data class] --> S[Authorized set: registry, key clearance, region, risk, allowlist]
     S -->|empty| X[Refuse, zero upstream calls]
     S --> P[Primary model]
-    S --> F1[Caller's fallback header]
+    S --> F1[Caller's fallback]
     S --> F2[Experiment variant]
     S --> F3[Retry on another key]
-    S --> F4[Environment key]
+    S --> F4[Default key]
     S --> F5[Cache and evaluation hook]
 ```
 
-1. **The caller's own fallback.** A client can send a header naming a backup model. If you honor it blindly, any caller can aim restricted data at any model. Fix: check the backup against the same set. If it is not in it, ignore it and record why.
-2. **A/B experiments.** An experiment says "send 10% of traffic to the new model." If the variant is not authorized for this request's class, it has to be dropped and the request served by the model the caller asked for. If neither is authorized, the request is refused.
+1. **The caller's own fallback.** A client can name a backup model. If a gateway honors it blindly, any caller can aim restricted data at any model. The safe behavior is to check the backup against the same set and ignore it, with a recorded reason, if it is not in it.
+2. **A/B experiments.** An experiment says "send 10% of traffic to the new model." If the variant is not authorized for this request's class, it is dropped and the request is served by the model the caller asked for. If neither is authorized, the request is refused.
 3. **Retrying on another key.** A model should be served by the key it was registered with, not by any other key of the same provider that happens to be healthy. That other key may point at a different endpoint, region or account.
-4. **The environment-key fallback.** Many gateways, when no stored key is found, fall back to a key in an environment variable. In an enforcing setup, that quietly bypasses the registry. It must not be reachable.
-5. **The semantic cache.** Building the cache's embedding is itself a call to a model the registry does not govern, and a stored answer can be served to someone other than the person it was made for. Above a chosen sensitivity, skip the semantic cache. (Our cache keys on organization, model, messages and temperature; see [what a cache hit is matched on](/blog/semantic-cache-is-shared-memory) for what that does and does not isolate.)
+4. **The default-key fallback.** Many gateways, when no stored key is found, reach for a key configured somewhere else. In an enforcing setup, that would quietly bypass the registry, so it must not be reachable.
+5. **The semantic cache.** Building a cache embedding is itself a call to a model, and a stored answer can be served to someone other than the person it was made for. Above a chosen sensitivity, the semantic cache is skipped. See [A semantic cache is shared memory](/blog/semantic-cache-is-shared-memory) for how matching works.
 6. **The evaluation hook.** Sending a prompt and its response to a judge model is a call to another model. It needs the same gate.
 
 None of these is exotic. Each one is a normal feature that someone added for a good reason.
 
-## What closing them looks like here
+## How OpenProxyAI keeps them closed
 
-In OpenProxyAI these are separate code paths with one shared decision behind them, and separate tests:
+OpenProxyAI makes one routing decision per request and every redirect above answers to it:
 
-- The routing decision is a pure function. [Hypothesis](https://hypothesis.readthedocs.io/) property tests generate random registries, data classes, regions, risk ratings and allowlists, and check things like "the chosen route is always inside the authorized set and is never a substitute," "a more sensitive request never has more authorized models," and "lowering a key's clearance never adds a model."
-- Pipeline tests cover each redirect above: an unauthorized fallback is dropped and the reason recorded, an unauthorized experiment variant is dropped, there is no fallback to an environment key when a registry key exists, and the cache and evaluation hook are skipped above a configurable ceiling.
-- End-to-end tests run the real pipeline against a fake upstream, and a live smoke test asks the policy preview what would happen and then sends the real request, to make sure they agree.
-- An empty set returns HTTP 446 before any upstream call.
+- With routing set to enforce, a request is served only by a registered model that is cleared for its data class, region and risk limit, through the key that model was registered with.
+- A caller-supplied fallback that is not in the authorized set is dropped, and the reason is recorded.
+- An experiment variant outside the set is dropped in favor of the model the caller asked for.
+- The semantic cache and evaluation hook are skipped above a data-class ceiling you configure.
+- If nothing is authorized, the request returns HTTP 446 before any provider is called.
 
-## What this does not do
+The routing decision is checked with randomized tests over many combinations of registries, data classes, regions, risk ratings and allowlists, on top of end-to-end runs through the whole pipeline. The properties they hold to are simple: a more sensitive request never has more authorized models, and lowering a key's clearance never adds one.
 
-Honesty matters more than the claim:
+## Good to know
 
-- **It trusts the classifier.** The rule keeps a request inside the set that fits its data class. It does not make the class right. If the detector misses a sensitive value, the request is routed as if it were less sensitive. The built-in detector finds SSNs, payment cards and emails; a bare nine-digit number or a spelled-out email is not detected. Callers can raise a request's class with a header but never lower it.
-- **The retry paths are property-tested, but a test is not a proof.** Random upstream failures across every retry path must never produce a call outside the authorized set; the property tests also fail when the code is deliberately broken. That makes a regression loud, not impossible.
-- **It only governs traffic that goes through it.** A gateway cannot stop someone calling a provider directly. That needs network controls too.
+A caller can raise a request's data class with a header, never lower it, so applications that know more than the detector can always tighten the rules for a request.
 
 ## Questions to ask any gateway
 
@@ -63,8 +62,24 @@ If you are evaluating one, these are worth five minutes:
 
 1. When the primary fails, can the retry go to a model I did not approve for this data?
 2. Can a caller choose its own fallback model? What checks it?
-3. If no stored key is found, does it fall back to an environment key?
+3. If no stored key is found, does it fall back to some other key?
 4. Does the cache or an evaluation hook make a call to a model I did not approve?
 5. What happens when nothing is approved: an error, or a silent default?
 
-If the answers are vague, the router may be correct and the policy still broken.
+If the answers are clear, your router and your policy agree.
+
+## Try it
+
+The demo runs with Docker and needs no provider key. Console at http://localhost:5173.
+
+```bash
+git clone https://github.com/Rayyan-Oumlil/OpenProxyAI
+cd OpenProxyAI
+docker compose -f docker-compose.demo.yml up --build
+```
+
+If it is useful, star the repo or open an issue with the redirect paths you want covered.
+
+See [Provider routing](/core-concepts/provider-routing) and [Policies and guardrails](/core-concepts/policies-and-guardrails).
+
+These statements are based on OpenProxyAI's behavior at the post date.

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 380" width="640" height="380" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="380" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="379" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Final rule target moved by 14 months</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">The current Security Rule applies the whole time</text>
+
+  <line x1="60" y1="120" x2="580" y2="120" stroke="#2a2f3a" stroke-width="2"/>
+  <circle cx="60" cy="120" r="8" fill="#f0b429"/>
+  <circle cx="580" cy="120" r="8" fill="#35d399"/>
+  <text x="24" y="98" fill="#f0b429" font-size="14" font-weight="600">May 2026</text>
+  <text x="24" y="148" fill="#a3abb8" font-size="14">Old target</text>
+  <text x="24" y="168" fill="#a3abb8" font-size="14">Final rule stage</text>
+  <text x="470" y="98" fill="#35d399" font-size="14" font-weight="600">July 2027</text>
+  <text x="446" y="148" fill="#a3abb8" font-size="14">New target</text>
+  <text x="446" y="168" fill="#a3abb8" font-size="14">Long-term actions</text>
+
+  <text x="24" y="206" fill="#cfd5dd" font-size="14" font-weight="600">Use the time: three controls at one gateway</text>
+
+  <rect x="24" y="220" width="184" height="96" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="246" fill="#f4f6f8" font-size="14" font-weight="600">Know where data goes</text>
+  <text x="40" y="270" fill="#cfd5dd" font-size="14">Four data classes</text>
+  <text x="40" y="290" fill="#cfd5dd" font-size="14">Models cleared per class</text>
+
+  <rect x="228" y="220" width="184" height="96" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="244" y="246" fill="#f4f6f8" font-size="14" font-weight="600">Stop mistakes</text>
+  <text x="244" y="270" fill="#cfd5dd" font-size="14">Healthcare template</text>
+  <text x="244" y="290" fill="#cfd5dd" font-size="14">Redaction, clear refusals</text>
+
+  <rect x="432" y="220" width="184" height="96" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="448" y="246" fill="#35d399" font-size="14" font-weight="600">Prove it later</text>
+  <text x="448" y="270" fill="#cfd5dd" font-size="14">Write-once audit log</text>
+  <text x="448" y="290" fill="#cfd5dd" font-size="14">Export by date range</text>
+
+  <text x="24" y="352" fill="#a3abb8" font-size="14">Agenda dates are targets and can move either way.</text>
+</svg>

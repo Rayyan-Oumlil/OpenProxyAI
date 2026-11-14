@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 340" width="640" role="img" aria-labelledby="t d">
+  <title id="t">What stays inside your network</title>
+  <desc id="d">Applications call the OpenProxyAI gateway inside your network. The gateway uses its own database, cache, audit log and console. Only an outbound call to the model providers you configured leaves.</desc>
+  <rect x="0.5" y="0.5" width="639" height="339" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">Your network, your data</text>
+
+    <rect x="16" y="52" width="440" height="270" rx="12" fill="none" stroke="#35d399" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="30" y="76" fill="#35d399" font-weight="600">Inside your network</text>
+
+    <rect x="30" y="96" width="110" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="44" y="122" font-weight="600" fill="#f4f6f8">Your apps</text>
+    <text x="44" y="144" fill="#a3abb8">one base URL</text>
+
+    <rect x="176" y="96" width="140" height="64" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="190" y="122" font-weight="600" fill="#f4f6f8">Gateway</text>
+    <text x="190" y="144" fill="#a3abb8">policy, routing</text>
+
+    <rect x="344" y="204" width="100" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="358" y="230" font-weight="600" fill="#f4f6f8">Console</text>
+    <text x="358" y="252" fill="#a3abb8">admins</text>
+
+    <rect x="176" y="204" width="140" height="96" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="190" y="230" font-weight="600" fill="#f4f6f8">Data stores</text>
+    <text x="190" y="254" fill="#a3abb8">Database, cache</text>
+    <text x="190" y="274" fill="#a3abb8">Audit log, keys</text>
+
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M140 128 L176 128"/>
+      <path d="M300 160 L300 236 L344 236"/>
+      <path d="M246 160 L246 204"/>
+    </g>
+
+    <path d="M316 128 L520 128" stroke="#f0b429" stroke-width="2" fill="none"/>
+    <path d="M520 128 L512 123 M520 128 L512 133" stroke="#f0b429" stroke-width="2" fill="none"/>
+    <rect x="522" y="96" width="102" height="88" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="534" y="122" font-weight="600" fill="#f4f6f8">Model</text>
+    <text x="534" y="142" font-weight="600" fill="#f4f6f8">providers</text>
+    <text x="534" y="168" fill="#a3abb8">you chose</text>
+    <text x="474" y="228" fill="#f0b429" font-size="14">Only this</text>
+    <text x="474" y="248" fill="#f0b429" font-size="14">leaves</text>
+  </g>
+</svg>

@@ -1,37 +1,52 @@
 ---
 slug: openproxyai-vs-litellm
-title: "OpenProxyAI vs. LiteLLM: the engine vs. the car"
+title: "OpenProxyAI vs. LiteLLM: a library or a governed gateway"
 tags: [product, architecture]
-description: LiteLLM and OpenProxyAI are both self-hosted proxies you run yourself — but they solve different layers of the problem, and the honest answer for a lot of teams is "both."
+description: "LiteLLM and OpenProxyAI are both self-hosted and OpenAI-compatible. They differ in what ships by default: policy checks, compliance templates, an admin console and an audit trail."
 ---
 
-LiteLLM comes up in almost every conversation about self-hosted LLM gateways, and it should — it's the library a large share of this category, OpenProxyAI included, is built on top of for provider abstraction. So the honest framing isn't "OpenProxyAI vs. LiteLLM" as competitors. It's closer to: LiteLLM is the engine, and OpenProxyAI is what you get when you build the rest of the car around it.
+LiteLLM comes up in almost every conversation about self-hosted LLM gateways, and for good reason. It is a widely used open-source proxy and Python SDK with one OpenAI-compatible interface across 100+ providers. The question this post answers is what you get when the approval chain for AI usage includes a security or compliance team.
 
 {/* truncate */}
 
-:::note Updated November 9, 2026
-Two corrections and one disclosure, all checked against [LiteLLM's enterprise docs](https://docs.litellm.ai/docs/enterprise).
+## What LiteLLM is
 
-- The first version said LiteLLM is mostly config-file and CLI driven. It has an Admin UI in the open-source proxy.
-- It also said equivalent guardrails mean integrating something else. LiteLLM's open-source guardrail framework includes custom guardrails and Presidio PII masking. Secret detection, the content-moderation integrations and per-key or per-team guardrails need an Enterprise license.
-- OpenProxyAI depends on LiteLLM. On October 21, 2026, LiteLLM [reported that v1.107.0 was compromised](https://docs.litellm.ai/blog/security-incident-oct-21-2026) on PyPI and in its Docker images, and told users to pin 1.106.2 or earlier. OpenProxyAI's requirements pin `litellm>=1.106,<1.107`, which excludes 1.107.0, and the image we built today resolved to 1.106.7. We pinned that line for test stability, not for security, so treat it as luck that was also a good habit.
-:::
+LiteLLM is an open-source proxy and Python SDK that gives you a single OpenAI-compatible interface across 100+ providers, with routing, spend tracking and caching. You self-host it and configure it with a `proxy_config.yaml`. It has an Admin UI for keys, budgets and spend, and an open-source guardrail framework that includes custom guardrails and Presidio PII masking. If all you need is one API, many providers and budget tracking, it is a reasonable place to stop.
 
-## What LiteLLM actually is
+## What OpenProxyAI adds by default
 
-LiteLLM is an open-source proxy and Python SDK that gives you a single OpenAI-compatible interface across 100+ providers, with routing, spend tracking, and caching. You self-host it, configure it via a `proxy_config.yaml`, and it does the provider-abstraction job extremely well — it's a dependable, widely-adopted piece of infrastructure, and if all you need is "one API, many providers, budget tracking," it's a completely reasonable place to stop.
+OpenProxyAI is built for teams where security, finance and platform each have a say. These capabilities are part of the default product:
 
-## Where the two diverge
+- **Policy enforcement as a core stage.** Every request is checked against an organization policy: a model allowlist, blocked keywords, personal data detection and prompt-injection detection, plus optional response guardrails. Start in log-only mode, then enforce. See [Policies and guardrails](/core-concepts/policies-and-guardrails).
+- **Compliance starting points.** Healthcare, Finance and Government policy templates you apply and then adjust. They are configurations, not certifications. See [Compliance templates](/guides/compliance-templates).
+- **A full admin console.** Teams, budgets, policies, model registry, MCP servers and the audit log, as the default way to operate the gateway.
+- **Data-class routing.** Say which models may see which data, and let the gateway enforce it.
+- **An audit trail built to be handed over.** Append-only request logs with retention by plan, and exports. See [Audit logging](/security/audit-logging).
+- **SSO and SCIM** for identity-provider based access, and an MCP gateway with per-user tool grants.
 
-The gap shows up once "route to the right model" stops being the whole requirement.
+For comparison, LiteLLM documents several related features (tag-based budgets, spend reports, team-based logging, SSO beyond 5 users, SCIM, audit logs, secret detection and per-key guardrails) under its Enterprise license. Check [LiteLLM's enterprise docs](https://docs.litellm.ai/docs/enterprise) for the current split.
 
-- **Policy enforcement.** OpenProxyAI's pipeline checks every request against an organization policy as a core stage — a model allowlist, blocked keywords, PII detection and prompt-injection detection, plus optional response guardrails — not a separate service you wire in. LiteLLM's open-source proxy has a guardrail framework with custom guardrails and Presidio PII masking. Its secret detection, content-moderation integrations and per-key or per-team guardrails need an Enterprise license, so how much you wire in yourself depends on which tier you run.
-- **Compliance starting points.** OpenProxyAI ships Healthcare, Finance, and Government policy templates you apply and customize. I did not find an equivalent in LiteLLM's docs, so you would be building your policy configuration from scratch.
-- **Admin surface.** LiteLLM is configured through a `proxy_config.yaml` and has an Admin UI for keys, budgets and spend. Tag-based budgets, spend reports, team-based logging, SSO beyond 5 users and SCIM sit behind a separate Enterprise license. OpenProxyAI ships a full admin console — teams, budgets, policies, audit log — as the default way to operate it, not an add-on.
-- **Audit trail.** OpenProxyAI's logging is immutable by design and built for handing to an auditor. LiteLLM's logging is flexible and integrates with a wide range of observability backends, and its audit logs are an Enterprise feature, but "audit-ready by default" isn't the framing it's built around.
+## How to choose
 
-## Where LiteLLM is the better call
+| If your situation is | Look at |
+|---|---|
+| A single team that needs multi-provider routing and cost tracking | LiteLLM's simplicity is a real advantage |
+| A security, compliance or finance team in the approval chain | OpenProxyAI: policy checks, templates, audit trail and the console are already there |
+| You want to run your gateway in your own network under Apache-2.0 | Both run self-hosted; OpenProxyAI is Apache-2.0 |
 
-If you're a single team that needs multi-provider routing and cost tracking, and you're comfortable owning the guardrail and compliance layer yourself (or you don't need one yet), LiteLLM's simplicity is a real advantage — it's less software to run, and its provider coverage is excellent. Plenty of OpenProxyAI's own architecture leans on the same library for exactly that reason.
+## Try it
 
-The honest split: pick LiteLLM if the org chart approving your AI usage is small. Pick OpenProxyAI if there's a compliance or security team in that approval chain who needs policy checks, an audit trail, and enforcement to already be there — not bolted on later.
+```bash
+git clone https://github.com/Rayyan-Oumlil/OpenProxyAI
+cd OpenProxyAI
+docker compose -f docker-compose.demo.yml up --build
+```
+
+Needs Docker and no provider key. The console is at http://localhost:5173. Star the repo or open an issue if something is missing for your case.
+
+## Sources
+
+- [LiteLLM enterprise features](https://docs.litellm.ai/docs/enterprise), for the open-source versus Enterprise split.
+- [Policies and guardrails](/core-concepts/policies-and-guardrails), [Compliance templates](/guides/compliance-templates), [Audit logging](/security/audit-logging).
+
+These statements are based on LiteLLM's public documentation and on OpenProxyAI's behavior at the post date.
