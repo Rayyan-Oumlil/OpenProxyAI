@@ -91,7 +91,7 @@ This needs Docker and no provider key. The console is at http://localhost:5173. 
 OpenProxyAI documentation, read at the post date:
 
 - [Environment flags](/getting-started/environment-flags) (private provider endpoints, air-gapped mode)
-- [Provider keys API](/api-reference/provider-keys) (custom endpoint and clearance)
+- [Provider keys API](/api-reference/keys) (custom endpoint and clearance)
 - [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets) (flat estimate for unpriced models)
 - [Request pipeline](/core-concepts/request-pipeline)
 - [Provider routing](/core-concepts/provider-routing)

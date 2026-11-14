@@ -85,10 +85,10 @@ Needs Docker, no provider key. Console at http://localhost:5173. Star the repo i
 ## Sources
 
 - [Policies and guardrails](/core-concepts/policies-and-guardrails): log-only and enforce, and what is checked.
-- [Compliance templates](/guides/compliance-templates): what the finance template sets, and what it does not.
+- [Compliance templates](/security/compliance-templates): what the finance template sets, and what it does not.
 - [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets): limits, 429 bodies and the 80 percent alert.
 - [Provider routing](/core-concepts/provider-routing): weights and failover.
-- [Configuring SSO](/guides/configuring-sso) and [configuring SCIM](/guides/configuring-scim): sign-in and provisioning.
+- [Configuring SSO](/guides/sso-and-scim) and [configuring SCIM](/guides/sso-and-scim): sign-in and provisioning.
 - [Audit logging](/security/audit-logging): what is recorded, and retention by plan.
 
 This walkthrough is fictional. The statements about OpenProxyAI are based on its docs and behavior as of October 17, 2026. OpenProxyAI ships templates and controls, not certifications, and using it does not make any organization compliant.

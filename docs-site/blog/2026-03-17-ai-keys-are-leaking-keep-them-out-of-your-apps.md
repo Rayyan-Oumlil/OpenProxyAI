@@ -94,6 +94,6 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it helps, st
 ## Sources
 
 - GitGuardian, [The State of Secrets Sprawl 2026](https://blog.gitguardian.com/the-state-of-secrets-sprawl-2026/) (17 Mar 2026). Source of every figure in the table above.
-- OpenProxyAI docs: [Provider keys from Vault](/guides/secrets-from-vault), [API keys](/api-reference/api-keys), [Provider keys API](/api-reference/provider-keys), [Authentication](/getting-started/authentication), [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [MCP gateway](/guides/mcp-gateway).
+- OpenProxyAI docs: [Provider keys from Vault](/guides/secrets-from-vault), [API keys](/api-reference/keys), [Provider keys API](/api-reference/keys), [Authentication](/getting-started/authentication), [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [MCP gateway](/guides/mcp-gateway).
 
 These statements are based on the sources above and on OpenProxyAI's behavior at the post date. OpenProxyAI ships controls and templates, not certifications.

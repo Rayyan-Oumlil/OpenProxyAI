@@ -101,6 +101,6 @@ This needs Docker and no provider key. The console opens at http://localhost:517
 
 ## Sources
 
-- Internal: [Audit logging](/security/audit-logging), [Analytics](/api-reference/analytics), [Telemetry and SIEM export](/guides/telemetry-and-siem), [Capturing traffic for evaluation](/guides/payload-capture), [Compliance templates](/guides/compliance-templates), [Request pipeline](/core-concepts/request-pipeline).
+- Internal: [Audit logging](/security/audit-logging), [Analytics](/api-reference/analytics), [Telemetry and SIEM export](/guides/telemetry-and-siem), [Capturing traffic for evaluation](/guides/payload-capture), [Compliance templates](/security/compliance-templates), [Request pipeline](/core-concepts/request-pipeline).
 
 These statements are based on OpenProxyAI's behavior at the date of this post.

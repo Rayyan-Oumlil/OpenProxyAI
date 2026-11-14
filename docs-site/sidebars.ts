@@ -4,134 +4,108 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 /**
  * Three sidebars, one per top-bar tab (Documentation, Guides, API Reference).
- * Sections are always open: the label is a heading, not a toggle.
+ * Top-level sections are always open headings; the groups inside them
+ * (sub-categories) fold, so a long section stays easy to scan.
  */
+const group = (label: string, items: SidebarsConfig[string], collapsed = false) => ({
+  type: 'category' as const,
+  label,
+  collapsed,
+  items,
+});
+
+const section = (label: string, items: SidebarsConfig[string]) => ({
+  type: 'category' as const,
+  collapsible: false,
+  label,
+  items,
+});
+
 const sidebars: SidebarsConfig = {
   docsSidebar: [
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'Getting Started',
-      items: [
-        'getting-started/introduction',
-        'getting-started/quickstart',
-        'getting-started/authentication',
-        'getting-started/environment-flags',
-      ],
-    },
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'Core Concepts',
-      items: [
-        'core-concepts/request-pipeline',
-        'core-concepts/caching',
-        'core-concepts/policies-and-guardrails',
-        'core-concepts/provider-routing',
-        'core-concepts/behavior-settings',
-        'core-concepts/rate-limiting-and-budgets',
-      ],
-    },
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'Security & Compliance',
-      items: [
-        'security/trust-center',
-        'security/audit-logging',
-        'security/row-level-security',
-        'security/hipaa-template',
-        'security/pci-template',
-        'security/fedramp-template',
-      ],
-    },
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'Integrations',
-      items: [
-        'integrations/openai-sdk-compatibility',
-        'integrations/python-sdk',
-        'integrations/typescript-sdk',
-        'integrations/langchain',
-      ],
-    },
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'Admin Console',
-      items: [
-        'admin-console/overview',
-        'admin-console/managing-teams',
-        'admin-console/managing-policies',
-        'admin-console/evaluating-changes',
-        'admin-console/batch-jobs',
-        'admin-console/billing',
-      ],
-    },
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'Resources',
-      items: ['changelog'],
-    },
+    section('Getting Started', [
+      'getting-started/introduction',
+      'getting-started/quickstart',
+      'getting-started/authentication',
+      'getting-started/environment-flags',
+    ]),
+    section('Core Concepts', [
+      'core-concepts/request-pipeline',
+      'core-concepts/policies-and-guardrails',
+      group(
+        'Routing and cost',
+        [
+          'core-concepts/provider-routing',
+          'core-concepts/caching',
+          'core-concepts/rate-limiting-and-budgets',
+          'core-concepts/behavior-settings',
+        ],
+        false,
+      ),
+    ]),
+    section('Security and Compliance', [
+      'security/trust-center',
+      group('Data protection', ['security/row-level-security', 'security/data-residency'], false),
+      'security/audit-logging',
+      'security/compliance-templates',
+    ]),
+    section('Integrations', [
+      'integrations/openai-sdk-and-frameworks',
+      group('SDKs', ['integrations/python-sdk', 'integrations/typescript-sdk'], false),
+    ]),
+    section('Admin Console', [
+      'admin-console/overview',
+      'admin-console/managing-your-organization',
+      group('Quality and batch work', ['admin-console/evaluating-changes', 'admin-console/batch-jobs'], false),
+    ]),
+    section('Resources', ['changelog']),
   ],
   guidesSidebar: [
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'Guides',
-      items: [
-        'guides/deploying-with-docker-compose',
-        'guides/deploying-with-helm',
-        'guides/configuring-sso',
-        'guides/configuring-scim',
-        'guides/compliance-templates',
-        'guides/webhooks',
-        'guides/mcp-gateway',
-        'guides/prompt-playground',
-        'guides/semantic-cache-tuning',
-        'guides/data-residency',
-        'guides/payload-capture',
-        'guides/adaptive-experiments',
-        'guides/prompt-promotion',
-        'guides/conversations',
-        'guides/telemetry-and-siem',
-        'guides/secrets-from-vault',
-        'guides/policy-plugins',
-      ],
-    },
+    section('Guides', [
+      group('Deploy and sign in', ['guides/deployment', 'guides/sso-and-scim', 'guides/secrets-from-vault'], false),
+      group('Agents and conversations', ['guides/mcp-gateway', 'guides/conversations'], false),
+      group('Quality and prompts', ['guides/prompts', 'guides/adaptive-experiments'], false),
+      group(
+        'Observe and extend',
+        ['guides/telemetry-and-siem', 'guides/payload-capture', 'guides/webhooks', 'guides/policy-plugins'],
+        false,
+      ),
+    ]),
   ],
   apiSidebar: [
-    {
-      type: 'category',
-      collapsible: false,
-      label: 'API Reference',
-      items: [
-        'api-reference/overview',
-        'api-reference/errors-and-status-codes',
-        'api-reference/chat-completions',
-        'api-reference/embeddings',
-        'api-reference/more-endpoints',
-        'api-reference/realtime',
-        'api-reference/batches',
-        'api-reference/feedback',
-        'api-reference/datasets',
-        'api-reference/eval-runs',
-        'api-reference/analytics-query',
-        'api-reference/conversations',
-        'api-reference/models',
-        'api-reference/api-keys',
-        'api-reference/users',
-        'api-reference/mcp-admin',
-        'api-reference/provider-keys',
-        'api-reference/organizations',
-        'api-reference/teams',
-        'api-reference/analytics',
-        'api-reference/webhooks-api',
-        'api-reference/health',
-      ],
-    },
+    section('API Reference', [
+      group('Start here', ['api-reference/overview', 'api-reference/errors-and-status-codes'], false),
+      group(
+        'Inference',
+        [
+          'api-reference/chat-completions',
+          'api-reference/other-endpoints',
+          'api-reference/realtime',
+          'api-reference/batches',
+        ],
+        false,
+      ),
+      group(
+        'Quality',
+        [
+          'api-reference/feedback',
+          'api-reference/datasets',
+          'api-reference/eval-runs',
+          'api-reference/conversations',
+        ],
+        false,
+      ),
+      'api-reference/analytics',
+      group(
+        'Administration',
+        [
+          'api-reference/organizations-teams-users',
+          'api-reference/keys',
+          'api-reference/mcp-admin',
+        ],
+        false,
+      ),
+    ]),
   ],
 };
 

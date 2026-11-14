@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="250" viewBox="0 0 640 250" font-family="Inter, system-ui, sans-serif">
+  <rect x="0.5" y="0.5" width="639" height="249" rx="16" fill="#0d0f14" stroke="#1b1f27"/>
+  <text x="24" y="40" font-size="20" font-weight="600" fill="#f4f6f8">Every change gets the same check</text>
+  <rect x="26" y="70" width="132" height="100" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="42" y="104" font-size="14" fill="#cfd5dd">Something</text>
+  <text x="42" y="124" font-size="14" fill="#cfd5dd">changes</text>
+  <text x="42" y="150" font-size="14" fill="#a3abb8">model, prompt</text>
+  <line x1="158" y1="120" x2="178" y2="120" stroke="#35d399" stroke-width="2"/>
+  <rect x="178" y="70" width="132" height="100" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="194" y="104" font-size="14" fill="#cfd5dd">Run saved</text>
+  <text x="194" y="124" font-size="14" fill="#cfd5dd">test set</text>
+  <text x="194" y="150" font-size="14" fill="#a3abb8">same items</text>
+  <line x1="310" y1="120" x2="330" y2="120" stroke="#35d399" stroke-width="2"/>
+  <rect x="330" y="70" width="132" height="100" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="346" y="104" font-size="14" fill="#cfd5dd">Compare</text>
+  <text x="346" y="124" font-size="14" fill="#cfd5dd">pass rate</text>
+  <text x="346" y="150" font-size="14" fill="#a3abb8">and cost</text>
+  <line x1="462" y1="120" x2="482" y2="120" stroke="#35d399" stroke-width="2"/>
+  <rect x="482" y="70" width="132" height="100" rx="10" fill="#14171e" stroke="#f0b429"/>
+  <text x="498" y="104" font-size="14" fill="#cfd5dd">Decide</text>
+  <text x="498" y="124" font-size="14" fill="#cfd5dd">ship or keep</text>
+  <text x="498" y="150" font-size="14" fill="#a3abb8">you apply it</text>
+  <text x="24" y="214" font-size="14" fill="#a3abb8">Repeat on every change. Keep the results as a history.</text>
+</svg>

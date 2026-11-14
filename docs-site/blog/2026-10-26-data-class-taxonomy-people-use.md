@@ -92,7 +92,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it saves you
 
 ## Sources
 
-- [Policies and guardrails](/core-concepts/policies-and-guardrails), [Provider routing](/core-concepts/provider-routing), [Environment flags](/getting-started/environment-flags), [Data residency](/guides/data-residency): product documentation.
+- [Policies and guardrails](/core-concepts/policies-and-guardrails), [Provider routing](/core-concepts/provider-routing), [Environment flags](/getting-started/environment-flags), [Data residency](/security/data-residency): product documentation.
 - [Semantic cache is shared memory](/blog/semantic-cache-is-shared-memory): why the cache sits outside the registry.
 
 These statements are based on OpenProxyAI's behavior at the post date. The insurer is a hypothetical example.

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 216" width="640" height="216" role="img" aria-label="Five steps from a model launch to rollout: announcement, registry entry with data class and region, canary share, evaluation on your own data, then budgets and wider traffic." font-family="Inter, system-ui, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a3abb8"/></marker></defs>
+<rect x="0.5" y="0.5" width="639" height="215" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+<text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">From model launch to safe rollout</text>
+<rect x="24" y="72" width="104" height="76" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="76.0" y="105.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Launch</text>
+<text x="76.0" y="124.5" font-size="14" text-anchor="middle" fill="#cfd5dd">announced</text>
+<line x1="130" y1="110" x2="144" y2="110" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="146" y="72" width="104" height="76" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="198.0" y="105.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Registry</text>
+<text x="198.0" y="124.5" font-size="14" text-anchor="middle" fill="#cfd5dd">class, region</text>
+<line x1="252" y1="110" x2="266" y2="110" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="268" y="72" width="104" height="76" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="320.0" y="105.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Canary</text>
+<text x="320.0" y="124.5" font-size="14" text-anchor="middle" fill="#cfd5dd">small share</text>
+<line x1="374" y1="110" x2="388" y2="110" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="390" y="72" width="104" height="76" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="442.0" y="105.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Evaluate</text>
+<text x="442.0" y="124.5" font-size="14" text-anchor="middle" fill="#cfd5dd">your data</text>
+<line x1="496" y1="110" x2="510" y2="110" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="512" y="72" width="104" height="76" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="564.0" y="105.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Budgets</text>
+<text x="564.0" y="124.5" font-size="14" text-anchor="middle" fill="#cfd5dd">then widen</text>
+<text x="320" y="190" font-size="14" text-anchor="middle" fill="#a3abb8">Nothing reaches production traffic until you widen it</text>
+</svg>

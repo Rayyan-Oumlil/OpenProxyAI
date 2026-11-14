@@ -46,7 +46,7 @@ OpenProxyAI is an open-source, self-hosted gateway. Teams point their apps at on
 
 New rules can run in log-only mode first, which records what would have been blocked without blocking it. Enforced blocks return HTTP 446 with a one-sentence explanation the caller can show a person.
 
-**Data-aware routing.** A model registry records which models and keys may receive which class of data, in which region. Enforced, a request carrying confidential data cannot reach a model that is not cleared for it. See [data residency](/guides/data-residency) and [provider routing](/core-concepts/provider-routing).
+**Data-aware routing.** A model registry records which models and keys may receive which class of data, in which region. Enforced, a request carrying confidential data cannot reach a model that is not cleared for it. See [data residency](/security/data-residency) and [provider routing](/core-concepts/provider-routing).
 
 **Budgets and limits.** Spend and rate limits apply per user, per team and per organization, so a surprise bill shows up as a refused request and a webhook alert rather than an invoice.
 
@@ -89,6 +89,6 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it helps, st
 ## Sources
 
 - Smarsh, [New Smarsh Research Finds Enterprises Are Deploying AI Faster Than They Can Govern It](https://www.smarsh.com/press-release/new-smarsh-research-finds-enterprises-are-deploying-ai-faster-than-they-can-govern-it) (July 7, 2026). Source of the 55%, 26% and 30% figures and the shadow AI definition.
-- OpenProxyAI docs: [Policies and guardrails](/core-concepts/policies-and-guardrails), [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [Audit logging](/security/audit-logging), [Data residency](/guides/data-residency), [MCP gateway](/guides/mcp-gateway), [Compliance templates](/guides/compliance-templates).
+- OpenProxyAI docs: [Policies and guardrails](/core-concepts/policies-and-guardrails), [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [Audit logging](/security/audit-logging), [Data residency](/security/data-residency), [MCP gateway](/guides/mcp-gateway), [Compliance templates](/security/compliance-templates).
 
 These statements are based on the sources above and on OpenProxyAI's behavior at the post date. OpenProxyAI ships controls and templates, not certifications, and using it does not make an organization compliant.

@@ -80,6 +80,6 @@ Needs Docker and no provider key. The console is at http://localhost:5173. Star 
 
 ## Sources
 
-- Product docs: [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [Authentication](/getting-started/authentication), [Webhooks](/guides/webhooks), [Audit logging](/security/audit-logging), [Errors and status codes](/api-reference/errors-and-status-codes), [API keys](/api-reference/api-keys), [Users](/api-reference/users).
+- Product docs: [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [Authentication](/getting-started/authentication), [Webhooks](/guides/webhooks), [Audit logging](/security/audit-logging), [Errors and status codes](/api-reference/errors-and-status-codes), [API keys](/api-reference/keys), [Users](/api-reference/organizations-teams-users).
 
 These statements are based on OpenProxyAI's behavior at the post date.

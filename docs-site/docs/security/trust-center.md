@@ -9,7 +9,7 @@ This page is about OpenProxyAI's own security posture as a vendor — not the gu
 
 ## Certification status
 
-**OpenProxyAI does not currently hold SOC 2, ISO 27001, or HIPAA certification.** The [compliance templates](/guides/compliance-templates) (Healthcare, Finance, Government) are pre-built *policy configurations* aligned to those frameworks' requirements — they are a starting point for your own audit, not a substitute for it. If a certification badge appears anywhere implying otherwise, that's a mistake — report it.
+**OpenProxyAI does not currently hold SOC 2, ISO 27001, or HIPAA certification.** The [compliance templates](/security/compliance-templates) (Healthcare, Finance, Government) are pre-built *policy configurations* aligned to those frameworks' requirements — they are a starting point for your own audit, not a substitute for it. If a certification badge appears anywhere implying otherwise, that's a mistake — report it.
 
 ## Deployment model and data handling
 

@@ -71,7 +71,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. The demo keys a
 
 ## Sources
 
-- OpenProxyAI docs: [API keys](/api-reference/api-keys), [Authentication](/getting-started/authentication), [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [MCP gateway](/guides/mcp-gateway), [Audit logging](/security/audit-logging), [Row-level security](/security/row-level-security).
+- OpenProxyAI docs: [API keys](/api-reference/keys), [Authentication](/getting-started/authentication), [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [MCP gateway](/guides/mcp-gateway), [Audit logging](/security/audit-logging), [Row-level security](/security/row-level-security).
 - On this blog: [MCP tool descriptions are untrusted input](/blog/mcp-tool-descriptions-are-untrusted-input), [Row-level security by construction](/blog/row-level-security-by-construction).
 
 These statements are based on OpenProxyAI's behavior at the post date.

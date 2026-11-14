@@ -42,7 +42,7 @@ The license lets you run the gateway. Our design makes running it yours in pract
 - **Your network.** The gateway runs in your environment. Prompts flow from your applications to the gateway to your chosen model provider, with no OpenProxyAI-operated service in the path.
 - **Your data.** Request metadata, audit logs and configuration live in your own Postgres database, with row-level security separating organizations. By default only metadata is kept. Saving redacted prompt and answer samples is opt-in.
 - **Your credentials.** Provider keys can be stored encrypted by the gateway, or read at request time from your HashiCorp Vault or AWS Secrets Manager. See [provider keys from Vault](/guides/secrets-from-vault).
-- **Your identity provider.** Sign-in works through [SSO](/guides/configuring-sso), and user lifecycle through [SCIM](/guides/configuring-scim).
+- **Your identity provider.** Sign-in works through [SSO](/guides/sso-and-scim), and user lifecycle through [SCIM](/guides/sso-and-scim).
 - **Your timeline.** You decide when to upgrade. Each release is documented before you adopt it.
 - **Your boundary.** In air-gapped deployments, a single setting turns off calls to third-party services the gateway does not strictly need.
 

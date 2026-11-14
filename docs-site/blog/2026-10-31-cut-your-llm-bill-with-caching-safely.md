@@ -37,7 +37,7 @@ same request, cache skipped       miss
 
 The semantic cache compares meaning, not text. "How do I reset my password?" can match a stored answer to "How can I change my password?". That catches the reworded repeats that an exact cache misses, which is where support and FAQ traffic gets most of its savings.
 
-It is also an approximation. A similar prompt is not the same prompt. For that reason the semantic cache is **off by default**. An operator turns it on, and it needs an embedding endpoint that the operator configures. A similarity setting lets you trade hit rate against the risk of a loose match. The [semantic cache tuning guide](/guides/semantic-cache-tuning) covers the settings.
+It is also an approximation. A similar prompt is not the same prompt. For that reason the semantic cache is **off by default**. An operator turns it on, and it needs an embedding endpoint that the operator configures. A similarity setting lets you trade hit rate against the risk of a loose match. The [semantic cache tuning guide](/core-concepts/caching) covers the settings.
 
 ## Isolation: the part that makes it safe to share infrastructure
 
@@ -98,7 +98,7 @@ Needs Docker and no provider key. The demo has the exact cache on, so you can wa
 
 ## Sources
 
-- OpenProxyAI docs: [Caching](/core-concepts/caching), [Semantic cache tuning](/guides/semantic-cache-tuning), [Policies and guardrails](/core-concepts/policies-and-guardrails), [Request pipeline](/core-concepts/request-pipeline).
+- OpenProxyAI docs: [Caching](/core-concepts/caching), [Semantic cache tuning](/core-concepts/caching), [Policies and guardrails](/core-concepts/policies-and-guardrails), [Request pipeline](/core-concepts/request-pipeline).
 - Earlier post: [A semantic cache is shared memory](/blog/semantic-cache-is-shared-memory), on what a cache hit is matched on.
 
 Statements are based on OpenProxyAI's documented behavior at the post date.

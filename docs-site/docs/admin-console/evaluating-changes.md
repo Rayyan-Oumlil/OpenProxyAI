@@ -5,7 +5,7 @@ description: Test a model or a prompt against real examples in the console befor
 
 # Evaluating changes
 
-The **Evaluate** group in the sidebar is where you find out whether a change is better before your users do. Everything here is for admins. The same things are available through the API: see [Datasets](/api-reference/datasets), [Evaluators and eval runs](/api-reference/eval-runs), [Feedback](/api-reference/feedback) and the guides on [capturing traffic](/guides/payload-capture), [adaptive experiments](/guides/adaptive-experiments) and [promoting prompts](/guides/prompt-promotion).
+The **Evaluate** group in the sidebar is where you find out whether a change is better before your users do. Everything here is for admins. The same things are available through the API: see [Datasets](/api-reference/datasets), [Evaluators and eval runs](/api-reference/eval-runs), [Feedback](/api-reference/feedback) and the guides on [capturing traffic](/guides/payload-capture), [adaptive experiments](/guides/adaptive-experiments) and [promoting prompts](/guides/prompts).
 
 ## The loop, in the order you would use it
 

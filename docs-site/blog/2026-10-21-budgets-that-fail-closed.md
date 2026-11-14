@@ -83,7 +83,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. Star the repo i
 - [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets): the limits at a glance.
 - [Errors and status codes](/api-reference/errors-and-status-codes): 402 and 429.
 - [Webhooks](/guides/webhooks): subscribing to `budget.alert`.
-- [Users API](/api-reference/users): the user budget fields.
+- [Users API](/api-reference/organizations-teams-users): the user budget fields.
 - [Request pipeline](/core-concepts/request-pipeline): where the limit check sits.
 
 These statements are based on OpenProxyAI's behavior at the post date.

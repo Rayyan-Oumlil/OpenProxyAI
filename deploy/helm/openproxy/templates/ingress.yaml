@@ -35,14 +35,16 @@ spec:
                 name: {{ include "openproxy.fullname" . }}
                 port:
                   number: {{ .Values.service.port }}
-          # Health + metrics → backend
-          - path: /health
+          # Gateway, SCIM, health and readiness → backend
+          {{- range (list "/v1" "/scim/v2" "/health" "/ready") }}
+          - path: {{ . }}
             pathType: Prefix
             backend:
               service:
-                name: {{ include "openproxy.fullname" . }}
+                name: {{ include "openproxy.fullname" $ }}
                 port:
-                  number: {{ .Values.service.port }}
+                  number: {{ $.Values.service.port }}
+          {{- end }}
           {{- if .Values.frontend.enabled }}
           # Everything else → frontend (React SPA)
           - path: /

@@ -86,9 +86,9 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it is useful
 
 - [OpenAI API changelog](https://developers.openai.com/api/docs/changelog): the entry dated August 21, 2026 on regional processing for an individual request.
 - [OpenAI data residency guide](https://developers.openai.com/api/docs/guides/data-residency): storage versus processing, and the per-request setup.
-- [Data residency](/guides/data-residency): region-tagged keys and approved regions in OpenProxyAI.
+- [Data residency](/security/data-residency): region-tagged keys and approved regions in OpenProxyAI.
 - [Provider routing](/core-concepts/provider-routing): how keys are chosen and how failover behaves.
-- [Provider keys API](/api-reference/provider-keys): the region label on a key.
+- [Provider keys API](/api-reference/keys): the region label on a key.
 - [Errors and status codes](/api-reference/errors-and-status-codes): the 446 response and its explanation.
 
 These statements are based on the OpenAI pages above and on OpenProxyAI's behavior at the post date. OpenProxyAI ships controls, not certifications, and using it does not make anyone compliant with a law or a contract.

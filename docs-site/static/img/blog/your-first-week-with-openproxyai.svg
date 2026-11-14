@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="310" viewBox="0 0 640 310" font-family="Inter, system-ui, sans-serif">
+  <rect x="0.5" y="0.5" width="639" height="309" rx="16" fill="#0d0f14" stroke="#1b1f27"/>
+  <text x="24" y="40" font-size="20" font-weight="600" fill="#f4f6f8">Five days from first look to enforced</text>
+  <rect x="24" y="60" width="592" height="38" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="84" font-size="14" font-weight="600" fill="#35d399">Day 1</text>
+  <text x="100" y="84" font-size="14" fill="#cfd5dd">Run the demo and see a block and a budget stop</text>
+  <rect x="24" y="108" width="592" height="38" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="132" font-size="14" font-weight="600" fill="#35d399">Day 2</text>
+  <text x="100" y="132" font-size="14" fill="#cfd5dd">Create keys and teams, move one app over</text>
+  <rect x="24" y="156" width="592" height="38" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="180" font-size="14" font-weight="600" fill="#35d399">Day 3</text>
+  <text x="100" y="180" font-size="14" fill="#cfd5dd">Turn on policy in log only mode, read the hits</text>
+  <rect x="24" y="204" width="592" height="38" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="228" font-size="14" font-weight="600" fill="#35d399">Day 4</text>
+  <text x="100" y="228" font-size="14" fill="#cfd5dd">Set team budgets, a fallback key and routing preview</text>
+  <rect x="24" y="252" width="592" height="38" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="40" y="276" font-size="14" font-weight="600" fill="#f0b429">Day 5</text>
+  <text x="100" y="276" font-size="14" fill="#cfd5dd">Switch to enforce and review the first hours</text>
+</svg>

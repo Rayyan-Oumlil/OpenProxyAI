@@ -36,4 +36,4 @@ Both products can run inside your network, so "can it run in our VPC" does not s
 
 If your organization is comfortable with a managed service and wants the fastest path to a working gateway, Portkey's hosted tiers are a legitimate, well-built option, and its open-source gateway is a strong choice if all you need is the gateway. If "our prompts never touch infrastructure we don't control" is a requirement, both can meet it. OpenProxyAI is built to meet it by default, with the console and audit log included.
 
-See [Deploying with Docker Compose](/guides/deploying-with-docker-compose) for what running it in your own VPC actually looks like.
+See [Deploying with Docker Compose](/guides/deployment) for what running it in your own VPC actually looks like.

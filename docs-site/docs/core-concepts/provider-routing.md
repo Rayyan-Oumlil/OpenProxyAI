@@ -34,7 +34,7 @@ sequenceDiagram
 
 ## Data residency
 
-Provider keys can be tagged with a `data_region`. When an organization has a residency requirement, routing is filtered to only the provider keys whose region satisfies it, so a request never leaves the approved region even under failover. See [Data Residency](/guides/data-residency).
+Provider keys can be tagged with a `data_region`. When an organization has a residency requirement, routing is filtered to only the provider keys whose region satisfies it, so a request never leaves the approved region even under failover. See [Data Residency](/security/data-residency).
 
 ## Adaptive routing
 
@@ -42,4 +42,4 @@ With `ADAPTIVE_LB_ENABLED` set, the router adjusts effective weights based on ob
 
 ## Managing provider keys
 
-Provider keys are managed via `/api/v1/provider-keys` (list/create), `/api/v1/provider-keys/{key_id}` (update/delete), and rotated via `/api/v1/provider-keys/{key_id}/rotate`. See the [API Reference](/api-reference/provider-keys).
+Provider keys are managed via `/api/v1/provider-keys` (list/create), `/api/v1/provider-keys/{key_id}` (update/delete), and rotated via `/api/v1/provider-keys/{key_id}/rotate`. See the [API Reference](/api-reference/keys).

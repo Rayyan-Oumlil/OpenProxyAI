@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 268" width="640" height="268" role="img" aria-label="Three NIST overlay use cases (generative AI assistant, single agent, multi-agent) each mapped to a gateway control: policy rules, per-agent keys and grants, and one audit trail." font-family="Inter, system-ui, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a3abb8"/></marker></defs>
+<rect x="0.5" y="0.5" width="639" height="267" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+<text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">Overlay use cases map to gateway controls</text>
+<rect x="24" y="62" width="250" height="50" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="149.0" y="92.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Generative AI assistant</text>
+<line x1="278" y1="87" x2="358" y2="87" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="362" y="62" width="254" height="50" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="489.0" y="92.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Allowlist and keyword rules</text>
+<rect x="24" y="128" width="250" height="50" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="149.0" y="158.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Single agent</text>
+<line x1="278" y1="153" x2="358" y2="153" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="362" y="128" width="254" height="50" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="489.0" y="158.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Per-agent key and tool grants</text>
+<rect x="24" y="194" width="250" height="50" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="149.0" y="224.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Multi-agent</text>
+<line x1="278" y1="219" x2="358" y2="219" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="362" y="194" width="254" height="50" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="489.0" y="224.0" font-size="14" text-anchor="middle" fill="#cfd5dd">One audit trail, every call</text>
+</svg>

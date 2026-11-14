@@ -89,6 +89,6 @@ Needs Docker and no provider key. The console is at http://localhost:5173. If it
 - [Same entry, Spring 2025 agenda](https://www.reginfo.gov/public/do/eAgendaViewRule?pubId=202504&RIN=0945-AA22): stage "Final Rule Stage", final action May 2026.
 - [HHS proposal, Federal Register, January 6, 2025](https://www.federalregister.gov/documents/2025/01/06/2024-30983/hipaa-security-rule-to-strengthen-the-cybersecurity-of-electronic-protected-health-information): the notice of proposed rulemaking.
 - [American Action Forum on the 2026 agenda](https://www.americanactionforum.org/insight/the-2026-unified-agenda-checking-in-on-the-trump-2-0-deregulatory-agenda/): reports the agenda was posted on July 3, 2026.
-- Product docs: [Compliance templates](/guides/compliance-templates), [Policies and guardrails](/core-concepts/policies-and-guardrails), [Provider routing](/core-concepts/provider-routing), [Data residency](/guides/data-residency), [Audit logging](/security/audit-logging).
+- Product docs: [Compliance templates](/security/compliance-templates), [Policies and guardrails](/core-concepts/policies-and-guardrails), [Provider routing](/core-concepts/provider-routing), [Data residency](/security/data-residency), [Audit logging](/security/audit-logging).
 
 These statements are based on the sources above and on OpenProxyAI's behavior at the post date.

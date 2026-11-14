@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="300" viewBox="0 0 640 300" font-family="Inter, system-ui, sans-serif">
+  <rect x="0.5" y="0.5" width="639" height="299" rx="16" fill="#0d0f14" stroke="#1b1f27"/>
+  <text x="24" y="40" font-size="20" font-weight="600" fill="#f4f6f8">Each model sees only the history it may see</text>
+  <rect x="24" y="70" width="250" height="44" rx="8" fill="#14171e" stroke="#f0b429" stroke-dasharray="5 4"/>
+  <text x="40" y="98" font-size="14" fill="#cfd5dd">Turn 1: confidential</text>
+  <text x="290" y="98" font-size="14" fill="#f0b429">held back</text>
+  <rect x="24" y="124" width="250" height="44" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="152" font-size="14" fill="#cfd5dd">Turn 2: internal</text>
+  <rect x="24" y="178" width="250" height="44" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="206" font-size="14" fill="#cfd5dd">Turn 3: public</text>
+  <rect x="24" y="232" width="250" height="44" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="260" font-size="14" fill="#cfd5dd">New message: internal</text>
+  <line x1="274" y1="146" x2="380" y2="160" stroke="#35d399" stroke-width="2"/>
+  <line x1="274" y1="200" x2="380" y2="180" stroke="#35d399" stroke-width="2"/>
+  <line x1="274" y1="254" x2="380" y2="200" stroke="#35d399" stroke-width="2"/>
+  <rect x="380" y="110" width="236" height="110" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="398" y="142" font-size="14" fill="#cfd5dd">Model cleared for internal</text>
+  <text x="398" y="170" font-size="14" fill="#a3abb8">It receives turns 2, 3</text>
+  <text x="398" y="192" font-size="14" fill="#a3abb8">and the new message</text>
+</svg>

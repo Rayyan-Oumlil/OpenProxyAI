@@ -46,7 +46,7 @@ Keys are scoped by permission string. The default and most common is `proxy:llm`
 
 ## Replacing an application key
 
-There is no rotate call for application keys. Create a new key, switch your application to it, then revoke the old one with `DELETE /api/v1/api-keys/{key_id}`. Do it immediately if a key may have been exposed, for example committed to a repository or logged in plaintext. Provider keys are a separate thing; see [Provider Keys](/api-reference/provider-keys).
+There is no rotate call for application keys. Create a new key, switch your application to it, then revoke the old one with `DELETE /api/v1/api-keys/{key_id}`. Do it immediately if a key may have been exposed, for example committed to a repository or logged in plaintext. Provider keys are a separate thing; see [Provider Keys](/api-reference/keys).
 
 ## Session auth (admin console)
 
@@ -54,4 +54,4 @@ The admin console itself uses short-lived access tokens plus a refresh token, is
 
 ## SSO
 
-Organizations on the Enterprise plan can connect an identity provider via `/api/v1/auth/sso/initiate` and `/api/v1/sso/connections`. Once configured, org members sign in to the admin console through your IdP instead of a password. See [Configuring SSO](/guides/configuring-sso).
+Organizations on the Enterprise plan can connect an identity provider via `/api/v1/auth/sso/initiate` and `/api/v1/sso/connections`. Once configured, org members sign in to the admin console through your IdP instead of a password. See [Configuring SSO](/guides/sso-and-scim).

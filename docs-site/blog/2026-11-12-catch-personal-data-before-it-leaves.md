@@ -34,7 +34,7 @@ The organization policy has one enforcement mode, and it applies to every check 
 | Log-only | The hit is recorded in the audit log and the analytics, and the request goes through. |
 | Enforce | The request is refused before it reaches any provider. |
 
-Start in log-only. Run it on real traffic for a week and watch two numbers on the dashboard: requests the policy flagged, and requests it blocked. Flagged means "caught and allowed". When the flags look like real personal data and not noise, switch to enforce. The [managing policies](/admin-console/managing-policies) page describes the same pattern.
+Start in log-only. Run it on real traffic for a week and watch two numbers on the dashboard: requests the policy flagged, and requests it blocked. Flagged means "caught and allowed". When the flags look like real personal data and not noise, switch to enforce. The [managing policies](/admin-console/managing-your-organization) page describes the same pattern.
 
 You can also try a request before changing anything. The console has a policy preview for admins that runs a made-up request through classification, the policy and routing, and shows what would happen, without sending anything to a provider or using budget.
 
@@ -99,9 +99,9 @@ Needs Docker, no provider key. Console at http://localhost:5173. Star the repo o
 ## Sources
 
 - [Policies and guardrails](/core-concepts/policies-and-guardrails): modes, checks, what is blocked, and response guardrails.
-- [Managing policies](/admin-console/managing-policies): switching between log-only and enforce.
+- [Managing policies](/admin-console/managing-your-organization): switching between log-only and enforce.
 - [Errors and status codes](/api-reference/errors-and-status-codes): the 446 response and its explanation field.
-- [Compliance templates](/guides/compliance-templates): starting points and the detector they assume.
+- [Compliance templates](/security/compliance-templates): starting points and the detector they assume.
 - [Request pipeline](/core-concepts/request-pipeline): where the policy check sits.
 
 These statements are based on OpenProxyAI's docs and behavior as of November 12, 2026. OpenProxyAI ships templates and controls, not certifications, and using it does not make anyone compliant with a privacy law.

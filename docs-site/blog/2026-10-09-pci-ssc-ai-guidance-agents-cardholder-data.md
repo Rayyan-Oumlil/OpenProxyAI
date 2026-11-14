@@ -82,6 +82,6 @@ This needs Docker and no provider key. The console opens at http://localhost:517
 
 - [PCI SSC Publishes Additional Guidance on Securing AI in Payment Environments](https://www.pcisecuritystandards.org/about_us/press_releases/pci-ssc-publishes-additional-guidance-on-securing-ai-in-payment-environments/), PCI Security Standards Council, 7 October 2026. Publication, advisory status, accountability.
 - [PCI SSC calls for human approval of AI agent actions involving cardholder data](https://helpnetsecurity.com/2026/10/09/pci-ssc-payment-environments-ai-security-guidance), Help Net Security, 9 October 2026. Summary of the recommendations. We read this report, not the full document, so check the guidance itself for exact wording.
-- Internal: [MCP gateway](/guides/mcp-gateway), [Policies and guardrails](/core-concepts/policies-and-guardrails), [Audit logging](/security/audit-logging), [Compliance templates](/guides/compliance-templates), [Bounding a hijacked agent](/blog/bounding-a-hijacked-agent).
+- Internal: [MCP gateway](/guides/mcp-gateway), [Policies and guardrails](/core-concepts/policies-and-guardrails), [Audit logging](/security/audit-logging), [Compliance templates](/security/compliance-templates), [Bounding a hijacked agent](/blog/bounding-a-hijacked-agent).
 
 These statements are based on the sources above and on OpenProxyAI's behavior at the date of this post.
