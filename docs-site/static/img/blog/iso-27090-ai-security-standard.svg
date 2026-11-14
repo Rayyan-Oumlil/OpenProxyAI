@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" role="img" aria-labelledby="t d">
+  <title id="t">Run-time controls at the gateway</title>
+  <desc id="d">Applications and agents send traffic to the gateway, which applies five controls before requests reach model providers.</desc>
+  <rect x="0.5" y="0.5" width="639" height="359" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">Where AI threats meet run-time controls</text>
+
+    <rect x="24" y="76" width="140" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="94" y="104" text-anchor="middle" font-weight="600" fill="#f4f6f8">Apps and</text>
+    <text x="94" y="124" text-anchor="middle" font-weight="600" fill="#f4f6f8">agents</text>
+
+    <rect x="200" y="62" width="250" height="248" rx="12" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="325" y="88" text-anchor="middle" font-weight="600" fill="#f4f6f8">Gateway</text>
+    <rect x="216" y="102" width="218" height="34" rx="8" fill="#0d0f14" stroke="#2a2f3a"/>
+    <text x="228" y="124">Scoped, expiring keys</text>
+    <rect x="216" y="144" width="218" height="34" rx="8" fill="#0d0f14" stroke="#2a2f3a"/>
+    <text x="228" y="166">Rate and budget limits</text>
+    <rect x="216" y="186" width="218" height="34" rx="8" fill="#0d0f14" stroke="#2a2f3a"/>
+    <text x="228" y="208">Guardrails and data routing</text>
+    <rect x="216" y="228" width="218" height="34" rx="8" fill="#0d0f14" stroke="#2a2f3a"/>
+    <text x="228" y="250">Tool grants and pinning</text>
+    <rect x="216" y="270" width="218" height="30" rx="8" fill="#0d0f14" stroke="#2a2f3a"/>
+    <text x="228" y="290" fill="#f0b429">Audit trail and SIEM events</text>
+
+    <rect x="486" y="76" width="130" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="551" y="104" text-anchor="middle" font-weight="600" fill="#f4f6f8">Model</text>
+    <text x="551" y="124" text-anchor="middle" font-weight="600" fill="#f4f6f8">providers</text>
+
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M164 108 L196 108"/>
+      <path d="M450 108 L482 108"/>
+    </g>
+    <text x="24" y="336" fill="#a3abb8">Training-time threats need controls in your own data pipeline.</text>
+  </g>
+</svg>

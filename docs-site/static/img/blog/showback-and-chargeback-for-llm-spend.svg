@@ -31,3 +31,4 @@
   <rect x="24" y="240" width="592" height="64" rx="10" fill="#1d1710" stroke="#f0b429"/>
   <text x="40" y="266" fill="#f0b429" font-size="14" font-weight="600">Reconcile before you bill</text>
   <text x="40" y="288" fill="#cfd5dd" font-size="14">Compare gateway usage with the provider export, day by day.</text>
+</svg>

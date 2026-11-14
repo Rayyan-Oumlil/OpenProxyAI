@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="300" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="299" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Your traffic is the earliest signal</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Every request is recorded as it passes through</text>
+
+  <rect x="24" y="84" width="170" height="64" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="112" fill="#cfd5dd" font-size="14">Each request:</text>
+  <text x="38" y="132" fill="#a3abb8" font-size="14">status, latency, key</text>
+
+  <path d="M194 116 H226" stroke="#35d399" stroke-width="2" fill="none"/>
+  <path d="M220 110 L228 116 L220 122" stroke="#35d399" stroke-width="2" fill="none"/>
+
+  <rect x="230" y="84" width="386" height="64" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="246" y="112" fill="#cfd5dd" font-size="14">Provider health page</text>
+  <text x="246" y="132" fill="#a3abb8" font-size="14">One state per key, with the reason</text>
+
+  <rect x="24" y="164" width="276" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="188" fill="#cfd5dd" font-size="14">Dashboard</text>
+  <text x="38" y="208" fill="#a3abb8" font-size="14">Success rate, p95, spend by model</text>
+
+  <rect x="316" y="164" width="300" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="330" y="188" fill="#cfd5dd" font-size="14">Query by model and day</text>
+  <text x="330" y="208" fill="#a3abb8" font-size="14">Error counts and latency trend</text>
+
+  <rect x="24" y="236" width="592" height="44" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="40" y="263" fill="#cfd5dd" font-size="14">Act: lower a weight, turn a key off, add a second approved path</text>
+</svg>

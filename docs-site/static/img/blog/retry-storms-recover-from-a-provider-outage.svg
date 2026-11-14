@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 312" width="640" height="312" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="312" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="311" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Same outage, two retry designs</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Example: 3 retries at each of 3 layers</text>
+
+  <rect x="24" y="80" width="284" height="212" rx="10" fill="#0d0f14" stroke="#f0b429"/>
+  <text x="40" y="106" fill="#f0b429" font-size="14" font-weight="600">Stacked retries</text>
+  <rect x="40" y="120" width="252" height="34" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="54" y="142" fill="#cfd5dd" font-size="14">App retries 3 times</text>
+  <rect x="40" y="162" width="252" height="34" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="54" y="184" fill="#cfd5dd" font-size="14">SDK retries 3 times</text>
+  <rect x="40" y="204" width="252" height="34" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="54" y="226" fill="#cfd5dd" font-size="14">Worker retries 3 times</text>
+  <text x="40" y="270" fill="#f0b429" font-size="14">Up to 27 calls per user request</text>
+
+  <rect x="332" y="80" width="284" height="212" rx="10" fill="#0d0f14" stroke="#35d399"/>
+  <text x="348" y="106" fill="#35d399" font-size="14" font-weight="600">One owner, capped</text>
+  <rect x="348" y="120" width="252" height="34" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="362" y="142" fill="#cfd5dd" font-size="14">App backs off, with jitter</text>
+  <rect x="348" y="162" width="252" height="34" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="362" y="184" fill="#cfd5dd" font-size="14">Gateway tries another key</text>
+  <rect x="348" y="204" width="252" height="34" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="362" y="226" fill="#cfd5dd" font-size="14">Batch work has a spend cap</text>
+  <text x="348" y="270" fill="#35d399" font-size="14">Bounded load, the provider recovers</text>
+</svg>

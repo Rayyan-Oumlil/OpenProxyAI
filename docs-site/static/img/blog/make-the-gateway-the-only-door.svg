@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" width="640" role="img" aria-labelledby="t d">
+  <title id="t">The gateway as the only door</title>
+  <desc id="d">Applications connect to the gateway, and only the gateway can reach the model providers. Direct paths from applications to providers are blocked.</desc>
+  <rect x="0.5" y="0.5" width="639" height="319" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">One door to the providers</text>
+    <rect x="24" y="84" width="150" height="110" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="112" font-weight="600" fill="#f4f6f8">Applications</text>
+    <text x="40" y="136" fill="#a3abb8">Services, agents,</text>
+    <text x="40" y="156" fill="#a3abb8">notebooks, CI</text>
+    <rect x="245" y="84" width="150" height="110" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="261" y="112" font-weight="600" fill="#f4f6f8">Gateway</text>
+    <text x="261" y="136" fill="#a3abb8">Keys, policy,</text>
+    <text x="261" y="156" fill="#a3abb8">budgets, logs</text>
+    <rect x="466" y="84" width="150" height="110" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="482" y="112" font-weight="600" fill="#f4f6f8">Providers</text>
+    <text x="482" y="136" fill="#a3abb8">Model APIs,</text>
+    <text x="482" y="156" fill="#a3abb8">tool servers</text>
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M174 139 L241 139"/>
+      <path d="M395 139 L462 139"/>
+    </g>
+    <g stroke="#f0b429" stroke-width="2" fill="none" stroke-dasharray="6 5">
+      <path d="M99 194 L99 236 L541 236 L541 198"/>
+    </g>
+    <text x="320" y="228" text-anchor="middle" font-weight="600" fill="#f0b429">Direct path blocked at the network edge</text>
+    <text x="24" y="288" fill="#a3abb8">Only the gateway may send traffic out to providers.</text>
+  </g>
+</svg>
