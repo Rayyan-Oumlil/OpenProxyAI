@@ -68,7 +68,7 @@ At the end of the month, finance reads spend by team from the dashboard instead 
 
 ## Good to know
 
-Dollar budgets for the day reset at 00:00 UTC, and team budgets reset at the start of each month. Spend is added after a call finishes, so requests already running when a budget is reached still complete. The per-minute ceiling for teams is one value in the organization policy applied to each team's own counter, so teams with very different needs can differ on budget even though they share the same rate ceiling. See [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets) and [Managing teams](/admin-console/managing-teams).
+Dollar budgets for the day reset at 00:00 UTC, and team budgets reset at the start of each month. Spend is added after a call finishes, so requests already running when a budget is reached still complete. The per-minute ceiling for teams is one value in the organization policy applied to each team's own counter, so teams with very different needs can differ on budget even though they share the same rate ceiling. See [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets) and [Managing teams](/admin-console/managing-your-organization).
 
 ## Try it
 
@@ -82,7 +82,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it helps, st
 
 ## Sources
 
-- OpenProxyAI docs: [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [Managing teams](/admin-console/managing-teams), [Authentication](/getting-started/authentication), [API keys](/api-reference/api-keys), [Errors and status codes](/api-reference/errors-and-status-codes).
+- OpenProxyAI docs: [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets), [Managing teams](/admin-console/managing-your-organization), [Authentication](/getting-started/authentication), [API keys](/api-reference/keys), [Errors and status codes](/api-reference/errors-and-status-codes).
 - On this blog: [Budgets that fail closed](/blog/budgets-that-fail-closed), [Keys will leak: design so a leaked application key is a nuisance](/blog/a-leaked-key-should-be-a-nuisance).
 
 These statements are based on OpenProxyAI's behavior and docs as of November 10, 2026.

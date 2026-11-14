@@ -80,7 +80,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. Star the repo i
 
 ## Sources
 
-- OpenProxyAI docs: [Provider keys from Vault and AWS](/guides/secrets-from-vault), [Provider keys API](/api-reference/provider-keys), [Provider routing](/core-concepts/provider-routing), [Audit logging](/security/audit-logging).
+- OpenProxyAI docs: [Provider keys from Vault and AWS](/guides/secrets-from-vault), [Provider keys API](/api-reference/keys), [Provider routing](/core-concepts/provider-routing), [Audit logging](/security/audit-logging).
 - On this blog: [When every authorized provider is down](/blog/when-every-authorized-provider-is-down), [Failover can leak data](/blog/failover-can-leak-data).
 - Vault KV version 2 API, read secret version (no version means latest): https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2
 - AWS Secrets Manager GetSecretValue (no version means `AWSCURRENT`): https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html

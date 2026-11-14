@@ -89,6 +89,6 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it helps, st
 - [MCP gateway guide](/guides/mcp-gateway): tool access and grants.
 - [Audit logging](/security/audit-logging): what is recorded and retention by plan.
 - [Authentication](/getting-started/authentication): API keys and permissions.
-- [Configuring SSO](/guides/configuring-sso) and [configuring SCIM](/guides/configuring-scim): human identity.
+- [Configuring SSO](/guides/sso-and-scim) and [configuring SCIM](/guides/sso-and-scim): human identity.
 
 These statements are based on the NIST pages above as published on February 17, 2026, and on OpenProxyAI's behavior at that date. OpenProxyAI ships controls, not certifications, and using it does not make anyone compliant with a standard.

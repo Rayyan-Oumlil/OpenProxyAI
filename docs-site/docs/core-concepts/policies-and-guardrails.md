@@ -52,11 +52,11 @@ curl -X PATCH https://gateway.your-company.com/api/v1/organizations/current/poli
   -d '{"enforcement_mode": "log_only", "blocked_keywords": ["internal use only"], "pii_detection_enabled": true}'
 ```
 
-Other settings live on the same policy and are covered in their own pages: routing and the model registry, data classes, MCP tool lists, behavior defaults and ceilings, payload capture, and conversations. The console's Policy page is a view over the same configuration. See [Managing Policies](/admin-console/managing-policies).
+Other settings live on the same policy and are covered in their own pages: routing and the model registry, data classes, MCP tool lists, behavior defaults and ceilings, payload capture, and conversations. The console's Policy page is a view over the same configuration. See [Managing Policies](/admin-console/managing-your-organization).
 
 ## Starting from a template
 
-Three [compliance templates](/guides/compliance-templates) set the guardrail fields in one call. They are starting points, not certifications. Applying one needs a plan that includes PII detection; the Community plan does not.
+Three [compliance templates](/security/compliance-templates) set the guardrail fields in one call. They are starting points, not certifications. Applying one needs a plan that includes PII detection; the Community plan does not.
 
 ## Viewing policy activity
 

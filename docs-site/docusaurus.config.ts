@@ -25,7 +25,7 @@ const config: Config = {
   organizationName: 'openproxyai',
   projectName: 'openproxyai-docs',
 
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
   onBrokenAnchors: 'warn',
 
   markdown: {
@@ -38,6 +38,44 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          {from: '/api-reference/more-endpoints', to: '/api-reference/other-endpoints'},
+          {from: '/api-reference/embeddings', to: '/api-reference/other-endpoints'},
+          {from: '/api-reference/models', to: '/api-reference/other-endpoints'},
+          {from: '/api-reference/health', to: '/api-reference/overview'},
+          {from: '/api-reference/analytics-query', to: '/api-reference/analytics'},
+          {from: '/api-reference/organizations', to: '/api-reference/organizations-teams-users'},
+          {from: '/api-reference/teams', to: '/api-reference/organizations-teams-users'},
+          {from: '/api-reference/users', to: '/api-reference/organizations-teams-users'},
+          {from: '/api-reference/api-keys', to: '/api-reference/keys'},
+          {from: '/api-reference/provider-keys', to: '/api-reference/keys'},
+          {from: '/api-reference/webhooks-api', to: '/guides/webhooks'},
+          {from: '/admin-console/managing-teams', to: '/admin-console/managing-your-organization'},
+          {from: '/admin-console/managing-policies', to: '/admin-console/managing-your-organization'},
+          {from: '/admin-console/billing', to: '/admin-console/managing-your-organization'},
+          {from: '/guides/prompt-playground', to: '/guides/prompts'},
+          {from: '/guides/prompt-promotion', to: '/guides/prompts'},
+          {from: '/guides/configuring-sso', to: '/guides/sso-and-scim'},
+          {from: '/guides/configuring-scim', to: '/guides/sso-and-scim'},
+          {from: '/guides/deploying-with-docker-compose', to: '/guides/deployment'},
+          {from: '/guides/deploying-with-helm', to: '/guides/deployment'},
+          {from: '/guides/compliance-templates', to: '/security/compliance-templates'},
+          {from: '/security/hipaa-template', to: '/security/compliance-templates'},
+          {from: '/security/pci-template', to: '/security/compliance-templates'},
+          {from: '/security/fedramp-template', to: '/security/compliance-templates'},
+          {from: '/integrations/openai-sdk-compatibility', to: '/integrations/openai-sdk-and-frameworks'},
+          {from: '/integrations/langchain', to: '/integrations/openai-sdk-and-frameworks'},
+          {from: '/guides/semantic-cache-tuning', to: '/core-concepts/caching'},
+          {from: '/guides/data-residency', to: '/security/data-residency'},
+        ],
+      },
+    ],
+  ],
 
   presets: [
     [

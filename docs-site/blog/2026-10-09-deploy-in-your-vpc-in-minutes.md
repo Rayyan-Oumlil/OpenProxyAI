@@ -59,7 +59,7 @@ The demo is the same software you run in production, with demo settings. The pat
 6. **Apply a policy**, in log-only mode first, then enforce. See [Policies and guardrails](/core-concepts/policies-and-guardrails).
 7. **Point one application at the gateway** by changing its base URL, then move the rest.
 
-Data isolation between organizations is enforced in the database itself, which matters if several teams share one deployment. See [Row-level security](/security/row-level-security). For region rules, see [Data residency](/guides/data-residency).
+Data isolation between organizations is enforced in the database itself, which matters if several teams share one deployment. See [Row-level security](/security/row-level-security). For region rules, see [Data residency](/security/data-residency).
 
 ## What to do now
 
@@ -85,6 +85,6 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it works for
 
 ## Sources
 
-- Internal: [Quickstart](/getting-started/quickstart), [Trust center](/security/trust-center), [Provider keys from Vault](/guides/secrets-from-vault), [Data residency](/guides/data-residency), [Row-level security](/security/row-level-security), [Environment flags](/getting-started/environment-flags).
+- Internal: [Quickstart](/getting-started/quickstart), [Trust center](/security/trust-center), [Provider keys from Vault](/guides/secrets-from-vault), [Data residency](/security/data-residency), [Row-level security](/security/row-level-security), [Environment flags](/getting-started/environment-flags).
 
 These statements are based on OpenProxyAI's behavior at the date of this post.

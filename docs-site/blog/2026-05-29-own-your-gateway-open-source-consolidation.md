@@ -75,6 +75,6 @@ This needs Docker and no provider key. The console is at http://localhost:5173. 
 - Portkey press release, "Portkey's Gateway is Now Fully Open Source, Processing over 1 Trillion Tokens Every Day", GlobeNewswire, 2026-03-24: https://www.globenewswire.com/news-release/2026/03/24/3261574/0/en/Portkey-s-Gateway-is-Now-Fully-Open-Source-Processing-over-1-Trillion-Tokens-Every-Day.html
 - Palo Alto Networks press release, "Palo Alto Networks Completes Acquisition of Portkey to Secure AI Agents", 2026-05-29: https://www.paloaltonetworks.com/company/press/2026/palo-alto-networks-completes-acquisition-of-portkey-to-secure-ai-agents
 - Apache License 2.0 text (patent grant in section 3, trademarks in section 6): https://www.apache.org/licenses/LICENSE-2.0.txt
-- OpenProxyAI docs: [quickstart](/getting-started/quickstart), [data residency](/guides/data-residency), [trust center](/security/trust-center)
+- OpenProxyAI docs: [quickstart](/getting-started/quickstart), [data residency](/security/data-residency), [trust center](/security/trust-center)
 
 These statements are based on the sources above and on OpenProxyAI's behavior at the post date.

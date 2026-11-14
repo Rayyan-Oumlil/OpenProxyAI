@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 280" width="640" height="280" role="img" aria-label="Untrusted content reaches an agent which may call a tool with side effects, with gateway checks under each step: result scanning, response checks, and risky tools held back" font-family="Inter, system-ui, sans-serif">
+  <rect x="1" y="1" width="638" height="278" rx="16" fill="#0d0f14" stroke="#1b1f27" stroke-width="2"/>
+  <text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">Where each check sits</text>
+  <rect x="24" y="60" width="180" height="56" rx="10" fill="#14171e" stroke="#f0b429" stroke-width="2"/>
+  <text x="114" y="94" font-size="14" fill="#cfd5dd" text-anchor="middle">Untrusted content</text>
+  <rect x="230" y="60" width="180" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="320" y="94" font-size="14" fill="#cfd5dd" text-anchor="middle">Agent reads it</text>
+  <rect x="436" y="60" width="180" height="56" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="526" y="94" font-size="14" fill="#cfd5dd" text-anchor="middle">Tool with side effects</text>
+  <path d="M204 88 H224" stroke="#a3abb8" stroke-width="2"/>
+  <polygon points="224,83 230,88 224,93" fill="#a3abb8"/>
+  <path d="M410 88 H430" stroke="#a3abb8" stroke-width="2"/>
+  <polygon points="430,83 436,88 430,93" fill="#a3abb8"/>
+  <path d="M114 116 V150 M320 116 V150 M526 116 V150" stroke="#35d399" stroke-width="2"/>
+  <rect x="24" y="150" width="180" height="96" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="114" y="180" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">Gateway checks</text>
+  <text x="114" y="206" font-size="14" fill="#cfd5dd" text-anchor="middle">Tool results scanned</text>
+  <text x="114" y="228" font-size="14" fill="#cfd5dd" text-anchor="middle">Session marked tainted</text>
+  <rect x="230" y="150" width="180" height="96" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="320" y="180" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">Gateway checks</text>
+  <text x="320" y="206" font-size="14" fill="#cfd5dd" text-anchor="middle">Responses checked</text>
+  <text x="320" y="228" font-size="14" fill="#cfd5dd" text-anchor="middle">Keywords and PII</text>
+  <rect x="436" y="150" width="180" height="96" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="526" y="180" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">Gateway checks</text>
+  <text x="526" y="206" font-size="14" fill="#cfd5dd" text-anchor="middle">Risky tools held back</text>
+  <text x="526" y="228" font-size="14" fill="#cfd5dd" text-anchor="middle">in a tainted session</text>
+</svg>

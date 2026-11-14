@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 316" width="640" height="316" role="img" aria-label="A five-row timeline of EU AI Act dates: February 2025, August 2025, August 2026 highlighted, December 2026, and December 2027 with August 2028." font-family="Inter, system-ui, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a3abb8"/></marker></defs>
+<rect x="0.5" y="0.5" width="639" height="315" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+<text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">The EU AI Act timeline, as the Commission shows it</text>
+<rect x="24" y="58" width="170" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="109.0" y="83.0" font-size="14" text-anchor="middle" fill="#cfd5dd">2 Feb 2025</text>
+<rect x="200" y="58" width="416" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="408.0" y="83.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Prohibitions, AI literacy</text>
+<rect x="24" y="108" width="170" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="109.0" y="133.0" font-size="14" text-anchor="middle" fill="#cfd5dd">2 Aug 2025</text>
+<rect x="200" y="108" width="416" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="408.0" y="133.0" font-size="14" text-anchor="middle" fill="#cfd5dd">General-purpose model rules</text>
+<rect x="24" y="158" width="170" height="40" rx="9" fill="#14171e" stroke="#f0b429" stroke-width="1.5"/>
+<text x="109.0" y="183.0" font-size="14" text-anchor="middle" fill="#cfd5dd">2 Aug 2026</text>
+<rect x="200" y="158" width="416" height="40" rx="9" fill="#14171e" stroke="#f0b429" stroke-width="1.5"/>
+<text x="408.0" y="183.0" font-size="14" text-anchor="middle" fill="#cfd5dd">AI Act applies, transparency, enforcement</text>
+<rect x="24" y="208" width="170" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="109.0" y="233.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Dec 2026</text>
+<rect x="200" y="208" width="416" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="408.0" y="233.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Prohibition on non-consensual sexual content tools</text>
+<rect x="24" y="258" width="170" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="109.0" y="283.0" font-size="14" text-anchor="middle" fill="#cfd5dd">2 Dec 2027 / 2 Aug 2028</text>
+<rect x="200" y="258" width="416" height="40" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="408.0" y="283.0" font-size="14" text-anchor="middle" fill="#cfd5dd">High-risk rules (two groups)</text>
+</svg>

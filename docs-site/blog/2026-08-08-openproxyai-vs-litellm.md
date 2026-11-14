@@ -18,7 +18,7 @@ LiteLLM is an open-source proxy and Python SDK that gives you a single OpenAI-co
 OpenProxyAI is built for teams where security, finance and platform each have a say. These capabilities are part of the default product:
 
 - **Policy enforcement as a core stage.** Every request is checked against an organization policy: a model allowlist, blocked keywords, personal data detection and prompt-injection detection, plus optional response guardrails. Start in log-only mode, then enforce. See [Policies and guardrails](/core-concepts/policies-and-guardrails).
-- **Compliance starting points.** Healthcare, Finance and Government policy templates you apply and then adjust. They are configurations, not certifications. See [Compliance templates](/guides/compliance-templates).
+- **Compliance starting points.** Healthcare, Finance and Government policy templates you apply and then adjust. They are configurations, not certifications. See [Compliance templates](/security/compliance-templates).
 - **A full admin console.** Teams, budgets, policies, model registry, MCP servers and the audit log, as the default way to operate the gateway.
 - **Data-class routing.** Say which models may see which data, and let the gateway enforce it.
 - **An audit trail built to be handed over.** Append-only request logs with retention by plan, and exports. See [Audit logging](/security/audit-logging).
@@ -47,6 +47,6 @@ Needs Docker and no provider key. The console is at http://localhost:5173. Star 
 ## Sources
 
 - [LiteLLM enterprise features](https://docs.litellm.ai/docs/enterprise), for the open-source versus Enterprise split.
-- [Policies and guardrails](/core-concepts/policies-and-guardrails), [Compliance templates](/guides/compliance-templates), [Audit logging](/security/audit-logging).
+- [Policies and guardrails](/core-concepts/policies-and-guardrails), [Compliance templates](/security/compliance-templates), [Audit logging](/security/audit-logging).
 
 These statements are based on LiteLLM's public documentation and on OpenProxyAI's behavior at the post date.

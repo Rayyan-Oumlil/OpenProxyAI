@@ -33,7 +33,7 @@ OpenProxyAI is an open-source, self-hosted gateway under the Apache-2.0 licence.
 
 **One set of rules for every call.** An organization policy sets a model allowlist, blocked keywords, personal data detection and prompt-injection checks. In enforce mode a request that breaks a rule is refused with status 446 before any provider sees it. In log-only mode the same rules record what they would have done, so you can measure before you block. See [Policies and guardrails](/core-concepts/policies-and-guardrails).
 
-**Data goes only where it is allowed.** Each request is given a data class. A registry of vetted models says which classes each model may receive and in which regions. See [Provider routing](/core-concepts/provider-routing) and [Data residency](/guides/data-residency).
+**Data goes only where it is allowed.** Each request is given a data class. A registry of vetted models says which classes each model may receive and in which regions. See [Provider routing](/core-concepts/provider-routing) and [Data residency](/security/data-residency).
 
 **Spend you can steer.** Budgets and rate limits apply per organization, team and user. When a limit is hit, the request is stopped with a clear status instead of a surprise invoice. Usage is attributed by team, key, model and label. See [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets).
 

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" role="img" aria-label="An agent connects with one key to the gateway, which applies allow lists, grants, pinned tool definitions, result scanning and an audit row before reaching tool servers" font-family="Inter, system-ui, sans-serif">
+  <rect x="1" y="1" width="638" height="298" rx="16" fill="#0d0f14" stroke="#1b1f27" stroke-width="2"/>
+  <text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">One governed door for tool servers</text>
+  <rect x="24" y="120" width="110" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="79" y="150" font-size="14" fill="#cfd5dd" text-anchor="middle">Agent</text>
+  <text x="79" y="170" font-size="14" fill="#a3abb8" text-anchor="middle">one key</text>
+  <rect x="190" y="60" width="260" height="212" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="320" y="86" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">OpenProxyAI gateway</text>
+  <text x="320" y="118" font-size="14" fill="#cfd5dd" text-anchor="middle">Allow and block lists</text>
+  <text x="320" y="146" font-size="14" fill="#cfd5dd" text-anchor="middle">Grants and bundles</text>
+  <text x="320" y="174" font-size="14" fill="#cfd5dd" text-anchor="middle">Pinned tool definitions</text>
+  <text x="320" y="202" font-size="14" fill="#cfd5dd" text-anchor="middle">Description and result scanning</text>
+  <text x="320" y="230" font-size="14" fill="#cfd5dd" text-anchor="middle">Trust rules for risky tools</text>
+  <text x="320" y="258" font-size="14" fill="#35d399" text-anchor="middle">An audit row per call</text>
+  <rect x="506" y="120" width="110" height="64" rx="10" fill="#14171e" stroke="#f0b429" stroke-width="2"/>
+  <text x="561" y="150" font-size="14" fill="#cfd5dd" text-anchor="middle">Tool servers</text>
+  <text x="561" y="170" font-size="14" fill="#a3abb8" text-anchor="middle">own creds</text>
+  <path d="M134 152 H184" stroke="#a3abb8" stroke-width="2"/>
+  <polygon points="184,147 190,152 184,157" fill="#a3abb8"/>
+  <path d="M450 152 H500" stroke="#a3abb8" stroke-width="2"/>
+  <polygon points="500,147 506,152 500,157" fill="#a3abb8"/>
+</svg>

@@ -93,8 +93,8 @@ OpenProxyAI documentation, read at the post date:
 
 - [Provider routing](/core-concepts/provider-routing)
 - [Request pipeline](/core-concepts/request-pipeline)
-- [Provider keys API](/api-reference/provider-keys)
+- [Provider keys API](/api-reference/keys)
 - [Quickstart](/getting-started/quickstart)
-- [Managing policies](/admin-console/managing-policies)
+- [Managing policies](/admin-console/managing-your-organization)
 
 These statements are based on OpenProxyAI's behavior at the post date.

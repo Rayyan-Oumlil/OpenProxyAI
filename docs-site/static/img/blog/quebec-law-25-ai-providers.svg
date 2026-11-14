@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 250" width="640" height="250" role="img" aria-label="A prompt that may hold personal information gets a data class, then the model registry checks class and region. The request goes to an approved provider or is refused with a clear reason." font-family="Inter, system-ui, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a3abb8"/></marker></defs>
+<rect x="0.5" y="0.5" width="639" height="249" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+<text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">Personal information and AI providers</text>
+<rect x="24" y="64" width="170" height="70" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="109.0" y="94.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Prompt</text>
+<text x="109.0" y="113.5" font-size="14" text-anchor="middle" fill="#cfd5dd">may hold personal info</text>
+<line x1="198" y1="99" x2="222" y2="99" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="226" y="64" width="190" height="70" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="321.0" y="94.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Data class</text>
+<text x="321.0" y="113.5" font-size="14" text-anchor="middle" fill="#cfd5dd">set for the request</text>
+<line x1="420" y1="99" x2="444" y2="99" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="448" y="64" width="168" height="70" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="532.0" y="94.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Registry</text>
+<text x="532.0" y="113.5" font-size="14" text-anchor="middle" fill="#cfd5dd">class and region</text>
+<line x1="532" y1="138" x2="532" y2="162" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="448" y="166" width="168" height="56" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="532.0" y="199.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Approved provider</text>
+<line x1="321" y1="138" x2="321" y2="162" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="226" y="166" width="190" height="56" rx="9" fill="#14171e" stroke="#f0b429" stroke-width="1.5"/>
+<text x="321.0" y="199.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Clear refusal</text>
+</svg>

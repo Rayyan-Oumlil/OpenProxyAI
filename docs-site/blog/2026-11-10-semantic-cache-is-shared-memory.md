@@ -28,10 +28,10 @@ Neither paper says "do not cache." Both say the match is a security boundary and
 Here is the exact match on the demo stack. The same request, sent twice, then once with the cache bypassed, then reworded:
 
 ```text
-1st request                            HTTP 200  x-openproxy-cache: miss
-same request again                     HTTP 200  x-openproxy-cache: hit:exact
-same request, x-openproxy-cache: skip  HTTP 200  x-openproxy-cache: miss
-reworded request (exact match only)    HTTP 200  x-openproxy-cache: miss
+1st request                            HTTP 200  x-openproxyai-cache: miss
+same request again                     HTTP 200  x-openproxyai-cache: hit:exact
+same request, x-openproxy-cache: skip  HTTP 200  x-openproxyai-cache: miss
+reworded request (exact match only)    HTTP 200  x-openproxyai-cache: miss
 ```
 
 The reworded request missing is the exact match doing its job. Only the semantic match, when you have turned it on, can match a reworded prompt.
@@ -68,12 +68,12 @@ docker compose -f docker-compose.demo.yml up --build
 
 If it is useful, star the repo or open an issue with the cache behavior you want next.
 
-See [Caching](/core-concepts/caching) and [Semantic cache tuning](/guides/semantic-cache-tuning) for the settings.
+See [Caching](/core-concepts/caching) and [Semantic cache tuning](/core-concepts/caching) for the settings.
 
 ## Sources
 
 - Wu et al., [When Cache Poisoning Meets LLM Systems: Semantic Cache Poisoning and Its Countermeasures](https://www.ndss-symposium.org/ndss-paper/when-cache-poisoning-meets-llm-systems-semantic-cache-poisoning-and-its-countermeasures/), NDSS Symposium.
 - Zhang et al., [From Similarity to Vulnerability: Key Collision Attack on LLM Semantic Caching](https://arxiv.org/abs/2601.23088), accepted to ICML 2026.
-- OpenProxyAI docs: [Caching](/core-concepts/caching), [Semantic cache tuning](/guides/semantic-cache-tuning).
+- OpenProxyAI docs: [Caching](/core-concepts/caching), [Semantic cache tuning](/core-concepts/caching).
 
 These statements are based on OpenProxyAI's behavior at the post date.

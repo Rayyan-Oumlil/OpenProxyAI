@@ -14,7 +14,7 @@ curl -sSL openproxy.ai/install.sh | sh
 cd openproxy && docker compose up -d
 ```
 
-This starts the proxy, Postgres (with pgvector for semantic caching), and Redis. See [Deploying with Docker Compose](/guides/deploying-with-docker-compose) for a full walkthrough, or [Deploying with Helm](/guides/deploying-with-helm) for a production Kubernetes setup.
+This starts the proxy, Postgres (with pgvector for semantic caching), and Redis. See [Deploying with Docker Compose](/guides/deployment) for a full walkthrough, or [Deploying with Helm](/guides/deployment) for a production Kubernetes setup.
 
 ## 2. Register an organization
 

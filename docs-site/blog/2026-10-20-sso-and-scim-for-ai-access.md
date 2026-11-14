@@ -68,6 +68,6 @@ Needs Docker and no provider key. The console is at http://localhost:5173. Star 
 
 ## Sources
 
-- Product docs: [Configuring SSO](/guides/configuring-sso), [Configuring SCIM](/guides/configuring-scim), [Authentication](/getting-started/authentication), [Users](/api-reference/users), [Audit logging](/security/audit-logging).
+- Product docs: [Configuring SSO](/guides/sso-and-scim), [Configuring SCIM](/guides/sso-and-scim), [Authentication](/getting-started/authentication), [Users](/api-reference/organizations-teams-users), [Audit logging](/security/audit-logging).
 
 These statements are based on OpenProxyAI's behavior at the post date.

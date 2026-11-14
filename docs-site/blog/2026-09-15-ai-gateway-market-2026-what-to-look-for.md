@@ -59,7 +59,7 @@ OpenProxyAI is an open-source (Apache-2.0), self-hosted gateway. Here is how it 
 | Who can use which model? | A policy engine with model allowlists, keyword rules, PII checks and prompt-injection checks. Blocked requests return HTTP 446 with a plain reason. Data-class routing lets only registry-approved models serve sensitive requests. |
 | Which tools can an agent reach? | An MCP gateway with per-caller grants, server pinning and scanning. See the [MCP gateway guide](/guides/mcp-gateway). |
 | What does a call cost? | Budgets and rate limits per organization, team and user. A model without a listed price is charged a flat estimate so it still counts toward budgets. See [rate limiting and budgets](/core-concepts/rate-limiting-and-budgets). |
-| Who is allowed in? | [SSO](/guides/configuring-sso) and [SCIM](/guides/configuring-scim), plus per-application API keys. |
+| Who is allowed in? | [SSO](/guides/sso-and-scim) and [SCIM](/guides/sso-and-scim), plus per-application API keys. |
 | License and ownership? | Apache-2.0. You can read, run, modify and redistribute it. |
 
 It also covers the common ground from the previous section: one OpenAI-compatible endpoint for every provider, failover between provider keys, exact and semantic caching, and an [audit log](/security/audit-logging) of every request.

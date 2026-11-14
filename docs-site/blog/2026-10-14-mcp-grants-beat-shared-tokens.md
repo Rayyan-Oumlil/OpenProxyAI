@@ -91,7 +91,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. Star the repo i
 
 - [MCP gateway guide](/guides/mcp-gateway): layers, bundles, error codes.
 - [MCP admin API](/api-reference/mcp-admin): grant and bundle request bodies.
-- [API keys](/api-reference/api-keys): how keys are created.
+- [API keys](/api-reference/keys): how keys are created.
 - [Errors and status codes](/api-reference/errors-and-status-codes): the status code table.
 
 These statements are based on OpenProxyAI's behavior at the post date.

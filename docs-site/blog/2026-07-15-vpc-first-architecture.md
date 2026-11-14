@@ -37,4 +37,4 @@ Self-hosted-first isn't free. You're running a service, which means you own its 
 
 But for the buyer this actually matters to — a security team evaluating whether prompts containing regulated data are allowed to leave the building — self-hosted-first isn't a nice-to-have. It's the reason the tool clears procurement at all.
 
-See [Deploying with Docker Compose](/guides/deploying-with-docker-compose) or [Deploying with Helm](/guides/deploying-with-helm) to see what actually running it looks like.
+See [Deploying with Docker Compose](/guides/deployment) or [Deploying with Helm](/guides/deployment) to see what actually running it looks like.

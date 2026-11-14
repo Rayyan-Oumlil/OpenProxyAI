@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="280" viewBox="0 0 640 280" font-family="Inter, system-ui, sans-serif">
+  <rect x="0.5" y="0.5" width="639" height="279" rx="16" fill="#0d0f14" stroke="#1b1f27"/>
+  <text x="24" y="40" font-size="20" font-weight="600" fill="#f4f6f8">A live session, still under your rules</text>
+  <rect x="24" y="110" width="130" height="70" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="89" y="150" font-size="14" fill="#cfd5dd" text-anchor="middle">Your voice app</text>
+  <line x1="154" y1="145" x2="200" y2="145" stroke="#35d399" stroke-width="2"/>
+  <rect x="200" y="64" width="240" height="182" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="220" y="94" font-size="14" font-weight="600" fill="#35d399">OpenProxyAI</text>
+  <text x="220" y="128" font-size="14" fill="#cfd5dd">Policy on text you send</text>
+  <text x="220" y="156" font-size="14" fill="#cfd5dd">Limits before each reply</text>
+  <text x="220" y="184" font-size="14" fill="#cfd5dd">Cost logged per reply</text>
+  <text x="220" y="212" font-size="14" fill="#cfd5dd">Key re-checked while live</text>
+  <line x1="440" y1="145" x2="476" y2="145" stroke="#35d399" stroke-width="2"/>
+  <rect x="476" y="110" width="140" height="70" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="546" y="140" font-size="14" fill="#cfd5dd" text-anchor="middle">OpenAI</text>
+  <text x="546" y="162" font-size="14" fill="#a3abb8" text-anchor="middle">Realtime session</text>
+  <text x="24" y="266" font-size="14" fill="#a3abb8">The provider key stays on the gateway.</text>
+</svg>

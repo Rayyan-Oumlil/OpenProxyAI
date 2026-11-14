@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 252" width="640" height="252" role="img" aria-label="An identity provider handles sign-in and agent identities. OpenProxyAI gives each agent its own key with limits, sits in front of model providers, and records every call in an audit trail by key." font-family="Inter, system-ui, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#a3abb8"/></marker></defs>
+<rect x="0.5" y="0.5" width="639" height="251" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+<text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">Agent identity meets the gateway</text>
+<rect x="24" y="70" width="170" height="76" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="109.0" y="103.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Identity provider</text>
+<text x="109.0" y="122.5" font-size="14" text-anchor="middle" fill="#cfd5dd">Sign-in and agent IDs</text>
+<line x1="198" y1="108" x2="222" y2="108" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="226" y="70" width="190" height="76" rx="9" fill="#14171e" stroke="#35d399" stroke-width="1.5"/>
+<text x="321.0" y="103.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">OpenProxyAI</text>
+<text x="321.0" y="122.5" font-size="14" text-anchor="middle" fill="#cfd5dd">One key per agent</text>
+<line x1="420" y1="108" x2="444" y2="108" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+<rect x="448" y="70" width="168" height="76" rx="9" fill="#14171e" stroke="#2a2f3a" stroke-width="1"/>
+<text x="532.0" y="103.5" font-size="14" text-anchor="middle" fill="#f4f6f8" font-weight="600">Model providers</text>
+<text x="532.0" y="122.5" font-size="14" text-anchor="middle" fill="#cfd5dd">Tools and data</text>
+<rect x="226" y="176" width="190" height="50" rx="9" fill="#14171e" stroke="#f0b429" stroke-width="1.5"/>
+<text x="321.0" y="206.0" font-size="14" text-anchor="middle" fill="#cfd5dd">Audit trail by key</text>
+<line x1="321" y1="150" x2="321" y2="172" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#a)"/>
+</svg>

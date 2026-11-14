@@ -13,12 +13,10 @@ ingress:
   enabled: false
   className: nginx
   annotations: {}
-  hosts:
-    - host: openproxy.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+  host: openproxy.example.com
+  # tls:
+  #   secretName: openproxy-tls
+  tls: {}
 
 resources:
   requests:
@@ -38,6 +36,8 @@ autoscaling:
 # are injected via existingSecret or the postgresql/redis subcharts.
 env:
   APP_ENV: production
+  # The container listens on PORT; keep it equal to service.port and the container port.
+  PORT: "8000"
   PROMETHEUS_ENABLED: "true"
   DEBUG: "false"
   # Optional observability integrations (leave blank to disable)

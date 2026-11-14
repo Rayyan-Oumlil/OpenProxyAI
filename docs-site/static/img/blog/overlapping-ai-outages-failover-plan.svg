@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" width="640" height="320" role="img" aria-label="A four step ladder of approved fallbacks: primary provider, second approved provider, exact cache or queued batch, and a clear refusal" font-family="Inter, system-ui, sans-serif">
+  <rect x="1" y="1" width="638" height="318" rx="16" fill="#0d0f14" stroke="#1b1f27" stroke-width="2"/>
+  <text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">A ladder of approved fallbacks</text>
+  <rect x="24" y="60" width="592" height="48" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="44" y="89" font-size="14" font-weight="600" fill="#f4f6f8">1. Primary provider</text>
+  <text x="330" y="89" font-size="14" fill="#a3abb8">Used while it is healthy</text>
+  <rect x="24" y="120" width="592" height="48" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="44" y="149" font-size="14" font-weight="600" fill="#f4f6f8">2. Second approved provider</text>
+  <text x="330" y="149" font-size="14" fill="#a3abb8">Takes over when the first fails</text>
+  <rect x="24" y="180" width="592" height="48" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="44" y="209" font-size="14" font-weight="600" fill="#f4f6f8">3. Exact cache, queued batch</text>
+  <text x="330" y="209" font-size="14" fill="#a3abb8">Repeat prompts, work that can wait</text>
+  <rect x="24" y="240" width="592" height="48" rx="10" fill="#14171e" stroke="#f0b429" stroke-width="2"/>
+  <text x="44" y="269" font-size="14" font-weight="600" fill="#f4f6f8">4. Clear refusal</text>
+  <text x="330" y="269" font-size="14" fill="#a3abb8">Nothing approved is up, so say so</text>
+</svg>

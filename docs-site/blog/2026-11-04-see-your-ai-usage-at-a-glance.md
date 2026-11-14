@@ -96,7 +96,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. Star the repo o
 
 - [Admin console overview](/admin-console/overview): the pages of the console.
 - [Rate limiting and budgets](/core-concepts/rate-limiting-and-budgets): limits, alerts and monitoring usage.
-- [Managing teams](/admin-console/managing-teams): team budgets and attribution.
+- [Managing teams](/admin-console/managing-your-organization): team budgets and attribution.
 - [Authentication](/getting-started/authentication): API keys tied to a team.
 - [Audit logging](/security/audit-logging): the records behind the numbers.
 

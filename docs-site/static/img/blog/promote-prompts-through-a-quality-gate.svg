@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 330" width="640" height="330" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="330" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="329" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">A prompt edit has to earn its way live</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Draft, evaluate, promote</text>
+
+  <rect x="24" y="90" width="172" height="124" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="116" fill="#f4f6f8" font-size="14" font-weight="600">1. Edit becomes a draft</text>
+  <text x="40" y="142" fill="#cfd5dd" font-size="14">Live version keeps</text>
+  <text x="40" y="162" fill="#cfd5dd" font-size="14">serving users</text>
+  <text x="40" y="182" fill="#cfd5dd" font-size="14">Draft cannot be called</text>
+
+  <rect x="234" y="90" width="172" height="124" rx="10" fill="#14171e" stroke="#35d399"/>
+  <text x="250" y="116" fill="#35d399" font-size="14" font-weight="600">2. Evaluate it</text>
+  <text x="250" y="142" fill="#cfd5dd" font-size="14">Your own dataset</text>
+  <text x="250" y="162" fill="#cfd5dd" font-size="14">Pass rate and size</text>
+  <text x="250" y="182" fill="#cfd5dd" font-size="14">set by you</text>
+
+  <rect x="444" y="90" width="172" height="124" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="460" y="116" fill="#f4f6f8" font-size="14" font-weight="600">3. Admin promotes</text>
+  <text x="460" y="142" fill="#cfd5dd" font-size="14">Draft goes live</text>
+  <text x="460" y="162" fill="#cfd5dd" font-size="14">Old version retired</text>
+  <text x="460" y="182" fill="#cfd5dd" font-size="14">Audit log entry</text>
+
+  <line x1="196" y1="152" x2="232" y2="152" stroke="#a3abb8" stroke-width="2"/>
+  <line x1="406" y1="152" x2="442" y2="152" stroke="#a3abb8" stroke-width="2"/>
+
+  <rect x="24" y="240" width="592" height="64" rx="10" fill="#1d1710" stroke="#f0b429"/>
+  <text x="40" y="266" fill="#f0b429" font-size="14" font-weight="600">Urgent fix? Override with a reason</text>
+  <text x="40" y="288" fill="#cfd5dd" font-size="14">The reason and what was unmet are recorded for review.</text>

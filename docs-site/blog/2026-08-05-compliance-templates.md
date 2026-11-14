@@ -31,4 +31,4 @@ A template replaces the guardrail settings (mode, keywords, PII and injection de
 
 If your actual requirement is "we need a SOC 2 report to show our auditor," a policy template doesn't satisfy that — no software can, that's an organizational process, not a config file. What it does do: it gets you from a blank policy configuration to something aligned with what your framework typically requires, in one API call instead of reading the framework's requirements document and building each policy from scratch.
 
-See [Compliance Templates](/guides/compliance-templates) for how to apply one, and the [Trust Center](/security/trust-center) for where our own certification status actually stands today.
+See [Compliance Templates](/security/compliance-templates) for how to apply one, and the [Trust Center](/security/trust-center) for where our own certification status actually stands today.

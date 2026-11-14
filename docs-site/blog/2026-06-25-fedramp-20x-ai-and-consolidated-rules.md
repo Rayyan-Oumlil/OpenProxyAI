@@ -79,6 +79,6 @@ Needs Docker and no provider key. The console is at http://localhost:5173. Star 
 - [Consolidated Rules for 2026](https://www.fedramp.gov/2026/): the public reference.
 - [Consolidated Rules changelog](https://www.fedramp.gov/2026/changelog/): first entry dated June 25, 2026.
 - [FedRAMP AI prioritization](https://www.fedramp.gov/ai/): criteria, August 2025 start and April 2026 completion.
-- Product docs: [Compliance templates](/guides/compliance-templates), [Configuring SSO](/guides/configuring-sso), [Configuring SCIM](/guides/configuring-scim), [Data residency](/guides/data-residency), [Audit logging](/security/audit-logging), [Trust center](/security/trust-center).
+- Product docs: [Compliance templates](/security/compliance-templates), [Configuring SSO](/guides/sso-and-scim), [Configuring SCIM](/guides/sso-and-scim), [Data residency](/security/data-residency), [Audit logging](/security/audit-logging), [Trust center](/security/trust-center).
 
 These statements are based on the sources above and on OpenProxyAI's behavior at the post date.

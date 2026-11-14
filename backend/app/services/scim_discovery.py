@@ -25,7 +25,7 @@ def _attr(name: str, type_: str = "string", **extra: Any) -> dict[str, Any]:
 def service_provider_config(base_url: str) -> dict[str, Any]:
     return {
         "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"],
-        "documentationUri": "https://docs.openproxyai.com/docs/guides/configuring-scim",
+        "documentationUri": "https://docs.openproxyai.com/guides/sso-and-scim",
         "patch": {"supported": True},
         "bulk": {"supported": False, "maxOperations": 0, "maxPayloadSize": 0},
         "filter": {"supported": True, "maxResults": MAX_PAGE},

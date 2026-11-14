@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 290" width="640" height="290" role="img" aria-label="A request carries a team and labels, is attributed, checked against daily and monthly dollar limits, and then reported by model and team" font-family="Inter, system-ui, sans-serif">
+  <rect x="1" y="1" width="638" height="288" rx="16" fill="#0d0f14" stroke="#1b1f27" stroke-width="2"/>
+  <text x="24" y="38" font-size="20" font-weight="600" fill="#f4f6f8">From request to answer for finance</text>
+  <rect x="24" y="64" width="130" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="89" y="92" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">Request</text>
+  <text x="89" y="112" font-size="14" fill="#a3abb8" text-anchor="middle">team and labels</text>
+  <rect x="178" y="64" width="130" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="243" y="92" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">Attributed</text>
+  <text x="243" y="112" font-size="14" fill="#a3abb8" text-anchor="middle">to a team</text>
+  <rect x="332" y="64" width="130" height="64" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+  <text x="397" y="92" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">Limits checked</text>
+  <text x="397" y="112" font-size="14" fill="#a3abb8" text-anchor="middle">day and month</text>
+  <rect x="486" y="64" width="130" height="64" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="551" y="92" font-size="14" font-weight="600" fill="#f4f6f8" text-anchor="middle">Reported</text>
+  <text x="551" y="112" font-size="14" fill="#a3abb8" text-anchor="middle">model, team</text>
+  <path d="M154 96 H172" stroke="#a3abb8" stroke-width="2"/>
+  <polygon points="172,91 178,96 172,101" fill="#a3abb8"/>
+  <path d="M308 96 H326" stroke="#a3abb8" stroke-width="2"/>
+  <polygon points="326,91 332,96 326,101" fill="#a3abb8"/>
+  <path d="M462 96 H480" stroke="#a3abb8" stroke-width="2"/>
+  <polygon points="480,91 486,96 480,101" fill="#a3abb8"/>
+  <rect x="24" y="158" width="592" height="100" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="44" y="188" font-size="14" font-weight="600" fill="#35d399">What finance can now answer</text>
+  <text x="44" y="214" font-size="14" fill="#cfd5dd">Who spent what, by team and by label</text>
+  <text x="44" y="236" font-size="14" fill="#cfd5dd">How much of the month is left, and who is near a limit</text>
+</svg>

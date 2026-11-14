@@ -80,7 +80,7 @@ A finance team adds three rules: a model allowlist, personal data detection and 
 
 ## Good to know
 
-The enforcement mode applies to the whole policy, not to each rule on its own. Before you flip it, make sure every rule has had its review in log-only mode. Policy checks run on the request text, so keep keyword lists specific. In enforce mode, personal data in a request blocks it, and the gateway does not rewrite the request. If you want requests with personal data to stop, that is the setting. Compliance templates replace the guardrail settings in one call, so review the keyword list after applying one. See [Managing policies](/admin-console/managing-policies).
+The enforcement mode applies to the whole policy, not to each rule on its own. Before you flip it, make sure every rule has had its review in log-only mode. Policy checks run on the request text, so keep keyword lists specific. In enforce mode, personal data in a request blocks it, and the gateway does not rewrite the request. If you want requests with personal data to stop, that is the setting. Compliance templates replace the guardrail settings in one call, so review the keyword list after applying one. See [Managing policies](/admin-console/managing-your-organization).
 
 ## Try it
 
@@ -94,7 +94,7 @@ Needs Docker, no provider key. Console at http://localhost:5173. If it helps, st
 
 ## Sources
 
-- OpenProxyAI docs: [Policies and guardrails](/core-concepts/policies-and-guardrails), [Managing policies](/admin-console/managing-policies), [Errors and status codes](/api-reference/errors-and-status-codes), [Compliance templates](/guides/compliance-templates), [Audit logging](/security/audit-logging).
+- OpenProxyAI docs: [Policies and guardrails](/core-concepts/policies-and-guardrails), [Managing policies](/admin-console/managing-your-organization), [Errors and status codes](/api-reference/errors-and-status-codes), [Compliance templates](/security/compliance-templates), [Audit logging](/security/audit-logging).
 - On this blog: [Keys will leak: design so a leaked application key is a nuisance](/blog/a-leaked-key-should-be-a-nuisance).
 
 These statements are based on OpenProxyAI's behavior and docs as of October 15, 2026.

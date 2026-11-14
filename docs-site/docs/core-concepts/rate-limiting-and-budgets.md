@@ -14,7 +14,7 @@ OpenProxyAI checks limits at the rate-limit stage of the pipeline, before any pr
 | Requests per minute | Organization | `DEFAULT_RATE_LIMIT_RPM` (default 60) |
 | Tokens per minute | Organization | `DEFAULT_RATE_LIMIT_TPM` (default 100000) |
 | Dollars per day | Organization | `DEFAULT_BUDGET_DAILY_USD` (default 50) |
-| Dollars per day | One user | `budget_daily_usd` on the user ([Users API](/api-reference/users)) |
+| Dollars per day | One user | `budget_daily_usd` on the user ([Users API](/api-reference/organizations-teams-users)) |
 | Requests and tokens per minute | One team | `per_team_limits` in the organization policy, for example `{"rpm": 60, "tpm": 50000}` |
 | Dollars per month | One team | `budget_monthly_usd` on the team |
 
@@ -36,7 +36,7 @@ One check answers `402` instead. A **streamed** request is checked before it sta
 
 ## How spend is counted
 
-Spend is added after a call finishes, so requests already in flight when a budget is reached still complete. The overshoot is bounded by what runs at the same moment, not by zero. A model the gateway cannot price is charged a flat fee (`UNPRICED_CALL_COST_USD`, default 0.01) and marked as an estimate. See [Rerank, images, audio and Responses](/api-reference/more-endpoints).
+Spend is added after a call finishes, so requests already in flight when a budget is reached still complete. The overshoot is bounded by what runs at the same moment, not by zero. A model the gateway cannot price is charged a flat fee (`UNPRICED_CALL_COST_USD`, default 0.01) and marked as an estimate. See [Rerank, images, audio and Responses](/api-reference/other-endpoints).
 
 ## Team attribution
 
