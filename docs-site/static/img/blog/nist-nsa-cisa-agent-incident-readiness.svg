@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" role="img" aria-labelledby="t d">
+  <title id="t">Incident stages and gateway controls</title>
+  <desc id="d">Five incident stages from the joint guidance, each paired with the gateway control that supports it.</desc>
+  <rect x="0.5" y="0.5" width="639" height="399" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">Five incident stages, five gateway controls</text>
+
+    <rect x="24" y="60" width="130" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="91" font-weight="600" fill="#f4f6f8">Prepare</text>
+    <rect x="200" y="60" width="416" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="216" y="91">Per-agent keys, tool grants, pinned tools</text>
+
+    <rect x="24" y="128" width="130" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="159" font-weight="600" fill="#f4f6f8">Detect</text>
+    <rect x="200" y="128" width="416" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="216" y="159">Security events to your SIEM, with request ids</text>
+
+    <rect x="24" y="196" width="130" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="227" font-weight="600" fill="#f4f6f8">Respond</text>
+    <rect x="200" y="196" width="416" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="216" y="227">Side-effect tools refuse, keys revoked, limits stop loops</text>
+
+    <rect x="24" y="264" width="130" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="295" font-weight="600" fill="#f4f6f8">Recover</text>
+    <rect x="200" y="264" width="416" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="216" y="295">Replace the key, re-approve tools, replay the audit trail</text>
+
+    <rect x="24" y="332" width="130" height="52" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="363" font-weight="600" fill="#f4f6f8">Report</text>
+    <rect x="200" y="332" width="416" height="52" rx="10" fill="#14171e" stroke="#35d399"/>
+    <text x="216" y="363">Exports of blocked requests and admin changes</text>
+
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M154 86 L196 86"/>
+      <path d="M154 154 L196 154"/>
+      <path d="M154 222 L196 222"/>
+      <path d="M154 290 L196 290"/>
+      <path d="M154 358 L196 358"/>
+    </g>
+  </g>
+</svg>

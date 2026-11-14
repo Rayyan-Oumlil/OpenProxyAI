@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" width="640" height="320" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="320" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="319" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">From list price to what you pay</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Same model, different traffic, different cost per request</text>
+
+  <rect x="24" y="84" width="188" height="140" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="108" fill="#f4f6f8" font-size="14" font-weight="600">List price</text>
+  <text x="38" y="134" fill="#a3abb8" font-size="14">Price per token,</text>
+  <text x="38" y="154" fill="#a3abb8" font-size="14">input and output.</text>
+  <text x="38" y="184" fill="#a3abb8" font-size="14">Says nothing about</text>
+  <text x="38" y="204" fill="#a3abb8" font-size="14">your traffic.</text>
+
+  <rect x="226" y="84" width="390" height="140" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="242" y="108" fill="#35d399" font-size="14" font-weight="600">What moves the real number</text>
+  <text x="242" y="134" fill="#cfd5dd" font-size="14">Cache hits: no provider call at all</text>
+  <text x="242" y="158" fill="#cfd5dd" font-size="14">Prompt and answer length per request</text>
+  <text x="242" y="182" fill="#cfd5dd" font-size="14">Model mix: which model gets which job</text>
+  <text x="242" y="206" fill="#cfd5dd" font-size="14">Batch jobs: a spend cap set up front</text>
+
+  <rect x="24" y="240" width="592" height="56" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="40" y="264" fill="#f0b429" font-size="14" font-weight="600">Effective cost per request</text>
+  <text x="40" y="284" fill="#cfd5dd" font-size="14">Spend on a model, divided by its requests, from your own logs</text>
+</svg>

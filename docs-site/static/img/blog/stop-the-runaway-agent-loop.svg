@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 316" width="640" height="316" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="316" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="315" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">A loop hits a ceiling before the bill does</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Each agent gets its own key, tied to its own team</text>
+
+  <rect x="24" y="84" width="150" height="56" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="38" y="108" fill="#cfd5dd" font-size="14">Agent key</text>
+  <text x="38" y="128" fill="#a3abb8" font-size="14">in a loop</text>
+
+  <path d="M174 112 H206" stroke="#35d399" stroke-width="2" fill="none"/>
+  <path d="M200 106 L208 112 L200 118" stroke="#35d399" stroke-width="2" fill="none"/>
+
+  <rect x="210" y="84" width="196" height="56" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="224" y="108" fill="#cfd5dd" font-size="14">Team limits</text>
+  <text x="224" y="128" fill="#a3abb8" font-size="14">per minute, per month</text>
+
+  <path d="M406 112 H438" stroke="#35d399" stroke-width="2" fill="none"/>
+  <path d="M432 106 L440 112 L432 118" stroke="#35d399" stroke-width="2" fill="none"/>
+
+  <rect x="442" y="84" width="174" height="56" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="456" y="108" fill="#cfd5dd" font-size="14">Organization</text>
+  <text x="456" y="128" fill="#a3abb8" font-size="14">per day, per minute</text>
+
+  <rect x="24" y="164" width="592" height="52" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="40" y="186" fill="#f0b429" font-size="14" font-weight="600">Limit reached: HTTP 429</text>
+  <text x="40" y="206" fill="#cfd5dd" font-size="14">The body names the limit type. A wait time tells the agent when to retry.</text>
+
+  <rect x="24" y="232" width="592" height="52" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="40" y="254" fill="#cfd5dd" font-size="14">Other teams keep working. Cost by key shows which agent looped.</text>
+  <text x="40" y="274" fill="#a3abb8" font-size="14">A budget alert goes to your webhook before the daily budget is gone.</text>
+</svg>

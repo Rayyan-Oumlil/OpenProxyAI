@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 330" width="640" role="img" aria-labelledby="t d">
+  <title id="t">One audit row per tool call</title>
+  <desc id="d">An agent tool call passes through the gateway, which writes one audit row with five answers: requester, grant, tool version, policy decision and cost.</desc>
+  <rect x="0.5" y="0.5" width="639" height="329" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">One tool call, one row, five answers</text>
+    <rect x="24" y="80" width="120" height="70" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="84" y="110" text-anchor="middle" font-weight="600" fill="#f4f6f8">Agent</text>
+    <text x="84" y="132" text-anchor="middle" fill="#a3abb8">tool call</text>
+    <rect x="184" y="80" width="120" height="70" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="244" y="110" text-anchor="middle" font-weight="600" fill="#f4f6f8">Gateway</text>
+    <text x="244" y="132" text-anchor="middle" fill="#a3abb8">checks, logs</text>
+    <rect x="344" y="64" width="272" height="226" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="360" y="92" font-weight="600" fill="#f4f6f8">Audit row</text>
+    <text x="360" y="124" fill="#cfd5dd">1. Requester: user, key, team</text>
+    <text x="360" y="154" fill="#cfd5dd">2. Grant that applied</text>
+    <text x="360" y="184" fill="#cfd5dd">3. Tool version status</text>
+    <text x="360" y="214" fill="#cfd5dd">4. Policy decision</text>
+    <text x="360" y="244" fill="#cfd5dd">5. Latency and cost</text>
+    <text x="360" y="274" fill="#f0b429">Metadata only by default</text>
+    <g stroke="#35d399" stroke-width="2" fill="none">
+      <path d="M144 115 L180 115"/>
+      <path d="M304 115 L340 115"/>
+    </g>
+  </g>
+</svg>

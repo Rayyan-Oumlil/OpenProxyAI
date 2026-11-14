@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320" width="640" height="320" font-family="Inter, system-ui, sans-serif">
+  <rect width="640" height="320" rx="12" fill="#0d0f14"/>
+  <rect x="0.5" y="0.5" width="639" height="319" rx="11.5" fill="none" stroke="#1b1f27"/>
+  <text x="24" y="40" fill="#f4f6f8" font-size="20" font-weight="600">Where each gateway stops</text>
+  <text x="24" y="64" fill="#a3abb8" font-size="14">Different questions, so different layers.</text>
+
+  <rect x="24" y="92" width="130" height="190" rx="8" fill="#14171e" stroke="#2a2f3a"/>
+  <text x="36" y="120" fill="#f4f6f8" font-size="14" font-weight="600">Clients</text>
+  <text x="36" y="146" fill="#cfd5dd" font-size="14">Apps</text>
+  <text x="36" y="168" fill="#cfd5dd" font-size="14">Partners</text>
+  <text x="36" y="190" fill="#cfd5dd" font-size="14">Agents</text>
+
+  <rect x="190" y="92" width="190" height="190" rx="8" fill="#14171e" stroke="#f0b429"/>
+  <text x="202" y="120" fill="#f4f6f8" font-size="14" font-weight="600">API gateway</text>
+  <text x="202" y="146" fill="#cfd5dd" font-size="14">Who is calling</text>
+  <text x="202" y="168" fill="#cfd5dd" font-size="14">Requests per second</text>
+  <text x="202" y="190" fill="#cfd5dd" font-size="14">TLS and routing</text>
+  <text x="202" y="212" fill="#cfd5dd" font-size="14">Versioning</text>
+
+  <rect x="416" y="92" width="200" height="190" rx="8" fill="#14171e" stroke="#35d399"/>
+  <text x="428" y="120" fill="#f4f6f8" font-size="14" font-weight="600">AI gateway</text>
+  <text x="428" y="146" fill="#cfd5dd" font-size="14">What is being asked</text>
+  <text x="428" y="168" fill="#cfd5dd" font-size="14">Tokens and dollars</text>
+  <text x="428" y="190" fill="#cfd5dd" font-size="14">Which model may run</text>
+  <text x="428" y="212" fill="#cfd5dd" font-size="14">Model providers</text>
+  <text x="428" y="234" fill="#cfd5dd" font-size="14">Cost and audit trail</text>
+
+  <line x1="154" y1="187" x2="190" y2="187" stroke="#cfd5dd" stroke-width="2"/>
+  <line x1="380" y1="187" x2="416" y2="187" stroke="#cfd5dd" stroke-width="2"/>
+</svg>

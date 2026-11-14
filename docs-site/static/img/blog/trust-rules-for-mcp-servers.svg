@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" role="img" aria-labelledby="t d">
+  <title id="t">Five layers of MCP trust</title>
+  <desc id="d">Registered servers, approved tool definitions, organization allow and block lists, grants, and trust rules each narrow what an agent can do with tools.</desc>
+  <rect x="0.5" y="0.5" width="639" height="359" rx="14" fill="#0d0f14" stroke="#1b1f27"/>
+  <g font-family="Inter, system-ui, sans-serif" font-size="14" fill="#cfd5dd">
+    <text x="24" y="36" font-size="20" font-weight="600" fill="#f4f6f8">Five controls, stacked</text>
+    <rect x="24" y="56" width="592" height="46" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="40" y="84"><tspan font-weight="600" fill="#f4f6f8">1. Servers</tspan><tspan fill="#a3abb8">  registered by an admin, HTTPS only</tspan></text>
+    <rect x="48" y="112" width="544" height="46" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="64" y="140"><tspan font-weight="600" fill="#f4f6f8">2. Definitions</tspan><tspan fill="#a3abb8">  pinned, changes flagged</tspan></text>
+    <rect x="72" y="168" width="496" height="46" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="88" y="196"><tspan font-weight="600" fill="#f4f6f8">3. Org lists</tspan><tspan fill="#a3abb8">  allow and block patterns</tspan></text>
+    <rect x="96" y="224" width="448" height="46" rx="10" fill="#14171e" stroke="#2a2f3a"/>
+    <text x="112" y="252"><tspan font-weight="600" fill="#f4f6f8">4. Grants</tspan><tspan fill="#a3abb8">  role, team, user or key</tspan></text>
+    <rect x="120" y="280" width="400" height="46" rx="10" fill="#14171e" stroke="#35d399" stroke-width="2"/>
+    <text x="136" y="308"><tspan font-weight="600" fill="#f4f6f8">5. Trust rules</tspan><tspan fill="#a3abb8">  side effects stop</tspan></text>
+    <text x="24" y="348" fill="#a3abb8">Every change lands in the admin audit log.</text>
+  </g>
+</svg>
