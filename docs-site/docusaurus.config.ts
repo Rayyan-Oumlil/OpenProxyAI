@@ -115,10 +115,24 @@ const config: Config = {
     ],
   ],
 
+  headTags: [
+    {
+      tagName: 'script',
+      attributes: {type: 'application/ld+json'},
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'OpenProxyAI Docs',
+        url: 'https://docs.openproxyai.com',
+        publisher: {'@type': 'Organization', name: 'OpenProxyAI', url: 'https://openproxyai.com'},
+      }),
+    },
+  ],
+
   themeConfig: {
     image: 'img/og-image.png',
     metadata: [
-      {name: 'description', content: 'Documentation for OpenProxyAI — the enterprise LLM proxy and AI control plane. Setup, API reference, policies, security, and deployment guides.'},
+      {name: 'description', content: 'Documentation for OpenProxyAI, the open-source self-hosted LLM gateway. Setup, API reference, policies, security, and deployment guides.'},
       {name: 'og:type', content: 'website'},
       {name: 'og:site_name', content: 'OpenProxyAI Docs'},
       {name: 'twitter:card', content: 'summary_large_image'},

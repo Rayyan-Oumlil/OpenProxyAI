@@ -1,0 +1,18 @@
+# OpenProxyAI
+
+> OpenProxyAI is an open-source (Apache-2.0), self-hosted LLM gateway. One OpenAI-compatible endpoint for every provider, with policy enforcement, budgets and rate limits, data-class routing, caching, failover, an MCP gateway, evals, SSO and SCIM, and an append-only audit trail.
+
+## Docs
+- [Introduction](https://docs.openproxyai.com/getting-started/introduction): what the gateway does
+- [Quickstart](https://docs.openproxyai.com/getting-started/quickstart): run it with Docker in minutes
+- [Request pipeline](https://docs.openproxyai.com/core-concepts/request-pipeline): how each request is checked and routed
+- [Policies and guardrails](https://docs.openproxyai.com/core-concepts/policies-and-guardrails)
+- [API reference](https://docs.openproxyai.com/api-reference/overview)
+- [Security and trust](https://docs.openproxyai.com/security/trust-center)
+- [Deployment](https://docs.openproxyai.com/guides/deployment)
+
+## Blog
+- [All posts](https://docs.openproxyai.com/blog)
+
+## Source
+- [GitHub](https://github.com/Rayyan-Oumlil/OpenProxyAI)

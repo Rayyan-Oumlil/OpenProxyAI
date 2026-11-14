@@ -6,12 +6,14 @@ function prefersReducedMotion(): boolean {
 
 export function useCountUp(target: number, durationMs = 900) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [value, setValue] = useState(() => (prefersReducedMotion() ? target : 0));
+  // Starts at the final value so pre-rendered HTML (and crawlers) show the real number.
+  const [value, setValue] = useState(target);
 
   useEffect(() => {
     if (prefersReducedMotion()) return;
     const node = ref.current;
     if (!node) return;
+    setValue(0);
 
     const observer = new IntersectionObserver(
       entries => {

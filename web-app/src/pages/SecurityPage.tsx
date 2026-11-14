@@ -18,7 +18,7 @@ function AuditPreviewVisual() {
 }
 
 export default function SecurityPage() {
-  useEffect(() => { document.title = 'Security · OpenProxyAI'; }, []);
+  useEffect(() => { document.title = 'Security and compliance | OpenProxyAI'; }, []);
 
   return (
     <>

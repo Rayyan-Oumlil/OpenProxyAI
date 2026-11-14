@@ -34,14 +34,14 @@ function makeRow(id: number, t = new Date()): FeedRow {
 const PILL_CLASS: Record<string,'ok'|'redact'|'cache'|'block'> = { ok:'ok', redact:'redact', cache:'cache', block:'block' };
 
 export default function HeroSection() {
-  const [rows, setRows] = useState<FeedRow[]>(() => {
-    const now = new Date();
-    return Array.from({ length: 11 }, (_, i) => makeRow(i, new Date(now.getTime() - i * 1800)));
-  });
+  // Random sample rows are generated after hydration so server and client markup match.
+  const [rows, setRows] = useState<FeedRow[]>([]);
   const [newId, setNewId] = useState<number | null>(null);
   const idRef = useRef(100);
 
   useEffect(() => {
+    const now = new Date();
+    setRows(Array.from({ length: 11 }, (_, i) => makeRow(i, new Date(now.getTime() - i * 1800))));
     const feedInt = setInterval(() => {
       const id = idRef.current++;
       setNewId(id);
