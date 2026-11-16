@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
  * and pushed every page to 720 px wide, and several sections used fixed grid columns that cannot fit a phone.
  */
 const SITE = "http://localhost:5199";
-const PAGES = ["/", "/product", "/security", "/providers", "/pricing"];
+const PAGES = ["/", "/product", "/security", "/providers", "/compare", "/pricing"];
 const WIDTHS = [320, 390, 768, 1280];
 
 for (const width of WIDTHS) {
@@ -27,7 +27,7 @@ test("on a phone the menu is a labelled toggle that closes on Escape and on navi
   const page = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
   await page.goto(SITE + "/");
 
-  // The desktop nav links are not shown on phones (the Explore block below has its own links, so scope to the header).
+  // The desktop nav links are not shown on phones (scope to the header, the page body has its own links).
   await expect(page.locator("header").getByRole("link", { name: "providers" })).toBeHidden();
 
   const open = page.getByRole("button", { name: "Open menu" });
@@ -45,17 +45,17 @@ test("on a phone the menu is a labelled toggle that closes on Escape and on navi
   await expect(page.locator("#mobile-menu")).toBeHidden();
 });
 
-test("on a phone the home page links to the detail pages instead of stacking them", async ({ browser }) => {
+test("on a phone the home page shows the demo command and the console tour, not a cut-down version", async ({ browser }) => {
   const page = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
   await page.goto(SITE + "/");
-  const explore = page.getByRole("region", { name: "Explore" });
-  await expect(explore.getByRole("link", { name: /Pricing/ })).toBeVisible();
+  await expect(page.locator("#try")).toBeVisible();
+  await expect(page.locator("#tour").getByRole("tab", { name: "Request trace" })).toBeVisible();
+  await expect(page.locator("#faq")).toBeVisible();
 });
 
-test("on a desktop the full navigation shows and the phone-only block does not", async ({ browser }) => {
+test("on a desktop the full navigation shows and the menu button does not", async ({ browser }) => {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
   await page.goto(SITE + "/");
   await expect(page.locator("header").getByRole("link", { name: "providers" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open menu" })).toBeHidden();
-  await expect(page.getByRole("region", { name: "Explore" })).toBeHidden();
 });
