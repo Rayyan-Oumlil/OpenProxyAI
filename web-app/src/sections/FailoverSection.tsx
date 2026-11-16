@@ -1,15 +1,15 @@
 import Section from '../components/Section';
 
 const STEPS = [
-  { t: 'A key starts failing', d: 'Health checks ping each provider key and mark it unhealthy after repeated failures.' },
-  { t: 'The router stops choosing it', d: 'An unhealthy key leaves the candidate set, and a circuit breaker keeps a failing key from being hammered.' },
-  { t: 'Traffic uses the remaining keys', d: 'Healthy keys take the load by weight. Failover respects your organization’s region and, with routing enforced, the data class: a request is never retried on a key your policy does not allow.' },
-  { t: 'The key recovers', d: 'When its checks pass again it returns to rotation at its configured weight.' },
+  { t: 'An account starts failing', d: 'Regular health checks mark a provider account unhealthy after repeated failures.' },
+  { t: 'Traffic stops going there', d: 'The unhealthy account is taken out of rotation, and a circuit breaker stops it from being hammered.' },
+  { t: 'Other accounts take the load', d: 'Healthy accounts share the traffic. Failover respects your region and your sensitivity rules: a request is never retried somewhere your policy does not allow.' },
+  { t: 'It recovers', d: 'When its checks pass again, it returns to rotation automatically.' },
 ];
 
 export default function FailoverSection() {
   return (
-    <Section id="failover" label="§02 · failover" title={<>One key fails. <em>The rules still hold.</em></>} aside="example scenario">
+    <Section id="failover" label="Reliability" title={<>A provider has trouble. <em>Your rules still hold.</em></>} aside="example scenario">
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {STEPS.map((s, i) => (
           <div key={s.t} style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1fr)', gap: 14, padding: '12px 0', borderBottom: i < STEPS.length - 1 ? '1px solid var(--line)' : 'none' }}>

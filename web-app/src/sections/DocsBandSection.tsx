@@ -11,17 +11,17 @@ interface DocCard {
 }
 
 const CARDS: DocCard[] = [
-  { icon: Rocket, title: 'Quickstart', text: 'Run it with Docker and send a first request.', href: docsPage('/getting-started/quickstart') },
-  { icon: Workflow, title: 'Core concepts', text: 'The request pipeline, policies, provider routing, caching and budgets.', href: docsPage('/core-concepts/request-pipeline') },
-  { icon: BookOpen, title: 'Guides', text: 'MCP gateway, SSO and SCIM, secrets from Vault, telemetry and SIEM, experiments.', href: docsPage('/guides/mcp-gateway') },
-  { icon: Braces, title: 'API reference', text: 'Chat completions, keys, datasets, eval runs, MCP admin, realtime and error codes.', href: docsPage('/api-reference/overview') },
-  { icon: ShieldCheck, title: 'Security', text: 'Trust center, audit logging, row-level security, data residency and templates.', href: docsPage('/security/trust-center') },
-  { icon: Newspaper, title: 'Blog', text: 'More than a hundred posts: comparisons, regulation, MCP security and how-tos.', href: docsPage('/blog') },
+  { icon: Rocket, title: 'Get started', text: 'Set it up and send a first request.', href: docsPage('/getting-started/quickstart') },
+  { icon: Workflow, title: 'How it works', text: 'How requests are checked, how policies work, and how routing, caching and budgets behave.', href: docsPage('/core-concepts/request-pipeline') },
+  { icon: BookOpen, title: 'Guides', text: 'AI agent tools, single sign-on, secrets managers, security monitoring and experiments.', href: docsPage('/guides/mcp-gateway') },
+  { icon: Braces, title: 'For developers', text: 'The full API reference for your engineering teams.', href: docsPage('/api-reference/overview') },
+  { icon: ShieldCheck, title: 'Security and trust', text: 'What we certify and what we do not, how data is protected, and where it stays.', href: docsPage('/security/trust-center') },
+  { icon: Newspaper, title: 'Blog', text: 'More than a hundred articles on regulation, AI risk, comparisons and how-tos.', href: docsPage('/blog') },
 ];
 
 export default function DocsBandSection() {
   return (
-    <Section id="docs" label="§11 · documentation" title={<>Documented like a product, <em>not an afterthought.</em></>} aside="docs.openproxyai.com">
+    <Section id="docs" label="Documentation" title={<>Documentation your teams <em>can rely on.</em></>} aside="docs.openproxyai.com">
       <div className="grid-3">
         {CARDS.map(c => (
           <a key={c.title} className="opa-card" href={c.href} target="_blank" rel="noopener noreferrer" style={{ padding: 20, display: 'block', textDecoration: 'none' }}>

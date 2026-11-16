@@ -1,22 +1,22 @@
 import Section from '../components/Section';
 
 const CONTROLS = [
-  { layer: 'identity', title: 'OIDC sign-in and SCIM 2.0', desc: 'Members sign in through your identity provider over OpenID Connect, and SCIM creates, updates and deactivates users automatically (Okta, Entra ID). SSO and SCIM are included on the Enterprise plan. SAML is not supported.' },
-  { layer: 'key & budget', title: 'Team-scoped keys', desc: 'API keys and budgets are scoped to a team. A key can only spend against its team’s budget and call the models that team is allowed to use.' },
-  { layer: 'membership', title: 'Roles and invites', desc: 'Members join by invite and hold a role. Access is removed by removing the member, not by rotating a credential everyone shared.' },
-  { layer: 'data', title: 'Row-level isolation', desc: 'Postgres row-level security scopes each query to one organization, so a bug in application code cannot return another organization’s rows.' },
+  { layer: 'Identity', title: 'Single sign-on and automatic provisioning', desc: 'People sign in through your identity provider, and accounts are created, updated and removed automatically (Okta, Microsoft Entra ID). Included on the Enterprise plan. SAML is not supported.' },
+  { layer: 'Keys and budgets', title: 'Team-scoped access keys', desc: 'Access keys and budgets belong to a team. A key can only spend that team’s budget and use the models that team is allowed to use.' },
+  { layer: 'Membership', title: 'Roles and invitations', desc: 'People join by invitation and hold a role. Access is removed by removing the person, not by changing a password everyone shared.' },
+  { layer: 'Data', title: 'Separation by organization', desc: 'Each organization’s records are kept apart at the database level, so one business unit cannot see another’s.' },
 ];
 
 export default function AccessControlSection() {
   return (
-    <Section id="access" label="§05 · access control" title={<>Who can do what, <em>enforced at every layer.</em></>} aside="identity · keys · data">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 860 }}>
+    <Section id="access" label="Access control" title={<>Who can do what, <em>enforced at every layer.</em></>} aside="identity, keys, data">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 900 }}>
         {CONTROLS.map(c => (
-          <div key={c.title} className="layer-row" style={{ display: 'grid', gridTemplateColumns: '110px minmax(0,1fr)', gap: 20, padding: '16px 20px', border: '1px solid var(--line)', borderRadius: 8, background: 'var(--panel)', alignItems: 'center' }}>
-            <span style={{ color: 'var(--accent)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{c.layer}</span>
+          <div key={c.title} className="layer-row opa-card" style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr)', gap: 20, padding: '18px 22px', alignItems: 'center' }}>
+            <span style={{ color: 'var(--accent)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{c.layer}</span>
             <div>
-              <div style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 500, marginBottom: 4 }}>{c.title}</div>
-              <div style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 14, lineHeight: 1.6 }}>{c.desc}</div>
+              <div style={{ color: 'var(--ink)', fontSize: 15.5, fontWeight: 600, marginBottom: 4 }}>{c.title}</div>
+              <div style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 14.5, lineHeight: 1.6 }}>{c.desc}</div>
             </div>
           </div>
         ))}

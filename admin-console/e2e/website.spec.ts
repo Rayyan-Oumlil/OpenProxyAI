@@ -28,7 +28,7 @@ test("on a phone the menu is a labelled toggle that closes on Escape and on navi
   await page.goto(SITE + "/");
 
   // The desktop nav links are not shown on phones (scope to the header, the page body has its own links).
-  await expect(page.locator("header").getByRole("link", { name: "providers" })).toBeHidden();
+  await expect(page.locator("header").getByRole("link", { name: "Integrations" })).toBeHidden();
 
   const open = page.getByRole("button", { name: "Open menu" });
   await expect(open).toHaveAttribute("aria-expanded", "false");
@@ -49,13 +49,13 @@ test("on a phone the home page shows the demo command and the console tour, not 
   const page = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
   await page.goto(SITE + "/");
   await expect(page.locator("#try")).toBeVisible();
-  await expect(page.locator("#tour").getByRole("tab", { name: "Request trace" })).toBeVisible();
+  await expect(page.locator("#tour").getByRole("tab", { name: "Request detail" })).toBeVisible();
   await expect(page.locator("#faq")).toBeVisible();
 });
 
 test("on a desktop the full navigation shows and the menu button does not", async ({ browser }) => {
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
   await page.goto(SITE + "/");
-  await expect(page.locator("header").getByRole("link", { name: "providers" })).toBeVisible();
+  await expect(page.locator("header").getByRole("link", { name: "Integrations" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open menu" })).toBeHidden();
 });

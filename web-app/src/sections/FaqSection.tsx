@@ -7,19 +7,20 @@ interface Qa {
 }
 
 const FAQS: Qa[] = [
-  { q: 'What is OpenProxyAI?', a: 'An open-source LLM gateway. It sits between your applications and model providers, applies policy, data-class routing, budgets and an audit trail to every request, and exposes one OpenAI-compatible endpoint.' },
-  { q: 'Is it hosted, or do I run it?', a: 'You run it. It is self-hosted, with Docker Compose, a Helm chart and an air-gap mode. There is no hosted service.' },
-  { q: 'Which providers does it support?', a: 'Hosted providers such as OpenAI, Anthropic and Azure OpenAI, any OpenAI-compatible endpoint you run yourself, and 100+ more through LiteLLM.' },
-  { q: 'Does it store my prompts?', a: 'Not by default. The audit log keeps metadata: model, tokens, cost, status, data class and the policy decision. Keeping redacted samples of prompts and answers is an opt-in you turn on.' },
-  { q: 'Does it add latency?', a: 'Yes, a little: it runs checks before the call. We publish no figure because we have no reproducible benchmark yet. The request trace in the demo console shows the time of each stage on your own hardware.' },
-  { q: 'Is it certified or compliant?', a: 'No. OpenProxyAI holds no SOC 2, ISO 27001 or HIPAA certification. The compliance templates are policy configurations that help you document your controls.' },
-  { q: 'How is it different from LiteLLM, Portkey or Helicone?', a: 'Our focus is governance you host: data-class routing with no silent fallback, bounded MCP tools and an append-only audit trail. Each comparison post is dated and says when another tool fits better.' },
-  { q: 'What does it cost?', a: 'The code is Apache-2.0 and free. Plans change the limits (users, keys, audit retention) and unlock SSO and compliance templates. See the pricing page.' },
+  { q: 'What is OpenProxyAI?', a: 'A control layer between your people, your applications and the AI models they use. It applies your rules, protects sensitive data, controls cost and keeps a record of everything.' },
+  { q: 'Where does it run?', a: 'In your own environment: your cloud, your data center, or fully offline. There is no hosted service and no vendor in the middle.' },
+  { q: 'Which AI models can we use?', a: 'Hosted providers such as OpenAI, Anthropic and Azure OpenAI, models you run yourself, and over a hundred more.' },
+  { q: 'Will it work with the AI tools we already use?', a: 'Any tool or application that can call an OpenAI-compatible service can be pointed at it by changing one address and one key.' },
+  { q: 'Does it keep our prompts?', a: 'Not by default. The record keeps who asked, which model, how much it cost and what the policy decided. Keeping redacted samples of prompts and answers is an option you turn on.' },
+  { q: 'Will it slow our AI tools down?', a: 'It adds a small amount of time because it checks each request first. We publish no figure yet because we have no benchmark anyone can reproduce. You can measure it yourself in the demo.' },
+  { q: 'Is it certified or compliant?', a: 'No. OpenProxyAI holds no SOC 2, ISO 27001 or HIPAA certification. The compliance templates are configurations that help you document your controls.' },
+  { q: 'How is it different from other AI gateways?', a: 'Our focus is governance you host yourself: sensitive data kept where you allow, tightly controlled AI agents, and a permanent record. Each comparison article is dated and says when another tool fits better.' },
+  { q: 'What does it cost?', a: 'The code is open source and free. Paid plans raise limits on users, keys and record retention, and add single sign-on and compliance templates. See the pricing page.' },
 ];
 
 export default function FaqSection() {
   return (
-    <Section id="faq" label="§12 · questions" title={<>Questions people <em>ask first.</em></>} aside="straight answers">
+    <Section id="faq" label="Questions" title={<>Questions leaders <em>ask first.</em></>} aside="straight answers">
       <div className="faq">
         {FAQS.map(item => (
           <details key={item.q}>

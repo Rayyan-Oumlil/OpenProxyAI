@@ -11,31 +11,31 @@ const ssr = path.resolve('dist-ssr')
 const pages = [
   {
     route: '/',
-    title: 'OpenProxyAI | The LLM gateway for teams that must prove what their AI did',
+    title: 'OpenProxyAI | Control and prove everything your AI does',
     description:
-      'Open-source, self-hosted LLM gateway. OpenAI-compatible: change the base_url. Every request is policy-checked, routed by data class and written to an audit trail you host.',
+      'Let your teams use AI and stay in control. OpenProxyAI enforces your rules, keeps sensitive data where it belongs, controls cost and keeps a record for your auditors. Open source, in your own environment.',
   },
   {
     route: '/product',
     title: 'Product | OpenProxyAI',
     description:
-      'How OpenProxyAI works: the request pipeline, data-class routing, budgets and policy, caching, the evaluation loop and observability with Prometheus, OpenTelemetry and SIEM export.',
+      'How OpenProxyAI works: protection by data sensitivity, budgets and policies, control of AI agents, quality testing, cost savings and reporting that plugs into your security tools.',
   },
   {
     route: '/security',
     title: 'Security and compliance | OpenProxyAI',
     description:
-      'Each control and where to verify it: row-level security, an append-only audit trail, OIDC and SCIM, data residency. What OpenProxyAI does not claim: it holds no SOC 2, ISO 27001 or HIPAA certification.',
+      'Each control and where to verify it, what OpenProxyAI does not claim, and how your team can test it. It holds no SOC 2, ISO 27001 or HIPAA certification.',
   },
   {
     route: '/providers',
-    title: 'Providers and models | OpenProxyAI',
+    title: 'Integrations and models | OpenProxyAI',
     description:
-      'Use hosted providers and your own endpoints through one OpenAI-compatible gateway. Each provider key carries its region and the highest data class it may serve.',
+      'Connect hosted AI providers and models you run yourself through one governed layer, with your rules on region, sensitivity and failover.',
   },
   {
     route: '/compare',
-    title: 'Compare LLM gateways | OpenProxyAI',
+    title: 'Compare AI gateways | OpenProxyAI',
     description:
       'Honest, dated comparisons of OpenProxyAI with LiteLLM, Portkey, Helicone, Kong, Cloudflare, OpenRouter and LangChain, including when another tool fits better.',
   },
@@ -43,7 +43,7 @@ const pages = [
     route: '/pricing',
     title: 'Pricing | OpenProxyAI',
     description:
-      'OpenProxyAI is Apache-2.0 and free to self-host. Plans change user, key and audit-retention limits, plus SSO and compliance templates. There is no hosted service.',
+      'OpenProxyAI is Apache-2.0 and free to run yourself. Plans change user, key and audit-history limits, and add single sign-on and compliance templates. There is no hosted service.',
   },
 ]
 
@@ -67,7 +67,7 @@ const jsonLd = {
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
       url: SITE,
       description:
-        'Open-source, self-hosted LLM gateway with policy enforcement, data-class routing, budgets and audit logging.',
+        'Open-source AI governance layer that runs in your own environment: policy enforcement, protection by data sensitivity, budgets and an audit record.',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
   ],

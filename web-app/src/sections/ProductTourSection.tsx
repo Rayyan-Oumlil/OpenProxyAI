@@ -12,38 +12,38 @@ interface Shot {
 const SHOTS: Shot[] = [
   {
     id: 'trace',
-    tab: 'Request trace',
+    tab: 'Request detail',
     title: 'Open any request and see exactly what happened.',
-    text: 'Where the time went, the policy verdict, the data class (here confidential, detected: ssn), what the caller was told, and that the cache was not consulted and the provider was never reached.',
-    alt: 'Request trace in the console for a request blocked by policy because it contained an SSN',
+    text: 'The decision, the sensitivity of the data (here: confidential, a social security number was detected), the message the user received, and proof that nothing was sent to an AI model.',
+    alt: 'Request detail for a request blocked by policy because it contained a social security number',
   },
   {
     id: 'dashboard',
     tab: 'Dashboard',
-    title: 'Spend, volume and policy at a glance.',
-    text: 'Requests, cost, tokens and latency for the period, how many requests policy blocked or flagged, and a budget burn-down with a month-end projection.',
-    alt: 'Gateway dashboard with request, cost, token and latency cards and a budget burn-down chart',
+    title: 'Usage, cost and risk at a glance.',
+    text: 'Requests, spend and speed for the period, how many requests your rules blocked or flagged, and a budget chart with a projection to the end of the month.',
+    alt: 'Dashboard with request, cost and usage cards and a budget chart',
   },
   {
     id: 'policy',
     tab: 'Policy',
-    title: 'One place for what the gateway allows and blocks.',
-    text: 'Choose Observe, Log only or Enforce, set a model allowlist and blocked keywords, then tune data protection, data-class routing, behavior and rate limits in the other tabs.',
-    alt: 'Policy configuration page with enforcement mode, model allowlist and blocked keywords',
+    title: 'Your rules, in one place.',
+    text: 'Choose whether to observe, record or enforce. Approve models, block sensitive words, then fine-tune data protection, routing, behavior and limits.',
+    alt: 'Policy configuration page with enforcement mode, approved models and blocked words',
   },
   {
     id: 'mcp',
-    tab: 'MCP servers',
-    title: 'Bound the tools your agents can reach.',
-    text: 'Register tool servers behind one endpoint and set pinning (off, warn, enforce) and an injection scan (off, log, redact, block) for each server.',
-    alt: 'MCP servers page listing a server with pinning and injection scan settings',
+    tab: 'AI agent tools',
+    title: 'Decide which tools your AI agents can use.',
+    text: 'Connect the business tools your agents rely on, lock their definitions so they cannot be changed silently, and screen what comes back.',
+    alt: 'Agent tools page listing a connected tool server with its locking and screening settings',
   },
   {
     id: 'logs',
-    tab: 'Request logs',
-    title: 'Every request, filterable.',
-    text: 'Status, policy decision, tokens, latency and cost for each request, with a detail drawer and a link to the full trace.',
-    alt: 'Request logs table with status, policy decision, tokens, latency and cost columns',
+    tab: 'Activity log',
+    title: 'Every request on the record.',
+    text: 'Outcome, decision, usage and cost for each request, searchable and filterable, with a link to the full detail.',
+    alt: 'Activity log table with outcome, policy decision, usage, speed and cost columns',
   },
 ];
 
@@ -52,7 +52,7 @@ export default function ProductTourSection() {
   const shot = SHOTS.find(s => s.id === active) ?? SHOTS[0];
 
   return (
-    <Section id="tour" label="§03 · the console" title={<>See what an operator <em>actually gets.</em></>} aside="screenshots of the demo console">
+    <Section id="tour" label="The product" title={<>One console to see and <em>control all AI use.</em></>} aside="real screens from the demo">
       <div role="tablist" aria-label="Console screens" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
         {SHOTS.map(s => (
           <button
@@ -72,10 +72,10 @@ export default function ProductTourSection() {
         <div>
           <h3 style={{ margin: '0 0 10px', fontFamily: 'var(--sans)', fontSize: 20, fontWeight: 500, letterSpacing: '-0.02em', color: 'var(--ink)' }}>{shot.title}</h3>
           <p className="lede">{shot.text}</p>
-          <p className="note">Demo console with seeded sample data, not a customer.</p>
+          <p className="note">Demo with sample data, not a customer.</p>
         </div>
         <figure className="frame" style={{ margin: 0 }}>
-          <div className="frame-bar" aria-hidden="true"><i /><i /><i /><span>console · demo organization</span></div>
+          <div className="frame-bar" aria-hidden="true"><i /><i /><i /><span>OpenProxyAI · demo organization</span></div>
           <img src={`/images/console/${shot.id}.webp`} width={1440} height={900} alt={shot.alt} loading="lazy" decoding="async" style={{ display: 'block', width: '100%', height: 'auto' }} />
         </figure>
       </div>

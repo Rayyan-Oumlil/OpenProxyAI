@@ -1,38 +1,40 @@
 import { useEffect } from 'react';
 import HeroSection from '../sections/HeroSection';
 import TrustStrip from '../sections/TrustStrip';
-import ProblemSection from '../sections/ProblemSection';
-import QuickStartSection from '../sections/QuickStartSection';
+import OutcomesSection from '../sections/OutcomesSection';
 import ProductTourSection from '../sections/ProductTourSection';
-import ProofSection from '../sections/ProofSection';
-import McpSection from '../sections/McpSection';
 import FeatureGrid from '../sections/FeatureGrid';
-import DeploySection from '../sections/DeploySection';
+import SensitiveDataSection from '../sections/SensitiveDataSection';
+import AgentsSection from '../sections/AgentsSection';
 import PipelineSection from '../sections/PipelineSection';
+import IndustriesSection from '../sections/IndustriesSection';
+import DeploySection from '../sections/DeploySection';
 import EvidenceSection from '../sections/EvidenceSection';
 import CompareTeaser from '../sections/CompareTeaser';
 import DocsBandSection from '../sections/DocsBandSection';
+import QuickStartSection from '../sections/QuickStartSection';
 import FaqSection from '../sections/FaqSection';
 import FinalCtaSection from '../sections/FinalCtaSection';
 
 export default function HomePage() {
-  useEffect(() => { document.title = 'OpenProxyAI | The LLM gateway for teams that must prove what their AI did'; }, []);
+  useEffect(() => { document.title = 'OpenProxyAI | Control and prove everything your AI does'; }, []);
 
   return (
     <>
       <HeroSection />
       <TrustStrip />
-      <ProblemSection />
-      <QuickStartSection />
+      <OutcomesSection />
       <ProductTourSection />
-      <ProofSection />
-      <McpSection />
       <FeatureGrid />
-      <DeploySection />
+      <SensitiveDataSection />
+      <AgentsSection />
       <PipelineSection />
+      <IndustriesSection />
+      <DeploySection />
       <EvidenceSection />
       <CompareTeaser />
       <DocsBandSection />
+      <QuickStartSection />
       <FaqSection />
       <FinalCtaSection />
     </>

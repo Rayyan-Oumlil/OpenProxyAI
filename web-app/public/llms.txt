@@ -1,6 +1,6 @@
 # OpenProxyAI
 
-> OpenProxyAI is an open-source (Apache-2.0), self-hosted LLM gateway for organizations that must prove what their AI did. OpenAI-compatible: change the base_url. Every request is policy-checked, routed by data class and written to an append-only audit trail. It includes an MCP gateway with tool pinning and taint tracking, budgets and rate limits, caching, an evaluation loop, OIDC SSO and SCIM. It holds no SOC 2, ISO 27001 or HIPAA certification, and there is no hosted service.
+> OpenProxyAI is an open-source (Apache-2.0) AI governance layer that runs in your own environment. It sits between people, applications and AI models: it enforces your rules, keeps sensitive data where you allow, controls cost and AI agent tools, and keeps a permanent record. OpenAI-compatible. It holds no SOC 2, ISO 27001 or HIPAA certification, and there is no hosted service.
 
 ## Site
 - [Product](https://openproxyai.com/product): pipeline, data-class routing, budgets, caching, evals, observability

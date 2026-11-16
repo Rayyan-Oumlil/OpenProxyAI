@@ -8,23 +8,23 @@ interface Row {
 }
 
 const EVIDENCE: Row[] = [
-  { claim: 'Policy blocks return HTTP 446 with a plain-language explanation', proof: 'Policies and guardrails', href: docsPage('/core-concepts/policies-and-guardrails') },
-  { claim: 'Requests are routed by data class, with no silent fallback', proof: 'Feature inventory', href: repoFile('docs/features.md') },
-  { claim: 'MCP tool definitions are pinned and drift is refused', proof: 'MCP gateway guide', href: docsPage('/guides/mcp-gateway') },
-  { claim: 'An agent’s credentials never reach a tool server', proof: 'Regression test', href: repoFile('backend/tests/test_mcp_token_isolation.py') },
-  { claim: 'Each organization is isolated by Postgres row-level security', proof: 'Row-level security', href: docsPage('/security/row-level-security') },
-  { claim: 'The audit log is append-only', proof: 'Audit logging', href: docsPage('/security/audit-logging') },
-  { claim: 'Automated WCAG 2.1 A/AA checks pass on every console screen', proof: 'Accessibility guide', href: repoFile('docs/guides/accessibility.md') },
+  { claim: 'Requests with sensitive data can be blocked, with a plain explanation for the user', proof: 'Policy documentation', href: docsPage('/core-concepts/policies-and-guardrails') },
+  { claim: 'Data is routed by sensitivity and never silently sent to another model', proof: 'Feature list', href: repoFile('docs/features.md') },
+  { claim: 'AI agent tools are locked once approved, and changes are blocked until reviewed', proof: 'Agent tools guide', href: docsPage('/guides/mcp-gateway') },
+  { claim: 'Your people’s credentials are never passed on to a tool', proof: 'Automated test', href: repoFile('backend/tests/test_mcp_token_isolation.py') },
+  { claim: 'Each organization’s data is kept separate at the database level', proof: 'Isolation documentation', href: docsPage('/security/row-level-security') },
+  { claim: 'The activity record is append-only: entries are never edited or deleted', proof: 'Audit documentation', href: docsPage('/security/audit-logging') },
+  { claim: 'Automated accessibility checks (WCAG 2.1 A/AA) pass on every admin screen', proof: 'Accessibility guide', href: repoFile('docs/guides/accessibility.md') },
   { claim: 'OpenProxyAI holds no SOC 2, ISO 27001 or HIPAA certification', proof: 'Trust center', href: docsPage('/security/trust-center') },
 ];
 
 export default function EvidenceSection() {
   return (
-    <Section id="evidence" label="§09 · evidence" title={<>What we claim, and <em>where you can check it.</em></>} aside="no logos, no invented metrics">
+    <Section id="evidence" label="Evidence" title={<>What we claim, and <em>where you can check it.</em></>} aside="no invented numbers">
       <div className="opa-card tbl-scroll">
         <table className="tbl">
           <thead>
-            <tr><th scope="col">Claim</th><th scope="col">Check it</th></tr>
+            <tr><th scope="col">Claim</th><th scope="col">Proof</th></tr>
           </thead>
           <tbody>
             {EVIDENCE.map(row => (
@@ -37,7 +37,7 @@ export default function EvidenceSection() {
         </table>
       </div>
       <p className="note">
-        We have no customer logos to show and no overhead benchmark to publish yet, so this page shows neither. The compliance templates (HIPAA, PCI, FedRAMP-aligned) are policy configurations that help you document your controls. They are not certifications, and using them does not make a deployment compliant.
+        We have no customer logos to show and no speed benchmark to publish yet, so this page shows neither. The compliance templates are configurations that help you document your controls. They are not certifications, and using them does not make a deployment compliant.
       </p>
     </Section>
   );

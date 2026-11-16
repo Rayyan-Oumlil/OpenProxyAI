@@ -1,59 +1,56 @@
-const STAGES = ['auth', 'rate limit', 'policy', 'cache', 'route', 'log'];
-const CALLERS = ['Apps', 'Agents', 'Scripts'];
-const TARGETS: [string, string][] = [['Hosted', 'providers'], ['Your own', 'endpoints'], ['MCP tool', 'servers']];
+const STAGES = ['Who is asking?', 'Within limits?', 'Allowed by policy?', 'Already answered?', 'Which approved model?', 'Record everything'];
+const SOURCES = ['Employees', 'Applications', 'AI agents'];
+const TARGETS: [string, string][] = [['AI models', 'you approve'], ['Your own', 'models'], ['Business', 'tools']];
 
-/** The whole product in one picture: callers, one governed gateway, only approved destinations. */
+/** The whole product in one picture: people and apps, one governed layer, only approved destinations. */
 export default function HeroDiagram() {
   return (
     <figure className="opa-card" style={{ margin: 0, padding: 14, minWidth: 0 }}>
-      <svg viewBox="0 0 620 400" width="100%" role="img" aria-labelledby="hero-diagram-title hero-diagram-desc" style={{ display: 'block' }}>
-        <title id="hero-diagram-title">How OpenProxyAI sits between your callers and your models</title>
+      <svg viewBox="0 0 640 410" width="100%" role="img" aria-labelledby="hero-diagram-title hero-diagram-desc" style={{ display: 'block' }}>
+        <title id="hero-diagram-title">How OpenProxyAI sits between your people and your AI models</title>
         <desc id="hero-diagram-desc">
-          Apps, agents and scripts send requests to OpenProxyAI. It runs six stages: auth, rate limit, policy, cache, route and log.
-          Approved requests go to hosted providers, your own endpoints or MCP tool servers. A request that policy refuses is answered with HTTP 446 and still logged.
+          Employees, applications and AI agents send requests to OpenProxyAI. For each one it checks who is asking, whether they are within limits, whether policy allows it, whether it was already answered,
+          which approved model to use, and it records everything. Allowed requests reach approved AI models, your own models or business tools. A request that policy refuses is stopped with a clear reason and still recorded.
         </desc>
         <defs>
           <marker id="hd-arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="var(--accent)" /></marker>
           <marker id="hd-arrow-bad" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="var(--err)" /></marker>
         </defs>
 
-        <text x="20" y="22" fontFamily="var(--mono)" fontSize="11" letterSpacing="2" fill="var(--ink-3)">CALLERS</text>
-        <text x="228" y="22" fontFamily="var(--mono)" fontSize="11" letterSpacing="2" fill="var(--accent)">YOUR ENVIRONMENT</text>
-        <text x="500" y="22" fontFamily="var(--mono)" fontSize="11" letterSpacing="2" fill="var(--ink-3)">APPROVED ONLY</text>
+        <text x="14" y="24" fontFamily="var(--sans)" fontSize="12" fontWeight="600" letterSpacing="1.2" fill="var(--ink-3)">YOUR PEOPLE AND APPS</text>
+        <text x="236" y="24" fontFamily="var(--sans)" fontSize="12" fontWeight="600" letterSpacing="1.2" fill="var(--accent)">OPENPROXYAI</text>
+        <text x="494" y="24" fontFamily="var(--sans)" fontSize="12" fontWeight="600" letterSpacing="1.2" fill="var(--ink-3)">APPROVED ONLY</text>
 
-        {CALLERS.map((name, i) => (
+        {SOURCES.map((name, i) => (
           <g key={name}>
-            <rect x="14" y={58 + i * 78} width="112" height="52" rx="8" fill="var(--panel-2)" stroke="var(--line-2)" />
-            <text x="70" y={89 + i * 78} textAnchor="middle" fontFamily="var(--mono)" fontSize="14" fill="var(--ink)">{name}</text>
-            <line x1="126" y1={84 + i * 78} x2="222" y2="196" stroke="var(--accent)" strokeWidth="1.4" markerEnd="url(#hd-arrow)" opacity="0.8" />
+            <rect x="14" y={50 + i * 82} width="120" height="54" rx="10" fill="var(--panel-2)" stroke="var(--line-2)" />
+            <text x="74" y={82 + i * 82} textAnchor="middle" fontFamily="var(--sans)" fontSize="14.5" fontWeight="500" fill="var(--ink)">{name}</text>
+            <line x1="134" y1={77 + i * 82} x2="230" y2="190" stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#hd-arrow)" opacity="0.75" />
           </g>
         ))}
 
-        <rect x="226" y="40" width="190" height="256" rx="12" fill="var(--panel)" stroke="var(--accent)" strokeWidth="1.6" />
-        <text x="321" y="66" textAnchor="middle" fontFamily="var(--sans)" fontSize="16" fontWeight="500" fill="var(--ink)">OpenProxyAI</text>
+        <rect x="234" y="36" width="196" height="276" rx="14" fill="var(--bg-2)" stroke="var(--accent)" strokeWidth="1.8" />
         {STAGES.map((stage, i) => (
           <g key={stage}>
-            <rect x="244" y={80 + i * 33} width="154" height="26" rx="6" fill={stage === 'policy' ? 'color-mix(in srgb, var(--accent) 16%, var(--panel-2))' : 'var(--panel-2)'} stroke={stage === 'policy' ? 'var(--accent)' : 'var(--line)'} />
-            <text x="258" y={98 + i * 33} fontFamily="var(--mono)" fontSize="12" fill="var(--ink-3)">{i + 1}</text>
-            <text x="278" y={98 + i * 33} fontFamily="var(--mono)" fontSize="13" fill="var(--ink)">{stage}</text>
+            <rect x="248" y={52 + i * 42} width="168" height="34" rx="8" fill={i === 2 ? 'color-mix(in srgb, var(--accent) 14%, var(--panel))' : 'var(--panel)'} stroke={i === 2 ? 'var(--accent)' : 'var(--line-2)'} />
+            <text x="332" y={74 + i * 42} textAnchor="middle" fontFamily="var(--sans)" fontSize="13" fontWeight="500" fill="var(--ink)">{stage}</text>
           </g>
         ))}
 
         {TARGETS.map(([line1, line2], i) => (
           <g key={line1}>
-            <line x1="416" y1="150" x2="490" y2={84 + i * 78} stroke="var(--accent)" strokeWidth="1.4" markerEnd="url(#hd-arrow)" opacity="0.8" />
-            <rect x="494" y={58 + i * 78} width="112" height="52" rx="8" fill="var(--panel-2)" stroke="var(--line-2)" />
-            <text x="550" y={80 + i * 78} textAnchor="middle" fontFamily="var(--mono)" fontSize="12" fill="var(--ink)">{line1}</text>
-            <text x="550" y={96 + i * 78} textAnchor="middle" fontFamily="var(--mono)" fontSize="12" fill="var(--ink-3)">{line2}</text>
+            <line x1="430" y1="174" x2="500" y2={77 + i * 82} stroke="var(--accent)" strokeWidth="1.5" markerEnd="url(#hd-arrow)" opacity="0.75" />
+            <rect x="504" y={50 + i * 82} width="124" height="54" rx="10" fill="var(--panel-2)" stroke="var(--line-2)" />
+            <text x="566" y={73 + i * 82} textAnchor="middle" fontFamily="var(--sans)" fontSize="13.5" fontWeight="500" fill="var(--ink)">{line1}</text>
+            <text x="566" y={90 + i * 82} textAnchor="middle" fontFamily="var(--sans)" fontSize="12.5" fill="var(--ink-3)">{line2}</text>
           </g>
         ))}
 
-        <path d="M321 296 V334" stroke="var(--err)" strokeWidth="1.4" strokeDasharray="4 4" markerEnd="url(#hd-arrow-bad)" />
-        <rect x="176" y="338" width="290" height="46" rx="8" fill="color-mix(in srgb, var(--err) 12%, var(--panel))" stroke="var(--err)" />
-        <text x="321" y="357" textAnchor="middle" fontFamily="var(--mono)" fontSize="13" fill="var(--err)">refused: HTTP 446</text>
-        <text x="321" y="373" textAnchor="middle" fontFamily="var(--mono)" fontSize="11.5" fill="var(--ink-3)">plain-language reason, still logged</text>
+        <path d="M332 312 V346" stroke="var(--err)" strokeWidth="1.6" strokeDasharray="4 4" markerEnd="url(#hd-arrow-bad)" />
+        <rect x="190" y="350" width="284" height="48" rx="10" fill="color-mix(in srgb, var(--err) 8%, var(--panel))" stroke="var(--err)" />
+        <text x="332" y="371" textAnchor="middle" fontFamily="var(--sans)" fontSize="13.5" fontWeight="600" fill="var(--err)">Not allowed: stopped, with a reason</text>
+        <text x="332" y="388" textAnchor="middle" fontFamily="var(--sans)" fontSize="12.5" fill="var(--ink-3)">and still on the record</text>
       </svg>
-      <figcaption className="note" style={{ margin: '8px 4px 0' }}>Data class decides which destinations a request may reach. Postgres and Redis run beside the gateway.</figcaption>
     </figure>
   );
 }

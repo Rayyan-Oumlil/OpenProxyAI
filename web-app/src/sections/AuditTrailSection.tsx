@@ -1,26 +1,27 @@
 import Section from '../components/Section';
-import CodeBlock from '../components/CodeBlock';
+import ChecklistCard from '../components/ChecklistCard';
 
 export default function AuditTrailSection() {
   return (
-    <Section id="audit" label="§04 · audit trail" title={<>Append-only. <em>Open any request</em> and see why.</>} aside="example entry">
+    <Section id="audit" label="Audit trail" title={<>Open any request <em>and see why.</em></>} aside="permanent, append-only">
       <div className="split">
-        <CodeBlock title="audit log · example entry" tag="illustrative values">
-          <span className="tok-dim">request_id</span>{'  req_01J3K9A2XM\n'}
-          <span className="tok-dim">team</span>{'        eng-platform\n'}
-          <span className="tok-dim">model</span>{'       gpt-4o\n'}
-          <span className="tok-dim">data_class</span>{'  internal\n'}
-          <span className="tok-dim">policy</span>{'      enforce · pass\n'}
-          <span className="tok-dim">cache</span>{'       miss\n'}
-          <span className="tok-dim">logged_at</span>{'   2026-11-16T03:35:41Z\n'}
-          <span className="tok-ok">trace</span>{'       open the request trace'}
-        </CodeBlock>
+        <ChecklistCard
+          title="What each record shows"
+          items={[
+            { text: 'Who asked: the person, team and application', ok: true },
+            { text: 'Which model, and what it cost', ok: true },
+            { text: 'The sensitivity of the data', ok: true },
+            { text: 'The decision, and the rule behind it', ok: true },
+            { text: 'Whether a saved answer was reused', ok: true },
+            { text: 'When it happened', ok: true },
+          ]}
+        />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p className="lede">
-            Every request is recorded: not sampled, not aggregated after the fact. By default the log keeps metadata (model, tokens, cost, status, data class and the policy decision), not what users typed. Keeping redacted samples of prompts and answers is an opt-in you turn on yourself.
+            Every request is recorded: not sampled, not summarized afterwards. By default the record keeps metadata, not what people typed. Keeping redacted samples of prompts and answers is an option you turn on yourself.
           </p>
           <p className="lede">
-            Open a request by its ID to see which check fired, which cache tier answered, which route was chosen and what it cost. Entries are archived once they pass the retention window of your plan, and you can export security events to your SIEM.
+            Records are archived once they pass the retention period of your plan, and security events can be exported to your monitoring tools.
           </p>
         </div>
       </div>

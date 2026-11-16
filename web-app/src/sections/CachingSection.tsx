@@ -1,27 +1,26 @@
 import Section from '../components/Section';
 
 const TIERS = [
-  { n: 'L1', name: 'In-memory', desc: 'A per-instance cache for exact repeat requests inside one gateway process.', flag: 'SEMANTIC_CACHE_ENABLED' },
-  { n: 'L2', name: 'Redis', desc: 'A shared exact-match cache across every gateway instance. It survives restarts and scales horizontally.', flag: 'CACHE_ENABLED' },
-  { n: 'L3', name: 'Semantic (pgvector)', desc: 'Embeds each prompt and matches on similarity, so it can answer a paraphrase the first two tiers miss.', flag: 'SEMANTIC_CACHE_ENABLED' },
+  { n: '1', name: 'Exact repeats', desc: 'Remembers identical questions on each server and answers them instantly.' },
+  { n: '2', name: 'Shared memory', desc: 'Shares those answers across all your servers, so the saving grows with usage.' },
+  { n: '3', name: 'Similar questions', desc: 'Recognizes questions that mean the same thing, even when the wording differs.' },
 ];
 
 export default function CachingSection() {
   return (
-    <Section id="caching" label="§04 · caching" title={<>Three tiers. <em>Fewer duplicate calls,</em> lower cost.</>} aside="off by default · checked in order">
+    <Section id="caching" label="Cost savings" title={<>Do not pay twice <em>for the same answer.</em></>} aside="optional, off by default">
       <div className="grid-3">
         {TIERS.map(t => (
-          <div key={t.n} className="opa-card" style={{ padding: 20 }}>
+          <div key={t.n} className="opa-card" style={{ padding: 22 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 20, fontWeight: 500, color: 'var(--accent)' }}>{t.n}</span>
-              <span style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 500 }}>{t.name}</span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--accent)' }}>{t.n}</span>
+              <span style={{ color: 'var(--ink)', fontSize: 16, fontWeight: 600 }}>{t.name}</span>
             </div>
-            <p style={{ margin: '0 0 10px', fontFamily: 'var(--sans)', fontSize: 13.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>{t.desc}</p>
-            <code style={{ fontSize: 11, color: 'var(--ink-3)' }}>{t.flag}</code>
+            <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>{t.desc}</p>
           </div>
         ))}
       </div>
-      <p className="note">Caching is off until you enable it. Policy runs before the cache, so a refused request is never answered from an old entry. We list no hit latencies: they depend on your hardware and we have no reproducible benchmark yet.</p>
+      <p className="note">Reuse is switched off until you enable it. Your policy is always applied first, so a refused request is never answered from memory. We list no savings figure because it depends entirely on your traffic.</p>
     </Section>
   );
 }

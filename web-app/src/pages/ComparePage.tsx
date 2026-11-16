@@ -39,7 +39,7 @@ export default function ComparePage() {
         title={<>Compare gateways <span style={{ color: 'var(--accent)' }}>honestly.</span></>}
         description="Each comparison says where OpenProxyAI differs and when the other tool is the better fit. Competitor products change quickly, so every post is dated and carries its correction notes."
       />
-      <Section id="decisions" label="§01 · by decision" title={<>Start from <em>what you need to decide.</em></>} aside="blog posts">
+      <Section id="decisions" label="By decision" title={<>Start from <em>what you need to decide.</em></>} aside="articles">
         <div className="opa-card tbl-scroll">
           <table className="tbl">
             <thead><tr><th scope="col">If you need to…</th><th scope="col">Read</th></tr></thead>
@@ -54,7 +54,7 @@ export default function ComparePage() {
           </table>
         </div>
       </Section>
-      <Section id="tools" label="§02 · by tool" title={<>Side by side, <em>one tool at a time.</em></>} aside="dated comparisons">
+      <Section id="tools" label="By tool" title={<>Side by side, <em>one tool at a time.</em></>} aside="dated comparisons">
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} className="grid-2">
           {TOOLS.map(t => (
             <li key={t.slug}>
@@ -65,7 +65,7 @@ export default function ComparePage() {
           ))}
         </ul>
         <p className="note">
-          Where we differ is governance: data-class routing with no silent fallback, bounded MCP tools and an audit trail you host. If you only need one SDK for many providers, a lighter tool may serve you better, and the posts say so.{' '}
+          Where we differ is governance you host yourself: sensitive data kept where you allow, controlled AI agents and a permanent record. If you only need to reach many providers through one library, a lighter tool may serve you better, and the articles say so.{' '}
           <a href={docsPage('/resources/compare')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Full guide →</a>
         </p>
       </Section>

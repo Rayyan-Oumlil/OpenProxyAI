@@ -2,17 +2,17 @@ import Section from '../components/Section';
 import { docsPage } from '../lib/links';
 
 const ROWS = [
-  { item: 'Multi-provider routing and failover', build: 'Provider quirks, key rotation, health checks', have: 'Included, through LiteLLM' },
-  { item: 'PII detection and a policy engine', build: 'Detectors, evasion tests, tuning, explanations', have: 'Included, with a shared detector' },
-  { item: 'Append-only audit log and exports', build: 'Schema, retention, access control, SIEM mapping', have: 'Included, with SIEM and OpenTelemetry export' },
-  { item: 'Budgets and rate limits per team', build: 'Counters, pre-checks before streaming, reporting', have: 'Included' },
-  { item: 'MCP tool governance', build: 'Pinning, scanning, grants, taint rules', have: 'Included' },
+  { item: 'Working with many AI providers', build: 'Each provider’s quirks, keys and outages', have: 'Included, over a hundred providers' },
+  { item: 'Detecting and blocking sensitive data', build: 'Detectors, evasion testing, tuning, explanations', have: 'Included' },
+  { item: 'A permanent audit record and exports', build: 'Storage, retention, access control, security-tool integration', have: 'Included, with monitoring export' },
+  { item: 'Budgets and limits by team', build: 'Counters, checks before each request, reporting', have: 'Included' },
+  { item: 'Control of AI agent tools', build: 'Approval, locking, screening, per-team access', have: 'Included' },
   { item: 'Keeping up as provider APIs change', build: 'Your team, indefinitely', have: 'Shared with the open-source project' },
 ];
 
 export default function BuildVsBuySection() {
   return (
-    <Section id="build-vs-buy" label="§02 · build or adopt" title={<>What this replaces <em>on your roadmap.</em></>} aside="no invented timelines">
+    <Section id="build-vs-buy" label="Build or adopt" title={<>What this replaces <em>on your roadmap.</em></>} aside="no invented timelines">
       <div className="opa-card tbl-scroll">
         <table className="tbl">
           <thead>

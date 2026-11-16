@@ -11,12 +11,12 @@ const BUDGETS = [
 
 // The organization policy, in the order the checks run. One mode (off, log_only or enforce) covers all of them.
 const POLICIES = [
-  { name: 'model allowlist',     desc: 'exact model names' },
-  { name: 'blocked keywords',    desc: 'case-insensitive match' },
-  { name: 'PII detection',       desc: 'email · SSN · card, or Presidio' },
-  { name: 'prompt injection',    desc: 'classifier, or regex fallback' },
-  { name: 'response guardrails', desc: 'keywords · PII redacted in output' },
-  { name: 'MCP tool lists',      desc: 'allow and block patterns' },
+  { name: 'Approved models',        desc: 'only the models you list' },
+  { name: 'Blocked words',          desc: 'project names, terms, phrases' },
+  { name: 'Personal data detection', desc: 'emails, social security and card numbers' },
+  { name: 'Manipulation attempts',  desc: 'tricks aimed at the AI itself' },
+  { name: 'Answer checks',          desc: 'screen and redact what comes back' },
+  { name: 'Agent tool lists',       desc: 'which tools agents may use' },
 ];
 
 function statColor(s: string): string {
@@ -40,11 +40,11 @@ function Gauge({ pct, color }: { pct: number; color: string }) {
 
 export default function BudgetsPoliciesSection() {
   return (
-    <Section id="budgets" label="§03 · budgets · policies" title={<>Cost controls and guardrails, <em>per team, per model.</em></>} aside="enforce or log only">
+    <Section id="budgets" label="Budgets and policies" title={<>Cost controls and guardrails, <em>by team and by model.</em></>} aside="observe, record or enforce">
       <div className="split">
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18, fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
-            <span>budgets · example data</span><span>illustrative values</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18, fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <span>Budgets · example data</span><span>illustrative values</span>
           </div>
           <div className="grid-3" style={{ gap: 20 }}>
             {BUDGETS.map(b => (
@@ -58,12 +58,12 @@ export default function BudgetsPoliciesSection() {
         </div>
 
         <div className="opa-card">
-          <div className="opa-card-head"><span>organization policy</span><span>off · log_only · enforce</span></div>
+          <div className="opa-card-head"><span>Your policy</span><span>observe · record · enforce</span></div>
           <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
             {POLICIES.map((p, i) => (
               <div key={p.name} className="policy-row" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '4px 10px', padding: 8, border: '1px solid var(--line)', borderRadius: 6, background: 'var(--panel-2)' }}>
                 <span style={{ color: 'var(--accent)' }}>{p.name}</span>
-                <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>step {i + 1}</span>
+                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>check {i + 1}</span>
                 <span style={{ color: 'var(--ink-3)', flexBasis: '100%' }}>{p.desc}</span>
               </div>
             ))}

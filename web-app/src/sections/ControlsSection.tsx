@@ -9,28 +9,29 @@ interface Control {
 }
 
 const CONTROLS: Control[] = [
-  { control: 'Tenant isolation', how: 'Postgres row-level security scopes every query to one organization, enforced in the database as well as in application code.', proof: 'Row-level security', href: docsPage('/security/row-level-security') },
-  { control: 'Audit trail', how: 'Every request, policy decision and routing outcome is recorded. Rows are append-only. By default the log keeps metadata, not what users typed.', proof: 'Audit logging', href: docsPage('/security/audit-logging') },
-  { control: 'Data-class routing', how: 'Each request gets a class. A registry decides which models and keys may serve it. No silent fallback.', proof: 'Feature inventory', href: repoFile('docs/features.md') },
-  { control: 'Outbound connections', how: 'Custom provider endpoints are validated when saved and guarded on every connection, against internal addresses and redirects.', proof: 'Feature inventory', href: repoFile('docs/features.md') },
-  { control: 'MCP tools', how: 'Tool definitions are pinned by hash, results can taint a session, and an agent’s credentials are never forwarded to a tool server.', proof: 'MCP gateway guide', href: docsPage('/guides/mcp-gateway') },
-  { control: 'Identity', how: 'Role-based access, OpenID Connect sign-in and SCIM 2.0 provisioning (Okta, Entra ID). SAML is not supported.', proof: 'SSO and SCIM', href: docsPage('/guides/sso-and-scim') },
-  { control: 'Data residency', how: 'One region per organization. Requests only use provider keys and models tagged for that region, including on failover. The tags are your statements; the gateway cannot verify them with the provider.', proof: 'Data residency', href: docsPage('/security/data-residency') },
-  { control: 'Secrets', how: 'Provider keys come from environment variables, HashiCorp Vault or AWS Secrets Manager, and are never logged in plaintext.', proof: 'Secrets from Vault', href: docsPage('/guides/secrets-from-vault') },
+  { control: 'Separation of organizations', how: 'Each organization’s data is kept apart at the database level, so a mistake in the application cannot show one organization another’s records.', proof: 'Isolation documentation', href: docsPage('/security/row-level-security') },
+  { control: 'Permanent record', how: 'Every request, decision and outcome is recorded and cannot be edited. By default the record keeps who, what model, cost and decision, not what people typed.', proof: 'Audit documentation', href: docsPage('/security/audit-logging') },
+  { control: 'Data protection by sensitivity', how: 'Each request gets a sensitivity level, and you approve which models may handle each level. Nothing is silently rerouted.', proof: 'Feature list', href: repoFile('docs/features.md') },
+  { control: 'Safe connections', how: 'Connections to private or custom AI endpoints are checked when saved and on every use, so they cannot be pointed at internal systems by mistake.', proof: 'Feature list', href: repoFile('docs/features.md') },
+  { control: 'AI agent tools', how: 'Tools are approved by you, locked once approved, and screened. People’s credentials are never passed to a tool.', proof: 'Agent tools guide', href: docsPage('/guides/mcp-gateway') },
+  { control: 'Identity', how: 'Roles, single sign-on and automatic user provisioning with Okta or Microsoft Entra ID. SAML is not supported.', proof: 'Sign-on guide', href: docsPage('/guides/sso-and-scim') },
+  { control: 'Data location', how: 'Each organization has one region. Requests only use accounts and models tagged for that region, including when failing over. The tags are your statements: the gateway cannot verify them with the provider.', proof: 'Data location guide', href: docsPage('/security/data-residency') },
+  { control: 'Secrets', how: 'Provider keys come from your own secrets manager (HashiCorp Vault or AWS Secrets Manager) and are never written to logs in plain text.', proof: 'Secrets guide', href: docsPage('/guides/secrets-from-vault') },
+  { control: 'Administration', how: 'Limits on sign-in attempts, restricted access to technical metrics, and only owners or administrators can revoke access keys.', proof: 'Feature list', href: repoFile('docs/features.md') },
 ];
 
 export default function ControlsSection() {
   return (
-    <Section id="controls" label="§01 · controls" title={<>What each control does, <em>and where to verify it.</em></>} aside="read the docs, read the code">
+    <Section id="controls" label="Controls" title={<>What each control does, <em>and where to verify it.</em></>} aside="read the docs, read the code">
       <div className="opa-card tbl-scroll">
         <table className="tbl">
           <thead>
-            <tr><th scope="col">Control</th><th scope="col">How it works</th><th scope="col">Check it</th></tr>
+            <tr><th scope="col">Control</th><th scope="col">What it does</th><th scope="col">Proof</th></tr>
           </thead>
           <tbody>
             {CONTROLS.map(c => (
               <tr key={c.control}>
-                <td style={{ whiteSpace: 'nowrap' }}>{c.control}</td>
+                <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{c.control}</td>
                 <td>{c.how}</td>
                 <td style={{ whiteSpace: 'nowrap' }}><a href={c.href} target="_blank" rel="noopener noreferrer">{c.proof} →</a></td>
               </tr>

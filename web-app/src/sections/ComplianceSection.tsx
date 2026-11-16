@@ -1,22 +1,22 @@
 import Section from '../components/Section';
 
 const TEMPLATES = [
-  { name: 'Healthcare', tag: 'HIPAA-aligned', desc: 'Clinical keywords and PHI entities in enforce mode, response redaction. Set your own model allowlist.' },
-  { name: 'Finance', tag: 'PCI-aligned', desc: 'Cardholder data blocking, transaction-context logging, stricter rate limits by default.' },
-  { name: 'Government', tag: 'FedRAMP-aligned', desc: 'Classified-marking keyword blocking, PII redaction, a 3-year retention target. Assign US-region provider keys yourself.' },
+  { name: 'Healthcare', tag: 'HIPAA-aligned', desc: 'Detects clinical terms and health information, redacts it in answers and enforces your rules. You choose the approved models.' },
+  { name: 'Finance', tag: 'PCI-aligned', desc: 'Blocks payment-card data, keeps transaction context in the record and applies stricter limits by default.' },
+  { name: 'Government', tag: 'FedRAMP-aligned', desc: 'Blocks classified markings, redacts personal data and sets a three-year retention target. You assign the approved regions.' },
 ];
 
 export default function ComplianceSection() {
   return (
-    <Section id="templates" label="§03 · templates" title={<>Compliance templates <em>you configure.</em></>} aside="templates · not certifications">
+    <Section id="templates" label="Templates" title={<>Compliance templates <em>you configure.</em></>} aside="templates, not certifications">
       <p className="lede" style={{ marginBottom: 24 }}>
-        Pre-built policy configurations aligned to common framework requirements. Apply one, review every rule, and enforce it yourself.
+        Ready-made rule sets aligned to common framework requirements. Apply one, review every rule and enforce it yourself.
       </p>
       <div className="opa-card">
         {TEMPLATES.map((t, i) => (
-          <div key={t.name} className="data-row tmpl-row" style={{ display: 'grid', gridTemplateColumns: '140px 130px minmax(0,1fr)', gap: 16, padding: '14px 18px', borderBottom: i < TEMPLATES.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13, alignItems: 'center' }}>
-            <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{t.name}</span>
-            <span style={{ fontSize: 10.5, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t.tag}</span>
+          <div key={t.name} className="data-row tmpl-row" style={{ display: 'grid', gridTemplateColumns: '140px 130px minmax(0,1fr)', gap: 16, padding: '14px 18px', borderBottom: i < TEMPLATES.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 14.5, alignItems: 'center' }}>
+            <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{t.name}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t.tag}</span>
             <span style={{ color: 'var(--ink-2)' }}>{t.desc}</span>
           </div>
         ))}

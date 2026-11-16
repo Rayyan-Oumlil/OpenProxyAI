@@ -6,19 +6,19 @@
 
 @layer base {
   :root {
-    --bg:      #06070a;
-    --bg-2:    #0b0d12;
-    --panel:   #0f1117;
-    --panel-2: #141720;
-    --line:    #1c2029;
-    --line-2:  #262b36;
-    --ink:     #e7ecf2;
-    --ink-2:   #a8b0bd;
-    --ink-3:   #5a6472;
-    --accent:  #35d399;
-    --accent-2:#9bff3d;
-    --warn:    #ffb65c;
-    --err:     #ff7070;
+    --bg:      #ffffff;
+    --bg-2:    #f6f8f7;
+    --panel:   #ffffff;
+    --panel-2: #f3f5f4;
+    --line:    #e4e8e6;
+    --line-2:  #cfd6d3;
+    --ink:     #0e1a16;
+    --ink-2:   #42514b;
+    --ink-3:   #66756f;
+    --accent:  #047857;
+    --accent-2:#065f46;
+    --warn:    #b45309;
+    --err:     #b91c1c;
     --mono:    'JetBrains Mono', ui-monospace, Menlo, monospace;
     --sans:    'Inter', system-ui, sans-serif;
 
@@ -52,8 +52,7 @@
   body {
     background: var(--bg);
     color: var(--ink);
-    font-family: var(--mono);
-    font-feature-settings: "ss01";
+    font-family: var(--sans);
     -webkit-font-smoothing: antialiased;
   }
 }
@@ -66,8 +65,8 @@
   z-index: 0;
   opacity: 0.4;
   background-image:
-    linear-gradient(to right,  rgba(231,236,242,0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(231,236,242,0.05) 1px, transparent 1px);
+    linear-gradient(to right,  rgba(14,26,22,0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(14,26,22,0.045) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 50%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 50%, transparent 100%);
@@ -82,7 +81,7 @@
 }
 .opa-card:hover {
   border-color: var(--line-2);
-  box-shadow: 0 0 0 1px var(--line-2), 0 12px 32px -18px color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: 0 0 0 1px var(--line-2), 0 14px 34px -20px rgba(14,26,22,0.28);
 }
 
 /* ── Data row (table-like lists) ── */
@@ -128,10 +127,11 @@
 
 /* ── Buttons ── */
 .opa-btn {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  padding: 8px 14px;
-  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: 8px;
   border: 1px solid var(--line-2);
   background: var(--panel);
   color: var(--ink);
@@ -146,11 +146,11 @@
 
 .opa-btn-primary {
   background: var(--accent);
-  color: var(--bg);
+  color: #ffffff;
   border-color: var(--accent);
   font-weight: 500;
 }
-.opa-btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: var(--bg); }
+.opa-btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: #ffffff; }
 
 /* ── Pills ── */
 .pill {
@@ -215,14 +215,15 @@
 .sec-wrap { max-width: 1600px; margin: 0 auto; padding: 0 24px; }
 .sec-head {
   display: grid;
-  grid-template-columns: 180px 1fr auto;
+  grid-template-columns: 200px 1fr auto;
   gap: 24px;
   align-items: baseline;
   margin-bottom: 36px;
   padding-bottom: 12px;
   border-bottom: 1px dashed var(--line);
 }
-.sec-label, .sec-aside { color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; }
+.sec-label, .sec-aside { color: var(--ink-3); font-family: var(--sans); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; }
+.sec-label { color: var(--accent); }
 .sec-title {
   font-family: var(--sans);
   font-size: clamp(26px, 2.8vw, 38px);
@@ -249,7 +250,12 @@
 }
 
 /* ── Code blocks ── */
-.code { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; }
+.code {
+  --ink: #e7ecf2; --ink-2: #b4bcc8; --ink-3: #8b96a6; --line: #1f2937; --line-2: #334155;
+  --accent: #35d399; --err: #ff7a7a; --warn: #ffb65c;
+  background: #0b1220; border: 1px solid #1f2937; border-radius: 10px; overflow: hidden; min-width: 0; color: #e7ecf2;
+  font-family: var(--mono);
+}
 .code-head {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 9px 14px; border-bottom: 1px solid var(--line);
@@ -257,10 +263,10 @@
 }
 .code pre { padding: 16px 18px; font-size: 12.5px; line-height: 1.7; color: var(--ink); overflow-x: auto; white-space: pre; word-break: normal; }
 .code-copy {
-  font-family: var(--mono); font-size: 11px; color: var(--ink-2); background: transparent;
-  border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 8px; cursor: pointer;
+  font-family: var(--mono); font-size: 11px; color: #b4bcc8; background: transparent;
+  border: 1px solid #334155; border-radius: 4px; padding: 2px 8px; cursor: pointer;
 }
-.code-copy:hover { border-color: var(--accent); color: var(--accent); }
+.code-copy:hover { border-color: #35d399; color: #35d399; }
 .tok-key { color: #c7a2ff; } .tok-str { color: #8bc6ff; } .tok-num { color: #ffc66a; }
 .tok-dim { color: var(--ink-3); } .tok-ok { color: var(--accent); } .tok-bad { color: var(--err); }
 .diff-add { color: var(--accent); } .diff-del { color: var(--err); }
@@ -307,10 +313,10 @@
 }
 
 /* ── Screenshot frame ── */
-.frame { border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; background: var(--panel); box-shadow: 0 24px 60px -30px color-mix(in srgb, var(--accent) 40%, transparent); }
+.frame { border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; background: var(--panel); box-shadow: 0 30px 70px -34px rgba(14,26,22,0.35); }
 .frame-bar { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--panel-2); font-size: 11px; color: var(--ink-3); }
 .frame-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line-2); display: inline-block; }
-.frame-bar span { margin-left: 10px; letter-spacing: 0.08em; }
+.frame-bar span { margin-left: 10px; }
 
 /* ── FAQ ── */
 .faq details { border-bottom: 1px solid var(--line); padding: 4px 0; }
@@ -322,7 +328,7 @@
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-track { background: var(--bg-2); }
 ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
 

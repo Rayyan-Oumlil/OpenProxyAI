@@ -1,31 +1,29 @@
 import { useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
-import CodeBlock from '../components/CodeBlock';
+import ChecklistCard from '../components/ChecklistCard';
 import ModelCatalogSection from '../sections/ModelCatalogSection';
 import FailoverSection from '../sections/FailoverSection';
 
-function ProviderKeyVisual() {
-  return (
-    <CodeBlock title="a provider key carries the rules" tag="fields from the API">
-      <span className="tok-key">provider</span>{'        openai\n'}
-      <span className="tok-key">region</span>{'          us | eu | ap | global\n'}
-      <span className="tok-key">max_data_class</span>{'  internal | confidential | ...\n'}
-      <span className="tok-key">weight</span>{'          share of traffic among healthy keys\n'}
-      <span className="tok-key">api_base</span>{'        optional custom endpoint'}
-    </CodeBlock>
-  );
-}
-
 export default function ProvidersPage() {
-  useEffect(() => { document.title = 'Providers and models | OpenProxyAI'; }, []);
+  useEffect(() => { document.title = 'Integrations and models | OpenProxyAI'; }, []);
 
   return (
     <>
       <PageHeader
-        eyebrow="Providers"
-        title={<>One API. <span style={{ color: 'var(--accent)' }}>Your rules</span> for every model.</>}
-        description="Use hosted providers and your own endpoints through one OpenAI-compatible gateway. Each provider key carries its region and the highest data class it may serve."
-        visual={<ProviderKeyVisual />}
+        eyebrow="Integrations"
+        title={<>The AI models you use, <span style={{ color: 'var(--accent)' }}>under your rules.</span></>}
+        description="Connect hosted AI providers and models you run yourself through one governed layer. Each connection carries your rules: its region, the highest sensitivity it may handle and its share of traffic."
+        visual={
+          <ChecklistCard
+            title="Each connection carries"
+            items={[
+              { text: 'The region where it may process data', ok: true },
+              { text: 'The highest sensitivity it may handle', ok: true },
+              { text: 'Its share of traffic among healthy accounts', ok: true },
+              { text: 'An optional private address for your own models', ok: true },
+            ]}
+          />
+        }
       />
       <ModelCatalogSection />
       <FailoverSection />
