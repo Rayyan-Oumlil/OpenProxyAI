@@ -7,13 +7,13 @@ export default function HeroSection() {
       <div className="split hero-split">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '8px 4px' }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Open source · Runs in your own environment
+            AI data protection and agent governance · Open source
           </span>
           <h1 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(36px,4.2vw,60px)', lineHeight: 1.05, letterSpacing: '-0.03em', fontWeight: 600, margin: 0, color: 'var(--ink)' }}>
-            Let your teams use AI. <span style={{ color: 'var(--accent)' }}>Stay in control</span> of what it does.
+            Sensitive data and AI agents, <span style={{ color: 'var(--accent)' }}>under your control.</span>
           </h1>
           <p className="lede" style={{ fontSize: 17, maxWidth: '54ch' }}>
-            OpenProxyAI sits between your people, your applications and the AI models they use. It enforces your rules, keeps sensitive data where it belongs, controls cost, and records everything for your auditors.
+            For security and compliance teams. OpenProxyAI makes sure sensitive data only reaches the AI models you approved, and that AI agents only use the tools you approved. Every decision is recorded for your auditors.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary" data-track="cta_book_demo">Book a demo</a>

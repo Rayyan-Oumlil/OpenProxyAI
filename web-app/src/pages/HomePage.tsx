@@ -17,18 +17,18 @@ import FaqSection from '../sections/FaqSection';
 import FinalCtaSection from '../sections/FinalCtaSection';
 
 export default function HomePage() {
-  useEffect(() => { document.title = 'OpenProxyAI | Control and prove everything your AI does'; }, []);
+  useEffect(() => { document.title = 'OpenProxyAI | Sensitive data and AI agents, under your control'; }, []);
 
   return (
     <>
       <HeroSection />
       <TrustStrip />
       <OutcomesSection />
-      <ProductTourSection />
-      <FeatureGrid />
       <SensitiveDataSection />
       <AgentsSection />
+      <ProductTourSection />
       <PipelineSection />
+      <FeatureGrid />
       <IndustriesSection />
       <DeploySection />
       <EvidenceSection />

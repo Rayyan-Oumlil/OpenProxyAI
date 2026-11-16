@@ -2,7 +2,7 @@ import Section from '../components/Section';
 import { docsPage } from '../lib/links';
 
 const CONTROLS = [
-  { title: 'Approve the tools', text: 'AI agents can only use business tools you connected and approved. Each team can get its own set.' },
+  { title: 'Approve the tools', text: 'AI agents can only use business tools you connected and approved. Group them into sets per team or application, and every tool call is recorded.' },
   { title: 'Lock the definitions', text: 'If a tool’s instructions change after you approved it, the tool is blocked until someone reviews the change. No silent surprises.' },
   { title: 'Contain the risk', text: 'Content coming back from an untrusted tool cannot trigger sensitive actions. Your people’s credentials are never handed to a tool.' },
 ];

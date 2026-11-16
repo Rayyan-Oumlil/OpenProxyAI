@@ -9,9 +9,9 @@ interface Outcome {
 }
 
 const OUTCOMES: Outcome[] = [
-  { icon: ShieldCheck, title: 'Protect sensitive data', text: 'Personal and confidential information is detected before it leaves your company. Each type of data can only reach the AI models you have approved for it.' },
-  { icon: Wallet, title: 'Control cost and access', text: 'Set budgets and limits by team, person and model. Decide which models and which tools each group may use, and stop overspending before it happens.' },
-  { icon: ScrollText, title: 'Prove what happened', text: 'Every request, decision and refusal is recorded and can be exported to your security tools. When an auditor asks, you can answer.' },
+  { icon: ShieldCheck, title: 'Keep sensitive data where it belongs', text: 'Personal and confidential information is detected before it leaves your company. Each level of sensitivity can only reach the AI models you approved for it, and a refused request is never quietly sent elsewhere.' },
+  { icon: Wallet, title: 'Keep AI agents on approved tools', text: 'Agents can only use the business tools you approved, grouped per team or application. If a tool changes after approval, it is blocked until someone reviews it.' },
+  { icon: ScrollText, title: 'Prove it to your auditors', text: 'Every request, tool call, decision and refusal is recorded and can be exported to your security tools. When an auditor asks, you can answer.' },
 ];
 
 export default function OutcomesSection() {

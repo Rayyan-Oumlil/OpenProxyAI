@@ -11,9 +11,9 @@ const ssr = path.resolve('dist-ssr')
 const pages = [
   {
     route: '/',
-    title: 'OpenProxyAI | Control and prove everything your AI does',
+    title: 'OpenProxyAI | Sensitive data and AI agents, under your control',
     description:
-      'Let your teams use AI and stay in control. OpenProxyAI enforces your rules, keeps sensitive data where it belongs, controls cost and keeps a record for your auditors. Open source, in your own environment.',
+      'For security and compliance teams. OpenProxyAI keeps sensitive data away from unapproved AI models, keeps AI agents on approved tools, and records every decision for your auditors. Open source, in your own environment.',
   },
   {
     route: '/product',
