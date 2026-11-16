@@ -1,15 +1,21 @@
 # OpenProxyAI
 
-> OpenProxyAI is an open-source (Apache-2.0), self-hosted LLM gateway. One OpenAI-compatible endpoint for every provider, with policy enforcement, budgets and rate limits, data-class routing, caching, failover, an MCP gateway, evals, SSO and SCIM, and an append-only audit trail.
+> OpenProxyAI is an open-source (Apache-2.0), self-hosted LLM gateway for organizations that must prove what their AI did. OpenAI-compatible: change the base_url. Every request is policy-checked, routed by data class and written to an append-only audit trail. It includes an MCP gateway with tool pinning and taint tracking, budgets and rate limits, caching, an evaluation loop, OIDC SSO and SCIM. It holds no SOC 2, ISO 27001 or HIPAA certification, and there is no hosted service.
+
+## Site
+- [Product](https://openproxyai.com/product): pipeline, data-class routing, budgets, caching, evals, observability
+- [Security](https://openproxyai.com/security): each control with a link to verify it, and what is not claimed
+- [Compare](https://openproxyai.com/compare): dated comparisons with other gateways
+- [Pricing](https://openproxyai.com/pricing): plan limits and prices
 
 ## Docs
 - [Introduction](https://docs.openproxyai.com/getting-started/introduction): what the gateway does
-- [Quickstart](https://docs.openproxyai.com/getting-started/quickstart): run it with Docker in minutes
+- [Quickstart](https://docs.openproxyai.com/getting-started/quickstart): run it with Docker
 - [Request pipeline](https://docs.openproxyai.com/core-concepts/request-pipeline): how each request is checked and routed
 - [Policies and guardrails](https://docs.openproxyai.com/core-concepts/policies-and-guardrails)
+- [MCP gateway](https://docs.openproxyai.com/guides/mcp-gateway)
+- [Trust center](https://docs.openproxyai.com/security/trust-center): certification status and data handling
 - [API reference](https://docs.openproxyai.com/api-reference/overview)
-- [Security and trust](https://docs.openproxyai.com/security/trust-center)
-- [Deployment](https://docs.openproxyai.com/guides/deployment)
 
 ## Blog
 - [All posts](https://docs.openproxyai.com/blog)

@@ -1,29 +1,30 @@
 import { useEffect } from 'react';
 import HeroSection from '../sections/HeroSection';
-import PipelineSection from '../sections/PipelineSection';
-import RouterSection from '../sections/RouterSection';
-import BudgetsPoliciesSection from '../sections/BudgetsPoliciesSection';
+import TrustStrip from '../sections/TrustStrip';
+import ProblemSection from '../sections/ProblemSection';
+import ProofSection from '../sections/ProofSection';
+import McpSection from '../sections/McpSection';
 import DeploySection from '../sections/DeploySection';
-import PricingSection from '../sections/PricingSection';
-import MobileExplore from '../sections/MobileExplore';
+import PipelineSection from '../sections/PipelineSection';
+import EvidenceSection from '../sections/EvidenceSection';
+import CompareTeaser from '../sections/CompareTeaser';
+import FinalCtaSection from '../sections/FinalCtaSection';
 
 export default function HomePage() {
-  useEffect(() => { document.title = 'OpenProxyAI | Open-source LLM gateway for enterprise AI'; }, []);
+  useEffect(() => { document.title = 'OpenProxyAI | The LLM gateway for teams that must prove what their AI did'; }, []);
 
   return (
     <>
       <HeroSection />
+      <TrustStrip />
+      <ProblemSection />
+      <ProofSection />
+      <McpSection />
+      <DeploySection />
       <PipelineSection />
-      {/* Phones get the short version: the detail lives on its own page, so the home page stays scannable. */}
-      <div className="hidden lg:block">
-        <RouterSection />
-      </div>
-      <BudgetsPoliciesSection />
-      <div className="hidden lg:block">
-        <DeploySection />
-        <PricingSection />
-      </div>
-      <MobileExplore />
+      <EvidenceSection />
+      <CompareTeaser />
+      <FinalCtaSection />
     </>
   );
 }

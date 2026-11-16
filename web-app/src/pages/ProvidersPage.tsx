@@ -1,26 +1,18 @@
 import { useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
+import CodeBlock from '../components/CodeBlock';
 import ModelCatalogSection from '../sections/ModelCatalogSection';
 import FailoverSection from '../sections/FailoverSection';
 
-const PROVIDERS = ['openai', 'anthropic', 'google', 'azure', 'mistral', 'cohere', 'meta', 'groq'];
-
-function HealthGridVisual() {
+function ProviderKeyVisual() {
   return (
-    <div className="opa-card" style={{ padding: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-        <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>provider health</span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 18, fontWeight: 500, color: 'var(--accent)' }}>8/8</span>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
-        {PROVIDERS.map(p => (
-          <div key={p} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <span className="live-dot-static" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)' }} />
-            <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>{p}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <CodeBlock title="a provider key carries the rules" tag="fields from the API">
+      <span className="tok-key">provider</span>{'        openai\n'}
+      <span className="tok-key">region</span>{'          us | eu | ap | global\n'}
+      <span className="tok-key">max_data_class</span>{'  internal | confidential | ...\n'}
+      <span className="tok-key">weight</span>{'          share of traffic among healthy keys\n'}
+      <span className="tok-key">api_base</span>{'        optional custom endpoint'}
+    </CodeBlock>
   );
 }
 
@@ -31,9 +23,9 @@ export default function ProvidersPage() {
     <>
       <PageHeader
         eyebrow="Providers"
-        title={<>One API. <span style={{ color: 'var(--accent)' }}>Every model,</span> no lock-in.</>}
-        description="The full model catalog, and what actually happens when a provider key goes down — beyond the live health grid on the homepage."
-        visual={<HealthGridVisual />}
+        title={<>One API. <span style={{ color: 'var(--accent)' }}>Your rules</span> for every model.</>}
+        description="Use hosted providers and your own endpoints through one OpenAI-compatible gateway. Each provider key carries its region and the highest data class it may serve."
+        visual={<ProviderKeyVisual />}
       />
       <ModelCatalogSection />
       <FailoverSection />

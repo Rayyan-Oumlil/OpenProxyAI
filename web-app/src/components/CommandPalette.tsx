@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CALENDLY_URL } from '../lib/links';
+import { DOCS_URL, GITHUB_URL } from '../lib/links';
 
 interface PaletteItem {
   label: string;
@@ -13,9 +13,10 @@ const ITEMS: PaletteItem[] = [
   { label: 'product', hint: '/product', action: nav => nav('/product') },
   { label: 'security', hint: '/security', action: nav => nav('/security') },
   { label: 'providers', hint: '/providers', action: nav => nav('/providers') },
+  { label: 'compare', hint: '/compare', action: nav => nav('/compare') },
   { label: 'pricing', hint: '/pricing', action: nav => nav('/pricing') },
-  { label: 'docs', hint: 'docs.openproxyai.com', action: () => window.open('https://docs.openproxyai.com', '_blank', 'noopener,noreferrer') },
-  { label: 'book a demo', hint: 'calendly', action: () => window.open(CALENDLY_URL, '_blank', 'noopener,noreferrer') },
+  { label: 'docs', hint: 'docs.openproxyai.com', action: () => window.open(DOCS_URL, '_blank', 'noopener,noreferrer') },
+  { label: 'github', hint: 'source code', action: () => window.open(GITHUB_URL, '_blank', 'noopener,noreferrer') },
 ];
 
 export default function CommandPalette() {

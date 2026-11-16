@@ -1,109 +1,67 @@
-import { PAGE_MAX_WIDTH } from '../lib/layout';
-import { APP_URL, CALENDLY_URL } from '../lib/links';
+import Section from '../components/Section';
+import { CALENDLY_URL, repoFile } from '../lib/links';
 
-const PLANS = [
-  {
-    name: 'community',
-    price: '$0', period: '/ forever',
-    features: ['3 users','5 API keys','7-day audit retention','open source, self-host'],
-    cta: '$ start →', href: APP_URL, featured: false,
-  },
-  {
-    name: 'team',
-    price: '$299', period: '/ mo',
-    features: ['50 users','PII detection','budgets + rate limits','30-day audit retention'],
-    cta: '$ start', href: APP_URL, featured: false,
-  },
-  {
-    name: 'business',
-    price: '$1,500', period: '/ mo',
-    features: ['200 users','policy + DLP','MCP tool governance','90-day audit retention'],
-    cta: '$ start →', href: APP_URL, featured: true,
-  },
-  {
-    name: 'enterprise',
-    price: 'from $25k', period: '/ yr',
-    features: ['unlimited users','SSO (OIDC)','air-gapped / on-prem','1-year audit retention'],
-    cta: '$ contact', href: CALENDLY_URL, featured: false,
-  },
+interface Plan {
+  name: string;
+  price: string;
+  period: string;
+  users: string;
+  keys: string;
+  pii: boolean;
+  sso: boolean;
+  retention: string;
+  cta: string;
+  href: string;
+  featured?: boolean;
+}
+
+// Limits mirror PLAN_FEATURES in backend/app/config.py; prices mirror docs/guides/stripe-setup.md.
+const PLANS: Plan[] = [
+  { name: 'community', price: '$0', period: 'forever', users: '3', keys: '5', pii: false, sso: false, retention: '7 days', cta: '$ run the demo', href: '/#try' },
+  { name: 'team', price: '$299', period: '/ month', users: '50', keys: '50', pii: true, sso: false, retention: '30 days', cta: '$ talk to the author', href: CALENDLY_URL },
+  { name: 'business', price: '$1,500', period: '/ month', users: '200', keys: '200', pii: true, sso: false, retention: '90 days', cta: '$ talk to the author', href: CALENDLY_URL, featured: true },
+  { name: 'enterprise', price: 'from $25k', period: '/ year', users: 'unlimited', keys: 'unlimited', pii: true, sso: true, retention: '365 days', cta: '$ talk to the author', href: CALENDLY_URL },
 ];
+
+const yesNo = (value: boolean): string => (value ? 'yes' : 'no');
 
 export default function PricingSection() {
   return (
-    <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§05 · pricing</span>
-          <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
-            Flat fee. <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>No token surprises.</em> Start free.
-          </h2>
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>free plan · no card</span>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 32 }} className="price-grid">
-          {PLANS.map(p => (
-            <div key={p.name} style={{
-              padding: 20, border: `1px solid ${p.featured ? 'var(--accent)' : 'var(--line)'}`,
-              borderRadius: 10,
-              background: p.featured ? 'color-mix(in srgb, var(--accent) 5%, var(--panel))' : 'var(--panel)',
-              display: 'flex', flexDirection: 'column', gap: 10,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h3 style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', fontWeight: 400 }}>{p.name}</h3>
-                {p.featured && (
-                  <span style={{ background: 'var(--accent)', color: 'var(--bg)', padding: '1px 6px', borderRadius: 3, fontSize: 10 }}>popular</span>
-                )}
-              </div>
-              <div style={{ fontFamily: 'var(--sans)', fontSize: 28, letterSpacing: '-0.02em', fontWeight: 500, color: 'var(--ink)' }}>
-                {p.price}
-                {p.period && <small style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>{p.period}</small>}
-              </div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--ink-2)' }}>
-                {p.features.map(f => (
-                  <li key={f} style={{ display: 'flex', gap: 8 }}>
-                    <span style={{ color: 'var(--accent)' }}>›</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href={p.href}
-                target={p.href === APP_URL ? undefined : '_blank'}
-                rel={p.href === APP_URL ? undefined : 'noopener noreferrer'}
-                className={p.featured ? 'opa-btn opa-btn-primary' : 'opa-btn'}
-                style={{ marginTop: 'auto' }}
-              >{p.cta}</a>
+    <Section id="plans" label="§01 · plans" title={<>Four plans, <em>one codebase.</em></>} aside="what the software enforces">
+      <div className="grid-4" style={{ marginBottom: 28 }}>
+        {PLANS.map(p => (
+          <div key={p.name} className="opa-card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, borderColor: p.featured ? 'var(--accent)' : undefined }}>
+            <h3 style={{ margin: 0, fontSize: 13, color: 'var(--ink-2)', fontWeight: 400 }}>{p.name}</h3>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 28, letterSpacing: '-0.02em', fontWeight: 500, color: 'var(--ink)' }}>
+              {p.price}<small style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>{p.period}</small>
             </div>
-          ))}
-        </div>
-
-        {/* Deploy CTA */}
-        <div style={{
-          padding: 36,
-          border: '1px solid var(--accent)',
-          background: 'radial-gradient(ellipse 60% 100% at 90% 50%, color-mix(in srgb, var(--accent) 15%, transparent) 0%, transparent 70%), var(--panel)',
-          borderRadius: 12,
-          display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center',
-        }} className="cta-grid">
-          <div>
-            <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,3vw,42px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
-              Stop shipping AI <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>blind.</em>
-            </h2>
-            <p style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 14, margin: '8px 0 0', maxWidth: '60ch' }}>
-              Deploy in your VPC. Keep your provider keys. Get the audit trail your legal team actually asked for — in under an hour.
-            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--ink-2)' }}>
+              <li>› {p.users} users · {p.keys} API keys</li>
+              <li>› {p.retention} audit retention</li>
+              <li>› PII settings and compliance templates: {yesNo(p.pii)}</li>
+              <li>› SSO (OIDC) and SCIM: {yesNo(p.sso)}</li>
+            </ul>
+            <a
+              href={p.href}
+              {...(p.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              className={p.featured ? 'opa-btn opa-btn-primary' : 'opa-btn'}
+              style={{ marginTop: 'auto' }}
+              data-track={`cta_plan_${p.name}`}
+            >{p.cta}</a>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <a href={APP_URL} className="opa-btn opa-btn-primary">$ start free →</a>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <style>{`
-        @media (max-width: 1000px) {
-          .price-grid { grid-template-columns: repeat(2,1fr) !important; }
-          .cta-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </section>
+      <div className="opa-card" style={{ padding: 22 }}>
+        <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>The same on every plan</div>
+        <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 14, lineHeight: 1.65, color: 'var(--ink-2)' }}>
+          The software gates only the limits in the cards above. Policy enforcement, data-class routing, the MCP gateway, budgets and rate limits, caching, failover, the audit trail and SIEM and OpenTelemetry export are not behind a paid tier in the code.{' '}
+          <a href={repoFile('backend/app/config.py')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>See PLAN_FEATURES →</a>
+        </p>
+      </div>
+      <p className="note">
+        OpenProxyAI is self-hosted: there is no hosted service and no self-serve checkout today. Paid plans are arranged directly. Provider tokens are billed by your model providers, never by OpenProxyAI.
+      </p>
+    </Section>
   );
 }

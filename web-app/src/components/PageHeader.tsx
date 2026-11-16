@@ -14,10 +14,10 @@ export default function PageHeader({ eyebrow, title, description, cta, visual }:
     <div style={{ borderBottom: '1px solid var(--line)' }}>
       <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '48px 24px 40px' }}>
         <div
-          style={visual ? { display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 32, alignItems: 'center' } : undefined}
+          style={visual ? { display: 'grid', gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)', gap: 32, alignItems: 'center' } : undefined}
           className={visual ? 'ph-grid' : undefined}
         >
-          <div>
+          <div style={{ minWidth: 0 }}>
             <span style={{ fontSize: 11, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>{eyebrow}</span>
             <h1 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(30px,3.4vw,46px)', lineHeight: 1.08, letterSpacing: '-0.03em', fontWeight: 500, margin: '12px 0 0', color: 'var(--ink)', maxWidth: '20ch' }}>
               {title}
@@ -27,14 +27,14 @@ export default function PageHeader({ eyebrow, title, description, cta, visual }:
             </p>
             {cta && <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>{cta}</div>}
           </div>
-          {visual && <div>{visual}</div>}
+          {visual && <div style={{ minWidth: 0 }}>{visual}</div>}
         </div>
       </div>
 
       {visual && (
         <style>{`
           @media (max-width: 900px) {
-            .ph-grid { grid-template-columns: 1fr !important; }
+            .ph-grid { grid-template-columns: minmax(0,1fr) !important; }
           }
         `}</style>
       )}

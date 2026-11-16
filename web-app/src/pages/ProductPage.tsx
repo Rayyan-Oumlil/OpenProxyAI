@@ -1,39 +1,23 @@
 import { useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
+import CodeBlock from '../components/CodeBlock';
 import ArchitectureSection from '../sections/ArchitectureSection';
+import RoutingDetailSection from '../sections/RoutingDetailSection';
+import BudgetsPoliciesSection from '../sections/BudgetsPoliciesSection';
 import CachingSection from '../sections/CachingSection';
+import EvalSection from '../sections/EvalSection';
 import ObservabilitySection from '../sections/ObservabilitySection';
 
-const BUDGET = [
-  { label: 'auth', ms: 0.2, color: 'var(--accent)' },
-  { label: 'rate', ms: 0.1, color: 'var(--accent)' },
-  { label: 'policy', ms: 0.8, color: 'var(--warn)' },
-  { label: 'cache', ms: 0.4, color: 'var(--accent)' },
-  { label: 'route', ms: 2.3, color: '#8bc6ff' },
-];
-const TOTAL_MS = BUDGET.reduce((sum, b) => sum + b.ms, 0);
-
-function LatencyBudgetVisual() {
+function StageOrderVisual() {
   return (
-    <div className="opa-card" style={{ padding: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-        <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>p50 overhead</span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 500, color: 'var(--ink)' }}>{TOTAL_MS.toFixed(1)}<span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-3)' }}>ms</span></span>
-      </div>
-      <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 12 }}>
-        {BUDGET.map(b => (
-          <div key={b.label} title={`${b.label} · ${b.ms}ms`} style={{ width: `${(b.ms / TOTAL_MS) * 100}%`, background: b.color, borderRight: '1px solid var(--bg)' }} />
-        ))}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
-        {BUDGET.map(b => (
-          <span key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--ink-3)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: 2, background: b.color, display: 'inline-block' }} />
-            {b.label}
-          </span>
-        ))}
-      </div>
-    </div>
+    <CodeBlock title="every request, in this order" tag="request pipeline">
+      <span className="tok-ok">1</span>{' auth          api key resolves to a user and org\n'}
+      <span className="tok-ok">2</span>{' rate limit    request, token and budget limits\n'}
+      <span className="tok-ok">3</span>{' policy        allow, block or log (HTTP 446 on block)\n'}
+      <span className="tok-ok">4</span>{' cache         L1, L2, L3 (off by default)\n'}
+      <span className="tok-ok">5</span>{' route         approved model and key for the data class\n'}
+      <span className="tok-ok">6</span>{' log           written after the response, never blocks'}
+    </CodeBlock>
   );
 }
 
@@ -44,12 +28,15 @@ export default function ProductPage() {
     <>
       <PageHeader
         eyebrow="Product"
-        title={<>How the <span style={{ color: 'var(--accent)' }}>control plane</span> works.</>}
-        description="Beyond the request pipeline on the homepage — this is the architecture, the cache, and how it plugs into the observability stack you already run."
-        visual={<LatencyBudgetVisual />}
+        title={<>How the gateway <span style={{ color: 'var(--accent)' }}>works.</span></>}
+        description="The architecture, how data classes decide where a request may go, budgets and policy, caching, the evaluation loop and the observability you already run."
+        visual={<StageOrderVisual />}
       />
       <ArchitectureSection />
+      <RoutingDetailSection />
+      <BudgetsPoliciesSection />
       <CachingSection />
+      <EvalSection />
       <ObservabilitySection />
     </>
   );

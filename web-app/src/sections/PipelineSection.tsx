@@ -1,110 +1,59 @@
-import { useEffect, useState } from 'react';
-import { PAGE_MAX_WIDTH } from '../lib/layout';
+import { useRef } from 'react';
+import Section from '../components/Section';
+import { usePipelineAnimation } from '../lib/usePipelineAnimation';
+import { docsPage } from '../lib/links';
 
-const STEPS = [
-  { t: 'verify key',          d: 'api key' },
-  { t: 'limit check',         d: 'rpm · tpm · budget' },
-  { t: 'policy check',        d: 'allow · block · log' },
-  { t: 'L1 · L2 · L3',        d: 'cache lookup' },
-  { t: 'provider key',         d: 'region · weighted' },
-  { t: 'async · fire&forget', d: 'request log' },
+const STAGES = [
+  { t: 'auth', d: 'api key' },
+  { t: 'rate limit', d: 'rpm · tpm · budget' },
+  { t: 'policy', d: 'allow · block · log' },
+  { t: 'cache', d: 'L1 · L2 · L3' },
+  { t: 'route', d: 'approved model + key' },
+  { t: 'log', d: 'async, after the reply' },
 ];
 
-const SEC: React.CSSProperties = {
-  padding: '60px 0',
-  borderTop: '1px solid var(--line)',
-};
-const WRAP: React.CSSProperties = { maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' };
+const WHY = [
+  { title: 'Cheap rejections first', text: 'Auth and rate limits run before anything else, so a request you will refuse anyway costs almost nothing.' },
+  { title: 'Policy before the cache', text: 'A cache check first could answer a request your policy would block, from an entry stored before the rule existed. Policy first means a refused request never reaches the cache or a provider.' },
+  { title: 'Logging never blocks', text: 'The log is written after the response has gone back, so a slow log backend is never the reason your request is slow. Refused requests are logged too.' },
+];
 
 export default function PipelineSection() {
-  const [hot, setHot] = useState(0);
-
-  useEffect(() => {
-    const t = setInterval(() => setHot(h => (h + 1) % STEPS.length), 700);
-    return () => clearInterval(t);
-  }, []);
+  const rootRef = useRef<HTMLDivElement>(null);
+  usePipelineAnimation(rootRef);
 
   return (
-    <section style={SEC}>
-      <div style={WRAP}>
-        {/* Section header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 44, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§01 · request pipeline</span>
-          <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
-            Every request, <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>seven checks,</em> under four milliseconds.
-          </h2>
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>measured · p50 overhead</span>
-        </div>
-
-        {/* Flow diagram */}
-        <div className="flow-row" style={{ position: 'relative', display: 'flex', marginBottom: 44 }}>
-          <div style={{ position: 'absolute', left: 15, right: 15, top: 15, height: 1, background: 'var(--line-2)', zIndex: 0 }} />
-          {STEPS.map((s, i) => (
-            <div key={i} style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: '50%',
-                border: `1px solid ${hot === i ? 'var(--accent)' : 'var(--line-2)'}`,
-                background: hot === i ? 'color-mix(in srgb, var(--accent) 18%, var(--panel))' : 'var(--panel)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, color: hot === i ? 'var(--accent)' : 'var(--ink-3)',
-                transition: 'border-color .2s, background .2s, color .2s',
-              }}>{i + 1}</div>
+    <Section id="pipeline" label="§05 · how a request flows" title={<>Six stages, in an order <em>that matters.</em></>} aside="policy runs before cache">
+      <div ref={rootRef}>
+        <div className="pipe-track" role="list" aria-label="Request stages, in order" style={{ marginBottom: 8 }}>
+          <div aria-hidden="true" style={{ position: 'absolute', left: 15, right: 15, top: 15, height: 1, background: 'var(--line-2)' }} />
+          <span className="pipe-packet" aria-hidden="true" />
+          {STAGES.map((s, i) => (
+            <div key={s.t} className="pipe-node" role="listitem">
+              <span className="pipe-dot">{i + 1}</span>
               <span style={{ color: 'var(--ink)', fontSize: 12.5 }}>{s.t}</span>
               <span style={{ color: 'var(--ink-3)', fontSize: 10.5 }}>{s.d}</span>
             </div>
           ))}
         </div>
-
-        {/* Console panels */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} className="console-grid">
-          <div className="opa-card">
-            <div className="opa-card-head"><span>POST /v1/chat/completions</span><span>t+0.00ms</span></div>
-            <pre style={{ padding: '18px', fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink)', overflow: 'auto', maxHeight: 380 }}><span style={{ color: 'var(--ink-3)' }}>{'// client request'}</span>
-{`POST `}<span style={{ color: '#8bc6ff' }}>/v1/chat/completions</span>{` HTTP/2
-`}<span style={{ color: '#c7a2ff' }}>host</span>{`:          api.openproxy.ai
-`}<span style={{ color: '#c7a2ff' }}>authorization</span>{`: Bearer opai_prod_***
-`}<span style={{ color: '#c7a2ff' }}>x-openproxy-team-id</span>{`: `}<span style={{ color: '#8bc6ff' }}>&lt;team uuid&gt;</span>{`
-
-{
-  `}<span style={{ color: '#c7a2ff' }}>"model"</span>{`:    `}<span style={{ color: '#8bc6ff' }}>"gpt-4o"</span>{`,
-  `}<span style={{ color: '#c7a2ff' }}>"messages"</span>{`: [
-    { `}<span style={{ color: '#c7a2ff' }}>"role"</span>{`: `}<span style={{ color: '#8bc6ff' }}>"user"</span>{`,
-      `}<span style={{ color: '#c7a2ff' }}>"content"</span>{`: `}<span style={{ color: '#8bc6ff' }}>"Summarize this support ticket"</span>{` }
-  ],
-  `}<span style={{ color: '#c7a2ff' }}>"stream"</span>{`:  `}<span style={{ color: '#ffc66a' }}>true</span>{`
-}`}
-            </pre>
-          </div>
-          <div className="opa-card">
-            <div className="opa-card-head"><span>example trace · req_01J3K9A2XM</span><span>illustrative values</span></div>
-            <pre style={{ padding: '18px', fontSize: 12.5, lineHeight: 1.7, color: 'var(--ink)', overflow: 'auto', maxHeight: 380 }}><span style={{ color: 'var(--accent)' }}>✓</span>{` `}<span style={{ color: '#c7a2ff' }}>auth</span>{`       `}<span style={{ color: 'var(--ink-3)' }}>api key · user and org resolved</span>{`
-`}<span style={{ color: 'var(--accent)' }}>✓</span>{` `}<span style={{ color: '#c7a2ff' }}>rate_limit</span>{` `}<span style={{ color: 'var(--ink-3)' }}>within request, token and budget limits</span>{`
-`}<span style={{ color: 'var(--warn)' }}>◉</span>{` `}<span style={{ color: '#c7a2ff' }}>policy</span>{`     `}<span style={{ color: 'var(--ink-3)' }}>mode=enforce · allowlist, keywords, PII, injection: pass</span>{`
-`}<span style={{ color: 'var(--accent)' }}>✓</span>{` `}<span style={{ color: '#c7a2ff' }}>cache</span>{`      `}<span style={{ color: 'var(--ink-3)' }}>L1 miss · L2 miss · L3 miss</span>{`
-`}<span style={{ color: 'var(--accent)' }}>✓</span>{` `}<span style={{ color: '#c7a2ff' }}>route</span>{`      `}<span style={{ color: 'var(--ink-3)' }}>gpt-4o · provider key · weighted · region us</span>{`
-`}<span style={{ color: 'var(--accent)' }}>✓</span>{` `}<span style={{ color: '#c7a2ff' }}>upstream</span>{`   `}<span style={{ color: 'var(--ink-3)' }}>openai · 200 · ttft=168ms</span>{`
-`}<span style={{ color: 'var(--accent)' }}>✓</span>{` `}<span style={{ color: '#c7a2ff' }}>log</span>{`        `}<span style={{ color: 'var(--ink-3)' }}>async · request log</span>{`
-
-`}<span style={{ color: 'var(--ink-3)' }}>{'// decision'}</span>{`
-{
-  `}<span style={{ color: '#c7a2ff' }}>"forwarded"</span>{`: `}<span style={{ color: '#ffc66a' }}>true</span>{`,
-  `}<span style={{ color: '#c7a2ff' }}>"policy"</span>{`: `}<span style={{ color: '#8bc6ff' }}>"allow"</span>{`,
-  `}<span style={{ color: '#c7a2ff' }}>"cost_usd"</span>{`: `}<span style={{ color: '#ffc66a' }}>0.0124</span>{`,
-  `}<span style={{ color: '#c7a2ff' }}>"latency_ms"</span>{`: { `}<span style={{ color: '#c7a2ff' }}>"proxy"</span>{`: `}<span style={{ color: '#ffc66a' }}>3.8</span>{`, `}<span style={{ color: '#c7a2ff' }}>"total"</span>{`: `}<span style={{ color: '#ffc66a' }}>1812</span>{` }
-}`}
-            </pre>
-          </div>
+        <div className="pipe-outcome" aria-label="Possible outcomes">
+          <span data-outcome="allowed">allowed → provider, then logged</span>
+          <span data-outcome="refused" className="bad">refused → 446 with an explanation, still logged</span>
         </div>
       </div>
 
-      <style>{`
-        @media (max-width: 1000px) {
-          .sec-head { grid-template-columns: 1fr !important; }
-          .flow-row { flex-wrap: wrap !important; row-gap: 24px; }
-          .flow-row > div { flex: 0 0 33% !important; }
-          .console-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </section>
+      <div className="grid-3" style={{ marginTop: 40 }}>
+        {WHY.map(w => (
+          <div key={w.title} className="opa-card" style={{ padding: 20 }}>
+            <div style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 500, marginBottom: 6 }}>{w.title}</div>
+            <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>{w.text}</p>
+          </div>
+        ))}
+      </div>
+      <p className="note">
+        We publish no latency figure for these stages: there is no reproducible benchmark yet. When there is, it will appear here with its method and hardware.{' '}
+        <a href={docsPage('/core-concepts/request-pipeline')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Request pipeline docs →</a>
+      </p>
+    </Section>
   );
 }

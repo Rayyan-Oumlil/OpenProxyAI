@@ -1,54 +1,34 @@
-import { PAGE_MAX_WIDTH } from '../lib/layout';
+import Section from '../components/Section';
+import { docsPage } from '../lib/links';
 
 const ROWS = [
-  { item: 'Multi-provider routing + failover', build: '2-4 weeks eng time', buy: 'included' },
-  { item: 'PII detection & policy engine', build: '3-6 weeks + ongoing tuning', buy: 'included' },
-  { item: 'Append-only audit log + compliance export', build: '2-3 weeks', buy: 'included' },
-  { item: 'Semantic caching', build: '2-4 weeks', buy: 'included' },
-  { item: 'Ongoing maintenance as providers change', build: 'indefinite', buy: 'included' },
+  { item: 'Multi-provider routing and failover', build: 'Provider quirks, key rotation, health checks', have: 'Included, through LiteLLM' },
+  { item: 'PII detection and a policy engine', build: 'Detectors, evasion tests, tuning, explanations', have: 'Included, with a shared detector' },
+  { item: 'Append-only audit log and exports', build: 'Schema, retention, access control, SIEM mapping', have: 'Included, with SIEM and OpenTelemetry export' },
+  { item: 'Budgets and rate limits per team', build: 'Counters, pre-checks before streaming, reporting', have: 'Included' },
+  { item: 'MCP tool governance', build: 'Pinning, scanning, grants, taint rules', have: 'Included' },
+  { item: 'Keeping up as provider APIs change', build: 'Your team, indefinitely', have: 'Shared with the open-source project' },
 ];
 
 export default function BuildVsBuySection() {
   return (
-    <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§01 · build vs. buy</span>
-          <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
-            What this replaces on <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>your roadmap.</em>
-          </h2>
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>rough estimate</span>
-        </div>
-
-        <div className="opa-card">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px 140px', gap: 16, padding: '10px 18px', fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid var(--line)', background: 'var(--panel-2)' }} className="bvb-head">
-            <span>capability</span>
-            <span>build it yourself</span>
-            <span>with openproxyai</span>
-          </div>
-          {ROWS.map((r, i) => (
-            <div key={r.item} style={{
-              display: 'grid', gridTemplateColumns: '1fr 200px 140px', gap: 16, padding: '14px 18px',
-              borderBottom: i < ROWS.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13, alignItems: 'center',
-            }} className="bvb-row data-row">
-              <span style={{ color: 'var(--ink)' }}>{r.item}</span>
-              <span style={{ color: 'var(--ink-2)' }}>{r.build}</span>
-              <span style={{ color: 'var(--accent)' }}>{r.buy}</span>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ color: 'var(--ink-3)', fontSize: 12, margin: '14px 0 0' }}>
-          Rough build estimates for a mid-size eng team — actual time varies. Doesn't include ongoing maintenance as provider APIs change.
-        </p>
+    <Section id="build-vs-buy" label="§02 · build or adopt" title={<>What this replaces <em>on your roadmap.</em></>} aside="no invented timelines">
+      <div className="opa-card tbl-scroll">
+        <table className="tbl">
+          <thead>
+            <tr><th scope="col">Capability</th><th scope="col">If you build it</th><th scope="col">With OpenProxyAI</th></tr>
+          </thead>
+          <tbody>
+            {ROWS.map(r => (
+              <tr key={r.item}><td>{r.item}</td><td>{r.build}</td><td style={{ color: 'var(--accent)' }}>{r.have}</td></tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-
-      <style>{`
-        @media (max-width: 700px) {
-          .sec-head { grid-template-columns: 1fr !important; }
-          .bvb-head, .bvb-row { grid-template-columns: 1fr !important; gap: 4px !important; }
-        }
-      `}</style>
-    </section>
+      <p className="note">
+        We give no week counts because we cannot source them. For a longer treatment, read{' '}
+        <a href={docsPage('/blog/build-vs-buy-llm-gateway')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Build vs. buy an LLM gateway →</a>
+      </p>
+    </Section>
   );
 }

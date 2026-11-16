@@ -11,33 +11,39 @@ const ssr = path.resolve('dist-ssr')
 const pages = [
   {
     route: '/',
-    title: 'OpenProxyAI | Open-source LLM gateway for enterprise AI',
+    title: 'OpenProxyAI | The LLM gateway for teams that must prove what their AI did',
     description:
-      'OpenProxyAI is an open-source, self-hosted LLM gateway. One OpenAI-compatible endpoint for every provider, with policy enforcement, budgets, routing by data class, and an audit trail.',
+      'Open-source, self-hosted LLM gateway. OpenAI-compatible: change the base_url. Every request is policy-checked, routed by data class and written to an audit trail you host.',
   },
   {
     route: '/product',
     title: 'Product | OpenProxyAI',
     description:
-      'See how OpenProxyAI routes, governs and logs every LLM call: policies, budgets and rate limits, caching, failover, MCP gateway, evals and an admin console.',
+      'How OpenProxyAI works: the request pipeline, data-class routing, budgets and policy, caching, the evaluation loop and observability with Prometheus, OpenTelemetry and SIEM export.',
   },
   {
     route: '/security',
     title: 'Security and compliance | OpenProxyAI',
     description:
-      'Self-hosted in your VPC with row-level security, an append-only audit trail, SSO and SCIM, data residency and compliance templates for HIPAA, PCI and FedRAMP-aligned setups.',
+      'Each control and where to verify it: row-level security, an append-only audit trail, OIDC and SCIM, data residency. What OpenProxyAI does not claim: it holds no SOC 2, ISO 27001 or HIPAA certification.',
   },
   {
     route: '/providers',
     title: 'Providers and models | OpenProxyAI',
     description:
-      'Use OpenAI, Anthropic, Azure, Mistral, local models and your own endpoints through one gateway, with failover and routing rules that respect your data classes.',
+      'Use hosted providers and your own endpoints through one OpenAI-compatible gateway. Each provider key carries its region and the highest data class it may serve.',
+  },
+  {
+    route: '/compare',
+    title: 'Compare LLM gateways | OpenProxyAI',
+    description:
+      'Honest, dated comparisons of OpenProxyAI with LiteLLM, Portkey, Helicone, Kong, Cloudflare, OpenRouter and LangChain, including when another tool fits better.',
   },
   {
     route: '/pricing',
     title: 'Pricing | OpenProxyAI',
     description:
-      'OpenProxyAI is open source under Apache-2.0 and free to self-host. See what is included and how to get help running it in production.',
+      'OpenProxyAI is Apache-2.0 and free to self-host. Plans change user, key and audit-retention limits, plus SSO and compliance templates. There is no hosted service.',
   },
 ]
 
@@ -61,7 +67,7 @@ const jsonLd = {
       license: 'https://www.apache.org/licenses/LICENSE-2.0',
       url: SITE,
       description:
-        'Open-source, self-hosted LLM gateway with policy enforcement, budgets, routing and audit logging.',
+        'Open-source, self-hosted LLM gateway with policy enforcement, data-class routing, budgets and audit logging.',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
   ],

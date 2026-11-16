@@ -1,19 +1,22 @@
 import { useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
+import CodeBlock from '../components/CodeBlock';
+import ControlsSection from '../sections/ControlsSection';
+import LimitsSection from '../sections/LimitsSection';
 import ComplianceSection from '../sections/ComplianceSection';
 import AuditTrailSection from '../sections/AuditTrailSection';
 import AccessControlSection from '../sections/AccessControlSection';
+import RegulationSection from '../sections/RegulationSection';
+import VerifySection from '../sections/VerifySection';
 
-function AuditPreviewVisual() {
+function PostureVisual() {
   return (
-    <div className="opa-card" style={{ overflow: 'hidden' }}>
-      <div className="opa-card-head"><span>audit_log · example entry</span><span style={{ color: 'var(--accent)' }}>append-only</span></div>
-      <pre style={{ padding: 16, fontSize: 12, lineHeight: 1.8, color: 'var(--ink)', margin: 0 }}>
-        <span style={{ color: 'var(--ink-3)' }}>request_id</span>{'  req_01J3K9A2XM\n'}
-        <span style={{ color: 'var(--ink-3)' }}>policy</span>{'      enforce · pass\n'}
-        <span style={{ color: 'var(--accent)' }}>replay</span>{'      open the trace'}<span className="term-cursor" />
-      </pre>
-    </div>
+    <CodeBlock title="posture, in four lines" tag="no badges">
+      <span className="tok-ok">✓</span>{' self-hosted, Apache-2.0, readable\n'}
+      <span className="tok-ok">✓</span>{' append-only audit trail, row-level isolation\n'}
+      <span className="tok-bad">×</span>{' no SOC 2, ISO 27001 or HIPAA certification\n'}
+      <span className="tok-bad">×</span>{' templates help document controls; they do not certify'}
+    </CodeBlock>
   );
 }
 
@@ -24,13 +27,17 @@ export default function SecurityPage() {
     <>
       <PageHeader
         eyebrow="Security"
-        title={<>Know exactly what your team asked AI, <span style={{ color: 'var(--accent)' }}>every time.</span></>}
-        description="Compliance templates, what an actual audit log entry looks like, and how access is controlled — beyond the guardrail summary on the homepage."
-        visual={<AuditPreviewVisual />}
+        title={<>What a reviewer can check, <span style={{ color: 'var(--accent)' }}>without a sales call.</span></>}
+        description="What each control does and where to verify it, what OpenProxyAI does not claim, and how to run it yourself. We say what is and is not certified, and we link every claim to a doc, a test or the code."
+        visual={<PostureVisual />}
       />
+      <ControlsSection />
+      <LimitsSection />
       <ComplianceSection />
       <AuditTrailSection />
       <AccessControlSection />
+      <RegulationSection />
+      <VerifySection />
     </>
   );
 }

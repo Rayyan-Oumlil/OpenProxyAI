@@ -1,50 +1,28 @@
-import { PAGE_MAX_WIDTH } from '../lib/layout';
+import Section from '../components/Section';
 
-const CATALOG = [
-  { provider: 'OpenAI', models: 'gpt-4o, gpt-4o-mini, gpt-4-turbo, o1, o1-mini' },
-  { provider: 'Anthropic', models: 'claude-3.5-sonnet, claude-3.5-haiku, claude-3-opus' },
-  { provider: 'Google', models: 'gemini-1.5-pro, gemini-1.5-flash, gemini-1.0-pro' },
-  { provider: 'Azure OpenAI', models: 'gpt-4o, gpt-4-turbo (regional deployments)' },
-  { provider: 'Mistral', models: 'mistral-large-2, mistral-small, codestral' },
-  { provider: 'Cohere', models: 'command-r+, command-r, embed-v3' },
-  { provider: 'Meta (via provider)', models: 'llama-3-70b, llama-3-8b' },
-  { provider: 'Groq', models: 'mixtral-8x7b, llama-3-70b (low-latency inference)' },
+const PROVIDERS = [
+  { provider: 'OpenAI and Azure OpenAI', note: 'Hosted models and regional Azure deployments.' },
+  { provider: 'Anthropic', note: 'Claude models through the Anthropic API.' },
+  { provider: 'Google, Mistral, Cohere, Groq', note: 'Hosted APIs, each with its own provider key.' },
+  { provider: 'Your own endpoint', note: 'Any OpenAI-compatible server, including a local model. Mark it internal and the gateway guards every connection to it.' },
+  { provider: '100+ more through LiteLLM', note: 'The gateway uses LiteLLM as its provider layer, so its supported providers work.' },
 ];
 
 export default function ModelCatalogSection() {
   return (
-    <section style={{ padding: '60px 0', borderTop: '1px solid var(--line)' }}>
-      <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto', gap: 24, alignItems: 'baseline', marginBottom: 32, paddingBottom: 12, borderBottom: '1px dashed var(--line)' }} className="sec-head">
-          <span style={{ color: 'var(--ink-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.2em' }}>§01 · catalog</span>
-          <h2 style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(26px,2.8vw,38px)', letterSpacing: '-0.025em', fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
-            Every major provider, <em style={{ fontStyle: 'normal', color: 'var(--accent)' }}>one integration.</em>
-          </h2>
-          <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.2em' }}>updated as providers ship</span>
-        </div>
-
-        <div className="opa-card">
-          {CATALOG.map((c, i) => (
-            <div key={c.provider} style={{
-              display: 'grid', gridTemplateColumns: 'minmax(96px,200px) minmax(0,1fr)', gap: 16, padding: '14px 18px',
-              borderBottom: i < CATALOG.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13,
-            }} className="data-row">
-              <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{c.provider}</span>
-              <span style={{ color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>{c.models}</span>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ color: 'var(--ink-3)', fontSize: 12, margin: '14px 0 0' }}>
-          Your app targets a model name, not a provider — switching which provider serves a model is a config change, not a code change.
-        </p>
+    <Section id="catalog" label="§01 · providers" title={<>Many providers, <em>one integration.</em></>} aside="model names come from the provider">
+      <div className="opa-card">
+        {PROVIDERS.map((c, i) => (
+          <div key={c.provider} className="data-row prov-row" style={{ display: 'grid', gridTemplateColumns: 'minmax(120px,260px) minmax(0,1fr)', gap: 16, padding: '14px 18px', borderBottom: i < PROVIDERS.length - 1 ? '1px solid var(--line)' : 'none', fontSize: 13 }}>
+            <span style={{ color: 'var(--ink)', fontWeight: 500 }}>{c.provider}</span>
+            <span style={{ color: 'var(--ink-2)' }}>{c.note}</span>
+          </div>
+        ))}
       </div>
-
-      <style>{`
-        @media (max-width: 1000px) {
-          .sec-head { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </section>
+      <p className="note">
+        Your app targets a model name, not a provider. Which provider key serves it is configuration, and with data-class routing on, it is also a decision your registry makes. We list no model ids here because they change faster than this page.
+      </p>
+      <style>{`@media (max-width: 700px) { .prov-row { grid-template-columns: minmax(0,1fr) !important; gap: 4px !important; } }`}</style>
+    </Section>
   );
 }

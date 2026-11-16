@@ -6,13 +6,16 @@ import HomePage from './pages/HomePage';
 import ProductPage from './pages/ProductPage';
 import SecurityPage from './pages/SecurityPage';
 import ProvidersPage from './pages/ProvidersPage';
+import ComparePage from './pages/ComparePage';
 import PricingPage from './pages/PricingPage';
 import { useScrollReveal } from './lib/useScrollReveal';
+import { useSiteMeasurement } from './lib/useSiteMeasurement';
 import './App.css';
 
 function App() {
   const { pathname } = useLocation();
   useScrollReveal([pathname]);
+  useSiteMeasurement(pathname);
 
   return (
     <div style={{ background: 'var(--bg)', color: 'var(--ink)', minHeight: '100vh', position: 'relative' }}>
@@ -25,6 +28,7 @@ function App() {
             <Route path="/product" element={<ProductPage />} />
             <Route path="/security" element={<SecurityPage />} />
             <Route path="/providers" element={<ProvidersPage />} />
+            <Route path="/compare" element={<ComparePage />} />
             <Route path="/pricing" element={<PricingPage />} />
           </Routes>
         </main>

@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PAGE_MAX_WIDTH } from '../lib/layout';
-import { CALENDLY_URL } from '../lib/links';
+import { DOCS_URL, GITHUB_URL } from '../lib/links';
 import CommandPalette from './CommandPalette';
 
 const NAV_LINKS = [
   { label: 'product', href: '/product', external: false },
   { label: 'security', href: '/security', external: false },
   { label: 'providers', href: '/providers', external: false },
+  { label: 'compare', href: '/compare', external: false },
   { label: 'pricing', href: '/pricing', external: false },
-  { label: 'docs', href: 'https://docs.openproxyai.com', external: true },
+  { label: 'docs', href: DOCS_URL, external: true },
+  { label: 'github', href: GITHUB_URL, external: true },
 ];
 
 export default function Navigation() {
@@ -59,7 +61,7 @@ export default function Navigation() {
           </div>
 
           <div style={{ gap: 8 }} className="hidden lg:flex">
-            <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
+            <a href="/#try" className="opa-btn opa-btn-primary" data-track="cta_run_demo">$ run the demo →</a>
           </div>
 
           <button className="lg:hidden" onClick={() => setMobileOpen(!mobileOpen)}
@@ -75,7 +77,7 @@ export default function Navigation() {
               ? <a key={l.label} href={l.href} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</a>
               : <Link key={l.label} to={l.href} onClick={() => setMobileOpen(false)} style={{ color: 'var(--ink-2)', textDecoration: 'none', fontSize: 14 }}>{l.label}</Link>)}
             <div style={{ display: 'flex', gap: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
-              <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" className="opa-btn opa-btn-primary">$ book demo →</a>
+              <a href="/#try" className="opa-btn opa-btn-primary" data-track="cta_run_demo">$ run the demo →</a>
             </div>
           </div>
         )}
