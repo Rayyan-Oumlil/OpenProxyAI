@@ -23,7 +23,7 @@ export default function PipelineSection() {
   usePipelineAnimation(rootRef);
 
   return (
-    <Section id="pipeline" label="§05 · how a request flows" title={<>Six stages, in an order <em>that matters.</em></>} aside="policy runs before cache">
+    <Section id="pipeline" label="§08 · how a request flows" title={<>Six stages, in an order <em>that matters.</em></>} aside="policy runs before cache">
       <div ref={rootRef}>
         <div className="pipe-track" role="list" aria-label="Request stages, in order" style={{ marginBottom: 8 }}>
           <div aria-hidden="true" style={{ position: 'absolute', left: 15, right: 15, top: 15, height: 1, background: 'var(--line-2)' }} />

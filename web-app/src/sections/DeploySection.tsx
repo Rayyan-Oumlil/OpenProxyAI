@@ -15,7 +15,7 @@ const REQUEST = `curl https://gateway.your-company.com/v1/chat/completions \\
 
 export default function DeploySection() {
   return (
-    <Section id="deploy" label="§04 · host it, verify it" title={<>You host it. <em>So you can read it.</em></>} aside="self-hosted">
+    <Section id="deploy" label="§07 · host it, verify it" title={<>You host it. <em>So you can read it.</em></>} aside="self-hosted">
       <div className="split">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {POINTS.map(p => (

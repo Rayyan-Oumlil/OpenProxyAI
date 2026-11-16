@@ -240,10 +240,12 @@
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 1200px) { .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+.hero-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: center; }
+.tour-split { grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr); }
 @media (max-width: 1000px) {
   .sec { padding: 48px 0; }
   .sec-head { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .grid-2, .grid-3, .grid-4, .split { grid-template-columns: minmax(0, 1fr); }
+  .grid-2, .grid-3, .grid-4, .split, .hero-split, .tour-split { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── Code blocks ── */
@@ -303,6 +305,20 @@
   .pipe-node { flex: 0 0 33%; }
   .pipe-packet { display: none; }
 }
+
+/* ── Screenshot frame ── */
+.frame { border: 1px solid var(--line-2); border-radius: 10px; overflow: hidden; background: var(--panel); box-shadow: 0 24px 60px -30px color-mix(in srgb, var(--accent) 40%, transparent); }
+.frame-bar { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--panel-2); font-size: 11px; color: var(--ink-3); }
+.frame-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line-2); display: inline-block; }
+.frame-bar span { margin-left: 10px; letter-spacing: 0.08em; }
+
+/* ── FAQ ── */
+.faq details { border-bottom: 1px solid var(--line); padding: 4px 0; }
+.faq summary { cursor: pointer; list-style: none; padding: 14px 0; color: var(--ink); font-size: 14px; font-weight: 500; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: '+'; color: var(--accent); font-size: 18px; line-height: 1; }
+.faq details[open] summary::after { content: '−'; }
+.faq p { margin: 0 0 16px; max-width: 72ch; font-family: var(--sans); font-size: 14px; line-height: 1.65; color: var(--ink-2); }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }

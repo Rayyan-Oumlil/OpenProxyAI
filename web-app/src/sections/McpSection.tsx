@@ -21,7 +21,7 @@ const CONTROLS = [
 
 export default function McpSection() {
   return (
-    <Section id="mcp" label="§03 · bound your agents" title={<>Agents get the tools you approved, <em>as you approved them.</em></>} aside="mcp gateway">
+    <Section id="mcp" label="§05 · bound your agents" title={<>Agents get the tools you approved, <em>as you approved them.</em></>} aside="mcp gateway">
       <div className="split">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <p className="lede">

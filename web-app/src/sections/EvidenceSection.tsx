@@ -20,7 +20,7 @@ const EVIDENCE: Row[] = [
 
 export default function EvidenceSection() {
   return (
-    <Section id="evidence" label="§06 · evidence" title={<>What we claim, and <em>where you can check it.</em></>} aside="no logos, no invented metrics">
+    <Section id="evidence" label="§09 · evidence" title={<>What we claim, and <em>where you can check it.</em></>} aside="no logos, no invented metrics">
       <div className="opa-card tbl-scroll">
         <table className="tbl">
           <thead>

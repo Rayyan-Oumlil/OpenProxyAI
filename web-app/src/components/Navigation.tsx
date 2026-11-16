@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { PAGE_MAX_WIDTH } from '../lib/layout';
 import { DOCS_URL, GITHUB_URL } from '../lib/links';
 import CommandPalette from './CommandPalette';
+import Logo from './Logo';
 
 const NAV_LINKS = [
   { label: 'product', href: '/product', external: false },
@@ -32,10 +33,7 @@ export default function Navigation() {
       {/* Nav bar */}
       <nav style={{ borderBottom: '1px solid var(--line)', background: 'var(--bg)' }}>
         <div style={{ maxWidth: PAGE_MAX_WIDTH, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'var(--ink)', fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em' }}>
-            <span style={{ width: 24, height: 24, borderRadius: 4, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg)', fontSize: 11, fontWeight: 700 }}>/</span>
-            OpenProxyAI
-          </Link>
+          <Link to="/" aria-label="OpenProxyAI home" style={{ textDecoration: 'none' }}><Logo /></Link>
 
           <div style={{ alignItems: 'center', gap: 28 }} className="hidden lg:flex">
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, gap: 22, fontSize: 13, display: 'flex' }}>

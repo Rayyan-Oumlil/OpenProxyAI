@@ -11,7 +11,7 @@ const CLASSES = [
 
 export default function ProofSection() {
   return (
-    <Section id="proof" label="§02 · prove it" title={<>A refusal that explains itself, and <em>a log that proves it.</em></>} aside="output from the demo stack">
+    <Section id="proof" label="§04 · prove it" title={<>A refusal that explains itself, and <em>a log that proves it.</em></>} aside="output from the demo stack">
       <div className="split">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
           <p className="lede">
