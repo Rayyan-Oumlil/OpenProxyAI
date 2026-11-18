@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
+import './design.css'
 import App from './App.tsx'
 
 const root = document.getElementById('root')!

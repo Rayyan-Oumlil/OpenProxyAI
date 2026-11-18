@@ -28,7 +28,25 @@ export function useScrollReveal(deps: readonly unknown[]): void {
       observer.observe(s);
     });
 
-    return () => observer.disconnect();
+    // A fast jump (anchor link, scrollbar drag) can skip a section without the observer ever seeing it.
+    let frame = 0;
+    const sweep = () => {
+      frame = 0;
+      sections.forEach(s => {
+        if (!s.classList.contains('in-view') && s.getBoundingClientRect().top < window.innerHeight) {
+          s.classList.add('in-view');
+          observer.unobserve(s);
+        }
+      });
+    };
+    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(sweep); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }

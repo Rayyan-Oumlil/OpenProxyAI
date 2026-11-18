@@ -22,7 +22,7 @@ export default function EvalSection() {
         ))}
       </div>
       <p className="note">
-        <a href={docsPage('/guides/adaptive-experiments')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Read about experiments →</a>
+        <a href={docsPage('/guides/adaptive-experiments')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>Read about experiments →</a>
       </p>
     </Section>
   );

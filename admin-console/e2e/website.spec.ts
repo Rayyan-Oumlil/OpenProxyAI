@@ -49,7 +49,7 @@ test("on a phone the home page shows the demo command and the console tour, not 
   const page = await (await browser.newContext({ viewport: { width: 390, height: 800 } })).newPage();
   await page.goto(SITE + "/");
   await expect(page.locator("#try")).toBeVisible();
-  await expect(page.locator("#tour").getByRole("tab", { name: "Request detail" })).toBeVisible();
+  await expect(page.locator("#console").getByRole("button", { name: "Request record" })).toBeVisible();
   await expect(page.locator("#faq")).toBeVisible();
 });
 

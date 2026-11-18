@@ -1,18 +1,11 @@
 import { useEffect } from 'react';
 import HeroSection from '../sections/HeroSection';
-import TrustStrip from '../sections/TrustStrip';
-import OutcomesSection from '../sections/OutcomesSection';
-import ProductTourSection from '../sections/ProductTourSection';
-import FeatureGrid from '../sections/FeatureGrid';
-import SensitiveDataSection from '../sections/SensitiveDataSection';
-import AgentsSection from '../sections/AgentsSection';
-import PipelineSection from '../sections/PipelineSection';
-import IndustriesSection from '../sections/IndustriesSection';
-import DeploySection from '../sections/DeploySection';
-import EvidenceSection from '../sections/EvidenceSection';
-import CompareTeaser from '../sections/CompareTeaser';
-import DocsBandSection from '../sections/DocsBandSection';
+import MarqueeSection from '../sections/MarqueeSection';
+import ControlsStory from '../sections/ControlsStory';
+import HowItWorksSection from '../sections/HowItWorksSection';
+import ConsoleSection from '../sections/ConsoleSection';
 import QuickStartSection from '../sections/QuickStartSection';
+import EvidenceSection from '../sections/EvidenceSection';
 import FaqSection from '../sections/FaqSection';
 import FinalCtaSection from '../sections/FinalCtaSection';
 
@@ -22,18 +15,11 @@ export default function HomePage() {
   return (
     <>
       <HeroSection />
-      <TrustStrip />
-      <OutcomesSection />
-      <SensitiveDataSection />
-      <AgentsSection />
-      <ProductTourSection />
-      <PipelineSection />
-      <FeatureGrid />
-      <IndustriesSection />
-      <DeploySection />
+      <MarqueeSection />
+      <ControlsStory />
+      <HowItWorksSection />
+      <ConsoleSection />
       <EvidenceSection />
-      <CompareTeaser />
-      <DocsBandSection />
       <QuickStartSection />
       <FaqSection />
       <FinalCtaSection />

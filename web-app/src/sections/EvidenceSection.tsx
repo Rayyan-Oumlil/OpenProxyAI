@@ -21,7 +21,7 @@ const EVIDENCE: Row[] = [
 export default function EvidenceSection() {
   return (
     <Section id="evidence" label="Evidence" title={<>What we claim, and <em>where you can check it.</em></>} aside="no invented numbers">
-      <div className="opa-card tbl-scroll">
+      <div className="tbl-scroll">
         <table className="tbl">
           <thead>
             <tr><th scope="col">Claim</th><th scope="col">Proof</th></tr>

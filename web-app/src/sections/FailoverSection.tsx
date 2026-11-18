@@ -13,7 +13,7 @@ export default function FailoverSection() {
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {STEPS.map((s, i) => (
           <div key={s.t} style={{ display: 'grid', gridTemplateColumns: '32px minmax(0,1fr)', gap: 14, padding: '12px 0', borderBottom: i < STEPS.length - 1 ? '1px solid var(--line)' : 'none' }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)' }}>{String(i + 1).padStart(2, '0')}</span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink)' }}>{String(i + 1).padStart(2, '0')}</span>
             <div>
               <div style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 500, marginBottom: 2 }}>{s.t}</div>
               <div style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 14, lineHeight: 1.6 }}>{s.d}</div>

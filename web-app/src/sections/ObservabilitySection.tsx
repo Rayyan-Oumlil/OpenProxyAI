@@ -19,7 +19,7 @@ export default function ObservabilitySection() {
         ))}
       </div>
       <p className="note">
-        <a href={docsPage('/guides/telemetry-and-siem')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Monitoring and security export guide →</a>
+        <a href={docsPage('/guides/telemetry-and-siem')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>Monitoring and security export guide →</a>
       </p>
     </Section>
   );

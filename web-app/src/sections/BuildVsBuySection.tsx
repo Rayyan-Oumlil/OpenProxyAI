@@ -13,21 +13,21 @@ const ROWS = [
 export default function BuildVsBuySection() {
   return (
     <Section id="build-vs-buy" label="Build or adopt" title={<>What this replaces <em>on your roadmap.</em></>} aside="no invented timelines">
-      <div className="opa-card tbl-scroll">
+      <div className="tbl-scroll">
         <table className="tbl">
           <thead>
             <tr><th scope="col">Capability</th><th scope="col">If you build it</th><th scope="col">With OpenProxyAI</th></tr>
           </thead>
           <tbody>
             {ROWS.map(r => (
-              <tr key={r.item}><td>{r.item}</td><td>{r.build}</td><td style={{ color: 'var(--accent)' }}>{r.have}</td></tr>
+              <tr key={r.item}><td>{r.item}</td><td>{r.build}</td><td style={{ color: 'var(--ink)' }}>{r.have}</td></tr>
             ))}
           </tbody>
         </table>
       </div>
       <p className="note">
         We give no week counts because we cannot source them. For a longer treatment, read{' '}
-        <a href={docsPage('/blog/build-vs-buy-llm-gateway')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Build vs. buy an LLM gateway →</a>
+        <a href={docsPage('/blog/build-vs-buy-llm-gateway')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>Build vs. buy an LLM gateway →</a>
       </p>
     </Section>
   );

@@ -13,7 +13,7 @@ export default function CachingSection() {
         {TIERS.map(t => (
           <div key={t.n} className="opa-card" style={{ padding: 22 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
-              <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--accent)' }}>{t.n}</span>
+              <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--ink)' }}>{t.n}</span>
               <span style={{ color: 'var(--ink)', fontSize: 16, fontWeight: 600 }}>{t.name}</span>
             </div>
             <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>{t.desc}</p>

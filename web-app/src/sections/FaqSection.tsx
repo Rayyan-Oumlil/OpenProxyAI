@@ -31,7 +31,7 @@ export default function FaqSection() {
       </div>
       <p className="note">
         More answers in the{' '}
-        <a href={docsPage('/resources/faq')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>documentation FAQ →</a>
+        <a href={docsPage('/resources/faq')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>documentation FAQ →</a>
       </p>
     </Section>
   );

@@ -15,7 +15,7 @@ export default function RegulationSection() {
           <div key={t.title} className="opa-card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 500 }}>{t.title}</div>
             <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', flex: 1 }}>{t.text}</p>
-            <a href={t.href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: 12.5, textDecoration: 'none' }}>{t.label} →</a>
+            <a href={t.href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)', fontSize: 12.5, textDecoration: 'none' }}>{t.label} →</a>
           </div>
         ))}
       </div>

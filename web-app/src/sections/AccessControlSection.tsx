@@ -13,7 +13,7 @@ export default function AccessControlSection() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 900 }}>
         {CONTROLS.map(c => (
           <div key={c.title} className="layer-row opa-card" style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr)', gap: 20, padding: '18px 22px', alignItems: 'center' }}>
-            <span style={{ color: 'var(--accent)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{c.layer}</span>
+            <span style={{ color: 'var(--ink)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{c.layer}</span>
             <div>
               <div style={{ color: 'var(--ink)', fontSize: 15.5, fontWeight: 600, marginBottom: 4 }}>{c.title}</div>
               <div style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 14.5, lineHeight: 1.6 }}>{c.desc}</div>

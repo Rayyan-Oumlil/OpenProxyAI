@@ -9,17 +9,21 @@ interface SectionProps {
   children: ReactNode;
 }
 
-/** The one section shell: spacing, numbered label, title and an optional right-hand note. */
+/** The one section shell: a thin-lined rail, a mono eyebrow, a large title and an optional lede on the right. */
 export default function Section({ id, label, title, aside, children }: SectionProps) {
   return (
     <section id={id} className="sec" aria-labelledby={`${id}-title`} data-section={id}>
       <div className="sec-wrap">
-        <div className="sec-head">
-          <span className="sec-label">{label}</span>
-          <h2 id={`${id}-title`} className="sec-title">{title}</h2>
-          {aside ? <span className="sec-aside">{aside}</span> : <span />}
+        <div className="rail sec-rail">
+          <div className="sec-head">
+            <div style={{ flex: '1.4 1 420px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <span className="sec-label">{label}</span>
+              <h2 id={`${id}-title`} className="sec-title">{title}</h2>
+            </div>
+            {aside && <p className="sec-aside">{aside}</p>}
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </section>
   );

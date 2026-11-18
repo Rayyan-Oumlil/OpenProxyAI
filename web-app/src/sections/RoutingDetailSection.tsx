@@ -13,14 +13,14 @@ export default function RoutingDetailSection() {
       <div className="grid-3">
         {STEPS.map(s => (
           <div key={s.title} className="opa-card" style={{ padding: 22 }}>
-            <div style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{s.title}</div>
+            <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{s.title}</div>
             <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 14.5, lineHeight: 1.6, color: 'var(--ink-2)' }}>{s.text}</p>
           </div>
         ))}
       </div>
       <p className="note">
         A request that no approved model can handle is refused with a reason. It is never rerouted to a model you did not clear.{' '}
-        <a href={docsPage('/core-concepts/provider-routing')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Read more →</a>
+        <a href={docsPage('/core-concepts/provider-routing')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>Read more →</a>
       </p>
     </Section>
   );

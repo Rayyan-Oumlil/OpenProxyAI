@@ -62,7 +62,7 @@ export default function BudgetsPoliciesSection() {
           <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
             {POLICIES.map((p, i) => (
               <div key={p.name} className="policy-row" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '4px 10px', padding: 8, border: '1px solid var(--line)', borderRadius: 6, background: 'var(--panel-2)' }}>
-                <span style={{ color: 'var(--accent)' }}>{p.name}</span>
+                <span style={{ color: 'var(--ink)' }}>{p.name}</span>
                 <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>check {i + 1}</span>
                 <span style={{ color: 'var(--ink-3)', flexBasis: '100%' }}>{p.desc}</span>
               </div>

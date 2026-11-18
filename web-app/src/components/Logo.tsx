@@ -23,9 +23,9 @@ export function LogoMark({ size = 26 }: LogoMarkProps) {
 
 export default function Logo() {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontWeight: 600, fontSize: 15, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-      <LogoMark />
-      <span>OpenProxy<span style={{ color: 'var(--accent)' }}>AI</span></span>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontWeight: 600, fontSize: 19, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+      <LogoMark size={28} />
+      <span>OpenProxy<span style={{ color: 'var(--soft)' }}>AI</span></span>
     </span>
   );
 }

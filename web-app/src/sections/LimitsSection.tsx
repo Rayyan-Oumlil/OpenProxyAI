@@ -20,7 +20,7 @@ export default function LimitsSection() {
         ))}
       </div>
       <p className="note">
-        <a href={docsPage('/security/trust-center')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>Read the trust center →</a>
+        <a href={docsPage('/security/trust-center')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>Read the trust center →</a>
       </p>
     </Section>
   );

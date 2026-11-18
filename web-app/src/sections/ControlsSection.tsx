@@ -23,15 +23,15 @@ const CONTROLS: Control[] = [
 export default function ControlsSection() {
   return (
     <Section id="controls" label="Controls" title={<>What each control does, <em>and where to verify it.</em></>} aside="read the docs, read the code">
-      <div className="opa-card tbl-scroll">
+      <div className="tbl-scroll">
         <table className="tbl">
           <thead>
             <tr><th scope="col">Control</th><th scope="col">What it does</th><th scope="col">Proof</th></tr>
           </thead>
           <tbody>
-            {CONTROLS.map(c => (
+            {CONTROLS.map((c, i) => (
               <tr key={c.control}>
-                <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{c.control}</td>
+                <td><span className="mono" style={{ display: 'block', fontSize: 12, fontWeight: 400, color: 'var(--ink-3)', marginBottom: 4 }}>C-{String(i + 1).padStart(2, '0')}</span>{c.control}</td>
                 <td>{c.how}</td>
                 <td style={{ whiteSpace: 'nowrap' }}><a href={c.href} target="_blank" rel="noopener noreferrer">{c.proof} →</a></td>
               </tr>
