@@ -83,7 +83,25 @@ async def test_send_trace_calls_langfuse_when_configured():
     assert call_kwargs["as_type"] == "generation"
     assert call_kwargs["model"] == "openai/gpt-4o"
     mock_observation.end.assert_called_once()
+    # flush() is a blocking network call: never on the request path (it stalled the event loop ~170 ms per request).
+    mock_client.flush.assert_not_called()
+
+
+def test_shutdown_flushes_once_and_is_safe_when_disabled():
+    from app.services import langfuse_service
+
+    _reset_module()
+    langfuse_service.shutdown()  # not configured: no client, must not raise
+
+    mock_client = MagicMock()
+    langfuse_service._client = mock_client
+    langfuse_service._initialized = True
+    langfuse_service.shutdown()
     mock_client.flush.assert_called_once()
+
+    mock_client.flush.side_effect = RuntimeError("network down")
+    langfuse_service.shutdown()  # swallowed
+    _reset_module()
 
 
 @pytest.mark.asyncio

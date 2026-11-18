@@ -1,5 +1,6 @@
 """FastAPI app factory with middleware, lifespan, and all routers."""
 
+import asyncio
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
@@ -403,6 +404,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler = getattr(app.state, "scheduler", None)
     if scheduler is not None:
         scheduler.shutdown(wait=False)
+    from app.services import langfuse_service
+    await asyncio.to_thread(langfuse_service.shutdown)
     await telemetry.stop()
     await app.state.redis.aclose()
     await engine.dispose()

@@ -3,7 +3,7 @@
 Langfuse v4 API:
   client.start_observation(name=..., as_type='generation', trace_context={trace_id: ...}, ...)
   observation.end()
-  client.flush()
+  (the SDK exports in the background; shutdown() flushes once)
 """
 
 from __future__ import annotations
@@ -96,9 +96,20 @@ async def send_trace(
             },
             level="ERROR" if error_message else "DEFAULT",
         )
+        # No flush() here: it is a blocking network call that would stall the event loop on every
+        # request. The SDK exports in a background thread; shutdown() drains what is left.
         observation.end()
-        client.flush()
     except Exception:
         logger.exception(
             "Failed to send trace to Langfuse (request_id=%s)", request_id
         )
+
+
+def shutdown() -> None:
+    """Flush queued traces once when the app stops. Blocking: call it off the event loop."""
+    if _client is None:
+        return
+    try:
+        _client.flush()
+    except Exception:
+        logger.exception("Failed to flush Langfuse traces at shutdown")
