@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react';
 import FlowDiagram from '../components/FlowDiagram';
 import PolicySimulator from '../components/PolicySimulator';
-import { CALENDLY_URL } from '../lib/links';
+import { CALENDLY_URL, GITHUB_URL } from '../lib/links';
 
 const WORDS: Array<[string, boolean]> = [
   ['Sensitive', false], ['data', false], ['and', false], ['AI', false], ['agents,', false],
@@ -39,7 +39,7 @@ export default function HeroSection() {
               <a className="btn-p" href={CALENDLY_URL} target="_blank" rel="noopener noreferrer" data-track="cta_book_demo" style={{ fontSize: 16, padding: '0 24px', minHeight: 48 }}>Book a demo</a>
               <a className="btn-s" href="#controls" data-track="cta_tour" style={{ fontSize: 16, padding: '0 24px', minHeight: 48 }}>See how it works</a>
             </div>
-            <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-3)' }}>Apache-2.0 open source. The gateway runs in your own cloud or data center.</p>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--ink-3)' }}>Apache-2.0 open source, so you can read every line on <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" data-track="cta_github" style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>GitHub</a>. The gateway runs in your own cloud or data center.</p>
           </div>
         </div>
 
