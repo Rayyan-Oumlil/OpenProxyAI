@@ -1,5 +1,7 @@
 # OpenProxyAI
 
+[![CI](https://github.com/Rayyan-Oumlil/OpenProxyAI/actions/workflows/ci.yml/badge.svg)](https://github.com/Rayyan-Oumlil/OpenProxyAI/actions/workflows/ci.yml)
+
 An LLM gateway for organizations that must prove what their AI did. It sits between your applications and model providers (OpenAI, Anthropic, Azure, Mistral and 100+ more through LiteLLM) and applies policy, data-class routing, budgets and an immutable audit trail to every request, including MCP tool calls.
 
 It is OpenAI-compatible: change the `base_url`, keep your SDK.
