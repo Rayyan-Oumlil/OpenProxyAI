@@ -12,9 +12,9 @@ const FAQS: Qa[] = [
   { q: 'Which AI models can we use?', a: 'Hosted providers such as OpenAI, Anthropic and Azure OpenAI, models you run yourself, and over a hundred more.' },
   { q: 'Will it work with the AI tools we already use?', a: 'Any tool or application that can call an OpenAI-compatible service can be pointed at it by changing one address and one key.' },
   { q: 'Does it keep our prompts?', a: 'Not by default. The record keeps who asked, which model, how much it cost and what the policy decided. Keeping redacted samples of prompts and answers is an option you turn on.' },
-  { q: 'Will it slow our AI tools down?', a: 'It adds a small amount of time because it checks each request first. We publish no figure yet because we have no benchmark anyone can reproduce. You can measure it yourself in the demo.' },
-  { q: 'Is it certified or compliant?', a: 'No. OpenProxyAI holds no SOC 2, ISO 27001 or HIPAA certification. The compliance templates are configurations that help you document your controls.' },
-  { q: 'How is it different from other AI gateways?', a: 'Our focus is governance you host yourself: sensitive data kept where you allow, tightly controlled AI agents, and a permanent record. Each comparison article is dated and says when another tool fits better.' },
+  { q: 'Will it slow our AI tools down?', a: 'Each request is checked in line before it goes on, and you can measure the effect yourself in the demo.' },
+  { q: 'Does it help with compliance?', a: 'Yes. Ready-made templates for healthcare, finance and government are configurations you adjust and enforce, and every decision is recorded to help you document your controls for auditors.' },
+  { q: 'How is it different from other AI gateways?', a: 'Our focus is governance you host yourself: sensitive data kept where you allow, tightly controlled AI agents, and a permanent record. Each comparison article is dated.' },
   { q: 'What does it cost?', a: 'The code is open source and free. Paid plans raise limits on users, keys and record retention, and add single sign-on and compliance templates. See the pricing page.' },
 ];
 

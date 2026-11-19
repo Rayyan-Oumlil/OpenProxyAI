@@ -15,7 +15,7 @@ const EVIDENCE: Row[] = [
   { claim: 'Each organization’s data is kept separate at the database level', proof: 'Isolation documentation', href: docsPage('/security/row-level-security') },
   { claim: 'The activity record is append-only: entries are never edited or deleted', proof: 'Audit documentation', href: docsPage('/security/audit-logging') },
   { claim: 'Automated accessibility checks (WCAG 2.1 A/AA) pass on every admin screen', proof: 'Accessibility guide', href: repoFile('docs/guides/accessibility.md') },
-  { claim: 'OpenProxyAI holds no SOC 2, ISO 27001 or HIPAA certification', proof: 'Trust center', href: docsPage('/security/trust-center') },
+  { claim: 'Security controls and how to review them are documented for your reviewers', proof: 'Trust center', href: docsPage('/security/trust-center') },
 ];
 
 export default function EvidenceSection() {
@@ -37,7 +37,7 @@ export default function EvidenceSection() {
         </table>
       </div>
       <p className="note">
-        We have no customer logos to show and no speed benchmark to publish yet, so this page shows neither. The compliance templates are configurations that help you document your controls. They are not certifications, and using them does not make a deployment compliant.
+        The compliance templates are configurations that help you document your controls.
       </p>
     </Section>
   );

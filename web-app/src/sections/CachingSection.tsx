@@ -8,7 +8,7 @@ const TIERS = [
 
 export default function CachingSection() {
   return (
-    <Section id="caching" label="Cost savings" title={<>Do not pay twice <em>for the same answer.</em></>} aside="optional, off by default">
+    <Section id="caching" label="Cost savings" title={<>Do not pay twice <em>for the same answer.</em></>} aside="optional">
       <div className="grid-3">
         {TIERS.map(t => (
           <div key={t.n} className="opa-card" style={{ padding: 22 }}>
@@ -20,7 +20,7 @@ export default function CachingSection() {
           </div>
         ))}
       </div>
-      <p className="note">Reuse is switched off until you enable it. Your policy is always applied first, so a refused request is never answered from memory. We list no savings figure because it depends entirely on your traffic.</p>
+      <p className="note">You turn reuse on when you are ready. Your policy is always applied first, so a refused request is never answered from memory.</p>
     </Section>
   );
 }

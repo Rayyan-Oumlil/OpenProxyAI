@@ -4,7 +4,6 @@ import PageCta from '../components/PageCta';
 import Section from '../components/Section';
 import { KeyValue, Shot } from '../components/blocks';
 import ControlsSection from '../sections/ControlsSection';
-import LimitsSection from '../sections/LimitsSection';
 import ComplianceSection from '../sections/ComplianceSection';
 import AuditTrailSection from '../sections/AuditTrailSection';
 import AccessControlSection from '../sections/AccessControlSection';
@@ -15,7 +14,7 @@ const QUESTIONS = [
   { q: 'Where does OpenProxyAI run?', a: 'In your own environment. You install and operate it alongside your existing systems.' },
   { q: 'Do our requests pass through your company?', a: 'No. Requests go from your environment to the AI models you approved. There is no hosted service.' },
   { q: 'What is stored in a record?', a: 'By default the record keeps metadata: who asked, which model, the cost and the decision. It does not keep what people typed. Keeping redacted samples of prompts and answers is an option you turn on yourself.' },
-  { q: 'Do you hold security certifications?', a: 'No. OpenProxyAI holds no SOC 2, ISO 27001 or HIPAA certification, and the compliance templates are starting points, not certifications.' },
+  { q: 'How can we verify what you claim?', a: 'Every control links to a document, an automated test or the code itself, so your reviewers can confirm it without taking our word. The compliance templates are configurations that help you document your controls.' },
 ];
 
 export default function SecurityPage() {
@@ -26,7 +25,7 @@ export default function SecurityPage() {
       <PageHeader
         eyebrow="Security"
         title={<>Built to be checked, <span style={{ color: 'var(--soft)' }}>not taken on trust.</span></>}
-        description="This page is for the people who review OpenProxyAI before it is approved. Each control is paired with the place where you can confirm it yourself. We say what is and is not certified, and we link every claim to a document, a test or the code."
+        description="This page is for the people who review OpenProxyAI before it is approved. Each control is paired with the place where you can confirm it yourself. We link every claim to a document, a test or the code."
         secondary={{ label: 'Go to the controls', href: '#controls' }}
         visual={
           <KeyValue
@@ -34,7 +33,7 @@ export default function SecurityPage() {
               { k: 'Where it runs', v: 'Inside your own environment, under your own security controls.' },
               { k: 'What leaves your environment', v: 'Only the requests your rules allow, to the AI models you approved.' },
               { k: 'What is recorded', v: 'Every decision, with the rule that applied and what the person was told.' },
-              { k: 'Independent certifications', v: 'None. No SOC 2, ISO 27001 or HIPAA certification.' },
+              { k: 'How to verify', v: 'Every control links to a document, a test or the code.' },
             ]}
           />
         }
@@ -58,7 +57,6 @@ export default function SecurityPage() {
           </div>
         </div>
       </Section>
-      <LimitsSection />
       <ComplianceSection />
       <AuditTrailSection />
       <AccessControlSection />

@@ -35,7 +35,7 @@ export default function PricingSection() {
         </p>
       </div>
       <p className="note">
-        OpenProxyAI runs in your own environment: there is no hosted service and no online checkout today. Paid plans are arranged directly. AI usage is billed by your model providers, never by OpenProxyAI.
+        OpenProxyAI runs in your own environment, and paid plans are arranged directly with us. AI usage is billed by your model providers, never by OpenProxyAI.
       </p>
     </Section>
   );

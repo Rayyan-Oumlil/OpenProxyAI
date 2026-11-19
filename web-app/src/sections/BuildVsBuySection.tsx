@@ -12,7 +12,7 @@ const ROWS = [
 
 export default function BuildVsBuySection() {
   return (
-    <Section id="build-vs-buy" label="Build or adopt" title={<>What this replaces <em>on your roadmap.</em></>} aside="no invented timelines">
+    <Section id="build-vs-buy" label="Build or adopt" title={<>What this replaces <em>on your roadmap.</em></>}>
       <div className="tbl-scroll">
         <table className="tbl">
           <thead>
@@ -26,7 +26,7 @@ export default function BuildVsBuySection() {
         </table>
       </div>
       <p className="note">
-        We give no week counts because we cannot source them. For a longer treatment, read{' '}
+        For a longer treatment, read{' '}
         <a href={docsPage('/blog/build-vs-buy-llm-gateway')} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink)' }}>Build vs. buy an LLM gateway →</a>
       </p>
     </Section>

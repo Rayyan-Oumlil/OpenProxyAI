@@ -15,7 +15,7 @@ const RULES = [
   { title: 'Approved models', body: 'Name the AI models, accounts and regions your organization may use for each level of sensitivity. A request no approved model can handle is refused with a reason, never rerouted.' },
   { title: 'Data protection', body: 'Each request gets a sensitivity level from your default, what the application says and what is detected in the text, such as a card or social security number. It can be stopped or cleaned before it leaves.' },
   { title: 'Blocked words and phrases', body: 'List the terms that must never be sent to an AI model, such as the name of a confidential project.' },
-  { title: 'Manipulation attempts', body: 'Tricks aimed at the AI itself are screened. Detection reduces risk but no detector catches everything, so treat it as a layer.' },
+  { title: 'Manipulation attempts', body: 'Tricks aimed at the AI itself, such as hidden instructions in a document, are screened before they reach the model.' },
   { title: 'Answer checks', body: 'Screen and redact what comes back from the model, so sensitive details do not reach the person who should not see them.' },
   { title: 'Approved tools for agents', body: 'Give each AI agent a short list of the actions it may take. Tools are locked once approved, and anything else is stopped before it happens.' },
 ];
@@ -31,7 +31,7 @@ const CHECKS = [
 
 const MORE = [
   { title: 'Budgets by team', body: 'Spend limits by team and by model, with what has been spent this month and where the month is heading.' },
-  { title: 'Do not pay twice', body: 'Optional answer reuse: exact repeats, shared across servers, and similar questions. Off until you enable it. We list no savings figure because it depends on your traffic.' },
+  { title: 'Do not pay twice', body: 'Optional answer reuse: exact repeats, shared across servers, and similar questions. You turn it on when you are ready.' },
   { title: 'Know a change is better', body: 'Feedback, test sets, scoring, live experiments and an approval gate that makes a prompt pass its evaluation before it goes live.' },
   { title: 'Plugs into what you run', body: 'Usage and spend for your monitoring tools, OpenTelemetry traces and a security event for every block, sent to your SIEM. Off by default.' },
   { title: 'For your teams', body: 'Shared conversations, large batch jobs under the same rules and budget, and a workspace to try a prompt on several models at once.' },

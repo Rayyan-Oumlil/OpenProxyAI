@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import PageCta from '../components/PageCta';
 import Section from '../components/Section';
-import { CardGrid } from '../components/blocks';
 import { docsPage } from '../lib/links';
 
 interface Link { label: string; slug: string }
@@ -23,12 +22,6 @@ const ROWS: Array<{ q: string; cells: [string, string, string, string] }> = [
   { q: 'Is there a single record for auditors?', cells: ['Nothing to record', 'Spread across vendors', 'If you build and maintain it', 'One record, exportable'] },
   { q: 'Does it stay in your environment?', cells: ['Not applicable', 'Held by each vendor', 'Yes', 'Yes'] },
   { q: 'Who keeps it up to date?', cells: ['Nobody', 'Each vendor, separately', 'Your own engineers', 'Shared with the open-source project'] },
-];
-
-const NOT_FIT = [
-  { title: 'You have not started with AI', body: 'If nobody in your organization uses AI yet, there is nothing to control. Come back when the first team asks.' },
-  { title: 'You use one AI product and no sensitive data', body: 'That vendor’s own settings may be all you need.' },
-  { title: 'You only need to reach many providers', body: 'If one library that talks to many providers is all you need, a lighter tool may serve you better, and our articles say so.' },
 ];
 
 const DECISIONS: { need: string; link: Link }[] = [
@@ -93,9 +86,6 @@ export default function ComparePage() {
             </tbody>
           </table>
         </div>
-      </Section>
-      <Section id="fit" label="An honest note" title="When OpenProxyAI is not the right choice." aside="We would rather you chose well than chose us.">
-        <CardGrid items={NOT_FIT} min={260} />
       </Section>
       <Section id="decisions" label="By decision" title="Start from what you need to decide." aside="Articles. Each one is dated and carries its correction notes.">
         <div className="tbl-scroll">

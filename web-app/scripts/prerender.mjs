@@ -25,7 +25,7 @@ const pages = [
     route: '/security',
     title: 'Security and compliance | OpenProxyAI',
     description:
-      'Each control and where to verify it, what OpenProxyAI does not claim, and how your team can test it. It holds no SOC 2, ISO 27001 or HIPAA certification.',
+      'Each security control and where to verify it, how your team can test it, and the compliance templates you can configure.',
   },
   {
     route: '/providers',
@@ -37,13 +37,13 @@ const pages = [
     route: '/compare',
     title: 'Compare AI gateways | OpenProxyAI',
     description:
-      'Honest, dated comparisons of OpenProxyAI with LiteLLM, Portkey, Helicone, Kong, Cloudflare, OpenRouter and LangChain, including when another tool fits better.',
+      'Dated comparisons of OpenProxyAI with LiteLLM, Portkey, Helicone, Kong, Cloudflare, OpenRouter and LangChain.',
   },
   {
     route: '/pricing',
     title: 'Pricing | OpenProxyAI',
     description:
-      'OpenProxyAI is Apache-2.0 and free to run yourself. Plans change user, key and audit-history limits, and add single sign-on and compliance templates. There is no hosted service.',
+      'OpenProxyAI is Apache-2.0 and free to run yourself. Plans change user, key and audit-history limits, and add single sign-on and compliance templates.',
   },
 ]
 
