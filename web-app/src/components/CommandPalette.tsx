@@ -11,6 +11,9 @@ interface PaletteItem {
 const ITEMS: PaletteItem[] = [
   { label: 'home', hint: '/', action: nav => nav('/') },
   { label: 'product', hint: '/product', action: nav => nav('/product') },
+  { label: 'web browser control', hint: '/product/web-browser-control', action: nav => nav('/product/web-browser-control') },
+  { label: 'central ai proxy', hint: '/product/central-ai-proxy', action: nav => nav('/product/central-ai-proxy') },
+  { label: 'central dlp protection', hint: '/product/central-dlp-protection', action: nav => nav('/product/central-dlp-protection') },
   { label: 'security', hint: '/security', action: nav => nav('/security') },
   { label: 'providers', hint: '/providers', action: nav => nav('/providers') },
   { label: 'compare', hint: '/compare', action: nav => nav('/compare') },

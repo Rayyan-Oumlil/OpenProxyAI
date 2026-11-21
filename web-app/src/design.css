@@ -7,6 +7,19 @@
 .btn-s:hover { border-color: var(--ink); color: var(--ink); }
 .navlink { color: var(--ink-2); text-decoration: none; transition: color .2s; }
 .navlink:hover { color: var(--ink); }
+/* Product menu: opens on hover, on keyboard focus, or with the chevron button. */
+.nav-dd { position: relative; display: flex; align-items: center; }
+.nav-dd-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; min-height: 44px; padding: 0; background: none; border: 0; color: var(--ink-2); cursor: pointer; transition: color .2s; }
+.nav-dd-btn:hover, .nav-dd.open .nav-dd-btn { color: var(--ink); }
+.nav-dd-btn svg { transition: transform .2s; }
+.nav-dd.open .nav-dd-btn svg { transform: rotate(180deg); }
+.nav-dd-pad { position: absolute; top: 100%; left: -16px; padding-top: 12px; display: none; z-index: 40; }
+.nav-dd.open .nav-dd-pad { display: block; }
+.nav-dd-menu { list-style: none; margin: 0; padding: 8px; width: 340px; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 30px 60px -30px rgba(28,27,24,0.28); }
+.nav-dd-item { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 10px; text-decoration: none; color: var(--ink); transition: background .15s; }
+.nav-dd-item:hover, .nav-dd-item:focus-visible { background: var(--bg-2); }
+.nav-dd-name { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+.nav-dd-desc { font-size: 13.5px; line-height: 1.45; color: var(--ink-3); }
 .eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin: 0; }
 .mono { font-family: var(--mono); }
 

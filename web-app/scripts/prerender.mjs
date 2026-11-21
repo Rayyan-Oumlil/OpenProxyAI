@@ -22,6 +22,24 @@ const pages = [
       'How OpenProxyAI works: protection by data sensitivity, budgets and policies, control of AI agents, quality testing, cost savings and reporting that plugs into your security tools.',
   },
   {
+    route: '/product/web-browser-control',
+    title: 'Web Browser Control | OpenProxyAI',
+    description:
+      'A browser extension for employee desktops that monitors prompts and AI answers in real time, reports personal data sent to unauthorized generative AI, and redacts and reports sensitive uploads.',
+  },
+  {
+    route: '/product/central-ai-proxy',
+    title: 'Central AI Proxy | OpenProxyAI',
+    description:
+      'The gateway everyone in the company goes through to use generative AI. It reaches OpenAI, Claude, Perplexity and others, and connects safely to local MCP servers and local models.',
+  },
+  {
+    route: '/product/central-dlp-protection',
+    title: 'Central DLP Protection | OpenProxyAI',
+    description:
+      'Ingest your documents, scanned ones included, into one vector database, then search every outgoing prompt against it and report a positive match as possible sensitive data.',
+  },
+  {
     route: '/security',
     title: 'Security and compliance | OpenProxyAI',
     description:

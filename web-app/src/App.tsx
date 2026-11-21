@@ -9,6 +9,9 @@ import SecurityPage from './pages/SecurityPage';
 import ProvidersPage from './pages/ProvidersPage';
 import ComparePage from './pages/ComparePage';
 import PricingPage from './pages/PricingPage';
+import WebBrowserControlPage from './pages/WebBrowserControlPage';
+import CentralAiProxyPage from './pages/CentralAiProxyPage';
+import CentralDlpProtectionPage from './pages/CentralDlpProtectionPage';
 import { useScrollReveal } from './lib/useScrollReveal';
 import { useSiteMotion } from './lib/useSiteMotion';
 import { useSiteMeasurement } from './lib/useSiteMeasurement';
@@ -36,6 +39,9 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/product" element={<ProductPage />} />
+            <Route path="/product/web-browser-control" element={<WebBrowserControlPage />} />
+            <Route path="/product/central-ai-proxy" element={<CentralAiProxyPage />} />
+            <Route path="/product/central-dlp-protection" element={<CentralDlpProtectionPage />} />
             <Route path="/security" element={<SecurityPage />} />
             <Route path="/providers" element={<ProvidersPage />} />
             <Route path="/compare" element={<ComparePage />} />

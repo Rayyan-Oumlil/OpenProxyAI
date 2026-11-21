@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { DOCS_URL, GITHUB_URL } from '../lib/links';
 import Logo from '../components/Logo';
+import { SUB_PRODUCTS } from '../lib/subProducts';
 
 export default function FooterSection() {
   const year = new Date().getFullYear();
@@ -10,7 +11,7 @@ export default function FooterSection() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px 40px', alignItems: 'center', justifyContent: 'space-between' }}>
           <Logo />
           <nav aria-label="Footer" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 28px' }}>
-            {[['Product', '/product'], ['Security', '/security'], ['Integrations', '/providers'], ['Compare', '/compare'], ['Pricing', '/pricing']].map(([l, h]) => (
+            {[['Product', '/product'], ...SUB_PRODUCTS.map(p => [p.name, p.href]), ['Security', '/security'], ['Integrations', '/providers'], ['Compare', '/compare'], ['Pricing', '/pricing']].map(([l, h]) => (
               <Link key={l} className="navlink" to={h} style={{ fontSize: 15, minHeight: 44, display: 'flex', alignItems: 'center' }}>{l}</Link>
             ))}
             <a className="navlink" href={DOCS_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, minHeight: 44, display: 'flex', alignItems: 'center' }}>Docs</a>

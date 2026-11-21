@@ -3,6 +3,7 @@ import PageHeader from '../components/PageHeader';
 import PageCta from '../components/PageCta';
 import Section from '../components/Section';
 import { CardGrid, Shot, Steps } from '../components/blocks';
+import SubProducts from '../components/SubProducts';
 import ConsoleSection from '../sections/ConsoleSection';
 
 const STAGES = [
@@ -50,6 +51,7 @@ export default function ProductPage() {
         secondary={{ label: 'See the rules', href: '#rules' }}
         visual={<Shot src="/images/console/dashboard.webp" alt="OpenProxyAI console dashboard: requests, cost, how many requests were stopped or flagged by policy, and the budget for the month." />}
       />
+      <SubProducts />
       <Section id="rollout" label="Start without disruption" title="Turn it on in three stages, at your own pace." aside="You do not have to block anything on day one. Watch first, then log, then enforce. A preview shows the decision for any sample request before you switch anything on.">
         <CardGrid items={STAGES} min={280} />
       </Section>
