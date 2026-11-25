@@ -4,8 +4,8 @@ import PolicySimulator from '../components/PolicySimulator';
 import { CALENDLY_URL, GITHUB_URL } from '../lib/links';
 
 const WORDS: Array<[string, boolean]> = [
-  ['Sensitive', false], ['data', false], ['and', false], ['AI', false], ['agents,', false],
-  ['under', true], ['your', true], ['control.', true],
+  ['Govern', false], ['every', false], ['AI', false], ['request', false],
+  ['before', true], ['it', true], ['leaves.', true],
 ];
 
 function setSpot(e: MouseEvent<HTMLElement>) {
